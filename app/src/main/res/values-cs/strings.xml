@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home">Domů</string>
+    <string name="apps">Aplikace</string>
+    <string name="flow">FLOW</string>
+    <string name="settings">Nastavení</string>
+    <string name="search">Hledat</string>
+    <string name="clear">Vymazat hledání</string>
+    <string name="lens_description">Vyhledat aplikace a příkazy</string>
+    <string name="arc_action">Otevřít rychlý přístup ARC</string>
+    <string name="arc_open">Rychlý přístup otevřen</string>
+    <string name="arc_empty">Aplikace přidáš do ARC podržením ve vyhledávání.</string>
+    <string name="arc_add">Přidat do ARC</string>
+    <string name="arc_remove">Odebrat z ARC</string>
+    <string name="arc_full">ARC je plný (5 aplikací)</string>
+    <string name="app_options">Možnosti aplikace</string>
+    <string name="launch_failed">Aplikaci se nepodařilo otevřít.</string>
+    <string name="no_results">Žádná odpovídající aplikace.</string>
+    <string name="hide">Skrýt aplikaci</string>
+    <string name="app_info">Informace o aplikaci</string>
+
+    <string name="flow_title">Tvoje příkazy</string>
+    <string name="flow_hint">Jeden název. Tvoje aplikace v tvém pořadí. O spuštění rozhoduješ ty.</string>
+    <string name="flow_empty">Dej časté akci krátké jméno.</string>
+    <string name="flow_create">Nový příkaz</string>
+    <string name="flow_edit">Upravit příkaz</string>
+    <string name="flow_name">Název</string>
+    <string name="flow_targets">Aplikace v pořadí (nejvýše %1$d)</string>
+    <string name="flow_find_app">Najít aplikaci</string>
+    <string name="flow_save">Uložit</string>
+    <string name="flow_delete">Smazat</string>
+    <string name="flow_run">Spustit</string>
+    <string name="flow_unavailable">Některá aplikace v tomto příkazu není dostupná.</string>
+    <string name="flow_target_missing">Nedostupná</string>
+    <string name="flow_error_empty">Zadej název.</string>
+    <string name="flow_error_control">Název obsahuje nepodporované znaky.</string>
+    <string name="flow_error_long">Název je příliš dlouhý.</string>
+    <string name="flow_error_duplicate">Příkaz s tímto názvem už existuje.</string>
+    <string name="flow_error_targets">Vyber 1–4 různé aplikace.</string>
+
+    <string name="default_home">Používat Intelia jako domovskou obrazovku</string>
+    <string name="default_home_active">Intelia je tvoje domovská obrazovka.</string>
+    <string name="appearance">Vzhled</string>
+    <string name="theme_system">Systém</string>
+    <string name="theme_dark">Tmavý</string>
+    <string name="theme_light">Světlý</string>
+    <string name="accent_mono">Neutrální</string>
+    <string name="accent_dynamic">Material You</string>
+    <string name="accent_sage">Šalvěj</string>
+    <string name="accent_slate">Břidlice</string>
+    <string name="show_clock">Zobrazit hodiny</string>
+    <string name="show_date">Zobrazit datum</string>
+    <string name="reduce_motion">Omezit animace</string>
+    <string name="reach">Dosah jednou rukou</string>
+    <string name="reach_left">Vlevo</string>
+    <string name="reach_center">Uprostřed</string>
+    <string name="reach_right">Vpravo</string>
+    <string name="hidden_apps">Skryté aplikace</string>
+    <string name="no_hidden">Žádné skryté aplikace.</string>
+    <string name="unhide">Znovu zobrazit</string>
+    <string name="local_only">Jen místní aplikace a FLOW. Bez účtů, online hledání a automatizace na pozadí.</string>
+    <string name="about_title">O aplikaci a licence</string>
+    <string name="about_text">Intelia Launcher. Copyright © 2026 přispěvatelé projektu Intelia. Licencováno pod Apache License, verze 2.0. Poskytováno bez záruk.</string>
+</resources>
