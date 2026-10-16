@@ -133,3 +133,21 @@ Phase B1 of D10. The UI family of the Crystal design is Roboto Flex, bundled unm
   a modified font, which OFL allows under a different name.
 - **Use:** width and weight axes through `FontVariation.Settings` (API 26+, equal to `minSdk`), see `ui/Crystal.kt`.
 Revert: delete the font and licence asset; `CrystalType` falls back to `FontFamily.SansSerif`.
+
+## D12 — 2026-10-16 — Intelia Veil material and Home Studio V2 (PROPOSED, awaiting owner approval)
+Phase A of the owner's "Intelia Veil & Home Studio V2" brief. Spec: `docs/DESIGN_SYSTEM.md` §5; prototype
+`docs/design/veil-prototype.html` (private artifact https://claude.ai/artifact/5oVfKwJrveYy1d9YkZN1Ss).
+- **Material:** Clear / Veil (default) / Frosted / Solid with one token set; the signature is the *origin edge*,
+  a 1 dp accent-tinted outline lit only where the surface came from. Revises D10's "no blur": blur is allowed
+  only on transient surfaces and only where it is real.
+- **Blur truth on Nothing Phone (3):** `ro.surface_flinger.supports_background_blur=0`, `mBlurEnabled=false`,
+  live wallpaper (Atmosphere). Wallpaper blur is impossible there; Frosted blurs only Intelia's own Home layer
+  (API 31+) and uses a denser Veil. Devices with cross-window blur get real window blur with a live fallback.
+- **Home layout model:** layouts with Grid / Free / Hybrid placement, anchors (cell, safe-area fractions, LENS
+  row, LENS), built-in presets as templates (Pure, Essentials, Balanced), user layouts as copies, Widget kind
+  reserved. Schema 1 → 2 migration without data loss.
+- **Home Editor** on Home itself (long-press), one inspector per element, undo/redo, atomic save on ✓.
+- **LENS touch target 84 × 100 dp** (fixes the overlap with the inner Essentials).
+- **LENS → Search** morph from the LENS ring, field riding the IME.
+Rejected: a blur imitation presented as blur; a separate full-screen editor page; storing absolute px positions.
+Open: does the Atmosphere wallpaper honour `setWallpaperZoomOut`; icon-pack support needs its own entry.

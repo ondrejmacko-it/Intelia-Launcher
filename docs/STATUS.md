@@ -2,6 +2,21 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Intelia Veil + Home Studio V2, design phase A (`claude/crystal-redesign`)
+
+Verified (no Android code changed, no build run):
+- Phone (read-only `getprop` / `dumpsys`, no input): `ro.surface_flinger.supports_background_blur=0`,
+  `mBlurEnabled=false`, battery saver off, SDK 36; wallpaper is the live
+  `com.nothing.blurwallpaper.AtmosphereWallpaperService`. Cross-window blur is not available on this phone.
+- One phone screenshot (FLOW list, the owner was using the phone): still Ink style (serif, terracotta, mono caps).
+- Prototype `docs/design/veil-prototype.html` in the built-in browser: no console errors; scenes clock
+  inspector, icon move demo (grid dots, target ring, drop with label), LENS → Search (field above the keyboard,
+  FLOW `pocty` card), ARC on the light wallpaper. Published privately as
+  https://claude.ai/artifact/5oVfKwJrveYy1d9YkZN1Ss.
+
+Proposed, not approved: D12 (Veil material, origin edge, blur policy, Home layout model, Home Editor,
+LENS target 84 × 100 dp). Not tested: whether the Atmosphere wallpaper honours `setWallpaperZoomOut`.
+
 ## 2026-10-16 — Redesign phase B2, Home + LENS (`claude/crystal-redesign`)
 
 Verified:

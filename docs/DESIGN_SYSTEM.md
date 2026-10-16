@@ -208,3 +208,151 @@ own touches; the overlay is a 68 × 48 dp area only).
   animation on every return to Home, which the brief rules out). Migration in `sanitized()` with tests.
 - Not covered by the prototype: drawer redesign, Vzhled/Home/FLOW/System detail screens, light theme of
   the material, landscape.
+
+---
+
+# 5. Intelia Veil and Home Studio V2 (phase A proposal, 2026-10-16, awaiting owner approval)
+
+Supersedes the "no blur" line of D10 only where stated below; everything else in sections 1–4 stays.
+Interactive prototype (private): https://claude.ai/artifact/5oVfKwJrveYy1d9YkZN1Ss
+Source: `docs/design/veil-prototype.html` (1 px = 1 dp, 360 × 797 dp). Decision draft: D12.
+
+## 5.1 Review of the current state (phone, Lab build `2e4331c`)
+- Two visual languages: Home and LENS are Crystal (Roboto Flex, frost), but FLOW, Search, drawer and Studio
+  still use Ink (serif titles, italic FLOW names, terracotta, Roboto Mono caps such as "ARC · LENS").
+- The FLOW list puts an accent *Spustit* on every row; app chains are names, not icons.
+- Customisation is one long Studio page; nothing can be changed where it is on Home. Long-press on empty Home
+  opens Studio, long-press on an icon opens a sheet.
+- LENS → Search cuts to a new opaque sheet: no spatial origin.
+- Known overlap: the 100 dp LENS target covers the inner 8 dp of the two inner Essentials icons.
+
+## 5.2 Material system
+Four levels, one token set (`VeilTokens`), chosen in Studio → Vzhled and overridden by accessibility.
+
+| level | fill (dark) | edge | blur | use |
+|---|---|---|---|---|
+| Clear | none | none | none | Home content, Search results on the wallpaper (text shadow 0/1 dp) |
+| Veil (default) | top→bottom `mix(acc 9 %, #16181D @ 70 %)` → `#0E1014 @ 78 %` | origin edge | none | all transient surfaces |
+| Frosted | `mix(acc 8 %, #1C1E24 @ 40 %)` → `#121418 @ 48 %` | origin edge | see 5.3 | Search, Studio, editor tools |
+| Solid | `#16181C` | 1 dp white @ 15 % + accent origin | none | accessibility, weak devices |
+
+Light mirrors: Veil `mix(acc 9 %, #FAFBFC @ 74 %)` → `#F2F4F6 @ 82 %`, cold edge white @ 80 %, hot edge `acc @ 85 %`.
+Editor tools never go below Veil (Clear applies to Home and Search only). System "high contrast text" or
+Studio → Přístupnost → Solid forces Solid.
+
+**Origin edge (the Veil signature).** A 1 dp outline whose colour is a radial gradient: `acc` mixed 78 % with
+white at the point the surface came from (LENS for Search, the selected element for an inspector, the camera
+for PULSE, the button for a menu), fading to white @ 8 % within ~150 dp. Plus an inner glow `acc @ 15 %` over
+~240 × 150 dp at the same origin. Static (no animation), one `Brush` per surface, recomputed only when the
+surface moves. ARC uses the same idea: the arc segment under the selected slot lights in `acc`.
+
+## 5.3 Blur feasibility (measured on Nothing Phone (3), Android 16, SDK 36)
+- `ro.surface_flinger.supports_background_blur = 0`, `WindowManagerService mBlurEnabled=false`, battery saver
+  off: **cross-window blur is not available**. `Window.setBackgroundBlurRadius` / `FLAG_BLUR_BEHIND` do nothing.
+- The wallpaper is a live wallpaper (`com.nothing.blurwallpaper.AtmosphereWallpaperService`), so there is no
+  bitmap to blur ourselves (and `WallpaperManager.getDrawable` is not available to third-party apps on 13+).
+- Therefore Frosted means, per device:
+  1. `windowManager.isCrossWindowBlurEnabled` true → window background blur while Search/Studio is open
+     (whole window, transient), with `addCrossWindowBlurEnabledListener` falling back to Veil live.
+  2. Otherwise (Phone (3)) → blur only Intelia's own Home layer (clock, icons) with
+     `graphicsLayer { renderEffect = BlurEffect(9.dp) }` on API 31+, panels use a denser Veil. Below API 31 → Veil.
+  Studio states this honestly ("Rozostření tapety toto zařízení nepodporuje"), never labels the fallback as blur.
+- Blur runs only while a transient surface is open; idle Home renders no effect.
+
+## 5.4 Home layout model (data)
+One bounded JSON document in `SettingsStore`, validated only by `LauncherSettings.sanitized()`:
+```
+HomeLayouts(active: String, layouts: List<HomeLayout>)          // ≤ 8 layouts
+HomeLayout(id, name, base: Pure|Essentials|Balanced|None, placement: Grid|Free|Hybrid,
+           grid: GridSpec(cols 3..6, rows 4..8), guides: Boolean, items: List<HomeItem>)   // ≤ 40 items
+HomeItem(id, kind: App|Flow|Clock|Date|Lens|Widget /*reserved*/, anchor, sizeDp, z, style)
+anchor = Cell(col,row) | Free(fx 0..1, fy 0..1 of the safe content area) | LensRow(slot -2,-1,1,2)
+         | Lens(fx 0..1, bottomDp)            // LENS only, clamped above the gesture inset
+style  = App(component, iconOverride?, label: Boolean, labelText?, action: Action) | Flow(name, icon)
+       | Clock(font, sizeSp, wght, wdth, colour, alpha, fmt24, date: Bound|Free|Off, align, background)
+       | Lens(sizeDp, style Ring|Dot|Bar, tap: Action, hold: Arc|None, holdMs 200..400, haptics)
+```
+- Positions survive a different screen: Cell by index (re-clamped when cols/rows shrink), Free as fractions of
+  the safe area (`WindowInsets.safeDrawing` minus the LENS row), LensRow relative to LENS (±62 / ±108 dp, clamped
+  to 24 dp from the edges).
+- Built-in presets are code (templates), not stored; "Obnovit výchozí" rebuilds from the template. User layouts
+  are full copies. Switching keeps the previous layout in undo and asks when there are unsaved edits.
+- Widgets: the `Widget` kind and `AppWidgetHost` id are reserved in the schema; no UI in this phase.
+- Migration schema 1 → 2: `layout`, `favorites`, `showClock`, `showDate`, `clockStyle` become one active layout
+  "Moje plocha"; nothing is dropped; tests for old, empty, corrupted and round-trip documents.
+- Editing works on an in-memory copy in `HomeEditorState` (undo/redo ≤ 50 immutable snapshots); ✓ writes the
+  document once, atomically; Back with changes asks Pokračovat / Zahodit / Uložit.
+
+## 5.5 Home Editor interaction
+- **Enter:** long-press empty Home 450 ms (`LONG_PRESS`), long-press an icon (enter + drag immediately),
+  Studio → Plocha → Upravit plochu. Today's long-press → Studio moves behind the gear.
+- **Transform, not a new screen:** wallpaper zoom-out via `WallpaperManager.setWallpaperZoomOut(token, 0→0.6)`
+  over 320 ms (visible only if the wallpaper engine supports zoom; ImageWallpaper does, Atmosphere to verify) and
+  a 20 % scrim; elements stay in place and get four 7 dp corner ticks (`fg2`, accent when selected).
+- **Controls:** top-left preset pill, below it Undo / Redo and the placement pill (Mřížka c×r / Volně / Hybrid);
+  top-right gear (Studio), below it ✓ (accent). 36–40 dp, Veil, clear of the camera cutout.
+- **Gestures in the editor:** tap element → inspector; drag (> 8 dp) → move; tap empty → "+" at the snapped spot
+  → add menu (App, FLOW, hidden clock, Widget reserved). LENS hold does **not** open ARC; dragging LENS moves it
+  within the lower band (x 60–300 dp, snaps to centre) and the ghost arc shows the adapted ARC.
+- **Drag feedback:** element follows the finger; accent ring shows the target; grid dots appear only while
+  dragging (Grid, Hybrid); accent guides on alignment with the centre or another element (Free, Hybrid, can be
+  switched off); safe bands and the LENS zone are drawn faintly; a dashed ring shows where a displaced icon goes
+  (swap in the LENS row, nearest free cell elsewhere). Clock, date and the LENS zone are never covered.
+- **Inspector:** one at a time, 312 dp wide, above the element if it fits, otherwise below, clamped to the
+  screen and kept above the IME; its origin edge points at the element.
+  App: aplikace, ikona (výchozí / systém / mono / Veil), velikost 32–64 dp, popisek + vlastní text, akce
+  (Action engine), posun po 4 dp, Odebrat z plochy (never uninstall). Clock: písmo, velikost (also by the ⤡
+  handle), tloušťka, šířka, barva, krytí, formát, datum, zarovnání, pozadí, skrýt. LENS: velikost, styl, klepnutí,
+  podržení + prodleva, haptika, poloha, link to ARC sets. PULSE (tap the camera ring): poloha vůči průstřelu,
+  kapsle, gesta, události → Studio · PULSE.
+- **LENS zone fix:** touch target 84 × 100 dp instead of 100 × 100 (still ≥ 48 dp), so the inner Essentials at
+  ±62 dp are no longer covered.
+- **Accessibility:** every editor action is also reachable from the inspector (posun buttons instead of drag),
+  TalkBack custom actions on elements ("Přesunout", "Upravit", "Odebrat z plochy").
+
+## 5.6 Motion
+| moment | spec | haptic |
+|---|---|---|
+| LENS → Search | 0 ms LENS 90 %; 70 ms ring → field at LENS position (width/height/radius, 170 ms, emphasized decel); field rides the IME (`WindowInsets.ime`, same frame, ~220 ms); results grow upwards, 18 ms stagger, 140 ms | `VIRTUAL_KEY` |
+| Search → Home (Back) | results 90 ms out; IME + field down; field → ring 160 ms; LENS reappears | none |
+| Home → Editor | wallpaper zoom-out 320 ms; marks fade 180 ms; controls slide 8 dp from the top 240 ms | `LONG_PRESS` |
+| element → inspector | scale 0.86 → 1 from the element, 220 ms, overshoot ≤ 3 % | none |
+| drop | 220 ms to the target, overshoot ≤ 4 % | `CONFIRM` |
+| ARC | unchanged from 4.5/4.6; selected arc segment lit in `acc` | as 4.6 |
+
+Input is never delayed: typing works from the first frame, the IME opens with the morph, the action runs on
+release. Reduced Motion → all 0 ms. No idle animation; nothing animates while Home is at rest.
+
+## 5.7 Studio (progressive disclosure)
+Home Editor = direct visual changes. Studio = advanced, opened from the gear or system settings. Level 1 lists:
+Vzhled a materiál · Ikony a text · Plocha a předlohy · Gesta a ARC · PULSE · FLOW · Systém a pokročilé, each
+with its current value. FLOW, Search, drawer and Studio adopt Crystal/Veil type: one family (Roboto Flex), no
+italic serif, no mono caps; FLOW chains shown as 28 dp icons with step numbers.
+
+## 5.8 Icons
+`LauncherApps` icons; monochrome layer of `AdaptiveIconDrawable` (API 33+) tinted `fg`, silhouette fallback
+below; Veil style = monochrome glyph on `fg @ 9 %` disc with a 1 dp `fg @ 22 %` ring. Icon packs: ADW/Nova-style
+`appfilter.xml` packs found through a `<queries>` intent entry (no permission); needs a D-entry before landing.
+A Nothing look only through an installed compatible pack, never copied. Missing icon → letter on a Veil disc.
+
+## 5.9 PULSE continuity (B4)
+Same Veil material and origin edge (origin = camera), same type and motion: idle draws nothing, the live
+capsule and Quick View grow from the camera and return into it; hold = Global ARC with the lit-segment arc.
+
+## 5.10 Performance and cost (to be measured on the phone, no claims yet)
+Veil = one gradient fill + one gradient stroke per open surface; Clear/idle Home = no extra draw. Own-layer blur
+only while Search/Studio is open (API 31+). Editor marks and guides exist only in edit mode. Expected cost is
+small but must be measured (frame time with `gfxinfo` during LENS → Search and drag, PSS, cold start).
+
+## 5.11 Implementation plan after approval (one small commit each, build + phone check per step)
+1. `VeilTokens` + `VeilSurface` modifier (fill, origin edge, inner glow), Clear/Veil/Frosted/Solid switch,
+   cross-window-blur detection and fallback; Studio → Vzhled shows the truth.
+2. Data: `HomeLayouts` model, templates, schema 1 → 2 migration in `sanitized()` with tests; Home renders from
+   the model (no visual change yet). LENS target 84 × 100 dp.
+3. `HomeEditorState` (pure Kotlin: drag resolve, snap, guides, collision, undo/redo) with JVM tests.
+4. Edit mode UI: entry gestures, wallpaper zoom-out, corner marks, top controls, save/cancel.
+5. Inspectors: app, clock (incl. resize handle), date, LENS (ghost ARC), PULSE link; add menu.
+6. Presets: switch, save as, revert, reset with confirmation.
+7. LENS → Search morph synced with the IME; Back reverse.
+8. Unify FLOW, Search, drawer and Studio typography/material (Ink → Veil).
+9. Regression on the phone (list in the brief §13), `gfxinfo` measurements, STATUS.
