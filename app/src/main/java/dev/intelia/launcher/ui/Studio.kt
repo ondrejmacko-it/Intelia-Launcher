@@ -260,6 +260,8 @@ private fun Swatches(selected: Accent, onSelect: (Accent) -> Unit) {
     val ink = LocalInk.current
     val dark = ink.dark
     val options = buildList {
+        add(Accent.Frost to R.string.accent_frost)
+        add(Accent.Silver to R.string.accent_silver)
         add(Accent.Terracotta to R.string.accent_terracotta)
         add(Accent.Sage to R.string.accent_sage)
         add(Accent.Slate to R.string.accent_slate)
@@ -281,16 +283,8 @@ private fun Swatches(selected: Accent, onSelect: (Accent) -> Unit) {
 }
 
 @Composable
-private fun swatchColor(accent: Accent, dark: Boolean): Color = when (accent) {
-    Accent.Terracotta -> if (dark) Color(0xFFE39A78) else Color(0xFFA84B29)
-    Accent.Sage -> if (dark) Color(0xFFA9C9B6) else Color(0xFF3F6B57)
-    Accent.Slate -> if (dark) Color(0xFFAFC3E6) else Color(0xFF3C5A86)
-    Accent.Mono -> LocalInk.current.ink
-    Accent.Dynamic -> if (Build.VERSION.SDK_INT >= 31) {
-        val context = LocalContext.current
-        if (dark) androidx.compose.material3.dynamicDarkColorScheme(context).primary else androidx.compose.material3.dynamicLightColorScheme(context).primary
-    } else LocalInk.current.accent
-}
+private fun swatchColor(accent: Accent, dark: Boolean): Color =
+    if (accent == Accent.Mono) LocalInk.current.ink else accentColor(accent, dark)
 
 @Composable
 private fun OrderedAppRow(app: AppEntry, index: Int, onUp: (() -> Unit)?, onRemove: () -> Unit) {

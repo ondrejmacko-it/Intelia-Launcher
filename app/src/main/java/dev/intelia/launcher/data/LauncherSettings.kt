@@ -7,7 +7,8 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 @Serializable enum class ThemeMode { System, Dark, Light }
-@Serializable enum class Accent { Dynamic, Mono, Sage, Slate, Terracotta }
+/** [Frost] and [Silver] arrive with the Crystal design (D10); [Dynamic] is "from the wallpaper". */
+@Serializable enum class Accent { Dynamic, Mono, Sage, Slate, Terracotta, Frost, Silver }
 @Serializable enum class Reach { Left, Center, Right }
 @Serializable enum class HomeLayout { Pure, Essentials, Custom }
 @Serializable enum class ClockStyle { Serif, Grotesk, Mono }
@@ -21,6 +22,10 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class LauncherSettings(
     val theme: ThemeMode = ThemeMode.System,
+    /**
+     * Stored documents written before [SCHEMA] 1 never contained this key while it was the default,
+     * so the declared default must stay [Accent.Terracotta]; new installs start from [fresh] (Frost).
+     */
     val accent: Accent = Accent.Terracotta,
     val showClock: Boolean = true,
     val showDate: Boolean = true,
@@ -54,8 +59,15 @@ data class LauncherSettings(
     val pulseAlarmHours: Int = 12,
     /** Capsule background opacity in percent; text stays opaque. */
     val pulseOpacity: Int = 100,
+    /** Document version; 0 = written before the Crystal design (phase B1). Migrated by [sanitized]. */
+    val schema: Int = 0,
 ) {
     companion object {
+        const val SCHEMA = 1
+
+        /** Settings of a new install: current schema and the Crystal default accent. */
+        fun fresh() = LauncherSettings(accent = Accent.Frost, schema = SCHEMA)
+
         const val ARC_SLOTS = 5
         const val ARC_FLOW_SLOTS = 7
         const val ARC_SHORTCUT_SLOTS = 7
@@ -90,6 +102,8 @@ data class LauncherSettings(
             pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
             reduceMotion = false,
+            // 0 → 1: nothing to rewrite; an existing user's accent (Terracotta when absent) is kept as is.
+            schema = SCHEMA,
         )
     }
 }
@@ -101,13 +115,13 @@ object SettingsCodec {
     }
 
     fun decode(text: String?): LauncherSettings {
-        if (text.isNullOrBlank()) return LauncherSettings()
+        if (text.isNullOrBlank()) return LauncherSettings.fresh()
         return try {
             json.decodeFromString(LauncherSettings.serializer(), text).sanitized()
         } catch (_: SerializationException) {
-            LauncherSettings()
+            LauncherSettings.fresh()
         } catch (_: IllegalArgumentException) {
-            LauncherSettings()
+            LauncherSettings.fresh()
         }
     }
 

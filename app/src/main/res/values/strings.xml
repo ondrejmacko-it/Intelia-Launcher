@@ -138,6 +138,8 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_light">Light</string>
     <string name="accent">Accent</string>
+    <string name="accent_frost">Frost</string>
+    <string name="accent_silver">Silver</string>
     <string name="accent_terracotta">Terracotta</string>
     <string name="accent_mono">Ink</string>
     <string name="accent_dynamic">Material You</string>

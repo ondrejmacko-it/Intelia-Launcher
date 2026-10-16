@@ -152,7 +152,9 @@ fun isDark(settings: LauncherSettings): Boolean = when (settings.theme) {
 }
 
 @Composable
-private fun accentColor(accent: Accent, dark: Boolean): Color = when (accent) {
+internal fun accentColor(accent: Accent, dark: Boolean): Color = when (accent) {
+    Accent.Frost -> if (dark) CrystalColors.FrostDark else CrystalColors.FrostLight
+    Accent.Silver -> if (dark) CrystalColors.SilverDark else CrystalColors.SilverLight
     Accent.Terracotta -> if (dark) Color(0xFFE39A78) else Color(0xFFA84B29)
     Accent.Sage -> if (dark) Color(0xFFA9C9B6) else Color(0xFF3F6B57)
     Accent.Slate -> if (dark) Color(0xFFAFC3E6) else Color(0xFF3C5A86)

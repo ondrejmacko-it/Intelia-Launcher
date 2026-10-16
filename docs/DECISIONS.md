@@ -120,3 +120,16 @@ Phase A of `docs/REDESIGN_BRIEF.md`. Full spec in `docs/DESIGN_SYSTEM.md`, proto
   later opt-in decision.
 - Settings migration (ARC rings → sets, accent, PULSE toggles) in `LauncherSettings.sanitized()` with tests.
 Owner approved direction A, arc-end set switching and PULSE 2.0 on 2026-10-16; phase B1 may start.
+
+## D11 — 2026-10-16 — Bundle Roboto Flex (SIL OFL 1.1)
+Phase B1 of D10. The UI family of the Crystal design is Roboto Flex, bundled unmodified as one variable font.
+- **Source:** `ofl/robotoflex/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf`
+  from https://github.com/google/fonts (main, fetched 2026-10-16), stored as `app/src/main/res/font/roboto_flex.ttf`
+  (1 787 292 bytes). Copyright 2017 The Roboto Flex Project Authors.
+- **Licence:** SIL Open Font License 1.1. Bundling in an Apache-2.0 app is allowed; the font may not be sold
+  on its own and a modified font must not use a Reserved Font Name. We do not modify or subset it. The licence
+  text ships in the APK as `assets/licenses/RobotoFlex-OFL.txt`.
+- **Cost:** about +1.7 MB in the APK. Subsetting (Latin + Latin Extended for Czech) can come later; a subset is
+  a modified font, which OFL allows under a different name.
+- **Use:** width and weight axes through `FontVariation.Settings` (API 26+, equal to `minSdk`), see `ui/Crystal.kt`.
+Revert: delete the font and licence asset; `CrystalType` falls back to `FontFamily.SansSerif`.

@@ -137,6 +137,8 @@
     <string name="theme_dark">Tmavý</string>
     <string name="theme_light">Světlý</string>
     <string name="accent">Akcent</string>
+    <string name="accent_frost">Mráz</string>
+    <string name="accent_silver">Stříbrná</string>
     <string name="accent_terracotta">Terakota</string>
     <string name="accent_mono">Inkoust</string>
     <string name="accent_dynamic">Material You</string>

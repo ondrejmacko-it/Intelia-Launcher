@@ -1,5 +1,6 @@
 package dev.intelia.launcher
 
+import dev.intelia.launcher.data.Accent
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.PulseLens
 import dev.intelia.launcher.data.SettingsCodec
@@ -81,13 +82,28 @@ class AppSearchTest {
 class SettingsCodecTest {
     @Test fun roundTrip() {
         val settings = LauncherSettings(theme = ThemeMode.Dark, arc = listOf("a/b"), hidden = setOf("c/d"),
-            aliases = listOf(FlowAlias("1", "vlak", listOf("a/b"))))
+            aliases = listOf(FlowAlias("1", "vlak", listOf("a/b"))), schema = LauncherSettings.SCHEMA)
         assertEquals(settings, SettingsCodec.decode(SettingsCodec.encode(settings)))
     }
 
     @Test fun corruptOrUnknownInputFallsBackSafely() {
-        assertEquals(LauncherSettings(), SettingsCodec.decode("{not json"))
+        assertEquals(LauncherSettings.fresh(), SettingsCodec.decode("{not json"))
         assertEquals(ThemeMode.System, SettingsCodec.decode("""{"theme":"Neon","future":1}""").theme)
+    }
+
+    @Test fun newInstallGetsFrostExistingUsersKeepTerracotta() {
+        assertEquals(Accent.Frost, SettingsCodec.decode(null).accent)
+        assertEquals(LauncherSettings.SCHEMA, SettingsCodec.decode("").schema)
+        // A pre-B1 document never stored the default accent.
+        val legacy = SettingsCodec.decode("""{"onboarded":true,"theme":"Dark"}""")
+        assertEquals(Accent.Terracotta, legacy.accent)
+        assertEquals(LauncherSettings.SCHEMA, legacy.schema)
+        assertEquals(Accent.Sage, SettingsCodec.decode("""{"accent":"Sage"}""").accent)
+        // Once migrated, the choice survives another round trip in both cases.
+        assertEquals(legacy, SettingsCodec.decode(SettingsCodec.encode(legacy)))
+        val fresh = LauncherSettings.fresh()
+        assertEquals(fresh, SettingsCodec.decode(SettingsCodec.encode(fresh)))
+        assertEquals(LauncherSettings.SCHEMA, SettingsCodec.decode("""{"schema":99}""").schema)
     }
 
     @Test fun sanitizesBoundsAndDuplicates() {
@@ -126,7 +142,7 @@ class SettingsCodecTest {
         assertEquals(70, SettingsCodec.decode("""{"pulseWidth":14,"pulseOpacity":70}""").pulseOpacity)
         assertEquals(LauncherSettings.MIN_PULSE_OPACITY, SettingsCodec.decode("""{"pulseOpacity":0}""").pulseOpacity)
         assertEquals(100, LauncherSettings(pulseOpacity = 250).sanitized().pulseOpacity)
-        val custom = LauncherSettings(pulseOpacity = 70)
+        val custom = LauncherSettings(pulseOpacity = 70, schema = LauncherSettings.SCHEMA)
         assertEquals(custom, SettingsCodec.decode(SettingsCodec.encode(custom)))
     }
 
