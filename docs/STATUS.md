@@ -2,6 +2,32 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Ink rework (`claude/ink-rework`, 402d10a)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS (21 JVM tests, incl. new
+  `pulseLensIsClampedAndNonFiniteFallsBackToAuto` and `pulseAlarmHoursStayWithinADay`).
+- On Nothing Phone (3), Android 16, `dev.intelia.launcher.lab` debug build:
+  - Onboarding (3 steps); Home shows only the wallpaper; Essentials around LENS.
+  - Tap LENS → search with keyboard; swipe up → drawer; results grow upwards; Enter opens the first app.
+  - Exact FLOW match shows *Spustit*; Enter runs the FLOW in the right order; typing runs nothing.
+  - App options; ARC ring 1 (apps) and ring 2 (FLOW launched on release); Studio with live preview; light theme.
+  - PULSE capsule with battery while charging.
+  - Camera calibration (Studio → PULSE → Poloha kamery): ‹ › change the value by exactly 0.5 dp; *Uložit* →
+    Studio shows "Vlastní" and values survive reopening; *Automaticky* → "Automaticky", detected from
+    `cutoutPath` as 205.5 / 26.0 / 8.0 dp. Capsule sits around the camera on Home (1 screenshot, deleted).
+  - With Lab as HOME: Recents (Nothing quickstep fallback) shows only wallpaper behind the cards, no rectangle;
+    Home from Recents, from an app (Calculator launched from LENS) and from the drawer returns a clean Home;
+    Studio shortcut picker works only as HOME; ARC ring 3 ("ZKRATKY") appears and selects a shortcut by angle
+    (−40° = 1st shortcut); returning to LENS cancels. Test shortcuts removed, rings set back to 2.
+- Debug build timings: cold start ~845 ms, warm ~57 ms; PSS ~131 MB.
+
+Not verified:
+- Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
+- PULSE toggles Ozvěna (echo), alarm and charging.
+- Performance on a release build; battery.
+- The PULSE panel cannot be opened via adb while MT Capsule's overlay is running (it catches taps on the camera).
+
 ## 2026-10-16 — new PC setup (`claude/ink-rework` from `main` 012140f)
 
 Verified:
