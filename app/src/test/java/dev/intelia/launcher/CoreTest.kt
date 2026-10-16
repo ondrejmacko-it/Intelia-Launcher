@@ -7,8 +7,8 @@ import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
 import dev.intelia.launcher.flow.FlowError
 import dev.intelia.launcher.search.AppSearch
-import dev.intelia.launcher.ui.ArcGesture
-import dev.intelia.launcher.ui.arcCenters
+import dev.intelia.launcher.ui.ArcPick
+import dev.intelia.launcher.ui.ArcRings
 import dev.intelia.launcher.ui.lensSwipeSearch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -90,42 +90,71 @@ class SettingsCodecTest {
         assertEquals(listOf("a", "b", "c", "d", "e"), decoded.arc)
         assertEquals(1, decoded.aliases.size)
     }
+
+    @Test fun designFieldsAreBoundedAndLegacyMotionMigrates() {
+        val decoded = SettingsCodec.decode("""{"reduceMotion":true,"arcRings":9,"arcFlows":["1","ghost","1"],
+            "favorites":["a","a","b"],"aliases":[{"id":"1","name":"vlak","targets":["a"]}]}""")
+        assertEquals(3, decoded.arcRings)
+        assertEquals(listOf("1"), decoded.arcFlows)
+        assertEquals(listOf("a", "b"), decoded.favorites)
+        assertEquals(dev.intelia.launcher.data.Motion.Off, decoded.motion)
+        assertFalse(decoded.reduceMotion)
+    }
+
+    @Test fun foundationSettingsStillDecode() {
+        val decoded = SettingsCodec.decode("""{"theme":"Dark","accent":"Sage","arc":["a"]}""")
+        assertEquals(ThemeMode.Dark, decoded.theme)
+        assertEquals(listOf("a"), decoded.arc)
+        assertFalse(decoded.onboarded)
+    }
 }
 
-class ArcGestureTest {
-    private val centers = arcCenters(5, 300f)
+class ArcRingsTest {
+    private val full = listOf(List(5) { true }, List(7) { true }, List(7) { true })
+    private val rings = ArcRings(full, left = 205f, right = 205f)
 
-    @Test fun selectsOnlyAfterArming() {
-        val gesture = ArcGesture(centers)
-        assertNull(gesture.move(centers[2].first, -10f))
-        assertEquals(2, gesture.move(centers[2].first, centers[2].second))
-        assertEquals(2, gesture.finish())
-        assertNull(gesture.finish())
+    private fun at(ring: Int, index: Int) = rings.position(ring, index)
+
+    @Test fun distanceChoosesRingAngleChoosesSlot() {
+        val (x0, y0) = at(0, 2)
+        assertEquals(ArcPick(0, 2), rings.select(x0, y0))
+        val (x1, y1) = at(1, 6)
+        assertEquals(ArcPick(1, 6), rings.select(x1, y1))
+        val (x2, y2) = at(2, 0)
+        assertEquals(ArcPick(2, 0), rings.select(x2, y2))
     }
 
-    @Test fun returningToLensCancelsSelection() {
-        val gesture = ArcGesture(centers)
-        gesture.move(centers[0].first, centers[0].second)
-        assertNull(gesture.move(0f, 0f))
-        assertNull(gesture.finish())
+    @Test fun backOnLensOrBelowCancels() {
+        assertNull(rings.select(0f, -20f))
+        assertNull(rings.select(40f, 60f))
+        assertNull(rings.select(0f, -400f))
     }
 
-    @Test fun fastCrossingSelects() {
-        val gesture = ArcGesture(centers)
-        gesture.move(centers[1].first, -40f)
-        assertEquals(1, gesture.move(centers[1].first, centers[1].second - 35f))
+    @Test fun emptySlotsStayEmptyAndDoNotShift() {
+        val sparse = ArcRings(listOf(listOf(true, false, true, false, false)), 205f, 205f)
+        val (x, y) = sparse.position(0, 1)
+        assertNull(sparse.select(x, y))
+        assertEquals(sparse.position(0, 2), ArcRings(listOf(List(5) { true }), 205f, 205f).position(0, 2))
     }
 
-    @Test fun secondPointerCancels() {
-        val gesture = ArcGesture(centers)
-        gesture.move(centers[2].first, centers[2].second)
-        assertNull(gesture.move(centers[2].first, centers[2].second, pointers = 2))
-        assertNull(gesture.finish())
+    @Test fun selectionHoldsNearPreviousSlot() {
+        val previous = ArcPick(1, 3)
+        val (x, y) = at(1, 3)
+        val drift = x + 30f
+        assertEquals(previous, rings.select(drift, y, previous))
+    }
+
+    @Test fun slotsStayOnScreenWhenLensIsOffCentre() {
+        val shifted = ArcRings(full, left = 120f, right = 290f)
+        for (ring in full.indices) for (i in full[ring].indices) {
+            val (x, _) = shifted.position(ring, i)
+            assertTrue("ring $ring slot $i at $x", x >= -120f + 30f && x <= 290f - 30f)
+        }
     }
 
     @Test fun swipeUpDetection() {
         assertTrue(lensSwipeSearch(0f, -60f))
-        assertFalse(lensSwipeSearch(120f, -60f))
         assertFalse(lensSwipeSearch(0f, -20f))
+        assertFalse(lensSwipeSearch(200f, -60f))
     }
 }

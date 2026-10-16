@@ -1,6 +1,11 @@
 package dev.intelia.launcher.data
 
 import android.content.Context
+import android.graphics.Color
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.os.Build
 import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -16,12 +21,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
-/** One rendered size per icon, bounded by bytes; invalidated per changed package. */
+/**
+ * A rendered icon. [glyph] is true for a single-colour themed glyph that the UI tints with ink;
+ * otherwise the bitmap is the full-colour icon.
+ */
+class RenderedIcon(val bitmap: ImageBitmap, val glyph: Boolean)
+
+/** One rendered size per icon and style, bounded by bytes; invalidated per changed package. */
 class IconCache(context: Context, private val apps: AppRepository) {
     private val densityDpi = context.resources.displayMetrics.densityDpi
     private val sizePx = (ICON_DP * context.resources.displayMetrics.density).roundToInt()
-    private val cache = object : LruCache<String, ImageBitmap>(MAX_BYTES) {
-        override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
+    private val cache = object : LruCache<String, RenderedIcon>(MAX_BYTES) {
+        override fun sizeOf(key: String, value: RenderedIcon) = value.bitmap.width * value.bitmap.height * 4
     }
     private val _revision = MutableStateFlow(0)
     val revision: StateFlow<Int> = _revision.asStateFlow()
@@ -35,13 +46,21 @@ class IconCache(context: Context, private val apps: AppRepository) {
         }
     }
 
-    fun peek(key: String): ImageBitmap? = cache.get(key)
+    private fun cacheKey(key: String, ink: Boolean) = if (ink) "$key#ink" else key
 
-    suspend fun load(entry: AppEntry): ImageBitmap? {
-        cache.get(entry.key)?.let { return it }
+    fun peek(key: String, ink: Boolean = false): RenderedIcon? = cache.get(cacheKey(key, ink))
+
+    suspend fun load(entry: AppEntry, ink: Boolean = false): RenderedIcon? = load(entry.key, ink) { apps.icon(entry, densityDpi) }
+
+    suspend fun loadShortcut(key: String, ink: Boolean = false): RenderedIcon? = load(key, ink) { apps.shortcutIcon(key, densityDpi) }
+
+    private suspend fun load(baseKey: String, ink: Boolean, source: () -> Drawable?): RenderedIcon? {
+        val key = cacheKey(baseKey, ink)
+        cache.get(key)?.let { return it }
         return withContext(Dispatchers.IO) {
             try {
-                apps.icon(entry, densityDpi)?.toBitmap(sizePx, sizePx)?.asImageBitmap()?.also { cache.put(entry.key, it) }
+                val icon = source() ?: return@withContext null
+                render(icon, ink)?.also { cache.put(key, it) }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -50,8 +69,19 @@ class IconCache(context: Context, private val apps: AppRepository) {
         }
     }
 
+    private fun render(icon: Drawable, ink: Boolean): RenderedIcon? {
+        if (ink && Build.VERSION.SDK_INT >= 33 && icon is AdaptiveIconDrawable) {
+            icon.monochrome?.let { mono ->
+                // The themed glyph inside the launcher's mask, on a transparent ground; tinted at draw time.
+                val glyph = AdaptiveIconDrawable(ColorDrawable(Color.TRANSPARENT), mono)
+                return RenderedIcon(glyph.toBitmap(sizePx, sizePx).asImageBitmap(), glyph = true)
+            }
+        }
+        return RenderedIcon(icon.toBitmap(sizePx, sizePx).asImageBitmap(), glyph = false)
+    }
+
     private companion object {
         const val ICON_DP = 56
-        const val MAX_BYTES = 8 * 1024 * 1024
+        const val MAX_BYTES = 10 * 1024 * 1024
     }
 }
