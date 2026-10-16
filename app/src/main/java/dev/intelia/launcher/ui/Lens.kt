@@ -300,7 +300,7 @@ fun LensArc(
 
         // LENS itself.
         Box(
-            Modifier.centerAt(cx, cy).size(CrystalDims.lensTouch)
+            Modifier.centerAt(cx, cy).size(CrystalDims.lensTouchW, CrystalDims.lensTouch)
                 .semantics {
                     role = Role.Button
                     contentDescription = "$lensDescription (LENS)"

@@ -109,6 +109,8 @@ object CrystalDims {
     val iconPreview = 28.dp
     val lensRing = 44.dp
     val lensStroke = 1.5.dp
+    /** 84 dp wide so the LENS-row icons at ±62 dp (48 dp touch) keep their inner edge; 100 dp tall for the thumb. */
+    val lensTouchW = 84.dp
     val lensTouch = 100.dp
     val radiusSheet = 22.dp
     val radiusControl = 12.dp
