@@ -151,7 +151,8 @@ private fun StepRing(mark: String, description: String, onClick: () -> Unit) {
 
 /** A hairline track; the chosen part is accent thread, the value is a bead. Tap or drag anywhere on it. */
 @Composable
-private fun BeadSlider(value: Float, min: Float, max: Float, label: String, modifier: Modifier, onChange: (Float) -> Unit) {
+internal fun BeadSlider(value: Float, min: Float, max: Float, label: String, modifier: Modifier, onChange: (Float) -> Unit,
+    track: Color = LocalInk.current.onNight) {
     val ink = LocalInk.current
     val current by rememberUpdatedState(onChange)
     val span = (max - min).coerceAtLeast(1f)
@@ -172,7 +173,7 @@ private fun BeadSlider(value: Float, min: Float, max: Float, label: String, modi
         }) {
         val cy = size.height / 2f
         val bx = size.width * fraction
-        drawLine(ink.onNight.copy(alpha = .25f), Offset(0f, cy), Offset(size.width, cy), 1.dp.toPx(), StrokeCap.Round)
+        drawLine(track.copy(alpha = .25f), Offset(0f, cy), Offset(size.width, cy), 1.dp.toPx(), StrokeCap.Round)
         drawLine(ink.accent, Offset(0f, cy), Offset(bx, cy), 2.dp.toPx(), StrokeCap.Round)
         drawCircle(ink.accent, 8.dp.toPx(), Offset(bx, cy))
         drawCircle(Color.Black, 3.dp.toPx(), Offset(bx, cy))

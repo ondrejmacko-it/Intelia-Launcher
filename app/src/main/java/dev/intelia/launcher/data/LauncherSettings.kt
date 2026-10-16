@@ -52,6 +52,10 @@ data class LauncherSettings(
     val pulseCharging: Boolean = true,
     /** How close an alarm must be, in hours, before the capsule shows it. */
     val pulseAlarmHours: Int = 12,
+    /** Extra capsule width on each side of the camera, in dp. */
+    val pulseWidth: Int = 0,
+    /** Capsule background opacity in percent; text stays opaque. */
+    val pulseOpacity: Int = 100,
 ) {
     companion object {
         const val ARC_SLOTS = 5
@@ -62,6 +66,8 @@ data class LauncherSettings(
         const val MAX_LENS_Y = 300f
         const val MIN_LENS_R = 3f
         const val MAX_LENS_R = 60f
+        const val MAX_PULSE_WIDTH = 40
+        const val MIN_PULSE_OPACITY = 40
         private const val MAX_KEY = 512
         private const val MAX_HIDDEN = 1000
         private const val MAX_ALIASES = 200
@@ -85,6 +91,8 @@ data class LauncherSettings(
             pulseLens = pulseLens?.takeIf { it.x.isFinite() && it.y.isFinite() && it.r.isFinite() }
                 ?.let { PulseLens(it.x.coerceIn(0f, MAX_LENS_X), it.y.coerceIn(0f, MAX_LENS_Y), it.r.coerceIn(MIN_LENS_R, MAX_LENS_R)) },
             pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
+            pulseWidth = pulseWidth.coerceIn(0, MAX_PULSE_WIDTH),
+            pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
             reduceMotion = false,
         )
     }

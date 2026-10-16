@@ -67,6 +67,7 @@ import dev.intelia.launcher.data.Motion
 import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.ThemeMode
 import java.time.LocalDateTime
+import kotlin.math.roundToInt
 
 private enum class StudioPane { Main, Shortcuts, Hidden, Lens }
 
@@ -103,119 +104,133 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
     fun set(transform: (LauncherSettings) -> LauncherSettings) = model.updateSettings(transform)
     SystemBarIcons(darkIcons = homeInk.luminance() < .5f)
 
-    Column(Modifier.fillMaxSize()) {
-        // Live preview on the real wallpaper: nothing is drawn behind it.
-        Box(Modifier.fillMaxWidth().height(300.dp)) {
-            HomePreview(settings, favorites, now, homeInk, ink.accent, Modifier.fillMaxSize().statusBarsPadding(), scale = .78f, onWallpaper = true)
-            Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconAction(Glyph.Back, stringResource(R.string.home), onBack, tint = homeInk)
-                Text(stringResource(R.string.studio_live).uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
-            }
-        }
-        Column(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(ink.paper)
-            .verticalScroll(scroll).navigationBarsPadding().padding(bottom = 24.dp)) {
-            Section(R.string.appearance)
-            Stacked(stringResource(R.string.clock_font)) {
-                Segments(listOf(ClockStyle.Serif to stringResource(R.string.clock_serif), ClockStyle.Grotesk to stringResource(R.string.clock_grotesk),
-                    ClockStyle.Mono to stringResource(R.string.clock_mono)), settings.clockStyle, { v -> set { it.copy(clockStyle = v) } })
-            }
-            Stacked(stringResource(R.string.theme)) {
-                Segments(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
-                    ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme, { v -> set { it.copy(theme = v) } })
-            }
-            Stacked(stringResource(R.string.accent)) { Swatches(settings.accent) { v -> set { it.copy(accent = v) } } }
-            Stacked(stringResource(R.string.icons)) {
-                Segments(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink)),
-                    settings.iconStyle, { v -> set { it.copy(iconStyle = v) } })
-            }
-            ToggleRow(stringResource(R.string.show_clock), settings.showClock, { v -> set { it.copy(showClock = v) } })
-            ToggleRow(stringResource(R.string.show_date), settings.showDate, { v -> set { it.copy(showDate = v) } })
-
-            Section(R.string.home_section)
-            Stacked(stringResource(R.string.layout)) {
-                Segments(listOf(HomeLayout.Pure to stringResource(R.string.layout_pure), HomeLayout.Essentials to stringResource(R.string.layout_essentials),
-                    HomeLayout.Custom to stringResource(R.string.layout_custom)), settings.layout, { v -> set { it.copy(layout = v) } })
-            }
-            Stacked(stringResource(R.string.reach)) {
-                Segments(listOf(Reach.Left to stringResource(R.string.reach_left), Reach.Center to stringResource(R.string.reach_center),
-                    Reach.Right to stringResource(R.string.reach_right)), settings.reach, { v -> set { it.copy(reach = v) } })
-            }
-            Kicker(stringResource(R.string.favorites_count, favorites.size, LauncherSettings.MAX_FAVORITES), Modifier.padding(start = 24.dp, top = 18.dp, bottom = 4.dp),
-                color = ink.muted)
-            if (favorites.isEmpty()) Hint(stringResource(R.string.favorites_hint))
-            favorites.forEachIndexed { index, app ->
-                OrderedAppRow(app, index, onUp = { model.moveFavorite(app.key, -1) }, onRemove = { model.toggleFavorite(app) })
-            }
-
-            Section(R.string.arc_section)
-            Hint(stringResource(R.string.arc_explain))
-            ChoiceRow(stringResource(R.string.arc_rings)) {
-                Segments(listOf(1 to "1", 2 to "2", 3 to "3"), settings.arcRings, { v -> set { it.copy(arcRings = v) } })
-            }
-            Kicker("1 · " + stringResource(R.string.arc_ring_apps) + " · ${settings.arc.size}/${LauncherSettings.ARC_SLOTS}",
-                Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-            val ringApps = arcApps.filterNotNull()
-            if (ringApps.isEmpty()) Hint(stringResource(R.string.arc_apps_hint))
-            ringApps.forEachIndexed { index, app -> OrderedAppRow(app, index, onUp = null, onRemove = { model.toggleArc(app) }) }
-            Kicker("2 · " + stringResource(R.string.flow) + " · ${settings.arcFlows.size}/${LauncherSettings.ARC_FLOW_SLOTS}",
-                Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = if (settings.arcRings >= 2) ink.muted else ink.faint)
-            if (settings.aliases.isEmpty()) Hint(stringResource(R.string.flow_empty))
-            settings.aliases.forEach { alias ->
-                val on = alias.id in settings.arcFlows
-                val full = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS
-                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(on, enabled = on || !full, role = Role.Switch) {
-                    model.toggleArcFlow(alias.id, it)
-                }.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(alias.name, Modifier.weight(1f), style = InkText.item.copy(fontStyle = FontStyle.Italic), maxLines = 1,
-                        overflow = TextOverflow.Ellipsis, color = if (on || !full) ink.ink else ink.faint)
-                    RingToggle(on)
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            // Live preview on the real wallpaper: nothing is drawn behind it.
+            Box(Modifier.fillMaxWidth().height(300.dp)) {
+                HomePreview(settings, favorites, now, homeInk, ink.accent, Modifier.fillMaxSize().statusBarsPadding(), scale = .78f, onWallpaper = true)
+                Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconAction(Glyph.Back, stringResource(R.string.home), onBack, tint = homeInk)
+                    Text(stringResource(R.string.studio_live).uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
                 }
             }
-            NavRow(stringResource(R.string.flow_manage), null, onFlows)
-            Kicker("3 · " + stringResource(R.string.arc_ring_shortcuts) + " · ${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}",
-                Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = if (settings.arcRings >= 3) ink.muted else ink.faint)
-            NavRow(stringResource(R.string.shortcuts_pick), null, { onPane(StudioPane.Shortcuts) })
-
-            Section(R.string.pulse)
-            ToggleRow(stringResource(R.string.pulse_toggle), settings.pulse, { v -> set { it.copy(pulse = v) } },
-                detail = stringResource(R.string.pulse_detail))
-            if (settings.pulse) {
-                NavRow(stringResource(R.string.pulse_lens), stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short
-                    else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
-                ToggleRow(stringResource(R.string.pulse_echo), settings.pulseEcho, { v -> set { it.copy(pulseEcho = v) } },
-                    detail = stringResource(R.string.pulse_echo_detail))
-                ToggleRow(stringResource(R.string.pulse_alarm), settings.pulseAlarm, { v -> set { it.copy(pulseAlarm = v) } })
-                if (settings.pulseAlarm) Stacked(stringResource(R.string.pulse_alarm_window)) {
-                    Segments(listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours,
-                        { v -> set { it.copy(pulseAlarmHours = v) } })
+            Column(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(ink.paper)
+                .verticalScroll(scroll).navigationBarsPadding().padding(bottom = 24.dp)) {
+                Section(R.string.appearance)
+                Stacked(stringResource(R.string.clock_font)) {
+                    Segments(listOf(ClockStyle.Serif to stringResource(R.string.clock_serif), ClockStyle.Grotesk to stringResource(R.string.clock_grotesk),
+                        ClockStyle.Mono to stringResource(R.string.clock_mono)), settings.clockStyle, { v -> set { it.copy(clockStyle = v) } })
                 }
-                ToggleRow(stringResource(R.string.pulse_charging), settings.pulseCharging, { v -> set { it.copy(pulseCharging = v) } },
-                    detail = stringResource(R.string.pulse_charging_detail))
-            }
+                Stacked(stringResource(R.string.theme)) {
+                    Segments(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
+                        ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme, { v -> set { it.copy(theme = v) } })
+                }
+                Stacked(stringResource(R.string.accent)) { Swatches(settings.accent) { v -> set { it.copy(accent = v) } } }
+                Stacked(stringResource(R.string.icons)) {
+                    Segments(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink)),
+                        settings.iconStyle, { v -> set { it.copy(iconStyle = v) } })
+                }
+                ToggleRow(stringResource(R.string.show_clock), settings.showClock, { v -> set { it.copy(showClock = v) } })
+                ToggleRow(stringResource(R.string.show_date), settings.showDate, { v -> set { it.copy(showDate = v) } })
 
-            Section(R.string.motion_section)
-            Stacked(stringResource(R.string.motion)) {
-                Segments(listOf(Motion.Calm to stringResource(R.string.motion_calm), Motion.Brisk to stringResource(R.string.motion_brisk),
-                    Motion.Off to stringResource(R.string.off)), settings.motion, { v -> set { it.copy(motion = v) } })
-            }
-            Stacked(stringResource(R.string.haptics)) {
-                Segments(listOf(Haptics.Soft to stringResource(R.string.haptics_soft), Haptics.Strong to stringResource(R.string.haptics_strong),
-                    Haptics.Off to stringResource(R.string.off)), settings.haptics, { v -> set { it.copy(haptics = v) } })
-            }
+                Section(R.string.home_section)
+                Stacked(stringResource(R.string.layout)) {
+                    Segments(listOf(HomeLayout.Pure to stringResource(R.string.layout_pure), HomeLayout.Essentials to stringResource(R.string.layout_essentials),
+                        HomeLayout.Custom to stringResource(R.string.layout_custom)), settings.layout, { v -> set { it.copy(layout = v) } })
+                }
+                Stacked(stringResource(R.string.reach)) {
+                    Segments(listOf(Reach.Left to stringResource(R.string.reach_left), Reach.Center to stringResource(R.string.reach_center),
+                        Reach.Right to stringResource(R.string.reach_right)), settings.reach, { v -> set { it.copy(reach = v) } })
+                }
+                Kicker(stringResource(R.string.favorites_count, favorites.size, LauncherSettings.MAX_FAVORITES), Modifier.padding(start = 24.dp, top = 18.dp, bottom = 4.dp),
+                    color = ink.muted)
+                if (favorites.isEmpty()) Hint(stringResource(R.string.favorites_hint))
+                favorites.forEachIndexed { index, app ->
+                    OrderedAppRow(app, index, onUp = { model.moveFavorite(app.key, -1) }, onRemove = { model.toggleFavorite(app) })
+                }
 
-            Section(R.string.default_home_section)
-            if (role.held) Hint(stringResource(R.string.default_home_active))
-            else {
-                Hint(stringResource(R.string.default_home_why))
-                Capsule(stringResource(R.string.default_home), role.request, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                Section(R.string.arc_section)
+                Hint(stringResource(R.string.arc_explain))
+                ChoiceRow(stringResource(R.string.arc_rings)) {
+                    Segments(listOf(1 to "1", 2 to "2", 3 to "3"), settings.arcRings, { v -> set { it.copy(arcRings = v) } })
+                }
+                Kicker("1 · " + stringResource(R.string.arc_ring_apps) + " · ${settings.arc.size}/${LauncherSettings.ARC_SLOTS}",
+                    Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
+                val ringApps = arcApps.filterNotNull()
+                if (ringApps.isEmpty()) Hint(stringResource(R.string.arc_apps_hint))
+                ringApps.forEachIndexed { index, app -> OrderedAppRow(app, index, onUp = null, onRemove = { model.toggleArc(app) }) }
+                Kicker("2 · " + stringResource(R.string.flow) + " · ${settings.arcFlows.size}/${LauncherSettings.ARC_FLOW_SLOTS}",
+                    Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = if (settings.arcRings >= 2) ink.muted else ink.faint)
+                if (settings.aliases.isEmpty()) Hint(stringResource(R.string.flow_empty))
+                settings.aliases.forEach { alias ->
+                    val on = alias.id in settings.arcFlows
+                    val full = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS
+                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(on, enabled = on || !full, role = Role.Switch) {
+                        model.toggleArcFlow(alias.id, it)
+                    }.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(alias.name, Modifier.weight(1f), style = InkText.item.copy(fontStyle = FontStyle.Italic), maxLines = 1,
+                            overflow = TextOverflow.Ellipsis, color = if (on || !full) ink.ink else ink.faint)
+                        RingToggle(on)
+                    }
+                }
+                NavRow(stringResource(R.string.flow_manage), null, onFlows)
+                Kicker("3 · " + stringResource(R.string.arc_ring_shortcuts) + " · ${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}",
+                    Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = if (settings.arcRings >= 3) ink.muted else ink.faint)
+                NavRow(stringResource(R.string.shortcuts_pick), null, { onPane(StudioPane.Shortcuts) })
+
+                Section(R.string.pulse)
+                ToggleRow(stringResource(R.string.pulse_toggle), settings.pulse, { v -> set { it.copy(pulse = v) } },
+                    detail = stringResource(R.string.pulse_detail))
+                if (settings.pulse) {
+                    NavRow(stringResource(R.string.pulse_lens), stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short
+                        else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
+                    val widthLabel = stringResource(R.string.pulse_width)
+                    Stacked("$widthLabel · +${settings.pulseWidth} dp") {
+                        BeadSlider(settings.pulseWidth.toFloat(), 0f, LauncherSettings.MAX_PULSE_WIDTH.toFloat(), widthLabel, Modifier.fillMaxWidth(),
+                            { v -> set { it.copy(pulseWidth = (v / 2f).roundToInt() * 2) } }, track = ink.ink)
+                    }
+                    val opacityLabel = stringResource(R.string.pulse_opacity)
+                    Stacked("$opacityLabel · ${settings.pulseOpacity} %") {
+                        BeadSlider(settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, opacityLabel, Modifier.fillMaxWidth(),
+                            { v -> set { it.copy(pulseOpacity = (v / 5f).roundToInt() * 5) } }, track = ink.ink)
+                    }
+                    ToggleRow(stringResource(R.string.pulse_echo), settings.pulseEcho, { v -> set { it.copy(pulseEcho = v) } },
+                        detail = stringResource(R.string.pulse_echo_detail))
+                    ToggleRow(stringResource(R.string.pulse_alarm), settings.pulseAlarm, { v -> set { it.copy(pulseAlarm = v) } })
+                    if (settings.pulseAlarm) Stacked(stringResource(R.string.pulse_alarm_window)) {
+                        Segments(listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours,
+                            { v -> set { it.copy(pulseAlarmHours = v) } })
+                    }
+                    ToggleRow(stringResource(R.string.pulse_charging), settings.pulseCharging, { v -> set { it.copy(pulseCharging = v) } },
+                        detail = stringResource(R.string.pulse_charging_detail))
+                }
+
+                Section(R.string.motion_section)
+                Stacked(stringResource(R.string.motion)) {
+                    Segments(listOf(Motion.Calm to stringResource(R.string.motion_calm), Motion.Brisk to stringResource(R.string.motion_brisk),
+                        Motion.Off to stringResource(R.string.off)), settings.motion, { v -> set { it.copy(motion = v) } })
+                }
+                Stacked(stringResource(R.string.haptics)) {
+                    Segments(listOf(Haptics.Soft to stringResource(R.string.haptics_soft), Haptics.Strong to stringResource(R.string.haptics_strong),
+                        Haptics.Off to stringResource(R.string.off)), settings.haptics, { v -> set { it.copy(haptics = v) } })
+                }
+
+                Section(R.string.default_home_section)
+                if (role.held) Hint(stringResource(R.string.default_home_active))
+                else {
+                    Hint(stringResource(R.string.default_home_why))
+                    Capsule(stringResource(R.string.default_home), role.request, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                }
+
+                Section(R.string.hidden_apps)
+                NavRow(stringResource(R.string.hidden_manage), hidden.size.toString(), { onPane(StudioPane.Hidden) })
+
+                Section(R.string.about_title)
+                About()
             }
-
-            Section(R.string.hidden_apps)
-            NavRow(stringResource(R.string.hidden_manage), hidden.size.toString(), { onPane(StudioPane.Hidden) })
-
-            Section(R.string.about_title)
-            About()
         }
+        // Live capsule at the real camera while PULSE is on: width and opacity change as you drag.
+        if (settings.pulse) Pulse(settings, preview = true)
     }
 }
 

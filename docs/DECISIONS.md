@@ -45,3 +45,11 @@ and right alternately (7 slots: 3, 2, 4, 1, 5, 0, 6). The first FLOW sits straig
 stay fixed and the stored order is unchanged, so no migration is needed; only the mapping in
 `HomeViewModel.arcFlows` (`fillFromCentre`) moved. Rings 1 and 3 keep left-to-right order.
 Revert: map `arcFlows` index-to-slot again.
+
+## D7 — 2026-10-16 — PULSE capsule width and opacity
+Studio → PULSE gets two thread-and-bead sliders, as in MT Capsule: *Šířka kapsle* adds 0–40 dp on each
+side of the camera (2 dp steps, default 0) and *Neprůhlednost kapsle* sets the background to 40–100 %
+(5 % steps, default 100); text stays opaque. The 40 % floor keeps text readable over a light wallpaper.
+Both are `LauncherSettings` fields clamped in `sanitized()`. While PULSE is on, Studio draws the real
+capsule at the camera in preview mode (always shown as charging, no echo, no panel, no touch) so changes
+are visible while dragging. Revert: drop `pulseWidth`/`pulseOpacity`; old documents decode unchanged.

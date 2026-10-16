@@ -161,9 +161,12 @@ private fun torchCamera(manager: CameraManager): String? = try {
  * one echo out of the lens; a near alarm or charging shows a capsule around the camera, and the ring
  * around the lens becomes the battery gauge. Tap opens the panel. Home only, no permissions,
  * no background work: everything is read while Home is started.
+ *
+ * [preview] (Studio) always shows the capsule as if charging, without echo or panel, so width and
+ * opacity can be tuned live.
  */
 @Composable
-fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
+fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val ink = LocalInk.current
@@ -191,13 +194,13 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
         onStopOrDispose { context.unregisterReceiver(receiver); expanded = false }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
-        if (motion != Motion.Off && settings.pulseEcho) scope.launch { echo.snapTo(0f); echo.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
+        if (!preview && motion != Motion.Off && settings.pulseEcho) scope.launch { echo.snapTo(0f); echo.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
     }
     BackHandler(enabled = expanded) { expanded = false }
 
     val now = System.currentTimeMillis()
     val soonAlarm = alarm?.takeIf { settings.pulseAlarm && it - now in 0..settings.pulseAlarmHours * 3_600_000L }
-    val charging = settings.pulseCharging && battery?.charging == true
+    val charging = preview || settings.pulseCharging && battery?.charging == true
     val time = DateTimeFormatter.ofPattern("H:mm")
     val alarmText = soonAlarm?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(time) }
     val label = stringResource(R.string.pulse)
@@ -221,15 +224,16 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
         // Capsule around the camera when there is something worth a glance.
         val compact = (soonAlarm != null || charging) && !expanded
         // Each half is only as wide as what it says, so the capsule hides as few status icons as possible.
-        val left = if (alarmText != null) 58.dp else 12.dp
-        val right = if (charging) 48.dp else 12.dp
+        val extra = settings.pulseWidth.dp
+        val left = (if (alarmText != null) 58.dp else 12.dp) + extra
+        val right = (if (charging) 48.dp else 12.dp) + extra
         val pillHeight = hr * 2 + 10.dp
         AnimatedVisibility(compact, Modifier.offset(x = hx - hr - 5.dp - left, y = hy - pillHeight / 2),
             enter = fadeIn(tween(motionMs(200))) + expandIn(tween(motionMs(260)), expandFrom = Alignment.Center),
             exit = fadeOut(tween(motionMs(160))) + shrinkOut(tween(motionMs(200)), shrinkTowards = Alignment.Center)) {
-            Row(Modifier.height(pillHeight).clip(RoundedCornerShape(50)).background(ink.night)
-                .clickable(onClickLabel = label, role = Role.Button) { expanded = true }
-                .semantics { contentDescription = label },
+            Row(Modifier.height(pillHeight).clip(RoundedCornerShape(50)).background(ink.night.copy(alpha = settings.pulseOpacity / 100f))
+                .then(if (preview) Modifier else Modifier.clickable(onClickLabel = label, role = Role.Button) { expanded = true }
+                    .semantics { contentDescription = label }),
                 verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.width(left).padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (alarmText != null) {
@@ -256,7 +260,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
         }
 
         // Invisible touch target on the lens at rest.
-        if (!compact && !expanded) Box(Modifier.offset(x = hx - 24.dp, y = hy - 24.dp).size(48.dp)
+        if (!preview && !compact && !expanded) Box(Modifier.offset(x = hx - 24.dp, y = hy - 24.dp).size(48.dp)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
                 role = Role.Button) { expanded = true }
             .semantics { contentDescription = label })

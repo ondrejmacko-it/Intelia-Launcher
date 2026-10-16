@@ -116,6 +116,18 @@ class SettingsCodecTest {
         assertNull(SettingsCodec.decode("{}").pulseLens)
     }
 
+    @Test fun pulseCapsuleWidthAndOpacityAreBounded() {
+        val defaults = SettingsCodec.decode("{}")
+        assertEquals(0, defaults.pulseWidth)
+        assertEquals(100, defaults.pulseOpacity)
+        assertEquals(LauncherSettings.MAX_PULSE_WIDTH, SettingsCodec.decode("""{"pulseWidth":500}""").pulseWidth)
+        assertEquals(0, LauncherSettings(pulseWidth = -8).sanitized().pulseWidth)
+        assertEquals(LauncherSettings.MIN_PULSE_OPACITY, SettingsCodec.decode("""{"pulseOpacity":0}""").pulseOpacity)
+        assertEquals(100, LauncherSettings(pulseOpacity = 250).sanitized().pulseOpacity)
+        val custom = LauncherSettings(pulseWidth = 14, pulseOpacity = 70)
+        assertEquals(custom, SettingsCodec.decode(SettingsCodec.encode(custom)))
+    }
+
     @Test fun pulseAlarmHoursStayWithinADay() {
         assertEquals(12, SettingsCodec.decode("{}").pulseAlarmHours)
         assertEquals(1, SettingsCodec.decode("""{"pulseAlarmHours":0}""").pulseAlarmHours)

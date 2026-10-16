@@ -27,6 +27,10 @@ Verified:
 - D6 (ring 2 from the centre, `ac65740`): `:app:testDebugUnitTest :app:assembleDebug` PASS (22 tests). On the phone
   the only ARC FLOW (`pocty`) sits straight above LENS in ring 2 (before: far left) and is selected by sliding
   straight up; sliding back onto LENS and releasing cancelled it (nothing launched). Not run by release this time.
+- D7 (capsule width/opacity): `:app:testDebugUnitTest :app:assembleDebug` PASS (23 tests, new
+  `pulseCapsuleWidthAndOpacityAreBounded`). On the phone, tapping the Studio sliders set +20 dp and 70 %; the
+  live capsule at the camera in Studio grew and turned translucent, and Home showed the same capsule. Both set
+  back to +0 dp / 100 %. Dragging the bead (rather than tapping) and TalkBack slider actions not tested.
 
 Not verified:
 - Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).

@@ -98,6 +98,8 @@
     <string name="pulse_alarm_window">Budík do</string>
     <string name="pulse_charging">Ukázat nabíjení</string>
     <string name="pulse_charging_detail">Prstenec kolem kamery se stane ukazatelem baterie.</string>
+    <string name="pulse_width">Šířka kapsle</string>
+    <string name="pulse_opacity">Neprůhlednost kapsle</string>
     <string name="collapse">Sbalit</string>
 
     <string name="studio_live">Studio · náhled naživo</string>
