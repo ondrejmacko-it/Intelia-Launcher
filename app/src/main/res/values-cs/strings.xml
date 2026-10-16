@@ -79,6 +79,25 @@
     <string name="charging">nabíjí se</string>
     <string name="on_battery">na baterii</string>
     <string name="torch">Svítilna</string>
+    <string name="pulse_lens">Poloha kamery</string>
+    <string name="pulse_lens_auto_short">Automaticky</string>
+    <string name="pulse_lens_custom">Vlastní</string>
+    <string name="pulse_lens_kicker">PULSE · poloha kamery</string>
+    <string name="pulse_lens_title">Schovej tečku pod kameru.</string>
+    <string name="pulse_lens_body">Posouvej, dokud kamera nezakryje terakotovou tečku a nezůstane jen tenký prstenec kolem ní. PULSE pak vyrůstá přesně z tvé čočky.</string>
+    <string name="pulse_lens_x">Vodorovně</string>
+    <string name="pulse_lens_y">Svisle</string>
+    <string name="pulse_lens_size">Velikost čočky</string>
+    <string name="pulse_lens_less">%1$s: méně</string>
+    <string name="pulse_lens_more">%1$s: více</string>
+    <string name="pulse_lens_auto">Automaticky</string>
+    <string name="pulse_lens_back">Zpět</string>
+    <string name="pulse_echo">Ozvěna při návratu</string>
+    <string name="pulse_echo_detail">Z kamery vyjde jeden prstenec, když se vrátíš na plochu.</string>
+    <string name="pulse_alarm">Ukázat další budík</string>
+    <string name="pulse_alarm_window">Budík do</string>
+    <string name="pulse_charging">Ukázat nabíjení</string>
+    <string name="pulse_charging_detail">Prstenec kolem kamery se stane ukazatelem baterie.</string>
     <string name="collapse">Sbalit</string>
 
     <string name="studio_live">Studio · náhled naživo</string>

@@ -1,54 +1,28 @@
-# Prompt pro další session — Intelia Ink rework
+# Prompt pro další session — Intelia Ink rework (část 2)
 
 Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka = tento repozitář).
 
 ---
 
-Pokračujeme ve vývoji **Intelia Launcheru** (Kotlin + Jetpack Compose, `AGENTS.md` platí). Jsi hlavní Android engineer a UI/UX architekt. Pracuj autonomně, testuj na telefonu a commituj po malých celcích. Žádný merge do `main` bez mého schválení, žádný force push, `git reset --hard` ani `git clean`.
+Pokračujeme ve vývoji **Intelia Launcheru** (`AGENTS.md` platí). Jsi hlavní Android engineer a UI/UX architekt. **Rozpočet session: max ~200k tokenů.** Šetři: místo screenshotů čti `uiautomator dump`, velké soubory nečti celé, a před limitem skonči commitem a novým promptem v `docs/NEXT_SESSION.md`. Žádný merge do `main`, force push, `reset --hard` ani `git clean`.
 
 ## Kde jsme
-- Větev **`claude/ink-rework`**, poslední commit `7c7de20 wip: … (does not build yet)`. **Nic z větve zatím není na GitHubu.** Pushni až po zeleném buildu.
-- Kontext si přečti v `docs/DESIGN_HANDOFF.md`, `docs/STATUS.md` a `docs/DECISIONS.md` (D1–D4). Design v Claude Design je na https://claude.ai/artifact/Wa9q4hwhdQQYNC1E919rMa (10 artboardů, čti přes nástroj Artifact). Je to výchozí bod, ne závazná šablona.
-- **Nástroje na tomto PC:** JDK `C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1` (nastav `JAVA_HOME`), SDK `…\lesnik-toolchain\sdk` (už je v `local.properties`), adb `…\lesnik-toolchain\sdk\platform-tools\adb.exe`. Build: `./gradlew.bat :app:testDebugUnitTest :app:assembleDebug`.
-- **Telefon:** Nothing Phone (3) A059, Android 16 / API 36, USB. Varianty: `dev.intelia.launcher.debug` (starý fork), `dev.intelia.launcher.dev` (foundation, **aktuální HOME**, podepsaný ztraceným klíčem, nedá se aktualizovat) a `dev.intelia.launcher.lab` („Intelia Lab“, náš debug build, podepsaný `keystore/debug.keystore`). Neodinstalovávej nic, nemaž data a výchozí HOME neměň bez mého souhlasu. Když budeš potřebovat oprávnění nebo přepnout HOME na Lab, napiš mi a já to na telefonu povolím.
-- **Soukromí:** na telefonu nechoď do osobních dat, souborů, financí ani zpráv. Screenshot s osobním obsahem hned smaž. MT Capsule (`com.pryshedko.mtisland`) jsem povolil jen prohlížet, službu přístupnosti nezapínej.
+- Větev `claude/ink-rework`, **zatím nepushnutá**. Build i 19 JVM testů zelené (`./gradlew.bat :app:testDebugUnitTest :app:assembleDebug`, `JAVA_HOME=C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1`).
+- Hotovo a ověřeno na telefonu (`.lab` jako běžná aktivita, ne HOME): onboarding 3 kroky; Home bez jakékoli celoplošné vrstvy (jen tapeta); Essentials vyvážené kolem LENS; klepnutí na LENS → hledání s klávesnicí; swipe nahoru → šuplík (Moje + A–Z + lišta); výsledky rostou nahoru; Enter otevře první aplikaci; přesná shoda FLOW (40sp kurzíva + korálky + Spustit) a Enter spustí FLOW (Kalkulačka → Hodiny ve správném pořadí); psaní nic nespouští; app options (ARC, oblíbené, skrýt, info); ARC prstenec 1 (puštění spustí, návrat na LENS zruší); ARC prstenec 2 s náhledem kroků během držení a spuštěním FLOW puštěním; Studio s živým náhledem na tapetě; světlý motiv; PULSE kapsle s ukazatelem baterie (při připojení k síti). Studený start ~845 ms, teplý ~57 ms (debug), PSS ~131 MB, žádné pády.
+- **Nová kalibrace kamery PULSE** (`ui/Calibration.kt`, Studio → PULSE → Poloha kamery): černá plocha, akcentová tečka se schová pod kameru, tři „nit s korálkem“ posuvníky (Vodorovně / Svisle / Velikost čočky) s ‹ › kroky po 0,5 dp, Automaticky, Uložit. Nastavení `pulseLens`, `pulseEcho`, `pulseAlarm`, `pulseAlarmHours`, `pulseCharging` v `LauncherSettings` (sanitized). Automatická detekce teď bere přesnou `cutoutPath` (Nothing OS hlásí chybný bounding rect).
+- Inspirace z MT Capsule (jen prohlíženo): Screen profiles → Size and position (X, Y, šířka, výška, ‹ ›, Center, reset, Save), opacity, border, scale, alignment, animace (styl, délka, bounce), haptika, události mini kapsle.
 
-## Moje rozhodnutí
-1. Starý klíč nemám, proto vznikla varianta `.lab` se sdíleným klíčem (D4).
-2. Home = systémová tapeta. **Při přechodu do Recents nesmí být vidět žádný obdélník**, launcher se musí chovat jako plocha, ne jako aplikace. Ověřená příčina: během gesta systém okno plochy skryje a zůstane čistá tapeta. Stará Home přes celou obrazovku kreslí ztmavení, které tak vypadá jako obdélník. Nová Home proto **nesmí mít žádnou celoplošnou vrstvu ani pozadí**; čitelnost zajistí stín textu a barva textu podle tapety. Ověř to na telefonu (snímky během gesta, `screencap` do `/data/local/tmp`, potom smazat).
-3. FLOW v ARC: vyber praktičtější řešení. Návrh: puštění prstu na FLOW v ARC je explicitní spuštění, náhled kroků je vidět během držení. Enter při přesné shodě v hledání taky spustí. Psaní samo nikdy nic nespustí. Zapiš to jako D5 a uprav pravidlo v `AGENTS.md`.
-4. Prstenec 3 v ARC = zkratky aplikací (`LauncherApps`, fungují jen když je Intelia HOME). Kontakty až později, vyžadují oprávnění.
-5. Mám kreativní volnost: inspirace MT Capsule (PULSE efekt), Niagara a Pie launcher, ale nic nekopírovat. Chci jednotný, unikátní a nový styl tlačítek, hodin, textů, PULSE, FLOW, ARC a nastavení. Každé odchýlení od designu musí být vratné a zdokumentované v `DECISIONS.md`.
+## Úkoly (v tomto pořadí, malé commity)
+1. **Ověřit kalibraci na telefonu**: ‹ › mění hodnotu přesně o 0,5 dp (při minulém testu se hodnoty posunuly podivně — možná souběžné dotyky majitele, ověř izolovaně přes `uiautomator dump`), Uložit → Studio ukáže „Vlastní“, kapsle na ploše sedí na kameře, Automaticky vrátí detekci. Ozvěna/budík/nabíjení přepínače fungují. Zvážit: posuvník pro šířku kapsle a průhlednost (jako MT Capsule) — jen pokud je to levné.
+2. Přidat JVM testy: sanitizace `pulseLens` a `pulseAlarmHours`.
+3. **Recents bez obdélníku**: požádej majitele o dočasné přepnutí HOME na Lab, pak snímky během gesta do Recents (`screencap` do `/data/local/tmp`, hned smazat). Také tlačítko Home, návrat z aplikací, prstenec 3 se zkratkami (funguje jen jako HOME). Po testu požádej o vrácení HOME na `.dev`.
+4. Dokumentace: `docs/DECISIONS.md` D5 (FLOW puštění v ARC a Enter na přesné shodě = explicitní spuštění; swipe nahoru = šuplík; prstenec 3 = zkratky; PULSE jen na ploše; jazyk „Prstenec a nit“; kalibrace kamery), `docs/STATUS.md` jen ověřená fakta (viz výše), `AGENTS.md` (ARC = tři prstence, nové pravidlo FLOW), `README.md`.
+5. Push větve, PR do `main` (nemergovat), report: příkazy PASS/FAIL, co ověřeno na telefonu a co ne.
 
-## Designový jazyk „Prstenec a nit“ (už v kódu)
-- Dvě ohniska plochy: **PULSE** u kamery (systém mluví k tobě) a **LENS** u palce (ty mluvíš k systému). Vše je z kroužků, vlasových linek a nití, žádné karty.
-- Paleta Ink: papír `#EFEBE4`, inkoust `#1C1814`, akcent terakota (`#A84B29` světlý, `#E39A78` tmavý). Na Home je inkoust nebo papír podle `WallpaperColors.HINT_SUPPORTS_DARK_TEXT`.
-- Hodiny dvěma hlasy: hodiny rovně, minuty kurzívou, místo dvojtečky malý akcentový prstenec (`SplitClock`).
-- LENS: otevřený prstenec a „přílivová čárka“ (`TideDash`). Stejná čárka značí výběr všude, například v `Segments`.
-- ARC: tři orbity (aplikace 5 / FLOW 7 / zkratky 7). Akcentová nit vede od LENS k vybrané položce, nahoře je velký náhled. Vnější prstence se odkrývají postupně a návrat na LENS gesto zruší.
-- FLOW se zobrazuje jako korálky na niti (`BeadThread`). Přepínač = prstenec, který se vyplní (`RingToggle`).
-- PULSE: v klidu neviditelný. Při návratu na plochu vyjde od kamery ozvěna. Při blízkém budíku nebo nabíjení se ukáže kapsle a okraj kolem kamery funguje jako ukazatel baterie. Klepnutí otevře panel s budíkem, baterií a svítilnou. Žádná oprávnění ani práce na pozadí.
-- Písma: zatím systémová (Serif/SansSerif/Monospace) v `InkFonts`. Newsreader, Instrument Sans a Geist Mono (vše OFL) přibalit do `res/font` **jen s mým souhlasem ke stažení** (uveď zdroj, název a velikost) a zapsat jako D6.
+## Známé drobnosti
+- Pozice FLOW v prstenci 2 je pevná zleva (první FLOW je úplně vlevo, hůř dosažitelný) — případně navrhnout řazení od středu jako D-záznam.
+- Klepnutí na kameru zachytí overlay MT Capsule, takže panel PULSE se přes adb nedá otevřít, dokud MT Capsule běží.
+- Písma jsou zatím systémová; Newsreader / Instrument Sans / Geist Mono jen se souhlasem (D6).
 
-## Stav kódu (`app/src/main/java/dev/intelia/launcher/`)
-Hotovo (napsáno, zatím nezkompilováno):
-- `data/LauncherSettings.kt`: `layout`, `favorites`, `arcFlows`, `arcShortcuts`, `arcRings`, `clockStyle`, `motion`, `haptics`, `iconStyle`, `pulse`, `onboarded`; migrace `reduceMotion` → `motion`.
-- `data/AppRepository.kt`: `essentialPackages()`, zkratky (`shortcuts`, `shortcutIcon`, `startShortcut`). `data/IconCache.kt`: styl Ink s monochromatickou vrstvou na API 33+, jinak šedá ikona.
-- `ui/ArcGesture.kt` (`ArcRings` a `ArcPick`, čistý model) a testy v `test/.../CoreTest.kt`.
-- `ui/Ink.kt` (téma, palety, `LocalHomeInk`, pohyb, haptika, `SystemBarIcons`), `ui/Kit.kt` (komponenty), `ui/Glyphs.kt`, `ui/Icons.kt` (`AppIcon` s `tint`, `ShortcutIcon`), `ui/Lens.kt` (`LensArc`, `LensLift`, `lensShift`), `ui/Pulse.kt`, `ui/HomeViewModel.kt`. Manifest má `<queries>` pro výchozí aplikace a budíky.
-
-Zbývá:
-1. **Přepsat `ui/HomeRoot.kt`** a rozdělit ho na `Search.kt`, `FlowPages.kt`, `Studio.kt`, `Onboarding.kt` a přepsat `Sheets.kt`. Stávající soubory používají staré API (`Lens(...)`, `ClockFace`, `FlowEditorSheet`, `SettingsSheet`, `saveAlias(alias)` bez `inArc`, `Glyph.Settings`).
-   - Home: bez pozadí. Hodiny a datum nahoře, rozvržení Pure / Essentials (4 oblíbené kolem LENS, pozice z `LensLift`/`lensShift`) / Custom (seznam oblíbených v serifu). `LensArc` (při otevřeném ARC zeslabit hodiny), `Pulse` když je zapnutý. Swipe nahoru = šuplík, podržení plochy = Studio. Při `ON_START` zavolat `model.refreshShortcuts()`.
-   - Hledání: pole dole u palce, výsledky přes `LazyColumn(reverseLayout = true)` rostou nahoru, nad polem blok přesné shody FLOW (název 40sp kurzívou, nit, kapsle Spustit). Prázdný dotaz = šuplík: řádek „Moje“, A–Z s písmeny a abecední lištou vpravo.
-   - FLOW: seznam a editor přes celou obrazovku (Uložit nahoře, kroky s pořadím, přepínač „V oblouku ARC“, Smazat).
-   - Studio místo spodního panelu: živý náhled nahoře přímo na tapetě, pod ním vzhled, plocha a oblíbené, ARC (prstence 1–3 a výběr zkratek), PULSE, pohyb a haptika, výchozí plocha, skryté aplikace a O aplikaci.
-   - Onboarding ve 3 krocích: úvod s ilustrací orbit, volba rozvržení s mini náhledem, nastavení jako plocha + krátký průvodce gesty → `finishOnboarding(layout)`.
-   - Možnosti aplikace: ARC, oblíbené, skrýt, informace.
-2. Doplnit chybějící řetězce do `values/strings.xml` a `values-cs/strings.xml`. Už používané a zatím neexistující: `arc_ring_apps`, `arc_ring_shortcuts`, `arc_release`, `arc_further`, `arc_cancel_hint`, `arc_empty_title`, `close`, `pulse`, `today`, `tomorrow`, `no_alarm`, `charging`, `on_battery`, `torch`, `collapse`. Uprav i `arc_empty` a dál všechny nové texty obrazovek.
-3. Zelený build + testy (16 starých, část nahrazena + nové testy ARC a nastavení), bez nových varování z našeho kódu.
-4. Instalace `.lab` (`adb install -r`), live test: Home, návrat z aplikací, **Recents bez obdélníku**, tapeta, LENS, hledání, šuplík, ARC včetně zrušení, FLOW, klávesnice a insets, ukládání nastavení, světlý a tmavý režim, PULSE, logcat. Měř studený a teplý start HOME (`am start -W`). Na plné ověření požádej o dočasné přepnutí HOME na Lab.
-5. `docs/DECISIONS.md` D5 (FLOW release a Enter, swipe = šuplík, prstenec 3 = zkratky, PULSE jen na ploše, jazyk „Prstenec a nit“), `docs/STATUS.md` jen s ověřenými fakty, úprava `AGENTS.md` (ARC už není 5 slotů) a `README.md`.
-6. Malé commity, push větve a PR do `main` až po ověření na telefonu. Nemergovat.
-
-Na konci mi dej stručný report: příkazy s PASS/FAIL, co je ověřené na telefonu a co ne, a jen nezbytné otázky.
+## Telefon a soukromí
+Nothing Phone (3), Android 16, USB. adb: `C:\Users\Ondra\AppData\Local\lesnik-toolchain\sdk\platform-tools\adb.exe`, v Git Bash vždy `MSYS_NO_PATHCONV=1`. Před každým `input` ověř, že nahoře je `dev.intelia.launcher.lab/` (majitel může telefon zároveň používat). Nic neodinstalovávat, nemazat data, HOME neměnit bez souhlasu. Do osobních aplikací nechodit; screenshot s osobním obsahem hned smazat. MT Capsule jen prohlížet, nic neukládat.

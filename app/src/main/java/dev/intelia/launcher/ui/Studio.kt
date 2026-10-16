@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -67,7 +68,7 @@ import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.ThemeMode
 import java.time.LocalDateTime
 
-private enum class StudioPane { Main, Shortcuts, Hidden }
+private enum class StudioPane { Main, Shortcuts, Hidden, Lens }
 
 /**
  * Studio replaces the settings sheet: a live preview drawn straight on the wallpaper at the top,
@@ -76,16 +77,22 @@ private enum class StudioPane { Main, Shortcuts, Hidden }
 @Composable
 fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onFlows: () -> Unit) {
     var pane by rememberSaveable { mutableStateOf(StudioPane.Main) }
+    // Hoisted so coming back from a sub-page lands where you left the list.
+    val scroll = rememberScrollState()
     BackHandler(enabled = pane != StudioPane.Main) { pane = StudioPane.Main }
     when (pane) {
-        StudioPane.Main -> StudioMain(model, settings, onBack, onFlows, onPane = { pane = it })
+        StudioPane.Main -> StudioMain(model, settings, scroll, onBack, onFlows, onPane = { pane = it })
         StudioPane.Shortcuts -> ShortcutPicker(model, settings, onBack = { pane = StudioPane.Main })
         StudioPane.Hidden -> HiddenApps(model, onBack = { pane = StudioPane.Main })
+        StudioPane.Lens -> LensCalibration(settings.pulseLens, onSave = { lens ->
+            model.updateSettings { it.copy(pulseLens = lens) }
+            pane = StudioPane.Main
+        }, onBack = { pane = StudioPane.Main })
     }
 }
 
 @Composable
-private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onFlows: () -> Unit, onPane: (StudioPane) -> Unit) {
+private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll: ScrollState, onBack: () -> Unit, onFlows: () -> Unit, onPane: (StudioPane) -> Unit) {
     val ink = LocalInk.current
     val homeInk = LocalHomeInk.current
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
@@ -106,7 +113,7 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack:
             }
         }
         Column(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(ink.paper)
-            .verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 24.dp)) {
+            .verticalScroll(scroll).navigationBarsPadding().padding(bottom = 24.dp)) {
             Section(R.string.appearance)
             Stacked(stringResource(R.string.clock_font)) {
                 Segments(listOf(ClockStyle.Serif to stringResource(R.string.clock_serif), ClockStyle.Grotesk to stringResource(R.string.clock_grotesk),
@@ -172,6 +179,19 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack:
             Section(R.string.pulse)
             ToggleRow(stringResource(R.string.pulse_toggle), settings.pulse, { v -> set { it.copy(pulse = v) } },
                 detail = stringResource(R.string.pulse_detail))
+            if (settings.pulse) {
+                NavRow(stringResource(R.string.pulse_lens), stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short
+                    else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
+                ToggleRow(stringResource(R.string.pulse_echo), settings.pulseEcho, { v -> set { it.copy(pulseEcho = v) } },
+                    detail = stringResource(R.string.pulse_echo_detail))
+                ToggleRow(stringResource(R.string.pulse_alarm), settings.pulseAlarm, { v -> set { it.copy(pulseAlarm = v) } })
+                if (settings.pulseAlarm) Stacked(stringResource(R.string.pulse_alarm_window)) {
+                    Segments(listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours,
+                        { v -> set { it.copy(pulseAlarmHours = v) } })
+                }
+                ToggleRow(stringResource(R.string.pulse_charging), settings.pulseCharging, { v -> set { it.copy(pulseCharging = v) } },
+                    detail = stringResource(R.string.pulse_charging_detail))
+            }
 
             Section(R.string.motion_section)
             Stacked(stringResource(R.string.motion)) {

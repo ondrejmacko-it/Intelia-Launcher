@@ -331,7 +331,7 @@ private fun Home(
 
         LensArc(arc, settings.reach, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
             onShortcut = onShortcut, onOpenChange = { arcOpen = it })
-        if (settings.pulse) Pulse()
+        if (settings.pulse) Pulse(settings)
     }
 }
 

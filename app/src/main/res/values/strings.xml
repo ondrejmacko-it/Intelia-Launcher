@@ -80,6 +80,25 @@
     <string name="charging">charging</string>
     <string name="on_battery">on battery</string>
     <string name="torch">Torch</string>
+    <string name="pulse_lens">Camera position</string>
+    <string name="pulse_lens_auto_short">Automatic</string>
+    <string name="pulse_lens_custom">Custom</string>
+    <string name="pulse_lens_kicker">PULSE · camera position</string>
+    <string name="pulse_lens_title">Hide the dot under the camera.</string>
+    <string name="pulse_lens_body">Move it until the camera covers the terracotta dot and only the thin ring around it remains. PULSE then grows exactly out of your lens.</string>
+    <string name="pulse_lens_x">Across</string>
+    <string name="pulse_lens_y">Down</string>
+    <string name="pulse_lens_size">Lens size</string>
+    <string name="pulse_lens_less">%1$s: less</string>
+    <string name="pulse_lens_more">%1$s: more</string>
+    <string name="pulse_lens_auto">Automatic</string>
+    <string name="pulse_lens_back">Back</string>
+    <string name="pulse_echo">Echo on return</string>
+    <string name="pulse_echo_detail">One ring leaves the camera when you come Home.</string>
+    <string name="pulse_alarm">Show the next alarm</string>
+    <string name="pulse_alarm_window">Alarm within</string>
+    <string name="pulse_charging">Show charging</string>
+    <string name="pulse_charging_detail">The ring around the camera becomes the battery gauge.</string>
     <string name="collapse">Collapse</string>
 
     <string name="studio_live">Studio · live preview</string>

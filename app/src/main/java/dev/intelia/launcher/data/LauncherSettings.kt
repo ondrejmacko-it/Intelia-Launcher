@@ -15,6 +15,9 @@ import kotlinx.serialization.json.Json
 @Serializable enum class Haptics { Soft, Strong, Off }
 @Serializable enum class IconStyle { System, Ink }
 
+/** Manual camera position for PULSE, in dp from the top-left of the portrait screen; [r] is the lens radius. */
+@Serializable data class PulseLens(val x: Float, val y: Float, val r: Float)
+
 @Serializable
 data class LauncherSettings(
     val theme: ThemeMode = ThemeMode.System,
@@ -42,12 +45,23 @@ data class LauncherSettings(
     val haptics: Haptics = Haptics.Soft,
     val iconStyle: IconStyle = IconStyle.System,
     val pulse: Boolean = true,
+    /** Null: use the display cutout reported by the system. */
+    val pulseLens: PulseLens? = null,
+    val pulseEcho: Boolean = true,
+    val pulseAlarm: Boolean = true,
+    val pulseCharging: Boolean = true,
+    /** How close an alarm must be, in hours, before the capsule shows it. */
+    val pulseAlarmHours: Int = 12,
 ) {
     companion object {
         const val ARC_SLOTS = 5
         const val ARC_FLOW_SLOTS = 7
         const val ARC_SHORTCUT_SLOTS = 7
         const val MAX_FAVORITES = 7
+        const val MAX_LENS_X = 1000f
+        const val MAX_LENS_Y = 300f
+        const val MIN_LENS_R = 3f
+        const val MAX_LENS_R = 60f
         private const val MAX_KEY = 512
         private const val MAX_HIDDEN = 1000
         private const val MAX_ALIASES = 200
@@ -68,6 +82,9 @@ data class LauncherSettings(
             arcShortcuts = arcShortcuts.filter(::validKey).distinct().take(ARC_SHORTCUT_SLOTS),
             arcRings = arcRings.coerceIn(1, 3),
             motion = if (reduceMotion) Motion.Off else motion,
+            pulseLens = pulseLens?.takeIf { it.x.isFinite() && it.y.isFinite() && it.r.isFinite() }
+                ?.let { PulseLens(it.x.coerceIn(0f, MAX_LENS_X), it.y.coerceIn(0f, MAX_LENS_Y), it.r.coerceIn(MIN_LENS_R, MAX_LENS_R)) },
+            pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
             reduceMotion = false,
         )
     }

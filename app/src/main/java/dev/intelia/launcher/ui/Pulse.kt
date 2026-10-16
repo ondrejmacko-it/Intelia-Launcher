@@ -9,7 +9,9 @@ import android.content.IntentFilter
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.graphics.RectF
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.AlarmClock
@@ -78,7 +80,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import dev.intelia.launcher.R
+import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
+import dev.intelia.launcher.data.PulseLens
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -88,7 +92,46 @@ import java.time.format.DateTimeFormatter
 private data class Battery(val percent: Int, val charging: Boolean)
 
 /** Where the camera cut-out sits, in window px. */
-private data class Hole(val x: Float, val y: Float, val radius: Float)
+internal data class Hole(val x: Float, val y: Float, val radius: Float)
+
+/**
+ * The camera hole as the system describes it. The cutout path is exact; some builds report a bounding
+ * rect that covers only half of the hole (Nothing OS 4.1 on Phone (3)), so the rect is the fallback.
+ */
+@Composable
+internal fun rememberDetectedHole(): Hole? {
+    val view = LocalView.current
+    var hole by remember { mutableStateOf<Hole?>(null) }
+    LaunchedEffect(view) {
+        withFrameNanos { }
+        val cutout = view.rootWindowInsets?.displayCutout ?: return@LaunchedEffect
+        val fromPath = if (Build.VERSION.SDK_INT >= 31) cutout.cutoutPath?.let { path ->
+            val b = RectF().also { path.computeBounds(it, true) }
+            b.takeIf { it.width() > 0f && it.top < view.height / 4f && it.width() < view.width / 3f }
+                ?.let { Hole(it.centerX(), it.centerY(), minOf(it.width(), it.height()) / 2f) }
+        } else null
+        hole = fromPath ?: cutout.boundingRects.firstOrNull { it.top < view.height / 4 && it.width() < view.width / 3 }
+            ?.let { Hole(it.exactCenterX(), it.exactCenterY(), minOf(it.width(), it.height()) / 2f) }
+    }
+    return hole
+}
+
+/** The lens PULSE draws around: the user's calibration in portrait, else the detected cutout, else a guess. */
+@Composable
+internal fun rememberLens(lens: PulseLens?): Hole {
+    val view = LocalView.current
+    val density = LocalDensity.current
+    val detected = rememberDetectedHole()
+    val statusTop = with(density) { WindowInsets.statusBars.getTop(this).toFloat() }
+    val portrait = view.height >= view.width
+    return with(density) {
+        when {
+            lens != null && portrait -> Hole(lens.x.dp.toPx(), lens.y.dp.toPx(), lens.r.dp.toPx())
+            detected != null -> detected
+            else -> Hole(view.width / 2f, statusTop / 2f, 11.dp.toPx())
+        }
+    }
+}
 
 private fun Intent.battery(): Battery? {
     val level = getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
@@ -120,26 +163,19 @@ private fun torchCamera(manager: CameraManager): String? = try {
  * no background work: everything is read while Home is started.
  */
 @Composable
-fun Pulse(modifier: Modifier = Modifier) {
+fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val view = LocalView.current
     val density = LocalDensity.current
     val ink = LocalInk.current
     val homeInk = LocalHomeInk.current
     val motion = LocalMotion.current
     val scope = rememberCoroutineScope()
-    var hole by remember { mutableStateOf<Hole?>(null) }
+    val h = rememberLens(settings.pulseLens)
     var battery by remember { mutableStateOf<Battery?>(null) }
     var alarm by remember { mutableStateOf<Long?>(null) }
     var expanded by remember { mutableStateOf(false) }
     val echo = remember { Animatable(1f) }
-    val statusTop = with(density) { WindowInsets.statusBars.getTop(this).toFloat() }
 
-    LaunchedEffect(view) {
-        withFrameNanos { }
-        val rect = view.rootWindowInsets?.displayCutout?.boundingRects?.firstOrNull { it.top < view.height / 4 && it.width() < view.width / 3 }
-        hole = rect?.let { Hole(it.exactCenterX(), it.exactCenterY(), minOf(it.width(), it.height()) / 2f) }
-    }
     LifecycleStartEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
@@ -155,19 +191,18 @@ fun Pulse(modifier: Modifier = Modifier) {
         onStopOrDispose { context.unregisterReceiver(receiver); expanded = false }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
-        if (motion != Motion.Off) scope.launch { echo.snapTo(0f); echo.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
+        if (motion != Motion.Off && settings.pulseEcho) scope.launch { echo.snapTo(0f); echo.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
     }
     BackHandler(enabled = expanded) { expanded = false }
 
     val now = System.currentTimeMillis()
-    val soonAlarm = alarm?.takeIf { it - now in 0..12 * 3_600_000L }
-    val charging = battery?.charging == true
+    val soonAlarm = alarm?.takeIf { settings.pulseAlarm && it - now in 0..settings.pulseAlarmHours * 3_600_000L }
+    val charging = settings.pulseCharging && battery?.charging == true
     val time = DateTimeFormatter.ofPattern("H:mm")
     val alarmText = soonAlarm?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(time) }
     val label = stringResource(R.string.pulse)
 
-    BoxWithConstraints(modifier.fillMaxSize()) {
-        val h = hole ?: Hole(constraints.maxWidth / 2f, statusTop / 2f, with(density) { 11.dp.toPx() })
+    Box(modifier.fillMaxSize()) {
         val hx = with(density) { h.x.toDp() }
         val hy = with(density) { h.y.toDp() }
         val hr = with(density) { h.radius.toDp() }
