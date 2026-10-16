@@ -31,11 +31,15 @@ Verified:
   `pulseCapsuleWidthAndOpacityAreBounded`). On the phone, tapping the Studio sliders set +20 dp and 70 %; the
   live capsule at the camera in Studio grew and turned translucent, and Home showed the same capsule. Both set
   back to +0 dp / 100 %. Dragging the bead (rather than tapping) and TalkBack slider actions not tested.
+- Near-alarm capsule (owner set an alarm for 10:00; checked 09:46 while charging): the capsule shows bell + 10:00
+  on the left and the battery ring + 90 % on the right. **Problem:** its left half covers the system status-bar
+  alarm icon and the 90 % repeats the system battery. Status bar is 126 px (48 dp) high.
 
 Not verified:
 - Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
-- PULSE near-alarm capsule: the next alarm is >2 days away (outside the 24 h window), so it was not shown;
-  no alarm was set for the test.
+- PULSE capsule design (owner, 2026-10-16): it should fit the status bar, never cover status icons, show as
+  little as possible at rest and show details on tap, like MT Capsule but in Intelia's own way. Planned in
+  `docs/NEXT_SESSION.md`.
 - Performance on a release build; battery.
 - The PULSE panel cannot be opened via adb while MT Capsule's overlay is running (it catches taps on the camera).
 
