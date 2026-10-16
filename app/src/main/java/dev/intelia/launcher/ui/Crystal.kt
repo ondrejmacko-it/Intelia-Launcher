@@ -124,7 +124,7 @@ object CrystalDims {
 }
 
 /** Roboto Flex at one weight/width pair; each pair is its own family because axes are fixed per [Font]. */
-private fun flex(weight: Int, width: Float) = FontFamily(
+internal fun flex(weight: Int, width: Float) = FontFamily(
     Font(
         R.font.roboto_flex,
         weight = FontWeight(weight),

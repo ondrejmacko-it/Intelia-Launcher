@@ -129,6 +129,8 @@ fun LensArc(
     onShortcut: (ShortcutEntry) -> Unit,
     onOpenChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    lensRing: Dp = CrystalDims.lensRing,
+    lensFilled: Boolean = false,
 ) {
     val homeInk = LocalHomeInk.current
     val ink = LocalInk.current
@@ -364,7 +366,7 @@ fun LensArc(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            LensMark(homeInk, active = open)
+            LensMark(homeInk, active = open, ring = lensRing, filled = lensFilled)
         }
     }
 }

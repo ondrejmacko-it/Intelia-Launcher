@@ -163,15 +163,86 @@ class HomeEditorState(
 
     fun cancelDrag() { drag = null; bump() }
 
+    /**
+     * Changes one item (inspector). Calls with the same [key] in a row, e.g. a slider being dragged,
+     * collapse into one undo step; any other change starts a new one.
+     */
+    fun edit(id: String, key: String, transform: (HomeItem) -> HomeItem) {
+        val before = item(id) ?: return
+        val after = transform(before).copy(id = before.id, kind = before.kind)
+        if (after == before) return
+        val next = layout.copy(items = layout.items.map { if (it.id == id) after else it })
+        if (coalesce == "$id/$key" && undoStack.isNotEmpty()) { layout = next; redoStack.clear(); bump() }
+        else { commit(next); coalesce = "$id/$key" }
+    }
+
+    /** Removes an app or FLOW from Home only (never uninstalls); the clock, date and LENS stay. */
+    fun remove(id: String): Boolean {
+        val item = item(id) ?: return false
+        if (item.kind == ItemKind.Lens) return false
+        commit(layout.copy(items = layout.items.filter { it.id != id }))
+        return true
+    }
+
+    /** Shows or hides the date under the clock. */
+    fun setDate(on: Boolean) {
+        val has = layout.items.any { it.kind == ItemKind.Date }
+        if (on == has) return
+        commit(layout.copy(items = if (on) layout.items + HomeItem("date", ItemKind.Date, Anchor.Bound)
+            else layout.items.filter { it.kind != ItemKind.Date }))
+    }
+
+    /**
+     * Adds an app or FLOW where Home was tapped: the same snapping as a drop, but nothing is pushed aside;
+     * a taken or blocked spot falls back to the nearest free cell. False if it is already on Home or nothing is free.
+     */
+    fun addAt(kind: ItemKind, target: String, p: Pt): Boolean {
+        val id = (if (kind == ItemKind.Flow) "flow:" else "app:") + target
+        if (item(id) != null || layout.items.size >= dev.intelia.launcher.data.HomeLayouts.MAX_ITEMS) return false
+        val fresh = HomeItem(id, kind, Anchor.cell(-1, -1), target = target)
+        val r = resolve(fresh, p)
+        val anchor = if (r.valid && r.displaced == null) r.target
+            else nearestFreeCell(geometry.nearestCell(p, layout.grid.cols, layout.grid.rows), layout.items, fresh) ?: return false
+        commit(layout.copy(items = layout.items + fresh.copy(anchor = anchor)))
+        return true
+    }
+
+    /** Before a preset preview: the layout to return to; null when no preview is shown. */
+    var previewOf: LayoutSpec? = null
+        private set
+
+    /** Shows [spec] in place without touching history; [confirmPreview] keeps it as one undoable step. */
+    fun preview(spec: LayoutSpec) {
+        if (previewOf == null) previewOf = layout
+        layout = spec
+        bump()
+    }
+
+    fun confirmPreview() {
+        val before = previewOf ?: return
+        previewOf = null
+        val next = layout
+        layout = before
+        if (next != before) commit(next) else bump()
+    }
+
+    fun cancelPreview() {
+        layout = previewOf ?: return
+        previewOf = null
+        bump()
+    }
+
     fun setPlacement(p: Placement) { if (p != layout.placement) commit(layout.copy(placement = p)) }
 
     fun undo() {
         val prev = undoStack.removeLastOrNull() ?: return
+        coalesce = null
         redoStack.addLast(layout); layout = prev; bump()
     }
 
     fun redo() {
         val next = redoStack.removeLastOrNull() ?: return
+        coalesce = null
         undoStack.addLast(layout); layout = next; bump()
     }
 
@@ -181,7 +252,10 @@ class HomeEditorState(
     /** Replaces the whole layout as one undoable step (e.g. a preset). */
     fun replace(next: LayoutSpec) { if (next != layout) commit(next) }
 
+    private var coalesce: String? = null
+
     private fun commit(next: LayoutSpec) {
+        coalesce = null
         undoStack.addLast(layout)
         while (undoStack.size > MAX_UNDO) undoStack.removeFirst()
         redoStack.clear()

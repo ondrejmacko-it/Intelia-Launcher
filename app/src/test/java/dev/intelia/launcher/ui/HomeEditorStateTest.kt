@@ -107,4 +107,67 @@ class HomeEditorStateTest {
         e.startDrag("clock"); e.dragBy(Pt(0f, 2000f)); e.drop()
         assertEquals(HomeEditorState.CLOCK_MAX_FY, e.item("clock")!!.anchor.fy)
     }
+
+    @Test fun sliderEditsCollapseIntoOneUndoStep() {
+        val e = HomeEditorState(layout(Placement.Grid, app("a", Anchor.cell(0, 0))), geo)
+        for (v in 33..60) e.edit("a", "size") { it.copy(sizeDp = v) }
+        assertEquals(60, e.item("a")!!.sizeDp)
+        e.edit("a", "label") { it.copy(label = true) }
+        e.undo()
+        assertEquals(60, e.item("a")!!.sizeDp)
+        assertFalse(e.item("a")!!.label)
+        e.undo()
+        assertEquals(0, e.item("a")!!.sizeDp)
+        assertFalse(e.canUndo)
+    }
+
+    @Test fun removeTakesOnlyTheItemAndNeverLens() {
+        val e = HomeEditorState(layout(Placement.Grid, app("a", Anchor.cell(0, 0))), geo)
+        assertFalse(e.remove("lens"))
+        assertTrue(e.remove("a"))
+        assertNull(e.item("a"))
+        e.undo()
+        assertEquals(Anchor.cell(0, 0), e.item("a")!!.anchor)
+    }
+
+    @Test fun addAtSnapsAndFallsBackWithoutPushingAside() {
+        val e = HomeEditorState(layout(Placement.Grid, app("app:b", Anchor.cell(2, 2))), geo)
+        assertTrue(e.addAt(ItemKind.App, "x/X", geo.cellCentre(1, 1, 4, 6)))
+        assertEquals(Anchor.cell(1, 1), e.item("app:x/X")!!.anchor)
+        assertFalse(e.addAt(ItemKind.App, "x/X", geo.cellCentre(0, 0, 4, 6)))
+        // On a taken cell the occupant stays and the new FLOW goes to the nearest free cell.
+        assertTrue(e.addAt(ItemKind.Flow, "f1", geo.cellCentre(2, 2, 4, 6)))
+        assertEquals(Anchor.cell(2, 2), e.item("app:b")!!.anchor)
+        val f = e.item("flow:f1")!!
+        assertEquals(ItemKind.Flow, f.kind)
+        assertEquals(1, Math.abs(f.anchor.col - 2) + Math.abs(f.anchor.row - 2))
+        // An empty LENS-row slot takes it directly.
+        assertTrue(e.addAt(ItemKind.App, "y/Y", geo.lensSlot(1)))
+        assertEquals(Anchor.lensRow(1), e.item("app:y/Y")!!.anchor)
+    }
+
+    @Test fun previewIsOutsideHistoryUntilConfirmed() {
+        val start = layout(Placement.Grid, app("a", Anchor.cell(0, 0)))
+        val e = HomeEditorState(start, geo)
+        val pure = dev.intelia.launcher.data.HomeTemplates.preview(dev.intelia.launcher.data.LayoutBase.Pure, listOf("a/X"), start)
+        e.preview(pure)
+        assertEquals(pure, e.layout)
+        assertFalse(e.canUndo)
+        e.cancelPreview()
+        assertEquals(start, e.layout)
+        e.preview(pure)
+        e.confirmPreview()
+        assertEquals(pure, e.layout)
+        assertNull(e.previewOf)
+        e.undo()
+        assertEquals(start, e.layout)
+    }
+
+    @Test fun dateToggle() {
+        val e = HomeEditorState(layout(Placement.Grid), geo)
+        e.setDate(true)
+        assertTrue(e.layout.items.any { it.kind == ItemKind.Date })
+        e.setDate(false)
+        assertFalse(e.layout.items.any { it.kind == ItemKind.Date })
+    }
 }

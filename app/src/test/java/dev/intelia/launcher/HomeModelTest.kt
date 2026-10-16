@@ -114,4 +114,21 @@ class HomeModelTest {
         val again = saved.home.save(saved.home.activeLayout().copy(placement = dev.intelia.launcher.data.Placement.Free))
         assertEquals(2, again.layouts.size)
     }
+
+    @Test fun itemLookIsClampedAndUnknownValuesFallBack() {
+        val bad = LayoutSpec("mine", items = listOf(
+            HomeItem("clock", ItemKind.Clock, Anchor.free(.5f, 0f), sizeDp = 999, style = "Comic", weight = 5000, tint = "Neon", alpha = Float.NaN),
+            HomeItem("lens", ItemKind.Lens, Anchor.Lens, style = "Filled", weight = 300, alpha = .1f),
+            HomeItem("app:a/X", target = "a/X", anchor = Anchor.cell(0, 0), style = "Crystal", tint = "Accent"),
+        ))
+        val s = LauncherSettings(home = HomeLayouts("mine", listOf(bad))).sanitized()
+        val l = s.home.activeLayout()
+        val clock = l.items.first { it.kind == ItemKind.Clock }
+        assertEquals(160, clock.sizeDp); assertEquals("", clock.style); assertEquals(900, clock.weight)
+        assertEquals("", clock.tint); assertEquals(1f, clock.alpha)
+        val lens = l.items.first { it.kind == ItemKind.Lens }
+        assertEquals("Filled", lens.style); assertEquals(0, lens.weight); assertEquals(.3f, lens.alpha)
+        val app = l.items.first { it.kind == ItemKind.App }
+        assertEquals("", app.style); assertEquals("Accent", app.tint)
+    }
 }

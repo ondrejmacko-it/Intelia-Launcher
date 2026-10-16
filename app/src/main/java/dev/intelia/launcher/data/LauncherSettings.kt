@@ -140,11 +140,27 @@ data class LauncherSettings(
             .mapNotNull { item -> clampAnchor(item.kind, item.anchor, grid)?.let { item.copy(anchor = it) } }
             .filter { it.anchor.type != AnchorType.LensRow || slots.add(it.anchor.slot) }
             .take(HomeLayouts.MAX_ITEMS)
-            .map { it.copy(sizeDp = if (it.sizeDp == 0) 0 else it.sizeDp.coerceIn(24, 160), z = it.z.coerceIn(-100, 100)) }
+            .map(::sanitizeLook)
             .toMutableList()
         if (ItemKind.Lens !in singles) items.add(0, HomeItem("lens", ItemKind.Lens, Anchor.Lens))
         val name = l.name.filterNot(Char::isISOControl).trim().take(HomeLayouts.MAX_NAME).ifEmpty { HomeTemplates.DEFAULT_NAME }
         return l.copy(name = name, grid = grid, items = items, linked = false)
+    }
+
+    private fun sanitizeLook(it: HomeItem): HomeItem {
+        val styles = when (it.kind) {
+            ItemKind.Clock -> ClockStyle.entries.map { e -> e.name }
+            ItemKind.Lens -> LensStyle.entries.map { e -> e.name }
+            else -> emptyList()
+        }
+        return it.copy(
+            sizeDp = if (it.sizeDp == 0) 0 else it.sizeDp.coerceIn(24, 160),
+            z = it.z.coerceIn(-100, 100),
+            style = it.style.takeIf { s -> s in styles }.orEmpty(),
+            weight = if (it.kind != ItemKind.Clock || it.weight == 0) 0 else it.weight.coerceIn(100, 900),
+            tint = it.tint.takeIf { t -> ItemTint.entries.any { e -> e.name == t } }.orEmpty(),
+            alpha = if (it.alpha.isFinite()) it.alpha.coerceIn(.3f, 1f) else 1f,
+        )
     }
 
     /** Null drops the item (e.g. a LENS-row slot that does not exist). Cells re-clamp when the grid shrinks. */

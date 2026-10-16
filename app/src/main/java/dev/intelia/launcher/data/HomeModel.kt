@@ -61,7 +61,20 @@ data class HomeItem(
     /** App key, FLOW id or reserved widget id; empty for Clock, Date and Lens. */
     val target: String = "",
     val label: Boolean = false,
+    /** Clock: a [ClockStyle] name; LENS: a [LensStyle] name; empty = the default (the clock follows Studio). */
+    val style: String = "",
+    /** Clock font weight 100..900; 0 = the style's own. */
+    val weight: Int = 0,
+    /** One of [ItemTint]; empty = the wallpaper-derived ink. */
+    val tint: String = "",
+    /** 0.3..1. */
+    val alpha: Float = 1f,
 )
+
+@Serializable enum class LensStyle { Ring, Filled }
+
+/** Colour choices of the clock inspector, stored by name. */
+enum class ItemTint { Accent, Light, Dark }
 
 @Serializable
 data class LayoutSpec(
@@ -132,6 +145,23 @@ object HomeTemplates {
             }
         }
         return items
+    }
+
+    /**
+     * A preset as an editor preview of [current]: same grid, placement and LENS, the clock keeps its look.
+     * [LayoutBase.None] has no template; it stays as it is.
+     */
+    fun preview(base: LayoutBase, apps: List<String>, current: LayoutSpec): LayoutSpec {
+        val clock = current.items.firstOrNull { it.kind == ItemKind.Clock }
+        val lens = current.items.firstOrNull { it.kind == ItemKind.Lens }
+        val items = build(base, apps, showClock = true, showDate = true).map {
+            when (it.kind) {
+                ItemKind.Clock -> clock?.copy(anchor = it.anchor) ?: it
+                ItemKind.Lens -> lens ?: it
+                else -> it
+            }
+        }
+        return current.copy(id = HomeLayouts.LINKED_ID, base = base, items = items, linked = true)
     }
 
     /** The linked preset for the legacy fields of [s]. */
