@@ -61,6 +61,7 @@ import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.Haptics
 import dev.intelia.launcher.data.HomeLayout
+import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
@@ -137,7 +138,7 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                 Section(R.string.home_section)
                 Stacked(stringResource(R.string.layout)) {
                     Segments(listOf(HomeLayout.Pure to stringResource(R.string.layout_pure), HomeLayout.Essentials to stringResource(R.string.layout_essentials),
-                        HomeLayout.Custom to stringResource(R.string.layout_custom)), settings.layout, { v -> set { it.copy(layout = v) } })
+                        HomeLayout.Custom to stringResource(R.string.layout_custom)), settings.layout, { v -> set { it.copy(layout = v, home = it.home.copy(active = HomeLayouts.LINKED_ID)) } })
                 }
                 Stacked(stringResource(R.string.reach)) {
                     Segments(listOf(Reach.Left to stringResource(R.string.reach_left), Reach.Center to stringResource(R.string.reach_center),

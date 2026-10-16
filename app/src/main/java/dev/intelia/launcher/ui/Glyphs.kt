@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next }
+enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next, Check, Undo, Redo }
 
 /** Original monoline glyphs on a 24-unit grid; no icon font or bitmap assets. */
 @Composable
@@ -41,6 +41,12 @@ fun HomeGlyph(glyph: Glyph, label: String?, modifier: Modifier = Modifier, tint:
             Glyph.Studio -> { ring(12f, 10f, 6f); line(9f, 20f, 15f, 20f) }
             Glyph.Close -> { line(6f, 6f, 18f, 18f); line(18f, 6f, 6f, 18f) }
             Glyph.Plus -> { line(12f, 5f, 12f, 19f); line(5f, 12f, 19f, 12f) }
+            Glyph.Check -> { line(5f, 12.5f, 10f, 17.5f); line(10f, 17.5f, 19f, 7f) }
+            // Undo / Redo: a hooked arrow, mirrored.
+            Glyph.Undo -> { line(5f, 9f, 15f, 9f); line(5f, 9f, 9f, 5f); line(5f, 9f, 9f, 13f)
+                drawArc(tint, -90f, 180f, false, point(9f, 9f), Size(10f * unit, 10f * unit), style = Stroke(w, cap = StrokeCap.Round)); line(14f, 19f, 7f, 19f) }
+            Glyph.Redo -> { line(19f, 9f, 9f, 9f); line(19f, 9f, 15f, 5f); line(19f, 9f, 15f, 13f)
+                drawArc(tint, 90f, 180f, false, point(5f, 9f), Size(10f * unit, 10f * unit), style = Stroke(w, cap = StrokeCap.Round)); line(10f, 19f, 17f, 19f) }
             Glyph.Bell -> {
                 val path = Path().apply {
                     moveTo(6f * unit, 17f * unit); lineTo(6f * unit, 11f * unit)

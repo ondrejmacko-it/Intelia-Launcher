@@ -214,4 +214,16 @@
     <string name="gesture_hold_lens_detail">ARC: apps, FLOW and shortcuts. Back onto LENS cancels.</string>
     <string name="gesture_hold_home">Hold Home</string>
     <string name="gesture_hold_home_detail">Studio: the look, the layout and everything else.</string>
+    <string name="edit_home">Edit Home</string>
+    <string name="edit_undo">Undo</string>
+    <string name="edit_redo">Redo</string>
+    <string name="edit_done">Save layout</string>
+    <string name="placement_grid">Grid</string>
+    <string name="placement_free">Free</string>
+    <string name="placement_hybrid">Hybrid</string>
+    <string name="edit_unsaved">Unsaved changes</string>
+    <string name="edit_keep">Keep editing</string>
+    <string name="edit_discard">Discard</string>
+    <string name="edit_save">Save</string>
+    <string name="edit_saved">Layout saved</string>
 </resources>

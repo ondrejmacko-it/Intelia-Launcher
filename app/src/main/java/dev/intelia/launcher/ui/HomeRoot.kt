@@ -1,6 +1,26 @@
 package dev.intelia.launcher.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalHapticFeedback
+import dev.intelia.launcher.data.Anchor
+import dev.intelia.launcher.data.AnchorType
+import dev.intelia.launcher.data.ItemKind
+import dev.intelia.launcher.data.LayoutSpec
+import kotlin.math.hypot
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -63,7 +83,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AppEntry
-import dev.intelia.launcher.data.HomeLayout
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.FlowAlias
@@ -165,7 +184,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
             when (target) {
                 Page.Home -> Home(
                     settings = settings,
-                    favorites = favorites,
+                    apps = remember(favorites, visible) { (visible + favorites).associateBy { it.key } },
                     arc = remember(arcApps, arcFlows, arcShortcuts, settings.arcRings) {
                         ArcContent(arcApps, arcFlows, arcShortcuts, settings.arcRings)
                     },
@@ -177,6 +196,10 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onOptions = { options = it },
                     onRun = ::run,
                     onShortcut = ::launch,
+                    onSaveLayout = { edited ->
+                        model.updateSettings { it.copy(home = it.home.save(edited)) }
+                        message(R.string.edit_saved)
+                    },
                 )
                 Page.Search -> SearchPage(
                     model = model,
@@ -242,13 +265,14 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
 /**
  * Home draws nothing behind itself: no background, scrim or gradient, so the system wallpaper is
  * all there is when the window is hidden for Recents. Type legibility comes from [homeShadow]
- * and the wallpaper-derived ink.
+ * and the wallpaper-derived ink. The arrangement comes from the active layout (§5.4); long-press
+ * on Home or an icon opens the Home Editor in place (§5.5), and only then is a 20 % scrim drawn.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Home(
     settings: LauncherSettings,
-    favorites: List<AppEntry>,
+    apps: Map<String, AppEntry>,
     arc: ArcContent,
     flowSteps: (FlowAlias) -> List<String?>,
     onSearch: () -> Unit,
@@ -258,84 +282,206 @@ private fun Home(
     onOptions: (AppEntry) -> Unit,
     onRun: (FlowAlias) -> Unit,
     onShortcut: (ShortcutEntry) -> Unit,
+    onSaveLayout: (LayoutSpec) -> Unit,
 ) {
     val homeInk = LocalHomeInk.current
     val accent = LocalInk.current.accent
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
     val now by rememberNow()
     var arcOpen by remember { mutableStateOf(false) }
+    var editor by remember { mutableStateOf<HomeEditorState?>(null) }
+    /** Bumped after every editor call; [HomeEditorState] is plain Kotlin. */
+    var tick by remember { mutableIntStateOf(0) }
+    /** Long-press on empty Home: the editor opens in the next composition, where the geometry is known. */
+    var openRequested by remember { mutableStateOf(false) }
+    var leaveThen by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var clockZone by remember { mutableStateOf<Zone?>(null) }
     // ARC speaks over the top of Home, so the clock and favourites step fully aside.
     val quiet by animateFloatAsState(if (arcOpen) 0f else 1f, tween(motionMs(180)), label = "home-quiet")
     val swipe = with(density) { 64.dp.toPx() }
-    val studioLabel = stringResource(R.string.studio)
+    val editLabel = stringResource(R.string.edit_home)
 
+    fun refresh() { tick++ }
+    fun close() { editor = null; leaveThen = null; refresh() }
+    fun save() { editor?.let { onSaveLayout(it.layout); it.markSaved() }; close() }
+    fun leave(then: () -> Unit) { if (editor?.dirty == true) leaveThen = then else { close(); then() } }
+    BackHandler(enabled = editor != null) { leave {} }
+
+    // The chain stays the same in edit mode: swapping modifiers mid-gesture would cancel an icon's hold-and-drag.
     BoxWithConstraints(Modifier.fillMaxSize()
         .pointerInput(Unit) {
             var drag = 0f
             detectVerticalDragGestures(onDragStart = { drag = 0f }, onVerticalDrag = { _, amount -> drag += amount },
-                onDragEnd = { if (drag < -swipe) onDrawer() })
-        }
-        .combinedClickable(interactionSource = null, indication = null, onLongClickLabel = studioLabel,
-            onClick = {}, onLongClick = onStudio)) {
-        val custom = settings.layout == HomeLayout.Custom
+                onDragEnd = { if (drag < -swipe && editor == null) onDrawer() })
+        }.combinedClickable(interactionSource = null, indication = null, onLongClickLabel = editLabel, onClick = {},
+            onLongClick = { if (editor == null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openRequested = true } })) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
+        val statusTop = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
         val cx = maxWidth / 2 + lensShift(settings.reach)
         val cy = maxHeight - bottomInset - LensLift
         val compact = maxHeight < 560.dp
+        val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, cx.value, cy.value)
+        check(tick >= 0) // read so that editor changes recompose this scope
+        val saved = settings.home.activeLayout()
+        fun open(): HomeEditorState = editor ?: HomeEditorState(saved, geometry, blocked = { listOfNotNull(clockZone) })
+            .also { editor = it; refresh() }
+        if (openRequested) { openRequested = false; open() }
+        val ed = editor
+        ed?.geometry = geometry
+        val base = ed?.layout ?: saved
+        // While dragging, the clock and a displaced icon preview their targets; the dragged icon follows the finger.
+        val drag = ed?.drag
+        val layout = if (drag == null) base else base.copy(items = base.items.map {
+            if (it.id == drag.id && it.kind == ItemKind.Clock) it.copy(anchor = drag.target)
+            else if (it.id == drag.displaced?.first) it.copy(anchor = drag.displaced.second) else it
+        })
+        val clock = layout.items.firstOrNull { it.kind == ItemKind.Clock }
+        val date = layout.items.firstOrNull { it.kind == ItemKind.Date }
+        val listLayout = layout.items.any { it.anchor.type == AnchorType.Stack }
 
-        if (settings.showClock || settings.showDate) Column(
-            Modifier.fillMaxWidth().statusBarsPadding().padding(top = if (compact) 24.dp else if (custom) 72.dp else 92.dp)
-                .padding(horizontal = 28.dp).graphicsLayer { alpha = quiet },
-            horizontalAlignment = if (custom) Alignment.Start else Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (settings.showClock) SplitClock(now.toLocalTime(), settings.clockStyle, homeInk, accent, if (compact) 64.sp else 84.sp)
-            // 4.2: 12 sp caps, +2.2 tracking, fg2 (62 %).
-            if (settings.showDate) Text(dateLine(now), style = CrystalType.date.copy(shadow = homeShadow(homeInk)),
-                color = homeInk.copy(alpha = .62f), maxLines = 1)
+        if (ed != null) {
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
+            EditorMarks(ed, layout)
         }
 
-        when (settings.layout) {
-            HomeLayout.Pure -> Unit
-            HomeLayout.Essentials -> favorites.take(4).let { around ->
-                // 4.3: two pairs at x = 72/118 and 242/288 dp of a 360 dp screen, i.e. ±62 and ±108 dp
-                // from LENS, on its baseline; the wider centre gap keeps it from reading as a dock.
-                val offsets = when (around.size) {
-                    1 -> listOf((-62).dp)
-                    2 -> listOf((-62).dp, 62.dp)
-                    3 -> listOf((-108).dp, (-62).dp, 62.dp)
-                    else -> listOf((-108).dp, (-62).dp, 62.dp, 108.dp)
-                }
-                around.zip(offsets)
-            }.forEach { (app, offset) ->
-                val x = (cx + offset).coerceIn(24.dp, maxWidth - 24.dp)
-                Box(Modifier.centerAt(x, cy).size(CrystalDims.touch).clip(CircleShape).graphicsLayer { alpha = quiet }
-                    .combinedClickable(role = Role.Button, onLongClickLabel = stringResource(R.string.app_options),
-                        onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
+        if (clock != null || date != null) {
+            val a = clock?.anchor ?: Anchor.free(if (listLayout) 0f else .5f, 0f)
+            val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
+            val topPad = (if (compact) 24.dp else if (listLayout) 72.dp else 92.dp) + (geometry.areaH * a.fy).dp
+            Column(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(top = topPad).padding(horizontal = 28.dp)
+                    .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
+                    .onGloballyPositioned { c ->
+                        val r = c.boundsInRoot()
+                        val d = density.density
+                        clockZone = Zone(r.left / d - 8f, r.top / d - 8f, r.right / d + 8f, r.bottom / d + 8f)
+                    },
+                horizontalAlignment = if (bias < 0f) Alignment.Start else if (bias > 0f) Alignment.End else Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (clock != null) SplitClock(now.toLocalTime(), settings.clockStyle, homeInk, accent, if (compact) 64.sp else 84.sp)
+                // 4.2: 12 sp caps, +2.2 tracking, fg2 (62 %).
+                if (date != null) Text(dateLine(now), style = CrystalType.date.copy(shadow = homeShadow(homeInk)),
+                    color = homeInk.copy(alpha = .62f), maxLines = 1)
+            }
+        }
+
+        // Icons placed by geometry: LENS row, grid cells, free positions.
+        layout.items.forEach { item ->
+            if (item.kind != ItemKind.App || !item.anchor.type.isPlaced()) return@forEach
+            val app = apps[item.target] ?: return@forEach
+            // The node stays put while it is dragged (its gesture needs a still frame); a ghost follows the finger.
+            val dragging = drag?.id == item.id
+            val p = geometry.position(item, layout) ?: return@forEach
+            key(item.id) {
+                Box(Modifier.centerAt(p.x.dp, p.y.dp).size(CrystalDims.touch).graphicsLayer { alpha = if (dragging) 0f else quiet }
+                    .clip(CircleShape)
+                    .pointerInput(item.id) {
+                        // Hold an icon: the editor opens and the icon is already in the hand (§5.5).
+                        var moved = Offset.Zero
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                moved = Offset.Zero
+                                open().startDrag(item.id)
+                                refresh()
+                            },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                moved += amount
+                                editor?.dragBy(Pt(moved.x / density.density, moved.y / density.density))
+                                refresh()
+                            },
+                            onDragEnd = { if (editor?.drop() == true) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); refresh() },
+                            onDragCancel = { editor?.cancelDrag(); refresh() },
+                        )
+                    }
+                    .clickable(role = Role.Button) { if (editor == null) onLaunch(app) else onOptions(app) }
                     .semantics { contentDescription = app.label }, contentAlignment = Alignment.Center) {
                     // No backing (4.3): system or icon-pack icons as they are; monochrome tinted fg.
                     AppIcon(app, Modifier.size(CrystalDims.iconHome), tint = homeInk)
                 }
             }
-            HomeLayout.Custom -> Column(
-                Modifier.align(Alignment.BottomStart).padding(start = 20.dp, end = 28.dp, bottom = bottomInset + LensLift + 64.dp)
-                    .graphicsLayer { alpha = quiet },
-            ) {
-                favorites.forEach { app ->
-                    Text(app.label, Modifier.widthIn(max = 320.dp).heightIn(min = 48.dp)
-                        .combinedClickable(role = Role.Button, onLongClickLabel = stringResource(R.string.app_options),
-                            onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                        style = InkText.item.copy(fontSize = 30.sp, lineHeight = 34.sp, shadow = homeShadow(homeInk)),
-                        color = homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+        }
+
+        drag?.let { d -> apps[ed.item(d.id)?.target ?: ""]?.let { app ->
+            Box(Modifier.centerAt(d.point.x.dp, d.point.y.dp).size(CrystalDims.touch).graphicsLayer { scaleX = 1.08f; scaleY = 1.08f },
+                contentAlignment = Alignment.Center) { AppIcon(app, Modifier.size(CrystalDims.iconHome), tint = homeInk) }
+        } }
+
+        // The legacy text list (preset "Vlastní").
+        val stack = layout.items.filter { it.kind == ItemKind.App && it.anchor.type == AnchorType.Stack }.sortedBy { it.anchor.row }
+        if (stack.isNotEmpty()) Column(
+            Modifier.align(Alignment.BottomStart).padding(start = 20.dp, end = 28.dp, bottom = bottomInset + LensLift + 64.dp)
+                .graphicsLayer { alpha = quiet },
+        ) {
+            stack.forEach { item ->
+                val app = apps[item.target] ?: return@forEach
+                Text(app.label, Modifier.widthIn(max = 320.dp).heightIn(min = 48.dp)
+                    .combinedClickable(role = Role.Button, onLongClickLabel = stringResource(R.string.app_options),
+                        onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    style = InkText.item.copy(fontSize = 30.sp, lineHeight = 34.sp, shadow = homeShadow(homeInk)),
+                    color = homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
 
         LensArc(arc, settings.reach, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
             onShortcut = onShortcut, onOpenChange = { arcOpen = it })
-        if (settings.pulse) Pulse(settings)
+        if (settings.pulse && ed == null) Pulse(settings)
+
+        if (ed != null) {
+            // Editor layer above LENS: a hold on LENS never opens ARC here; drags move elements.
+            Box(Modifier.fillMaxSize()
+                .pointerInput(ed) {
+                    detectTapGestures(onTap = { o ->
+                        hitItem(ed, Pt(o.x / density.density, o.y / density.density))
+                            ?.let { id -> ed.item(id)?.target?.let(apps::get) }?.let(onOptions)
+                    })
+                }
+                .pointerInput(ed) {
+                    var moved = Offset.Zero
+                    detectDragGestures(
+                        onDragStart = { o ->
+                            moved = Offset.Zero
+                            hitItem(ed, Pt(o.x / density.density, o.y / density.density), clockZone)?.let { ed.startDrag(it) }
+                            refresh()
+                        },
+                        onDrag = { change, amount ->
+                            if (ed.drag != null) {
+                                change.consume()
+                                moved += amount
+                                ed.dragBy(Pt(moved.x / density.density, moved.y / density.density))
+                                refresh()
+                            }
+                        },
+                        onDragEnd = { if (ed.drop()) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); refresh() },
+                        onDragCancel = { ed.cancelDrag(); refresh() },
+                    )
+                })
+            EditorBar(ed, onPlacement = { ed.setPlacement(it); refresh() }, onStudio = { leave(onStudio) }, onDone = ::save,
+                modifier = Modifier.align(Alignment.TopCenter))
+        }
     }
+
+    leaveThen?.let { then ->
+        LeaveEditorDialog(
+            onKeep = { leaveThen = null },
+            onDiscard = { close(); then() },
+            onSave = { save(); then() },
+        )
+    }
+}
+
+/** The element under [p]: the nearest icon within 30 dp, else the clock block. */
+private fun hitItem(state: HomeEditorState, p: Pt, clockZone: Zone? = null): String? {
+    val near = state.layout.items.filter { it.kind == ItemKind.App && it.anchor.type.isPlaced() }
+        .mapNotNull { item -> state.pointOf(item)?.let { item.id to hypot(it.x - p.x, it.y - p.y) } }
+        .filter { it.second <= 30f }.minByOrNull { it.second }?.first
+    if (near != null) return near
+    val clock = state.layout.items.firstOrNull { it.kind == ItemKind.Clock } ?: return null
+    return clock.id.takeIf { clockZone != null && p in clockZone }
 }
 
 @Composable
