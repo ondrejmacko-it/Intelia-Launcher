@@ -197,6 +197,12 @@ class ArcRingsTest {
         assertNull(rings.select(0f, -400f))
     }
 
+    @Test fun reachIsTheOutermostDrawnRing() {
+        assertEquals(250f, rings.reach)
+        assertEquals(108f, ArcRings(listOf(List(5) { true }), 205f, 205f).reach)
+        assertEquals(0f, ArcRings(emptyList(), 205f, 205f).reach)
+    }
+
     @Test fun emptySlotsStayEmptyAndDoNotShift() {
         val sparse = ArcRings(listOf(listOf(true, false, true, false, false)), 205f, 205f)
         val (x, y) = sparse.position(0, 1)

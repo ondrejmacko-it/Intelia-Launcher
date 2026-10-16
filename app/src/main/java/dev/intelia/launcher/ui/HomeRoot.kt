@@ -676,15 +676,16 @@ private fun Home(
                 }
             }
             val sel = selected?.let(ed::item)
-            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) {
-                val rings = remember(arc.slots, lensPt.x, maxWidth) { ArcRings(arc.slots, left = lensPt.x, right = maxWidth.value - lensPt.x) }
-                GhostArc(lensPt, rings, Modifier.fillMaxSize())
-            }
+            val rings = remember(arc.slots, lensPt.x, maxWidth) { ArcRings(arc.slots, left = lensPt.x, right = maxWidth.value - lensPt.x) }
+            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, rings, Modifier.fillMaxSize())
             if (sel != null && drag == null && ed.lensDrag == null) {
                 val zone = when (sel.kind) {
                     ItemKind.Clock -> timeZone ?: clockZone
                     ItemKind.Date -> dateZone
-                    ItemKind.Lens -> (sel.lensDp() / 2f + 6f).let { r -> Zone(lensPt.x - r, lensPt.y - r, lensPt.x + r, lensPt.y + r) }
+                    // The card keeps clear of the ghost ARC: its zone reaches up to the outermost ring.
+                    ItemKind.Lens -> (sel.lensDp() / 2f + 6f).let { r ->
+                        Zone(lensPt.x - r, lensPt.y - maxOf(r, rings.reach + 8f), lensPt.x + r, lensPt.y + r)
+                    }
                     else -> ed.pointOf(sel)?.let { c ->
                         val r = sel.iconDp() / 2f + 6f
                         Zone(c.x - r, c.y - r, c.x + r, c.y + r + if (sel.label) 20f else 0f)
@@ -696,7 +697,9 @@ private fun Home(
                     ed.edit(sel.id, "size") { it.copy(sizeDp = (now + dx.roundToInt()).coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)) }
                     refresh()
                 }
-                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom, clockZone.takeIf { !sel.kind.isText() }) {
+                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom,
+                    // Above the ghost ARC the LENS card may cover the clock: the arcs matter more while LENS is edited.
+                    clockZone.takeIf { !sel.kind.isText() && sel.kind != ItemKind.Lens }) {
                     when (sel.kind) {
                         ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, onRemoved = { selected = null }, onChange = ::refresh)
                         ItemKind.Date -> DateInspector(ed, sel, zone.let { z ->

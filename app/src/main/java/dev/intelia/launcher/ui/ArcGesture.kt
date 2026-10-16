@@ -33,6 +33,9 @@ class ArcRings(val slots: List<List<Boolean>>, left: Float, right: Float) {
 
     fun radius(ring: Int) = RADII[ring]
 
+    /** Radius of the outermost ring that shows anything (dp); 0 when ARC is empty. */
+    val reach: Float = angles.indices.filter { angles[it].isNotEmpty() }.maxOfOrNull { RADII[it] } ?: 0f
+
     /** Slot centre in dp relative to LENS. */
     fun position(ring: Int, index: Int): Pair<Float, Float> {
         val a = angles[ring][index] * PI.toFloat() / 180f
