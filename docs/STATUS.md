@@ -66,13 +66,27 @@ Verified:
   Checked in Calculator: the clock, notification and system icons stay visible, Back closes the menu.
   `uiautomator dump --windows` does not list accessibility overlays, so the menu nodes could not be read from
   adb; `dumpsys accessibility` does list the window as `TYPE_ACCESSIBILITY_OVERLAY`.
+- Owner checked by hand (reported "all OK"): PULSE menu previous / next track with music playing, rotation to
+  landscape with the menu open, TalkBack in the menu and on the Studio sliders.
+- Studio sliders (0ed5e3d): `:app:testDebugUnitTest :app:installDebug` PASS (34 tests). Dragging the opacity bead
+  set 70 % at x = 540 px, 55 % at 300 px and 100 % past the end (left at 100 %); dragging *Svisle* in camera
+  calibration showed 59.5 dp, Back stored nothing (prefs still 206 / 26 / 8). The slider node is now a focusable
+  `SeekBar`; it reads the shown value ("70 %", "26.0 dp") and steps by 5 % / 0.5 dp, instead of a percentage of
+  its range (70 % on 40–100 was 50 %). TalkBack itself was not re-run on this build by Claude.
+- PULSE menu strip (b05d826, owner chose a translucent strip over the thread): a translucent band as wide as the
+  lens ring runs from the camera into the sheet; on Lab Home and in Calculator the clock, notification and
+  system icons stay uncovered.
+- D8 rest state with a real alarm (owner set 12:30, checked 11:32, AC, 90 %): on Lab Home only the disc with the
+  battery ring and the alarm dot, no text, the system alarm icon uncovered; the PULSE menu reads "12:30 dnes".
+- Lab is now the default HOME (`cmd package set-home-activity`, owner's choice). ARC ring 3: rings set to 3,
+  Clock shortcut *Spořič obrazovky* added; releasing on it opened `deskclock/ScreensaverActivity`, Home returned
+  to Lab. a735638 fills ring 3 from the centre like ring 2: the shortcut moved from the far-left slot to straight
+  above LENS and was launched by sliding straight up and releasing. Left as set (3 rings, 1 shortcut).
+  Its icon covers the "FLOW" ring caption while selected.
 
 Not verified:
-- PULSE menu: previous / next track (no media session was playing); landscape; TalkBack; a phone without a
-  cutout; the owner's verdict on the thread header.
-- Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
+- A phone without a cutout.
 - Performance on a release build; battery.
-- D8 rest state with a real near alarm (next alarm was 2 d 19 h away; only the Studio preview showed the dot).
 
 ## 2026-10-16 — new PC setup (`claude/ink-rework` from `main` 012140f)
 
