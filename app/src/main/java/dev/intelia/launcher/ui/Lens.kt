@@ -49,6 +49,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
@@ -98,7 +99,7 @@ class ArcContent(
     val empty get() = slots.all { ring -> ring.none { it } }
 }
 
-private fun Modifier.centerAt(x: Dp, y: Dp) = layout { measurable, constraints ->
+internal fun Modifier.centerAt(x: Dp, y: Dp) = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
     layout(placeable.width, placeable.height) {
         placeable.place(x.roundToPx() - placeable.width / 2, y.roundToPx() - placeable.height / 2)
