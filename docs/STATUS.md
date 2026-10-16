@@ -44,8 +44,27 @@ Verified:
   charging; its expanded state was not seen (needs the owner). Taps at the camera itself (y < 126 px) go to
   SystemUI's status bar, or to the old `dev.intelia.launcher.debug` "Intelia Pulse" accessibility overlay
   (frame 498,24–582,108 px), which opened that build's drawer once; nothing was changed in either.
+- MT Capsule explored (owner's permission): single tap can be scroll, screenshot, launch app, torch, a card of
+  shortcuts / sliders / barcodes, or app search; slider cards are volume, brightness, torch strength with toggles
+  for auto brightness, volume mode, torch, screenshot and the Wi-Fi panel. With its service on it still had no
+  window, so its own lens tap was never seen working. Its single tap was switched to "Shortcuts / Sliders" and
+  a Volume card exists from the exploration. `.debug` "Intelia Pulse": a lens tap opens its drawer activity;
+  media control there needs notification access.
+- D9 (PULSE everywhere): `:app:testDebugUnitTest :app:assembleDebug` PASS (33 tests, new `PulseMenuTest`).
+  The owner switched off `.debug` "Intelia Pulse" and switched on "Intelia PULSE" (`.lab`); MT Capsule stayed on.
+  Overlay `TYPE_ACCESSIBILITY_OVERLAY` at 493,21, 94 × 94 px. A tap on the lens (540,66) opens the menu on Lab
+  Home, in Lab Studio and in Calculator; Back closes it (the app below keeps its state), a tap outside and
+  *Sbalit* close it. On Lab Home the old tap target below the status bar is gone while the service runs.
+  Each control on the phone: volume + / − (music 8 → 9 → 8), sound ↔ vibrate (VIBRATE → NORMAL → VIBRATE), torch on/off,
+  play/pause (a media session went to playing and back to paused), alarm row → Clock, Wi-Fi panel, Internet
+  dialog, Bluetooth, sound and display settings, notifications and quick settings shade, screenshot (the menu
+  is not in the picture; test file deleted), lock (phone went to doze with lockscreen).
+  Studio → PULSE → *PULSE všude* opens the system accessibility list. The first build opened the per-service
+  details page instead, which needs the privileged `OPEN_ACCESSIBILITY_DETAILS_SETTINGS` permission and crashed Lab; fixed.
 
 Not verified:
+- PULSE menu: previous / next track; landscape; TalkBack; a phone without a cutout; how the menu header
+  covering the status icons looks to the owner.
 - Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
 - Performance on a release build; battery.
 - D8 rest state with a real near alarm (next alarm was 2 d 19 h away; only the Studio preview showed the dot).
