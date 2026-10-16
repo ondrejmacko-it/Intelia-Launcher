@@ -21,10 +21,14 @@ Verified:
     Studio shortcut picker works only as HOME; ARC ring 3 ("ZKRATKY") appears and selects a shortcut by angle
     (−40° = 1st shortcut); returning to LENS cancels. Test shortcuts removed, rings set back to 2.
 - Debug build timings: cold start ~845 ms, warm ~57 ms; PSS ~131 MB.
+- PULSE toggles (Lab started with `am start`, not HOME; on AC power): *Ukázat nabíjení* off → no capsule
+  while charging, on → capsule with 90 % is back. *Ozvěna při návratu* on → a ring leaves the camera right after
+  returning to Lab from the system home; off → no ring at the same moment. All PULSE toggles left on.
 
 Not verified:
 - Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
-- PULSE toggles Ozvěna (echo), alarm and charging.
+- PULSE near-alarm capsule: the next alarm is >2 days away (outside the 24 h window), so it was not shown;
+  no alarm was set for the test.
 - Performance on a release build; battery.
 - The PULSE panel cannot be opened via adb while MT Capsule's overlay is running (it catches taps on the camera).
 
