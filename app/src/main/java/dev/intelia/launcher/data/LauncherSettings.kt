@@ -61,14 +61,16 @@ data class LauncherSettings(
     val pulseAlarmHours: Int = 12,
     /** Capsule background opacity in percent; text stays opaque. */
     val pulseOpacity: Int = 100,
+    /** Home layouts (schema 2, §5.4); built from the legacy fields above by [sanitized] on migration. */
+    val home: HomeLayouts = HomeLayouts(),
     /** Document version; 0 = written before the Crystal design (phase B1). Migrated by [sanitized]. */
     val schema: Int = 0,
 ) {
     companion object {
-        const val SCHEMA = 1
+        const val SCHEMA = 2
 
         /** Settings of a new install: current schema and the Crystal defaults (accent, clock). */
-        fun fresh() = LauncherSettings(accent = Accent.Frost, clockStyle = ClockStyle.Crystal, schema = SCHEMA)
+        fun fresh() = LauncherSettings(accent = Accent.Frost, clockStyle = ClockStyle.Crystal, schema = SCHEMA).sanitized()
 
         const val ARC_SLOTS = 5
         const val ARC_FLOW_SLOTS = 7
@@ -106,7 +108,57 @@ data class LauncherSettings(
             reduceMotion = false,
             // 0 → 1: nothing to rewrite; an existing user's accent (Terracotta when absent) is kept as is.
             schema = SCHEMA,
-        )
+        ).let { it.copy(home = sanitizeHome(it)) }
+    }
+
+    /**
+     * 1 → 2: no layouts yet → the linked preset becomes the active layout "Moje plocha"; the legacy fields stay.
+     * Afterwards the linked layout is always rebuilt from them; user layouts are bounded and clamped, never dropped
+     * for a single bad item.
+     */
+    private fun sanitizeHome(s: LauncherSettings): HomeLayouts {
+        val ids = HashSet<String>()
+        val user = home.layouts.asSequence()
+            .filter { !it.linked && validKey(it.id) && it.id != HomeLayouts.LINKED_ID && ids.add(it.id) }
+            .take(HomeLayouts.MAX_LAYOUTS - 1)
+            .map(::sanitizeLayout)
+            .toList()
+        val layouts = listOf(HomeTemplates.linked(s)) + user
+        val active = home.active.takeIf { id -> layouts.any { it.id == id } } ?: HomeLayouts.LINKED_ID
+        return HomeLayouts(active, layouts)
+    }
+
+    private fun sanitizeLayout(l: LayoutSpec): LayoutSpec {
+        val grid = GridSpec(l.grid.cols.coerceIn(3, 6), l.grid.rows.coerceIn(4, 8))
+        val ids = HashSet<String>()
+        val singles = HashSet<ItemKind>()
+        val slots = HashSet<Int>()
+        val items = l.items.asSequence()
+            .filter { validKey(it.id) && ids.add(it.id) }
+            .filter { it.kind !in setOf(ItemKind.Clock, ItemKind.Date, ItemKind.Lens) || singles.add(it.kind) }
+            .filter { it.kind !in setOf(ItemKind.App, ItemKind.Flow, ItemKind.Widget) || validKey(it.target) }
+            .mapNotNull { item -> clampAnchor(item.kind, item.anchor, grid)?.let { item.copy(anchor = it) } }
+            .filter { it.anchor.type != AnchorType.LensRow || slots.add(it.anchor.slot) }
+            .take(HomeLayouts.MAX_ITEMS)
+            .map { it.copy(sizeDp = if (it.sizeDp == 0) 0 else it.sizeDp.coerceIn(24, 160), z = it.z.coerceIn(-100, 100)) }
+            .toMutableList()
+        if (ItemKind.Lens !in singles) items.add(0, HomeItem("lens", ItemKind.Lens, Anchor.Lens))
+        val name = l.name.filterNot(Char::isISOControl).trim().take(HomeLayouts.MAX_NAME).ifEmpty { HomeTemplates.DEFAULT_NAME }
+        return l.copy(name = name, grid = grid, items = items, linked = false)
+    }
+
+    /** Null drops the item (e.g. a LENS-row slot that does not exist). Cells re-clamp when the grid shrinks. */
+    private fun clampAnchor(kind: ItemKind, a: Anchor, grid: GridSpec): Anchor? {
+        fun unit(v: Float) = if (v.isFinite()) v.coerceIn(0f, 1f) else .5f
+        if (kind == ItemKind.Lens) return Anchor(AnchorType.Lens, fx = unit(a.fx), bottomDp = if (a.bottomDp.isFinite()) a.bottomDp.coerceIn(0f, 400f) else 0f)
+        return when (a.type) {
+            AnchorType.Cell -> Anchor.cell(a.col.coerceIn(0, grid.cols - 1), a.row.coerceIn(0, grid.rows - 1))
+            AnchorType.Free -> Anchor.free(unit(a.fx), unit(a.fy))
+            AnchorType.LensRow -> if (kind == ItemKind.App || kind == ItemKind.Flow) Anchor.lensRow(a.slot).takeIf { a.slot in Anchor.LENS_SLOTS } else null
+            AnchorType.Bound -> if (kind == ItemKind.Date) Anchor.Bound else Anchor.free(.5f, .5f)
+            AnchorType.Stack -> Anchor.stack(a.row.coerceIn(0, MAX_FAVORITES - 1))
+            AnchorType.Lens -> Anchor.free(.5f, .5f)
+        }
     }
 }
 

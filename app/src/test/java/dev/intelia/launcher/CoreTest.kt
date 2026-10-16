@@ -83,7 +83,7 @@ class AppSearchTest {
 class SettingsCodecTest {
     @Test fun roundTrip() {
         val settings = LauncherSettings(theme = ThemeMode.Dark, arc = listOf("a/b"), hidden = setOf("c/d"),
-            aliases = listOf(FlowAlias("1", "vlak", listOf("a/b"))), schema = LauncherSettings.SCHEMA)
+            aliases = listOf(FlowAlias("1", "vlak", listOf("a/b"))), schema = LauncherSettings.SCHEMA).sanitized()
         assertEquals(settings, SettingsCodec.decode(SettingsCodec.encode(settings)))
     }
 
@@ -156,7 +156,7 @@ class SettingsCodecTest {
         assertEquals(70, SettingsCodec.decode("""{"pulseWidth":14,"pulseOpacity":70}""").pulseOpacity)
         assertEquals(LauncherSettings.MIN_PULSE_OPACITY, SettingsCodec.decode("""{"pulseOpacity":0}""").pulseOpacity)
         assertEquals(100, LauncherSettings(pulseOpacity = 250).sanitized().pulseOpacity)
-        val custom = LauncherSettings(pulseOpacity = 70, schema = LauncherSettings.SCHEMA)
+        val custom = LauncherSettings(pulseOpacity = 70, schema = LauncherSettings.SCHEMA).sanitized()
         assertEquals(custom, SettingsCodec.decode(SettingsCodec.encode(custom)))
     }
 
