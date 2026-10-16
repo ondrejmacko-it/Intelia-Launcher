@@ -359,6 +359,14 @@ As built: the ring → field morph is drawn as a clip + outline over the full-si
 focus and the IME start in the first frame); Back runs it in reverse after hiding the IME. Inspector entry is
 scale 0.86 → 1 from the element edge. All durations go through `motionMs`, so Reduced Motion makes them 0 ms.
 
+As built (Search in Veil, `53b9769`): Search and the drawer are layers over Home, not pages; Home stays composed
+under a black 42 % scrim. Field = Veil Dense pill, centred on LENS while the IME is down, then riding it via an
+`offset {}` that reads `WindowInsets.ime` (placement only). Card = Veil Dense, ≤ 6 rows (`SearchPicks`), first row
+lit with the accent at 16 % and run by Enter; exact FLOW = card with name, numbered app-icon chain, Spustit; a FLOW
+name that only starts with the query completes on Enter, never runs; blank query = Moje (favourites; there is no
+launch history, so no "recent"). Back, or the IME closing, plays the morph in reverse (one Back). Drawer = Veil
+Focus sheet (8 dp inset) with A–Z, rail and Moje; its bottom field opens Search. Not built: 18 ms row stagger.
+
 Input is never delayed: typing works from the first frame, the IME opens with the morph, the action runs on
 release. Reduced Motion → all 0 ms. No idle animation; nothing animates while Home is at rest.
 
@@ -378,7 +386,14 @@ A Nothing look only through an installed compatible pack, never copied. Missing 
 Same Veil material and origin edge (origin = camera), same type and motion: idle draws nothing, the live
 capsule and Quick View grow from the camera and return into it; hold = Global ARC with the lit-segment arc.
 
-## 5.10 Performance and cost (to be measured on the phone, no claims yet)
+## 5.10 Performance and cost
+Measured 2026-10-16 on the Nothing Phone (3) (120 Hz), Lab build, warm (one open/close before
+`gfxinfo reset`), 3 × LENS → Search → Back → Back: old full-page Search (`c2e4b5b`) 83–85 janky frames of ~590,
+14.0–14.5 %, p99 150 ms; Veil layer (`a59a4a2`) 43–45 janky of ~295, 14.5–15.3 %, p99 61–65 ms. The percentage is
+flat because the new path draws half the frames; janky count and p99 halved. First open frame still costs ~46 ms
+UI (composition of the layer); frames while the IME rides take 10–13 ms (> 8.3 ms budget). PSS 5 s after a cold
+start: 107–109 MB old, 108–112 MB new (same within noise).
+
 Veil = one gradient fill + one gradient stroke per open surface; Clear/idle Home = no extra draw. Own-layer blur
 only while Search/Studio is open (API 31+). Editor marks and guides exist only in edit mode. Expected cost is
 small but must be measured (frame time with `gfxinfo` during LENS → Search and drag, PSS, cold start).

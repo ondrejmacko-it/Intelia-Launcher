@@ -1,4 +1,4 @@
-# Prompt pro další session — Intelia Veil V2, část 8 (Search ve Veil + měření)
+# Prompt pro další session — Intelia Veil V2, část 9 (plynulost Search, ověření, editor)
 
 Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka = tento repozitář).
 
@@ -7,23 +7,23 @@ Pokračujeme na Intelia Launcheru (`AGENTS.md` platí). Odpovídej česky, stru�
 cíl ~180k. Žádní agenti, soubory nečti celé opakovaně, nepiš dlouhé texty do chatu. Když se blížíš ke 200k, zastav
 se, commitni hotové a napiš prompt na pokračování.
 
-Podklady (jen relevantní části): docs/DESIGN_SYSTEM.md §5.5 (odstavce „As built“ a „Customisation lives on Home“),
-§5.6; horní záznam docs/STATUS.md; prototyp docs/design/veil-prototype.html (Search: CSS `.morph/.res/.kb`,
-JS `openSearch/closeSearch/renderResults`, ř. ~210–240 a ~859–910).
+Podklady (jen relevantní části): horní záznam docs/STATUS.md; docs/DESIGN_SYSTEM.md §5.6 (odstavec „As built
+(Search in Veil)“), §5.10 (měření), §5.5 (LENS v editoru); kód `ui/Search.kt` (SearchOverlay, DrawerOverlay),
+`search/SearchPicks.kt`, `ui/HomeRoot.kt` (Page.Search/Drawer jako vrstvy nad Home).
 
-Hotovo minule: přizpůsobení přesunuto do editoru plochy (panel Vzhled, inspektor data, skrytí hodin, PULSE inspektor,
-± u posuvníků, pinch), Studio bez vzhledu, oprava Mono ikon. Pinch a styl Veil ikon na telefonu neověřeny.
+Hotovo minule: LENS → Search jako Veil vrstva nad ztlumenou plochou (pilulka jede s IME, karta ≤ 6, FLOW karta,
+jedno Back), šuplík jako Veil Focus, pole šuplíku otevírá Search. Měření (3 cykly, teplé): janky 83–85 → 43–45
+snímků, p99 150 → 61–65 ms; první snímek otevření ~46 ms UI, snímky při jízdě s IME 10–13 ms (rozpočet 8,3 ms).
 
 Tato session (každý bod: testy → build → telefon → commit + push):
-1. LENS → Search podle prototypu, ve Veil, jednotně a čistě: plocha zůstane vidět (ztlumená), pole jako Veil pilulka
-   se rozvine z kroužku LENS a jede s klávesnicí (WindowInsets.ime), výsledky ve Veil Dense kartě nad polem
-   (max ~6, první zvýrazněný = Enter, FLOW karta s řetězcem ikon, prázdný dotaz = Nedávné/oblíbené). Žádné italic
-   serif ani podtržené pole. Nic se nespouští při psaní. Back obráceně. Reduced Motion = 0 ms.
-2. Šuplík (swipe nahoru) jako Veil Focus přes ztlumenou plochu (majitel schválil), abecední seznam, pole dole;
-   šuplík se nesmí skládat při LENS → Search (pravděpodobná příčina 12,85 % janku).
-3. Měření před/po: `adb shell dumpsys gfxinfo dev.intelia.launcher.lab reset`, 3× LENS → Search → Back,
-   janky %, p99; `dumpsys meminfo` 1/2/5/15 s po studeném startu. Bez měření žádná tvrzení.
-4. Zbytek, pokud zbude: požádat majitele o test pinch a Veil ikon; LENS tažení v editoru (§5.5).
+1. Plynulost otevření Search: zjisti, co stojí ~46 ms v prvním snímku (framestats skript: sloupce
+   HandleInputStart…SyncStart; zkus přednačíst/odložit kartu, vyhnout se rekompozici Home při změně `page`,
+   `SystemBarIcons`) a proč snímky při IME stojí 10–13 ms (RenderThread? scrim + Veil gradienty). Měř před/po stejným
+   postupem (zahřátí 1× open/close, `gfxinfo reset`, 3× LENS → Search → Back → Back); hlas janky počet i %, p99.
+2. Ověřit na telefonu, co minule nešlo: Reduced Motion (0 ms), dlouhý stisk v Search (možnosti, Search nesmí
+   zmizet), Enter na klávesnici (aplikace / FLOW), světlý motiv; morph kroužek → pilulka zachytit `screenrecord`.
+3. Požádat majitele o test pinch a stylu Veil ikon (adb nemá multi-touch).
+4. Zbytek: LENS tažení v editoru (§5.5), 18 ms stagger řádků (jen pokud nezhorší janky).
 
 Git: větev `claude/crystal-redesign`, na začátku `git fetch` a `git status`, malé commity + push, žádný merge do
 `main`. Před testy zazálohuj shared_prefs/intelia.xml (`adb exec-out run-as dev.intelia.launcher.lab cat …`), po

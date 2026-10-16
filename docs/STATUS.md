@@ -2,6 +2,25 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Search and drawer in Veil over Home (`claude/crystal-redesign`, `53b9769`, `a59a4a2`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 78 JVM tests, 0 failures (new `SearchPicksTest`:
+  favourites on a blank query and Enter does nothing, exact FLOW first and not repeated, cap 6 with apps before
+  FLOW names, a partial FLOW name completes and never runs).
+- Phone (Nothing Phone (3), Android 16, Lab; owner's `intelia.xml` backed up first, byte-identical at the end):
+  - LENS tap: Home (clock, date) stays visible dimmed; Veil pill above the keyboard; empty query shows MOJE
+    (Chrome, Fotoaparát, Zprávy, Telefon). "ma" → 6 rows, first (Mapy) lit; "pocty" → FLOW card with 1 ⟶ 2 icon
+    chain, Spustit and ENTER SPUSTÍ; nothing launched while typing (top activity stayed Lab).
+  - One Back closes Search to Home (IME and layer together).
+  - Swipe up: drawer as Veil Focus sheet over dimmed Home (Aplikace 221, MOJE row, A–Z with rail, FLOW and Studio
+    buttons); its Hledat field opens Search, typing works, Back returns to Home.
+  - Measurements: see DESIGN_SYSTEM §5.10 (janky frames 83–85 → 43–45 for 3 cycles, p99 150 → 61–65 ms).
+
+Not verified: the ring → pill morph frame by frame (only end states seen), Reduced Motion, long-press options from
+Search, Enter key on the phone, light theme / light wallpaper, TalkBack. Still open from before: pinch and Veil icon
+style (owner to try), LENS drag in the editor.
+
 ## 2026-10-16 — Customisation moves into the Home editor (`claude/crystal-redesign`, `bfc5c8e` + data commit before it)
 
 Verified:
