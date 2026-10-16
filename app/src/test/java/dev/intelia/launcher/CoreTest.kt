@@ -1,6 +1,7 @@
 package dev.intelia.launcher
 
 import dev.intelia.launcher.data.LauncherSettings
+import dev.intelia.launcher.data.PulseLens
 import dev.intelia.launcher.data.SettingsCodec
 import dev.intelia.launcher.data.ThemeMode
 import dev.intelia.launcher.flow.Flow
@@ -99,6 +100,26 @@ class SettingsCodecTest {
         assertEquals(listOf("a", "b"), decoded.favorites)
         assertEquals(dev.intelia.launcher.data.Motion.Off, decoded.motion)
         assertFalse(decoded.reduceMotion)
+    }
+
+    @Test fun pulseLensIsClampedAndNonFiniteFallsBackToAuto() {
+        val decoded = SettingsCodec.decode("""{"pulseLens":{"x":-5,"y":900,"r":0.5}}""")
+        assertEquals(PulseLens(0f, LauncherSettings.MAX_LENS_Y, LauncherSettings.MIN_LENS_R), decoded.pulseLens)
+        val big = LauncherSettings(pulseLens = PulseLens(5000f, 24f, 99f)).sanitized()
+        assertEquals(PulseLens(LauncherSettings.MAX_LENS_X, 24f, LauncherSettings.MAX_LENS_R), big.pulseLens)
+        val kept = PulseLens(205.5f, 26f, 8f)
+        assertEquals(kept, LauncherSettings(pulseLens = kept).sanitized().pulseLens)
+        assertNull(LauncherSettings(pulseLens = PulseLens(Float.NaN, 24f, 10f)).sanitized().pulseLens)
+        assertNull(LauncherSettings(pulseLens = PulseLens(200f, 24f, Float.POSITIVE_INFINITY)).sanitized().pulseLens)
+        assertNull(SettingsCodec.decode("{}").pulseLens)
+    }
+
+    @Test fun pulseAlarmHoursStayWithinADay() {
+        assertEquals(12, SettingsCodec.decode("{}").pulseAlarmHours)
+        assertEquals(1, SettingsCodec.decode("""{"pulseAlarmHours":0}""").pulseAlarmHours)
+        assertEquals(1, LauncherSettings(pulseAlarmHours = -3).sanitized().pulseAlarmHours)
+        assertEquals(24, SettingsCodec.decode("""{"pulseAlarmHours":999}""").pulseAlarmHours)
+        assertEquals(6, SettingsCodec.decode("""{"pulseAlarmHours":6}""").pulseAlarmHours)
     }
 
     @Test fun foundationSettingsStillDecode() {
