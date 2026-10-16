@@ -240,6 +240,20 @@ Light mirrors: Veil `mix(acc 9 %, #FAFBFC @ 74 %)` → `#F2F4F6 @ 82 %`, cold ed
 Editor tools never go below Veil (Clear applies to Home and Search only). System "high contrast text" or
 Studio → Přístupnost → Solid forces Solid.
 
+**Densities as approved (D12, 2026-10-16) — implemented in `ui/Veil.kt` as `VeilLevel` + `veilSurface(tokens, origin)`.**
+The owner asked for calmer, matte panels; the "Veil" row above is split into three densities. Neutral bases
+(`#15171B`→`#0E1013` dark, `#F5F6F7`→`#EDEFF1` light) with 6 % accent, no gradients beyond top→bottom:
+
+| level | fill opacity (top → bottom) | use |
+|---|---|---|
+| Veil Light | 66 → 72 % | small controls: editor bar pills |
+| Veil Dense | 80 → 85 % (+ 40 % scrim for sheets) | contextual editors, app sheet, dialogs |
+| Veil Focus | 90 → 94 % | Studio |
+
+Edge: 1 dp, accent mixed 35 % toward white (dark) / black (light) at 55 % / 45 % alpha at the origin, fading to
+7 % within 150 dp; inner glow ≤ 7 %. Measured on the phone: 78 % let Home icons show through a sheet, hence 80 %.
+Light and coloured wallpapers not yet checked on the device.
+
 **Origin edge (the Veil signature).** A 1 dp outline whose colour is a radial gradient: `acc` mixed 78 % with
 white at the point the surface came from (LENS for Search, the selected element for an inspector, the camera
 for PULSE, the button for a menu), fading to white @ 8 % within ~150 dp. Plus an inner glow `acc @ 15 %` over

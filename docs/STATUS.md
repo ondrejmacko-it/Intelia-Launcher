@@ -2,6 +2,30 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Intelia Veil V2, parts 1–3 (`claude/crystal-redesign`, `9f2b215`, `fc1c7a4`, `4af8723`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 62 JVM tests, 0 failures (new: `VeilTest`,
+  `HomeModelTest` — schema 1 → 2, empty, corrupted, round trip, save, grid re-clamp; `HomeEditorStateTest` — grid
+  snap, displacement, LENS-row swap, LENS zone, blocked clock, guides, Hybrid, undo/redo ≤ 50, clock band).
+- Phone (Nothing Phone (3), Android 16, Lab build, dark wallpaper unchanged):
+  - Studio panel is Veil Focus, the app sheet Veil Dense; text sharp, edge faint. At Dense 78 % the Home icons
+    showed through the sheet, so Dense is now 80–85 % with a 40 % scrim; the sheet now reaches under the nav bar.
+  - Home after the schema-2 migration looks identical to before (screenshots compared; Essentials, clock, date).
+  - LENS tap → Search, swipe up → drawer, LENS hold → ARC: unchanged.
+  - Long-press empty Home → editor (bar: undo, redo, "Hybrid 4×6", Studio, ✓); dragging an icon shows grid dots,
+    target ring and the LENS zone; holding an icon opens the editor and drags it at once (first attempt was
+    cancelled by swapping the parent's modifiers mid-gesture — fixed by a stable chain); LENS hold in the editor
+    does not open ARC; Back with changes asks Pokračovat / Zahodit / Uložit, without changes it just leaves.
+  - ✓ saves once: document `schema 2`, active `mine`, favourites intact, position survives force-stop. Afterwards
+    the owner's original document was restored from a backup taken before the test (Home back on the preset).
+
+Not done / not verified: light and coloured wallpapers (need the owner's consent to change the wallpaper);
+LENS target still 100 × 100 dp (84 × 100 not changed, not measured); inspectors, preset thumbnails, add menu,
+wallpaper zoom-out, TalkBack actions in the editor, `gfxinfo`/PSS. Tapping an icon in the editor opens the old
+app sheet as a stand-in for the inspector. A saved own layout no longer follows favourite changes from the sheet;
+choosing a preset in Studio switches back to the linked preset (the own layout is kept).
+
 ## 2026-10-16 — Intelia Veil + Home Studio V2, design phase A (`claude/crystal-redesign`)
 
 Verified (no Android code changed, no build run):
@@ -14,7 +38,7 @@ Verified (no Android code changed, no build run):
   FLOW `pocty` card), ARC on the light wallpaper. Published privately as
   https://claude.ai/artifact/5oVfKwJrveYy1d9YkZN1Ss.
 
-Proposed, not approved: D12 (Veil material, origin edge, blur policy, Home layout model, Home Editor,
+Proposed then (approved later the same day, see D12): D12 (Veil material, origin edge, blur policy, Home layout model, Home Editor,
 LENS target 84 × 100 dp). Not tested: whether the Atmosphere wallpaper honours `setWallpaperZoomOut`.
 
 ## 2026-10-16 — Redesign phase B2, Home + LENS (`claude/crystal-redesign`)
