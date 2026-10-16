@@ -163,7 +163,7 @@ internal fun accentColor(accent: Accent, dark: Boolean): Color =
         if (dark) dynamicDarkColorScheme(context).primary else dynamicLightColorScheme(context).primary
     } else Color(AccentColors.argb(accent, dark))
 
-/** Resolved colours of the palette's places (§4.5); all equal to the main accent while it is unified. */
+/** Resolved colours of the palette's places (§5.12); all equal to the main accent while it is unified. */
 @Immutable
 class PlaceColors(private val colors: Map<PaletteTarget, Color>, val main: Color) {
     operator fun get(target: PaletteTarget): Color = colors[target] ?: main

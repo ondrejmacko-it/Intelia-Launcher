@@ -254,6 +254,12 @@ Edge: 1 dp, accent mixed 35 % toward white (dark) / black (light) at 55 % / 45 %
 7 % within 150 dp; inner glow ≤ 7 %. Measured on the phone: 78 % let Home icons show through a sheet, hence 80 %.
 Light and coloured wallpapers not yet checked on the device.
 
+**Clean Veil (part 13, 2026-10-17)** — less grey film, crisper outline, same legibility. Bases `#101216`→`#0B0C0F`
+dark, `#F7F8F9`→`#F0F2F4` light, 3 % accent; Light 62 → 68 %, Dense 77 → 83 %, Focus 88 → 93 %; cold edge
+white @ 14 % (black @ 10 % light), plain edge 18 % / 14 %, glow 6 % / 4 %. `VeilTest` keeps fg text ≥ 4.5:1 on
+Veil Light over a white wallpaper (dark theme) and a black one (light theme). Every card, sheet, pill and
+inspector draws through `veilTokens`, so the change is uniform.
+
 **Origin edge (the Veil signature).** A 1 dp outline whose colour is a radial gradient: `acc` mixed 78 % with
 white at the point the surface came from (LENS for Search, the selected element for an inspector, the camera
 for PULSE, the button for a menu), fading to white @ 8 % within ~150 dp. Plus an inner glow `acc @ 15 %` over
@@ -399,6 +405,9 @@ italic serif, no mono caps; FLOW chains shown as 28 dp icons with step numbers.
 below; Veil style = monochrome glyph on `fg @ 9 %` disc with a 1 dp `fg @ 22 %` ring. Icon packs: ADW/Nova-style
 `appfilter.xml` packs found through a `<queries>` intent entry (no permission); needs a D-entry before landing.
 A Nothing look only through an installed compatible pack, never copied. Missing icon → letter on a Veil disc.
+**Tinted** (part 13): the monochrome glyph in the palette's Icons colour (§5.12) on a disc of the theme's Veil
+base @ 62 % washed with that colour @ 16 %, ring @ 40 %; apps without a monochrome layer keep the grey
+silhouette on the same disc. Chosen in the Look panel, Studio and the icon inspector (with its colour).
 
 ## 5.9 PULSE continuity (B4)
 Same Veil material and origin edge (origin = camera), same type and motion: idle draws nothing, the live
@@ -434,3 +443,21 @@ small but must be measured (frame time with `gfxinfo` during LENS → Search and
 7. LENS → Search morph synced with the IME; Back reverse.
 8. Unify FLOW, Search, drawer and Studio typography/material (Ink → Veil).
 9. Regression on the phone (list in the brief §13), `gfxinfo` measurements, STATUS.
+
+## 5.12 Palette and Veil clock (part 13, 2026-10-17)
+**Accents.** 16 hues + Dynamic (`Accent`, new names only appended): Frost, Silver, Ink (Mono), Slate, Sky, Teal,
+Mint, Sage, Lime, Amber, Terracotta, Coral, Rose, Orchid, Violet, Indigo. Each has a pale dark-theme and a deep
+light-theme variant (`data/AccentColors.kt`), ≥ 4.5:1 against the Veil base of its theme (`PaletteTest`).
+Dynamic is the wallpaper's Material You primary (API 31+), Terracotta below.
+
+**Places.** `LauncherSettings.palette`: `unified` (default true = the main accent everywhere) and an optional
+accent per place — Clock (accent tint and colon ring), Text (date accent tint), Icons (Tinted style), LENS (ARC
+highlights), Search (Search and the drawer), Studio. `AccentScope(place)` re-provides Ink, Crystal and Material
+`primary`, so texts, toggles and sliders inside follow the place. Unset place = main accent; the places are
+kept while unified, so switching back restores them. Edited in Studio → Barvy and the Look panel (toggle, place
+chips, 17-disc grid), in the clock and LENS inspectors (under Pokročilé) with "Hlavní barva" first.
+
+**Veil clock.** `HomeItem.background = "Veil"` (clock only; `sanitized()` drops anything else) puts one Veil
+Light plate, radius 26 dp, padding 14/20/16 dp, behind the time and its bound date (prototype `.clock.bgv`).
+Text on it takes the theme fg without shadow; the outer margin shrinks 28 → 8 dp so the time keeps its width.
+Clock inspector: "Bez pozadí" / "Veil".

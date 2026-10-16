@@ -2,6 +2,30 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Palette, Tinted icons, Veil clock, Clean Veil, TalkBack LENS in the editor (`claude/crystal-redesign`, `27c5a9b`, `f9d328c`, `d52226c`, `763891d`, `1554151`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 92 JVM tests, 0 failures (new: accent contrast
+  ≥ 4.5:1 on both Veil bases, enum order kept, unified/per-place palette and old/odd documents, Tinted decode,
+  clock background sanitizing, text contrast on Veil Light over white/black wallpaper).
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up, restored and byte-identical):
+  - Palette (test document, per place): clock in Rose, Search field and selected row in Amber, Studio toggles in
+    Violet; Studio → Barvy shows the toggle, place chips and the 17-disc grid; choosing Hodiny → Sky recoloured the
+    preview's colon at once.
+  - Tinted icons in Teal on Home (dark theme, light part of the wallpaper) and in the drawer (light theme).
+  - Clock inspector "Veil" → ✓: plate behind time and date; first try clipped a 126 sp clock, fixed by taking the
+    plate inset out of the margin (screenshot after the fix: full time).
+  - Clean Veil before/after screenshots of the drawer, Search and the clock plate: deeper, less grey fill, crisper
+    edge; text legible.
+  - Editor, keyboard Tab to LENS + Enter: LENS inspector opens, Search does not.
+  - Editor icon drag (`input motionevent`, 300 px up, held): icon centre 257 px vs finger 255 px — no slop lag.
+- At the end the release Lab (debug key, `compile -m speed`) is back on the phone; HOME role holder
+  `dev.intelia.launcher.lab`.
+
+Not verified: TalkBack itself (double tap goes through the semantics click, changed in code; Enter goes through the
+key handler) — owner to try. Tinted icons on a truly light/dark wallpaper (wallpaper not changed; light vs dark
+theme checked instead). No release frame measurement this session (drawing changes are fills and colours only).
+
 ## 2026-10-16 — Drawer composed ahead, brisker motion (`claude/crystal-redesign`, `130df1a`, `cf4f122`)
 
 Verified:

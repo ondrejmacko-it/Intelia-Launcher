@@ -469,7 +469,7 @@ private fun Home(
             val a = clock?.anchor ?: Anchor.free(if (listLayout) 0f else .5f, 0f)
             val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
             val topPad = (if (compact) 24.dp else if (listLayout) 72.dp else 92.dp) + (geometry.areaH * a.fy).dp
-            // §5.10 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
+            // §5.12 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
             val plate = clock?.background == ClockBackground.Veil.name
             val clockInk = if (plate) LocalCrystal.current.fg else homeInk
             // The plate's 20 dp inset comes out of the 28 dp margin, so the time keeps its width.

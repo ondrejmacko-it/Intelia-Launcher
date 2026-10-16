@@ -297,7 +297,7 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
             state.edit(item.id, "weight") { it.copy(weight = v.roundToInt()) }; onChange()
         }
         TintAndOpacity(state, item, onChange)
-        // "Accent" above is the clock's place in the palette (§4.5).
+        // "Accent" above is the clock's place in the palette (§5.12).
         PlaceSwatches(settings, PaletteTarget.Clock, set)
     }
     Action(stringResource(R.string.clock_hide), LocalCrystal.current.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }

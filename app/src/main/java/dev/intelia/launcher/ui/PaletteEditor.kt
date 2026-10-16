@@ -47,7 +47,7 @@ private val placeNames = mapOf(
 )
 
 /**
- * The palette (§4.5): the main accent, and with "one colour everywhere" off, a colour per place. Used by Studio
+ * The palette (§5.12): the main accent, and with "one colour everywhere" off, a colour per place. Used by Studio
  * and the editor's Look panel; settings apply at once.
  */
 @Composable

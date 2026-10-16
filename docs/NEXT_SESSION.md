@@ -1,4 +1,4 @@
-# Prompt pro další session — Intelia Veil V2, část 13 (paleta barev, barevné ikony, Veil hodiny, Clean Veil)
+# Prompt pro další session — Intelia Veil V2, část 14 (zpětná vazba na paletu, LENS v barvě, Studio náhled, měření)
 
 Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka = tento repozitář).
 
@@ -7,37 +7,24 @@ Pokračujeme na Intelia Launcheru (`AGENTS.md` platí). Odpovídej česky, stru�
 cíl ~180k. Žádní agenti, soubory nečti celé opakovaně, nepiš dlouhé texty do chatu, výstupy příkazů filtruj
 (grep/tail). Když se blížíš ke 200k, zastav se, commitni hotové a napiš prompt na pokračování.
 
-Podklady (jen relevantní části): horní záznam docs/STATUS.md; docs/DESIGN_SYSTEM.md §4 (barvy, Accent, Veil úrovně),
-§5.6, §5.10; docs/design/veil-prototype.html (hodiny `.clock.bgv`, volba `bg` none/veil ř. ~423 a ~642); kód
-`ui/Ink.kt` (`accentColor` ř. ~158, `inkPalette`, `InteliaTheme`), `ui/Veil.kt` (`veilTokens`, `veilSurface`),
-`ui/Icons.kt` (`RenderedIconImage`, IconStyle Veil), `data/LauncherSettings.kt` (`Accent` ř. 11, `IconStyle`,
-`ClockStyle`, `sanitized()`), `data/HomeModel.kt` (`ItemTint` ř. ~85), `ui/HomeInspector.kt`, `ui/Studio.kt`.
+Podklady (jen relevantní části): horní záznam docs/STATUS.md; docs/DESIGN_SYSTEM.md §5.2 (Clean Veil), §5.8
+(Tinted), §5.12 (paleta, Veil hodiny); kód `data/AccentColors.kt`, `data/LauncherSettings.kt` (`Palette`,
+`accentFor`), `ui/Ink.kt` (`PlaceColors`, `AccentScope`), `ui/PaletteEditor.kt`, `ui/Icons.kt`, `ui/Veil.kt`,
+`ui/HomeRoot.kt` (hodiny ~ř. 470, `LensArc` ~ř. 585), `ui/Lens.kt` (`onEditSelect`).
 
-Hotovo minule (`130df1a`, `cf4f122`): drawer se skládá 700 ms po klidu Home a zůstává zaparkovaný mimo obrazovku
-(alpha 0, bez sémantiky), otevření jen animuje; `IconCache.warm` předehřívá ikony (cache 16 MB); první snímek
-drawer 23.6 → 2.8 ms UI (release). Animace Calm zkráceny o ~25 % (§5.6 "brisker motion"). Pozor: minule byl Lab
-odinstalován (`adb uninstall`) → HOME role je teď `com.nothing.launcher` a PULSE accessibility služba Labu není
-zapnutá; zeptej se majitele, zda to chce vrátit (nastavení dělá on). Nikdy neodinstalovávej, jen `install -r`.
+Hotovo minule (`27c5a9b`…`1554151`): 16 akcentů + Dynamic s kontrastem ≥ 4.5:1, paleta po místech (hodiny,
+text, ikony, LENS, hledání, studio) s přepínačem "Jedna barva všude"; IconStyle Tinted; Veil podklad hodin;
+Clean Veil (tenčí, čistší závoj, jasnější okraj); v editoru klik/Enter na LENS vybírá místo Search. V telefonu je
+release Lab (bez `run-as`), HOME role = Lab.
 
-Tato session (každý bod: testy → build → telefon → commit + push; pořadí 2 → 6):
-1. Plynulost: majitel potvrdil, že release build je výrazně plynulejší než debug (debug: snímek 85 ms při otevření
-   drawer, Search 5–6 % jank). V telefonu je teď release Labu (nejde `run-as`): před zálohou prefs nainstaluj
-   debug přes `install -r`, na konci vrať release (`install -r`, `compile -m speed`), ať majitel jezdí plynule.
-2. PALETA BAREV: `Accent` rozšířit (přidávat jen na konec enumu, staré názvy zachovat) na 16 odstínů + Dynamic
-   (např. Rose, Coral, Amber, Lime, Mint, Teal, Sky, Indigo, Violet, Orchid), dark/light varianta s kontrastem
-   ≥ 4.5:1 proti Veil podkladu (JVM test). Nový `palette` v `LauncherSettings` (clock, text, icons, lens, search,
-   studio: `Accent?`, null = hlavní akcent) + `unified` přepínač (výchozí true = jedna barva všude). Validace jen
-   v `sanitized()`, staré dokumenty beze změny (ItemTint.Accent = barva daného cíle palety). Propsat do Studia
-   (texty, přepínače, posuvníky přes `LocalInk`/Material scheme), Search, drawer, LENS. Volba v Studio (mřížka
-   barev) a v inspektoru hodin/LENS.
-3. BAREVNÉ IKONY: nový `IconStyle` na konec enumu (např. `Tinted`): glyf/duotón z barvy palety pro ikony na jemném
-   Veil disku; System/Ink/Veil zůstávají; volba v Studio i v inspektoru ikony. Screenshot na světlé i tmavé tapetě.
-4. VEIL HODINY: volba pozadí hodin "Veil" (`.clock.bgv`: padding 14/20/16 px, radius 26, Veil podklad za časem
-   i datem) v inspektoru hodin; nové pole na konec modelu + `sanitized()`.
-5. CLEAN VEIL: čistší průhlednost — méně šedého závoje (base/deep v `veilTokens`), jasnější okraj, čitelný text;
-   jednotně (karty, plachty, pilulky, inspektor); screenshoty před/po.
-6. TalkBack: dvojklep na LENS v editoru volá Search místo výběru (v editoru `onClick` = výběr, `onLongClick`
-   neotevírá ARC; zkontroluj i ikony); změřit slop u tažení ikon. Požádej majitele o TalkBack test.
+Tato session (každý bod: testy → build → telefon → commit + push):
+1. Zpětná vazba majitele na paletu, Tinted ikony, Veil hodiny a Clean Veil (zeptej se na začátku; co chce
+   upravit, udělej první). Požádej o TalkBack test dvojklepu na LENS v editoru.
+2. LENS v barvě palety: když má místo LENS vlastní barvu (ne unified), kreslit kroužek LENS v ní (dnes jen ARC
+   zvýraznění); místo Text použít i na popisky ikon na Home a datum bez tintu (rozhodni s majitelem).
+3. Studio náhled: Veil podklad hodin a Tinted ikony i v `HomePreview`, ať náhled odpovídá Home.
+4. Release měření po Clean Veil a Tinted (drawer swipe, LENS → Search, 3 série), porovnat se STATUS 2026-10-16.
+5. Tinted na opravdu světlé a tmavé tapetě — jen pokud majitel tapetu sám přepne nebo to dovolí.
 
 Git: větev `claude/crystal-redesign`, na začátku `git fetch` a `git status`, malé commity + push, žádný merge do
 `main`. Zálohuj shared_prefs/intelia.xml (`adb exec-out run-as dev.intelia.launcher.lab cat …`), po testu vrať

@@ -13,11 +13,11 @@ import kotlinx.serialization.json.Json
  */
 @Serializable enum class Accent { Dynamic, Mono, Sage, Slate, Terracotta, Frost, Silver, Rose, Coral, Amber, Lime, Mint, Teal, Sky, Indigo, Violet, Orchid }
 
-/** Where a colour of the [Palette] applies (§4.5). */
+/** Where a colour of the [Palette] applies (§5.12). */
 enum class PaletteTarget { Clock, Text, Icons, Lens, Search, Studio }
 
 /**
- * Per-place colours (§4.5). [unified] (the default) means the main accent everywhere; a null place follows the
+ * Per-place colours (§5.12). [unified] (the default) means the main accent everywhere; a null place follows the
  * main accent too. The places are kept while unified, so switching back restores them.
  */
 @Serializable

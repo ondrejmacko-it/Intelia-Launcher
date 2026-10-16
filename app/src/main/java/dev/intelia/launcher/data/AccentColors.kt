@@ -1,7 +1,7 @@
 package dev.intelia.launcher.data
 
 /**
- * The accent hues as ARGB (§4.5): a pale variant for the dark theme and a deep one for the light theme, each
+ * The accent hues as ARGB (§5.12): a pale variant for the dark theme and a deep one for the light theme, each
  * at least 4.5:1 against the Veil base of its theme ([VEIL_DARK], [VEIL_LIGHT]); checked by a JVM test.
  * [Accent.Dynamic] comes from the wallpaper at run time and falls back to Terracotta here.
  */
