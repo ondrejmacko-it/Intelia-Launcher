@@ -26,12 +26,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -54,6 +54,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -148,6 +149,10 @@ fun SearchOverlay(
     var leaving by remember { mutableStateOf(false) }
     /** The options sheet hides the keyboard on purpose; that must not close Search. */
     var held by remember { mutableStateOf(false) }
+    // The card is invisible until the morph is 60 % through; composing it two frames later (after the focus and
+    // IME setup, before the keyboard starts to move) splits the first frame in two.
+    var cardReady by remember { mutableStateOf(!fromLens || grow == 0) }
+    LaunchedEffect(Unit) { repeat(2) { withFrameNanos { } }; cardReady = true }
     LaunchedEffect(Unit) {
         field.requestFocus(); keyboard?.show()
         if (fromLens) morph.animateTo(1f, tween(grow, delayMillis = growDelay, easing = CubicBezierEasing(.05f, .7f, .1f, 1f)))
@@ -185,7 +190,7 @@ fun SearchOverlay(
                     IntOffset(0, -max(rest, ime.getBottom(this) + 10.dp.roundToPx()))
                 }
                 .padding(horizontal = 12.dp)) {
-                ResultsCard(query, rows, resolve, morph::value, ::act, onOptions = { held = true; onOptions(it) })
+                if (cardReady) ResultsCard(query, rows, resolve, morph::value, ::act, onOptions = { held = true; onOptions(it) })
                 Spacer(Modifier.height(8.dp))
                 SearchField(query, field, morph::value, lensShift(settings.reach), exactMatch = exact != null,
                     onChange = { model.query.value = it }, onSubmit = { SearchPicks.enter(query, rows)?.let(::act) })
