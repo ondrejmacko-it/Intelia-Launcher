@@ -37,6 +37,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -66,6 +69,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -346,6 +350,7 @@ private fun FlowChain(alias: FlowAlias, resolve: (String) -> AppEntry?, missing:
 @Composable
 fun DrawerOverlay(
     model: HomeViewModel,
+    open: Boolean,
     onBack: () -> Unit,
     onSearch: () -> Unit,
     onLaunch: (AppEntry) -> Unit,
@@ -358,22 +363,36 @@ fun DrawerOverlay(
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val shown = remember { Animatable(0f) }
+    val list = rememberLazyListState()
     val inMs = motionMs(200)
     val outMs = motionMs(150)
-    LaunchedEffect(Unit) { shown.animateTo(1f, tween(inMs, easing = CubicBezierEasing(.2f, .9f, .25f, 1f))) }
     var leaving by remember { mutableStateOf(false) }
-    fun leave() {
-        if (leaving) return
-        leaving = true
-        scope.launch { shown.animateTo(0f, tween(outMs)); onBack() }
+    // Composed ahead while Home rests and kept: opening only animates, the rows and icons are already laid out.
+    LaunchedEffect(open) {
+        if (open) {
+            leaving = false
+            list.scrollToItem(0)
+            shown.animateTo(1f, tween(inMs, easing = CubicBezierEasing(.2f, .9f, .25f, 1f)))
+        } else if (!leaving) shown.snapTo(0f)
     }
-    BackHandler { leave() }
+    val hidden by remember { derivedStateOf { shown.value == 0f } }
+    val parked = !open && hidden
+    fun leave() {
+        if (leaving || !open) return
+        leaving = true
+        scope.launch { shown.animateTo(0f, tween(outMs)); leaving = false; onBack() }
+    }
+    BackHandler(enabled = open) { leave() }
 
-    Box(Modifier.fillMaxSize()) {
+    // Parked: off-screen, not drawn, out of the accessibility tree and of hit testing, so Home works as if absent.
+    Box(Modifier.fillMaxSize().then(if (parked) Modifier.offset { IntOffset(0, 100_000) }.graphicsLayer { alpha = 0f }
+        .clearAndSetSemantics { } else Modifier)) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown.value }.background(Scrim)
             .pointerInput(Unit) { detectTapGestures { leave() } })
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(8.dp)
-            .graphicsLayer { alpha = shown.value; translationY = (1f - shown.value) * 32.dp.toPx() }
+            // Alpha per draw op: no full-screen offscreen layer while the sheet fades.
+            .graphicsLayer { alpha = shown.value; translationY = (1f - shown.value) * 32.dp.toPx()
+                compositingStrategy = CompositingStrategy.ModulateAlpha }
             .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Bottom)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}) {
             CompositionLocalProvider(LocalInk provides veilInk()) {
@@ -385,7 +404,7 @@ fun DrawerOverlay(
                     IconAction(Glyph.Flow, stringResource(R.string.flow), onFlows, tint = c.fg)
                     IconAction(Glyph.Studio, stringResource(R.string.studio), onStudio, tint = c.fg)
                 }
-                Box(Modifier.weight(1f).fillMaxWidth()) { Drawer(apps, favorites, onLaunch, onOptions) }
+                Box(Modifier.weight(1f).fillMaxWidth()) { Drawer(apps, favorites, list, onLaunch, onOptions) }
                 // The field opens Search in place: same pill, same spot at the thumb.
                 val solid = veil(VeilLevel.Focus).bottom.copy(alpha = 1f)
                 Row(Modifier.fillMaxWidth().padding(10.dp).height(52.dp).clip(CircleShape)
@@ -424,9 +443,8 @@ internal fun AppRow(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit,
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, onLaunch: (AppEntry) -> Unit, onOptions: (AppEntry) -> Unit) {
+private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, state: LazyListState, onLaunch: (AppEntry) -> Unit, onOptions: (AppEntry) -> Unit) {
     val ink = LocalInk.current
-    val state = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val letters = remember(apps) { apps.map { indexLetter(it.label) } }
     val first = remember(letters) { HashMap<Char, Int>().apply { letters.forEachIndexed { i, c -> putIfAbsent(c, i) } } }
@@ -454,7 +472,7 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, onLaunch: (A
         val rail = maxHeight >= 380.dp
         Row(Modifier.fillMaxSize()) {
             LazyColumn(Modifier.weight(1f), state = state, contentPadding = PaddingValues(top = 6.dp, bottom = 12.dp)) {
-                itemsIndexed(apps, key = { _, app -> app.key }) { index, app ->
+                itemsIndexed(apps, key = { _, app -> app.key }, contentType = { _, _ -> 0 }) { index, app ->
                     val letter = letters[index]
                     AppRow(app, onClick = { onLaunch(app) }, onLongClick = { onOptions(app) },
                         letter = if (index == 0 || letters[index - 1] != letter) letter.toString() else "")

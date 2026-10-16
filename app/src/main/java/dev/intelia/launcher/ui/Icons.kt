@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -34,7 +35,9 @@ fun AppIcon(app: AppEntry, modifier: Modifier = Modifier, tint: Color = LocalInk
     val style = LocalIconStyle.current
     val ink = style != IconStyle.System
     val revision by icons.revision.collectAsStateWithLifecycle()
-    val icon by produceState(icons.peek(app.key, ink), app.key, ink, revision) { value = icons.load(app, ink) }
+    // A cached icon is drawn in the first frame and needs no coroutine; only misses load in the background.
+    val cached = remember(app.key, ink, revision) { icons.peek(app.key, ink) }
+    val icon = cached ?: produceState<RenderedIcon?>(null, app.key, ink, revision) { value = icons.load(app, ink) }.value
     RenderedIconImage(icon, ink, tint, modifier, veil = style == IconStyle.Veil)
 }
 

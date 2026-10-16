@@ -78,6 +78,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import dev.intelia.launcher.data.IconStyle
+import dev.intelia.launcher.intelia
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -141,6 +143,9 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     val arcFlows by model.arcFlows.collectAsStateWithLifecycle()
     val arcShortcuts by model.arcShortcuts.collectAsStateWithLifecycle()
     val visible by model.visibleApps.collectAsStateWithLifecycle()
+    val icons = LocalContext.current.intelia.icons
+    // The drawer's icons are rendered while Home rests, so opening it draws them in its first frames.
+    LaunchedEffect(visible, settings.iconStyle) { icons.warm(visible, settings.iconStyle != IconStyle.System) }
     var page by rememberSaveable { mutableStateOf(Page.Home) }
     /** Search came from LENS (the ring opens into the field) or from the drawer's field (already open). */
     var searchFromLens by rememberSaveable { mutableStateOf(true) }
@@ -240,8 +245,12 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onRun = ::run,
                     onOptions = { focus.clearFocus(); keyboard?.hide(); options = it },
                 )
-                if (page == Page.Drawer) DrawerOverlay(
+                // The drawer is composed once Home has rested, then kept, so a swipe up only animates it.
+                var drawerReady by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) { delay(700); drawerReady = true }
+                if (drawerReady || page == Page.Drawer) DrawerOverlay(
                     model = model,
+                    open = page == Page.Drawer,
                     onBack = ::goHome,
                     onSearch = { openSearch(false) },
                     onLaunch = ::launch,

@@ -52,6 +52,11 @@ class IconCache(context: Context, private val apps: AppRepository) {
 
     suspend fun load(entry: AppEntry, ink: Boolean = false): RenderedIcon? = load(entry.key, ink) { apps.icon(entry, densityDpi) }
 
+    /** Renders [entries] missing from the cache in the background, so the drawer's rows find them on first draw. */
+    suspend fun warm(entries: List<AppEntry>, ink: Boolean) {
+        for (entry in entries) if (cache.get(cacheKey(entry.key, ink)) == null) load(entry, ink)
+    }
+
     suspend fun loadShortcut(key: String, ink: Boolean = false): RenderedIcon? = load(key, ink) { apps.shortcutIcon(key, densityDpi) }
 
     private suspend fun load(baseKey: String, ink: Boolean, source: () -> Drawable?): RenderedIcon? {
@@ -87,6 +92,6 @@ class IconCache(context: Context, private val apps: AppRepository) {
 
     private companion object {
         const val ICON_DP = 56
-        const val MAX_BYTES = 10 * 1024 * 1024
+        const val MAX_BYTES = 16 * 1024 * 1024
     }
 }
