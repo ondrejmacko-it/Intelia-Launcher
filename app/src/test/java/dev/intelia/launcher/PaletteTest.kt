@@ -2,6 +2,7 @@ package dev.intelia.launcher
 
 import dev.intelia.launcher.data.Accent
 import dev.intelia.launcher.data.AccentColors
+import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Palette
 import dev.intelia.launcher.data.PaletteTarget
@@ -45,5 +46,11 @@ class PaletteTest {
         assertEquals(Accent.Teal, odd.accentFor(PaletteTarget.Lens))
         assertEquals(Accent.Sage, odd.accentFor(PaletteTarget.Clock))
         assertEquals(odd, SettingsCodec.decode(SettingsCodec.encode(odd)))
+    }
+
+    @Test
+    fun tintedIconsAreAppendedAndDecode() {
+        assertEquals(listOf("System", "Ink", "Veil", "Tinted"), IconStyle.entries.map { it.name })
+        assertEquals(IconStyle.Tinted, SettingsCodec.decode("""{"iconStyle":"Tinted","schema":2}""").iconStyle)
     }
 }

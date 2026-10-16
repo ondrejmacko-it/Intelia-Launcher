@@ -127,6 +127,7 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
 
                 Section(R.string.palette_section)
                 PaletteEditor(settings, ::set, Modifier.padding(horizontal = 24.dp))
+                Column(Modifier.padding(horizontal = 24.dp)) { IconStyleChips(settings, ::set) }
 
                 Section(R.string.arc_section)
                 Hint(stringResource(R.string.arc_explain))

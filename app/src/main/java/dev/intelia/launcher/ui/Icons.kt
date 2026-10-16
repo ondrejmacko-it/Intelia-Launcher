@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.IconStyle
+import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.RenderedIcon
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.intelia
@@ -38,7 +39,7 @@ fun AppIcon(app: AppEntry, modifier: Modifier = Modifier, tint: Color = LocalInk
     // A cached icon is drawn in the first frame and needs no coroutine; only misses load in the background.
     val cached = remember(app.key, ink, revision) { icons.peek(app.key, ink) }
     val icon = cached ?: produceState<RenderedIcon?>(null, app.key, ink, revision) { value = icons.load(app, ink) }.value
-    RenderedIconImage(icon, ink, tint, modifier, veil = style == IconStyle.Veil)
+    RenderedIconImage(icon, ink, tint, modifier, style)
 }
 
 @Composable
@@ -47,16 +48,27 @@ fun ShortcutIcon(shortcut: ShortcutEntry, modifier: Modifier = Modifier, tint: C
     val style = LocalIconStyle.current
     val ink = style != IconStyle.System
     val icon by produceState(icons.peek(shortcut.key, ink), shortcut.key, ink) { value = icons.loadShortcut(shortcut.key, ink) }
-    RenderedIconImage(icon, ink, tint, modifier, veil = style == IconStyle.Veil)
+    RenderedIconImage(icon, ink, tint, modifier, style)
 }
 
 @Composable
-private fun RenderedIconImage(icon: RenderedIcon?, ink: Boolean, tint: Color, modifier: Modifier, veil: Boolean = false) {
-    // §5.8 Veil style: the glyph on a faint disc (tint @ 9 %) with a 1 dp ring (tint @ 22 %).
+private fun RenderedIconImage(icon: RenderedIcon?, ink: Boolean, inkTint: Color, modifier: Modifier, style: IconStyle) {
+    val veil = style == IconStyle.Veil || style == IconStyle.Tinted
+    val tint = if (style == IconStyle.Tinted) LocalPlaces.current[PaletteTarget.Icons] else inkTint
+    // §5.8 Tinted: a Veil disc (theme base @ 62 %) washed with the colour (16 %), its ring @ 40 %; the base keeps
+    // the glyph legible on light and dark wallpapers alike.
+    val base = if (LocalCrystal.current.dark) Color(0xFF15171B) else Color(0xFFF5F6F7)
     Box(if (!veil) modifier else modifier.drawBehind {
         val r = size.minDimension / 2f
-        drawCircle(tint.copy(alpha = .09f), r)
-        drawCircle(tint.copy(alpha = .22f), r - .5.dp.toPx(), style = Stroke(1.dp.toPx()))
+        if (style == IconStyle.Tinted) {
+            drawCircle(base.copy(alpha = .62f), r)
+            drawCircle(tint.copy(alpha = .16f), r)
+            drawCircle(tint.copy(alpha = .40f), r - .5.dp.toPx(), style = Stroke(1.dp.toPx()))
+        } else {
+            // §5.8 Veil style: the glyph on a faint disc (tint @ 9 %) with a 1 dp ring (tint @ 22 %).
+            drawCircle(tint.copy(alpha = .09f), r)
+            drawCircle(tint.copy(alpha = .22f), r - .5.dp.toPx(), style = Stroke(1.dp.toPx()))
+        }
     }, contentAlignment = Alignment.Center) {
         icon?.let {
             val filter = when {

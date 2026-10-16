@@ -23,6 +23,14 @@ import dev.intelia.launcher.data.ThemeMode
 /** Changes the stored settings at once (not part of the layout's undo history). */
 typealias SettingsEdit = ((LauncherSettings) -> LauncherSettings) -> Unit
 
+/** The icon style for all of Home, Search, drawer and ARC; in the Look panel, the icon inspector and Studio. */
+@Composable
+fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
+    Chips(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink),
+        IconStyle.Veil to stringResource(R.string.look_veil), IconStyle.Tinted to stringResource(R.string.icons_tinted)),
+        settings.iconStyle) { v -> set { it.copy(iconStyle = v) } }
+}
+
 /**
  * The editor's Look panel (Vzhled): everything that styles the whole Home and every panel — Veil material,
  * theme, accent, icons, labels. Opened from the bar; sits above the LENS row so the clock stays visible.
@@ -55,8 +63,7 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
         PaletteEditor(settings, set)
 
         Kick(stringResource(R.string.icons))
-        Chips(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink),
-            IconStyle.Veil to stringResource(R.string.look_veil)), settings.iconStyle) { v -> set { it.copy(iconStyle = v) } }
+        IconStyleChips(settings, set)
         SliderRow(stringResource(R.string.inspect_size), settings.iconSize.toFloat(), LauncherSettings.MIN_ICON.toFloat(),
             LauncherSettings.MAX_ICON.toFloat(), 2f, "${settings.iconSize} dp") { v -> set { it.copy(iconSize = v.toInt()) } }
         val icons = state.layout.items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }

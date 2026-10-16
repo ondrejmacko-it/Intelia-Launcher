@@ -736,7 +736,7 @@ private fun Home(
                         ItemKind.Lens -> LensInspector(ed, sel, settings, set, onChange = ::refresh)
                         else -> {
                             val app = apps[sel.target]
-                            ItemInspector(ed, sel, app?.label ?: flows[sel.target]?.name.orEmpty(), iconDefault,
+                            ItemInspector(ed, sel, app?.label ?: flows[sel.target]?.name.orEmpty(), iconDefault, settings, set,
                                 onMore = app?.let { a -> { onOptions(a) } }, onRemoved = { selected = null }, onChange = ::refresh)
                         }
                     }

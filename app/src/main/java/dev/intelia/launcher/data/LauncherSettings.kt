@@ -55,8 +55,11 @@ data class Palette(
 @Serializable enum class ClockStyle { Serif, Grotesk, Mono, Crystal }
 @Serializable enum class Motion { Calm, Brisk, Off }
 @Serializable enum class Haptics { Soft, Strong, Off }
-/** [Ink] is the monochrome glyph ("Mono"); [Veil] puts that glyph on a faint disc with a hairline ring (§5.8). */
-@Serializable enum class IconStyle { System, Ink, Veil }
+/**
+ * [Ink] is the monochrome glyph ("Mono"); [Veil] puts that glyph on a faint disc with a hairline ring (§5.8);
+ * [Tinted] draws it in the palette's icon colour on a Veil disc washed with that colour.
+ */
+@Serializable enum class IconStyle { System, Ink, Veil, Tinted }
 
 /** Manual camera position for PULSE, in dp from the top-left of the portrait screen; [r] is the lens radius. */
 @Serializable data class PulseLens(val x: Float, val y: Float, val r: Float)

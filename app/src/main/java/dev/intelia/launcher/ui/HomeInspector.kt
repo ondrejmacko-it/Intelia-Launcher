@@ -59,6 +59,7 @@ import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
+import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.ItemTint
 import dev.intelia.launcher.data.PaletteTarget
@@ -251,7 +252,8 @@ internal fun Advanced(content: @Composable () -> Unit) {
 
 /** App or FLOW on Home: size, label, remove from Home (never uninstall). */
 @Composable
-fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, iconDefault: Int, onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
+fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, iconDefault: Int, settings: LauncherSettings, set: SettingsEdit,
+    onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
     val c = LocalCrystal.current
     Title(title) {
         if (onMore != null) Text(stringResource(R.string.inspect_more), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onMore)
@@ -263,6 +265,11 @@ fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, iconDef
     }
     MoveButtons { dx, dy -> state.nudge(item.id, dx, dy); onChange() }
     Toggle(stringResource(R.string.inspect_label), item.label) { on -> state.edit(item.id, "label") { it.copy(label = on) }; onChange() }
+    // Style and colour apply to every icon (settings, not this layout's undo).
+    Advanced {
+        IconStyleChips(settings, set)
+        if (settings.iconStyle == IconStyle.Tinted) PlaceSwatches(settings, PaletteTarget.Icons, set)
+    }
     Action(stringResource(R.string.inspect_remove), c.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }
 
