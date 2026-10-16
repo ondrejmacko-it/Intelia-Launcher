@@ -45,11 +45,14 @@ data class VeilTokens(
     val glow: Color,
 )
 
-/** Fill opacity per level: Light 66–72 %, Dense 80–85 %, Focus 90–94 % (top → bottom). */
+/**
+ * Fill opacity per level (Clean Veil, §5.2): Light 62–68 %, Dense 77–83 %, Focus 88–93 % (top → bottom).
+ * Text stays ≥ 4.5:1 on Light even over a white (dark theme) or black (light theme) wallpaper; a JVM test checks it.
+ */
 internal fun veilAlpha(level: VeilLevel): Pair<Float, Float> = when (level) {
-    VeilLevel.Light -> .66f to .72f
-    VeilLevel.Dense -> .80f to .85f
-    VeilLevel.Focus -> .90f to .94f
+    VeilLevel.Light -> .62f to .68f
+    VeilLevel.Dense -> .77f to .83f
+    VeilLevel.Focus -> .88f to .93f
 }
 
 /** The owner's Veil choices from the editor's Look panel (§5.2): Solid panels, density shift, origin edge. */
@@ -74,18 +77,18 @@ fun veilTokens(level: VeilLevel, dark: Boolean, acc: Color, prefs: VeilPrefs = V
     }
     val shift = prefs.shift.coerceIn(-10, 10) / 100f
     val (aTop, aBottom) = veilAlpha(level).let { (t, b) -> (t + shift).coerceIn(.5f, 1f) to (b + shift).coerceIn(.5f, 1f) }
-    // Neutral matte bases with a trace (6 %) of the accent, so the material belongs to the theme
-    // without turning into a coloured glass.
-    val base = if (dark) Color(0xFF15171B) else Color(0xFFF5F6F7)
-    val deep = if (dark) Color(0xFF0E1013) else Color(0xFFEDEFF1)
-    val tinted = lerp(base, acc, .06f)
+    // Clean Veil: deeper, purer neutral bases with only a trace (3 %) of the accent, so the wallpaper shows through
+    // as itself rather than under a grey film; a brighter cold edge keeps the panel's outline crisp.
+    val base = if (dark) Color(0xFF101216) else Color(0xFFF7F8F9)
+    val deep = if (dark) Color(0xFF0B0C0F) else Color(0xFFF0F2F4)
+    val tinted = lerp(base, acc, .03f)
     return VeilTokens(
         top = tinted.copy(alpha = aTop),
         bottom = deep.copy(alpha = aBottom),
-        edgeCold = if (dark) Color.White.copy(alpha = .07f) else Color.Black.copy(alpha = .07f),
+        edgeCold = if (dark) Color.White.copy(alpha = .14f) else Color.Black.copy(alpha = .10f),
         edgeHot = if (prefs.edge) lerp(acc, if (dark) Color.White else Color.Black, .35f).copy(alpha = if (dark) .55f else .45f)
-            else if (dark) Color.White.copy(alpha = .12f) else Color.Black.copy(alpha = .12f),
-        glow = acc.copy(alpha = if (dark) .07f else .05f),
+            else if (dark) Color.White.copy(alpha = .18f) else Color.Black.copy(alpha = .14f),
+        glow = acc.copy(alpha = if (dark) .06f else .04f),
     )
 }
 

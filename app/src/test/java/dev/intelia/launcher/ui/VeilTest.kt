@@ -1,6 +1,8 @@
 package dev.intelia.launcher.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -13,7 +15,8 @@ class VeilTest {
             val dense = veilTokens(VeilLevel.Dense, dark, acc)
             val focus = veilTokens(VeilLevel.Focus, dark, acc)
             assertTrue(dense.top.alpha >= .75f && dense.bottom.alpha <= .855f)
-            assertTrue(focus.top.alpha >= .88f && focus.bottom.alpha <= .955f)
+            assertTrue(light.top.alpha >= .6f)
+            assertTrue(focus.top.alpha >= .87f && focus.bottom.alpha <= .955f)
             assertTrue(light.bottom.alpha < dense.top.alpha && dense.bottom.alpha < focus.top.alpha)
         }
     }
@@ -21,7 +24,20 @@ class VeilTest {
     @Test fun edgeIsSoftNotNeon() {
         for (dark in listOf(true, false)) {
             val t = veilTokens(VeilLevel.Dense, dark, acc)
-            assertTrue(t.edgeHot.alpha <= .6f && t.edgeCold.alpha <= .1f && t.glow.alpha <= .08f)
+            assertTrue(t.edgeHot.alpha <= .6f && t.edgeCold.alpha <= .16f && t.glow.alpha <= .08f)
+        }
+    }
+
+    @Test fun textStaysLegibleOnTheLightestVeilOverTheWorstWallpaper() {
+        for (dark in listOf(true, false)) {
+            val t = veilTokens(VeilLevel.Light, dark, acc)
+            val wall = if (dark) Color.White else Color.Black
+            val fg = if (dark) CrystalColors.FgDark else CrystalColors.FgLight
+            for (fill in listOf(t.top, t.bottom)) {
+                val ground = fill.compositeOver(wall)
+                val (hi, lo) = listOf(fg.luminance(), ground.luminance()).sorted().let { it[1] to it[0] }
+                assertTrue("dark=$dark ${(hi + .05f) / (lo + .05f)}", (hi + .05f) / (lo + .05f) >= 4.5f)
+            }
         }
     }
 }
