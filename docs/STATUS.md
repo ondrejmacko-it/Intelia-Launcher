@@ -11,7 +11,7 @@ Verified:
   - Before: serif split clock, LENS ring with the terracotta dash, Essentials 30 dp icons.
   - After install the owner's document kept `clockStyle` Serif (shown as "Ink"); date is Roboto Flex caps at 62 %.
     Studio → Písmo hodin shows Crystal · Ink · Grotesk · Strojové; picking Crystal gives a one-voice `14:17` clock.
-    **The owner's clock style is now Crystal** (set in this test; switch back in Studio if unwanted).
+    The owner's clock style is now Crystal (set in this test; the owner chose to keep it).
   - LENS: ring measured 114 px = 43.4 dp at 420 dpi, no dash. Tap → search with keyboard; swipe up → drawer
     without keyboard; hold → existing ARC (rings, LENS settles to 86 %), release on LENS cancels.
   - Essentials: centres measured at ±62 / ±108 dp from LENS on its baseline, 40 dp icons, no backing.
