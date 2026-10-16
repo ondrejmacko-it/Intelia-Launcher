@@ -20,6 +20,13 @@ import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.LayoutSpec
+import dev.intelia.launcher.data.HomeLayouts
+import dev.intelia.launcher.data.HomeTemplates
+import dev.intelia.launcher.data.LayoutBase
+import dev.intelia.launcher.data.LensStyle
+import dev.intelia.launcher.data.Placement
+import kotlin.math.roundToInt
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import kotlin.math.hypot
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -196,6 +203,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onOptions = { options = it },
                     onRun = ::run,
                     onShortcut = ::launch,
+                    onMessage = ::message,
                     onSaveLayout = { edited ->
                         model.updateSettings { it.copy(home = it.home.save(edited)) }
                         message(R.string.edit_saved)
@@ -282,6 +290,7 @@ private fun Home(
     onOptions: (AppEntry) -> Unit,
     onRun: (FlowAlias) -> Unit,
     onShortcut: (ShortcutEntry) -> Unit,
+    onMessage: (Int) -> Unit,
     onSaveLayout: (LayoutSpec) -> Unit,
 ) {
     val homeInk = LocalHomeInk.current
@@ -297,14 +306,46 @@ private fun Home(
     var openRequested by remember { mutableStateOf(false) }
     var leaveThen by remember { mutableStateOf<(() -> Unit)?>(null) }
     var clockZone by remember { mutableStateOf<Zone?>(null) }
+    /** Editor: the item whose inspector is open, the empty spot of the Add menu, its picker, the preset strip. */
+    var selected by remember { mutableStateOf<String?>(null) }
+    var addPoint by remember { mutableStateOf<Pt?>(null) }
+    var picker by remember { mutableStateOf<ItemKind?>(null) }
+    var presetsOpen by remember { mutableStateOf(false) }
+    var previewKey by remember { mutableStateOf<String?>(null) }
+    var presetApplied by remember { mutableStateOf(false) }
+    var ask by remember { mutableStateOf<EditorAsk?>(null) }
+    var afterSave by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val flows = remember(settings.aliases) { settings.aliases.associateBy { it.id } }
     // ARC speaks over the top of Home, so the clock and favourites step fully aside.
     val quiet by animateFloatAsState(if (arcOpen) 0f else 1f, tween(motionMs(180)), label = "home-quiet")
     val swipe = with(density) { 64.dp.toPx() }
     val editLabel = stringResource(R.string.edit_home)
 
     fun refresh() { tick++ }
-    fun close() { editor = null; leaveThen = null; refresh() }
-    fun save() { editor?.let { onSaveLayout(it.layout); it.markSaved() }; close() }
+    fun close() {
+        editor = null; leaveThen = null; selected = null; addPoint = null; picker = null
+        presetsOpen = false; previewKey = null; presetApplied = false; ask = null; afterSave = null; refresh()
+    }
+    fun commitSave() { editor?.let { it.cancelPreview(); onSaveLayout(it.layout); it.markSaved() }; close() }
+    /** ✓: the user's own layout is never replaced by a preset without a question. */
+    fun save(then: () -> Unit = {}) {
+        val ed = editor ?: return
+        ed.cancelPreview(); previewKey = null; leaveThen = null
+        val ownExists = settings.home.layouts.any { it.id == HomeLayouts.USER_ID }
+        if (ed.dirty && ownExists && (settings.home.active != HomeLayouts.USER_ID || presetApplied)) { afterSave = then; ask = EditorAsk.OverwriteOwn }
+        else { commitSave(); then() }
+    }
+    fun applyPreset() {
+        val e = editor ?: return
+        e.confirmPreview()
+        if (previewKey != OWN_KEY) presetApplied = true
+        previewKey = null; presetsOpen = false
+    }
+    fun add(e: HomeEditorState, kind: ItemKind, target: String) {
+        val at = addPoint ?: return
+        if (!e.addAt(kind, target, at)) onMessage(R.string.add_full)
+        picker = null; addPoint = null; refresh()
+    }
     fun leave(then: () -> Unit) { if (editor?.dirty == true) leaveThen = then else { close(); then() } }
     BackHandler(enabled = editor != null) { leave {} }
 
@@ -339,6 +380,9 @@ private fun Home(
         val clock = layout.items.firstOrNull { it.kind == ItemKind.Clock }
         val date = layout.items.firstOrNull { it.kind == ItemKind.Date }
         val listLayout = layout.items.any { it.anchor.type == AnchorType.Stack }
+        val lensItem = layout.items.firstOrNull { it.kind == ItemKind.Lens }
+        val lensPt = Pt(geometry.lensX, geometry.lensY)
+        val barBottom = statusTop.value + 56f
 
         if (ed != null) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
@@ -360,22 +404,32 @@ private fun Home(
                 horizontalAlignment = if (bias < 0f) Alignment.Start else if (bias > 0f) Alignment.End else Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                if (clock != null) SplitClock(now.toLocalTime(), settings.clockStyle, homeInk, accent, if (compact) 64.sp else 84.sp)
+                if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: homeInk, accent,
+                    (if (clock.sizeDp == 0) (if (compact) 64 else ItemSizes.CLOCK) else clock.sizeDp).sp,
+                    Modifier.graphicsLayer { alpha = clock.alpha }, weight = clock.weight)
                 // 4.2: 12 sp caps, +2.2 tracking, fg2 (62 %).
                 if (date != null) Text(dateLine(now), style = CrystalType.date.copy(shadow = homeShadow(homeInk)),
                     color = homeInk.copy(alpha = .62f), maxLines = 1)
             }
         }
 
-        // Icons placed by geometry: LENS row, grid cells, free positions.
+        // Icons placed by geometry: LENS row, grid cells, free positions; apps and FLOWs.
         layout.items.forEach { item ->
-            if (item.kind != ItemKind.App || !item.anchor.type.isPlaced()) return@forEach
-            val app = apps[item.target] ?: return@forEach
+            if ((item.kind != ItemKind.App && item.kind != ItemKind.Flow) || !item.anchor.type.isPlaced()) return@forEach
+            val app = if (item.kind == ItemKind.App) apps[item.target] else null
+            val flow = if (item.kind == ItemKind.Flow) flows[item.target] else null
+            if (app == null && flow == null) return@forEach
+            val name = app?.label ?: flow?.name.orEmpty()
             // The node stays put while it is dragged (its gesture needs a still frame); a ghost follows the finger.
             val dragging = drag?.id == item.id
             val p = geometry.position(item, layout) ?: return@forEach
+            val iconDp = item.iconDp().dp
             key(item.id) {
-                Box(Modifier.centerAt(p.x.dp, p.y.dp).size(CrystalDims.touch).graphicsLayer { alpha = if (dragging) 0f else quiet }
+                if (item.label) Text(name, Modifier.centerAt(p.x.dp, p.y.dp + iconDp / 2 + 12.dp).widthIn(max = 76.dp)
+                    .graphicsLayer { alpha = if (dragging) 0f else quiet }.clearAndSetSemantics {},
+                    style = CrystalType.body.copy(fontSize = 12.sp, lineHeight = 14.sp, shadow = homeShadow(homeInk)),
+                    color = homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Box(Modifier.centerAt(p.x.dp, p.y.dp).size(maxOf(CrystalDims.touch, iconDp + 8.dp)).graphicsLayer { alpha = if (dragging) 0f else quiet }
                     .clip(CircleShape)
                     .pointerInput(item.id) {
                         // Hold an icon: the editor opens and the icon is already in the hand (§5.5).
@@ -397,17 +451,29 @@ private fun Home(
                             onDragCancel = { editor?.cancelDrag(); refresh() },
                         )
                     }
-                    .clickable(role = Role.Button) { if (editor == null) onLaunch(app) else onOptions(app) }
-                    .semantics { contentDescription = app.label }, contentAlignment = Alignment.Center) {
+                    .clickable(role = Role.Button) {
+                        when {
+                            editor != null -> { selected = item.id; refresh() }
+                            app != null -> onLaunch(app)
+                            flow != null -> onRun(flow)
+                        }
+                    }
+                    .semantics { contentDescription = name }, contentAlignment = Alignment.Center) {
                     // No backing (4.3): system or icon-pack icons as they are; monochrome tinted fg.
-                    AppIcon(app, Modifier.size(CrystalDims.iconHome), tint = homeInk)
+                    if (app != null) AppIcon(app, Modifier.size(iconDp), tint = homeInk)
+                    else HomeGlyph(Glyph.Flow, null, tint = homeInk, size = iconDp * .7f)
                 }
             }
         }
 
-        drag?.let { d -> apps[ed.item(d.id)?.target ?: ""]?.let { app ->
-            Box(Modifier.centerAt(d.point.x.dp, d.point.y.dp).size(CrystalDims.touch).graphicsLayer { scaleX = 1.08f; scaleY = 1.08f },
-                contentAlignment = Alignment.Center) { AppIcon(app, Modifier.size(CrystalDims.iconHome), tint = homeInk) }
+        drag?.let { d -> ed.item(d.id)?.takeIf { it.kind == ItemKind.App || it.kind == ItemKind.Flow }?.let { item ->
+            val app = apps[item.target]
+            if (app == null && flows[item.target] == null) return@let
+            Box(Modifier.centerAt(d.point.x.dp, d.point.y.dp).size(maxOf(CrystalDims.touch, item.iconDp().dp + 8.dp))
+                .graphicsLayer { scaleX = 1.08f; scaleY = 1.08f }, contentAlignment = Alignment.Center) {
+                if (app != null) AppIcon(app, Modifier.size(item.iconDp().dp), tint = homeInk)
+                else HomeGlyph(Glyph.Flow, null, tint = homeInk, size = item.iconDp().dp * .7f)
+            }
         } }
 
         // The legacy text list (preset "Vlastní").
@@ -428,7 +494,8 @@ private fun Home(
         }
 
         LensArc(arc, settings.reach, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
-            onShortcut = onShortcut, onOpenChange = { arcOpen = it })
+            onShortcut = onShortcut, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
+            lensFilled = lensItem?.style == LensStyle.Filled.name)
         if (settings.pulse && ed == null) Pulse(settings)
 
         if (ed != null) {
@@ -436,8 +503,16 @@ private fun Home(
             Box(Modifier.fillMaxSize()
                 .pointerInput(ed) {
                     detectTapGestures(onTap = { o ->
-                        hitItem(ed, Pt(o.x / density.density, o.y / density.density))
-                            ?.let { id -> ed.item(id)?.target?.let(apps::get) }?.let(onOptions)
+                        val p = Pt(o.x / density.density, o.y / density.density)
+                        val onLens = hypot(p.x - lensPt.x, p.y - lensPt.y) <= 34f
+                        val hit = hitItem(ed, p, clockZone) ?: lensItem?.id?.takeIf { onLens }
+                        when {
+                            hit != null -> { selected = hit.takeIf { it != selected }; addPoint = null }
+                            selected != null || addPoint != null -> { selected = null; addPoint = null }
+                            presetsOpen -> { ed.cancelPreview(); presetsOpen = false; previewKey = null }
+                            p.y > barBottom && hypot(p.x - lensPt.x, p.y - lensPt.y) > 50f -> addPoint = p
+                        }
+                        refresh()
                     })
                 }
                 .pointerInput(ed) {
@@ -460,23 +535,106 @@ private fun Home(
                         onDragCancel = { ed.cancelDrag(); refresh() },
                     )
                 })
-            EditorBar(ed, onPlacement = { ed.setPlacement(it); refresh() }, onStudio = { leave(onStudio) }, onDone = ::save,
+            EditorBar(ed, presetsOpen, onPresets = {
+                    if (presetsOpen) { ed.cancelPreview(); previewKey = null }
+                    presetsOpen = !presetsOpen; selected = null; addPoint = null; refresh()
+                }, onStudio = { leave(onStudio) }, onDone = { save() },
                 modifier = Modifier.align(Alignment.TopCenter))
+
+            if (presetsOpen) {
+                val start = ed.previewOf ?: ed.layout
+                val favs = settings.favorites
+                val choices = listOf(LayoutBase.Pure to R.string.layout_pure, LayoutBase.Essentials to R.string.layout_essentials,
+                    LayoutBase.Balanced to R.string.preset_balanced).map { (b, name) ->
+                    PresetChoice(b.name, stringResource(name), HomeTemplates.preview(b, favs, start))
+                } + listOfNotNull(settings.home.layouts.firstOrNull { it.id == HomeLayouts.USER_ID }
+                    ?.let { PresetChoice(OWN_KEY, stringResource(R.string.preset_own), it) })
+                PresetStrip(choices, previewKey, geometry, placementLabel(ed.layout),
+                    onPlacement = { ed.setPlacement(Placement.entries[(ed.layout.placement.ordinal + 1) % Placement.entries.size]); refresh() },
+                    onPick = { ed.preview(it.spec); previewKey = it.key; refresh() },
+                    onApply = { if (ed.canUndo) ask = EditorAsk.Replace else { applyPreset(); refresh() } },
+                    onCancel = { ed.cancelPreview(); presetsOpen = false; previewKey = null; refresh() },
+                    onReset = { ask = EditorAsk.Reset },
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = barBottom.dp))
+            }
+
+            val sel = selected?.let(ed::item)
+            if (sel != null && drag == null) {
+                val zone = when (sel.kind) {
+                    ItemKind.Clock -> clockZone
+                    ItemKind.Lens -> (sel.lensDp() / 2f + 6f).let { r -> Zone(lensPt.x - r, lensPt.y - r, lensPt.x + r, lensPt.y + r) }
+                    else -> ed.pointOf(sel)?.let { c ->
+                        val r = sel.iconDp() / 2f + 6f
+                        Zone(c.x - r, c.y - r, c.x + r, c.y + r + if (sel.label) 20f else 0f)
+                    }
+                }
+                if (sel.kind == ItemKind.Lens) GhostArc(lensPt, Modifier.fillMaxSize())
+                if (sel.kind == ItemKind.Clock && zone != null) ClockHandle(zone) { dx ->
+                    val now = if (sel.sizeDp == 0) ItemSizes.CLOCK else sel.sizeDp
+                    ed.edit(sel.id, "size") { it.copy(sizeDp = (now + dx.roundToInt()).coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)) }
+                    refresh()
+                }
+                if (zone != null) InspectorCard(zone, maxWidth.value, barBottom) {
+                    when (sel.kind) {
+                        ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, ::refresh)
+                        ItemKind.Lens -> LensInspector(ed, sel, ::refresh)
+                        else -> {
+                            val app = apps[sel.target]
+                            ItemInspector(ed, sel, app?.label ?: flows[sel.target]?.name.orEmpty(),
+                                onMore = app?.let { a -> { onOptions(a) } }, onRemoved = { selected = null }, onChange = ::refresh)
+                        }
+                    }
+                }
+            }
+            addPoint?.let { at ->
+                AddMenu(at, maxWidth.value, barBottom, onApp = { picker = ItemKind.App }, onFlow = { picker = ItemKind.Flow })
+            }
         }
+    }
+
+    val ed = editor
+    if (ed != null) picker?.let { kind ->
+        val onHome = ed.layout.items.mapTo(HashSet()) { it.target }
+        AddPicker(stringResource(if (kind == ItemKind.App) R.string.pick_app else R.string.pick_flow),
+            if (kind == ItemKind.App) apps.values.filter { it.key !in onHome }.sortedBy { it.label.lowercase() } else emptyList(),
+            if (kind == ItemKind.Flow) settings.aliases.filter { it.id !in onHome } else emptyList(),
+            onApp = { a -> add(ed, ItemKind.App, a.key) }, onFlow = { f -> add(ed, ItemKind.Flow, f.id) },
+            onDismiss = { picker = null })
+    }
+    ask?.let { which ->
+        ConfirmDialog(stringResource(when (which) {
+            EditorAsk.Replace -> R.string.confirm_replace_edits
+            EditorAsk.Reset -> R.string.confirm_reset
+            EditorAsk.OverwriteOwn -> R.string.confirm_overwrite_own
+        }), stringResource(if (which == EditorAsk.Reset) R.string.confirm_reset_action else R.string.confirm_replace),
+            onConfirm = {
+                ask = null
+                when (which) {
+                    EditorAsk.Replace -> applyPreset()
+                    EditorAsk.Reset -> editor?.let { e ->
+                        e.cancelPreview(); previewKey = null
+                        val base = e.layout.base
+                        e.replace(if (base == LayoutBase.None) HomeTemplates.linked(settings) else HomeTemplates.preview(base, settings.favorites, e.layout))
+                    }
+                    EditorAsk.OverwriteOwn -> { val then = afterSave; commitSave(); then?.invoke() }
+                }
+                refresh()
+            },
+            onDismiss = { ask = null; afterSave = null })
     }
 
     leaveThen?.let { then ->
         LeaveEditorDialog(
             onKeep = { leaveThen = null },
             onDiscard = { close(); then() },
-            onSave = { save(); then() },
+            onSave = { save(then) },
         )
     }
 }
 
 /** The element under [p]: the nearest icon within 30 dp, else the clock block. */
 private fun hitItem(state: HomeEditorState, p: Pt, clockZone: Zone? = null): String? {
-    val near = state.layout.items.filter { it.kind == ItemKind.App && it.anchor.type.isPlaced() }
+    val near = state.layout.items.filter { (it.kind == ItemKind.App || it.kind == ItemKind.Flow) && it.anchor.type.isPlaced() }
         .mapNotNull { item -> state.pointOf(item)?.let { item.id to hypot(it.x - p.x, it.y - p.y) } }
         .filter { it.second <= 30f }.minByOrNull { it.second }?.first
     if (near != null) return near
@@ -491,3 +649,7 @@ private fun InkSnackbar(text: String) {
         Text(text, style = InkText.small.copy(fontSize = 14.sp), color = ink.onNight)
     }
 }
+
+private enum class EditorAsk { Replace, Reset, OverwriteOwn }
+
+private const val OWN_KEY = "own"

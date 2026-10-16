@@ -3,6 +3,16 @@ package dev.intelia.launcher.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +51,8 @@ import dev.intelia.launcher.data.Placement
 @Composable
 fun EditorBar(
     state: HomeEditorState,
-    onPlacement: (Placement) -> Unit,
+    presetsOpen: Boolean,
+    onPresets: () -> Unit,
     onStudio: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
@@ -49,25 +60,18 @@ fun EditorBar(
     val ink = LocalInk.current
     val c = LocalCrystal.current
     val veil = veilTokens(VeilLevel.Light, c.dark, c.acc)
-    val placementLabel = stringResource(when (state.layout.placement) {
-        Placement.Grid -> R.string.placement_grid
-        Placement.Free -> R.string.placement_free
-        Placement.Hybrid -> R.string.placement_hybrid
-    })
-    val grid = state.layout.grid
     Row(modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Row(Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.presets),
+            Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape).heightIn(min = 40.dp)
+                .then(if (presetsOpen) Modifier.border(1.dp, c.acc, CircleShape) else Modifier)
+                .toggleable(presetsOpen, role = Role.Button) { onPresets() }
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            style = CrystalType.date.copy(fontSize = 13.sp, letterSpacing = .2.sp), color = c.fg)
+        Row(Modifier.padding(start = 8.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Glyph.Undo, stringResource(R.string.edit_undo), state.canUndo, state::undo)
             BarIcon(Glyph.Redo, stringResource(R.string.edit_redo), state.canRedo, state::redo)
         }
-        Text(if (state.layout.placement == Placement.Free) placementLabel else "$placementLabel ${grid.cols}×${grid.rows}",
-            Modifier.padding(start = 8.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape).heightIn(min = 40.dp)
-                .clickable(role = Role.Button) {
-                    onPlacement(Placement.entries[(state.layout.placement.ordinal + 1) % Placement.entries.size])
-                }
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-            style = CrystalType.date.copy(fontSize = 13.sp, letterSpacing = .2.sp), color = c.fg)
         Box(Modifier.weight(1f))
         Box(Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape)) {
             BarIcon(Glyph.Studio, stringResource(R.string.studio), true, onStudio)
@@ -76,6 +80,37 @@ fun EditorBar(
             .clickable(role = Role.Button, onClick = onDone), contentAlignment = Alignment.Center) {
             HomeGlyph(Glyph.Check, stringResource(R.string.edit_done), tint = c.accInk, size = 20.dp)
         }
+    }
+}
+
+@Composable
+fun placementLabel(layout: LayoutSpec): String {
+    val name = stringResource(when (layout.placement) {
+        Placement.Grid -> R.string.placement_grid
+        Placement.Free -> R.string.placement_free
+        Placement.Hybrid -> R.string.placement_hybrid
+    })
+    return if (layout.placement == Placement.Free) name else "$name ${layout.grid.cols}×${layout.grid.rows}"
+}
+
+/** The clock's size handle at its lower end corner; dragging right or down grows it. */
+@Composable
+fun ClockHandle(zone: Zone, onResize: (Float) -> Unit) {
+    val label = stringResource(R.string.clock_resize)
+    val c = LocalCrystal.current
+    val density = LocalDensity.current
+    Box(Modifier.offset { IntOffset(((zone.right - 22f) * density.density).roundToInt(), ((zone.bottom - 22f) * density.density).roundToInt()) }
+        .size(44.dp).semantics { contentDescription = label }
+        .pointerInput(Unit) {
+            var acc = 0f
+            detectDragGestures(onDragStart = { acc = 0f }) { change, amount ->
+                change.consume()
+                acc += (amount.x + amount.y) / 2f / density.density * .5f
+                val step = acc.toInt()
+                if (step != 0) { acc -= step; onResize(step.toFloat()) }
+            }
+        }, contentAlignment = Alignment.Center) {
+        Box(Modifier.size(14.dp).clip(CircleShape).background(c.acc).border(2.dp, c.accInk, CircleShape))
     }
 }
 

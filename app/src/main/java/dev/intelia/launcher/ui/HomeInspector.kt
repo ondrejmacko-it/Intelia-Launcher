@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,6 +106,7 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, content: @Compo
     Column(Modifier.offset { IntOffset((x * density.density).roundToInt(), (y * density.density).roundToInt()) }
         .width(width.dp).onSizeChanged { h = it.height }.graphicsLayer { alpha = if (h == 0) 0f else 1f }
         .veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin(fx, if (above) 1f else 0f))
+        .pointerInput(Unit) { detectTapGestures() }
         .padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         content()
     }
@@ -292,11 +295,12 @@ data class PresetChoice(val key: String, val name: String, val spec: LayoutSpec)
  * Reset goes back to the current preset (with a question, asked by the caller).
  */
 @Composable
-fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: HomeGeometry, onPick: (PresetChoice) -> Unit,
+fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: HomeGeometry, placement: String, onPlacement: () -> Unit,
+    onPick: (PresetChoice) -> Unit,
     onApply: () -> Unit, onCancel: () -> Unit, onReset: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
     Column(modifier.padding(horizontal = 12.dp).fillMaxWidth().veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin(.1f, 0f))
-        .padding(12.dp)) {
+        .pointerInput(Unit) { detectTapGestures() }.padding(12.dp)) {
         Row(Modifier.horizontalScroll(rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             choices.forEach { choice ->
                 val on = choice.key == previewing
@@ -310,6 +314,8 @@ fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: Home
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.preset_reset), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onReset)
                 .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2)
+            Text(placement, Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onPlacement)
+                .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg)
             Spacer(Modifier.weight(1f))
             Text(stringResource(R.string.preset_cancel), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onCancel)
                 .padding(horizontal = 12.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg)
