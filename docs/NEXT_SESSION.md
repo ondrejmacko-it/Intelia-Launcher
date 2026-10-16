@@ -19,10 +19,10 @@ drawer 23.6 → 2.8 ms UI (release). Animace Calm zkráceny o ~25 % (§5.6 "bris
 odinstalován (`adb uninstall`) → HOME role je teď `com.nothing.launcher` a PULSE accessibility služba Labu není
 zapnutá; zeptej se majitele, zda to chce vrátit (nastavení dělá on). Nikdy neodinstalovávej, jen `install -r`.
 
-Tato session (každý bod: testy → build → telefon → commit + push; pořadí 1 → 6):
-1. Zeptej se majitele na pocit z drawer v debug buildu (release měření je v STATUS). Pokud se dál seká, změř
-   i debug build stejným skriptem a hledej, co zbývá (scroll: řádky 52 dp, `AppIcon` má per-řádek
-   `collectAsStateWithLifecycle` revize — zvaž jeden CompositionLocal).
+Tato session (každý bod: testy → build → telefon → commit + push; pořadí 2 → 6):
+1. Plynulost: majitel potvrdil, že release build je výrazně plynulejší než debug (debug: snímek 85 ms při otevření
+   drawer, Search 5–6 % jank). V telefonu je teď release Labu (nejde `run-as`): před zálohou prefs nainstaluj
+   debug přes `install -r`, na konci vrať release (`install -r`, `compile -m speed`), ať majitel jezdí plynule.
 2. PALETA BAREV: `Accent` rozšířit (přidávat jen na konec enumu, staré názvy zachovat) na 16 odstínů + Dynamic
    (např. Rose, Coral, Amber, Lime, Mint, Teal, Sky, Indigo, Violet, Orchid), dark/light varianta s kontrastem
    ≥ 4.5:1 proti Veil podkladu (JVM test). Nový `palette` v `LauncherSettings` (clock, text, icons, lens, search,
