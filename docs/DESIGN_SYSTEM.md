@@ -381,7 +381,9 @@ launch history, so no "recent"). Back, or the IME closing, plays the morph in re
 Focus sheet (8 dp inset) with A–Z, rail and Moje; its bottom field opens Search. The card is composed two
 frames after the field (it is invisible until the morph is 60 % through), so the open cost is split. App options
 over Search or the drawer use Veil Focus and a 60 % scrim. Not built: 18 ms row stagger (no room inside the
-card's 40 % fade window of a 170 ms morph).
+card's 40 % fade window of a 170 ms morph). Drawer kept (2026-10-16): composed 700 ms after Home rests and then parked off-screen
+(alpha 0, no semantics, no hit testing) while closed, so a swipe up only animates it; icons are warmed in
+`IconCache` while Home rests.
 
 Input is never delayed: typing works from the first frame, the IME opens with the morph, the action runs on
 release. Reduced Motion → all 0 ms. No idle animation; nothing animates while Home is at rest.

@@ -2,6 +2,27 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Drawer composed ahead, brisker motion (`claude/crystal-redesign`, `130df1a`, `cf4f122`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 85 JVM tests, 0 failures.
+- Release build (debug key, `.lab`, `compile -m speed`), Nothing Phone (3) at 120 Hz, `gfxinfo framestats` of one
+  swipe up → drawer: before, the first frame spent 23.6 ms on the UI thread (whole `LazyColumn` + icon loads) and
+  the first two frames took 33 / 25 ms; after (drawer composed 700 ms after Home rests and kept parked off-screen,
+  icons warmed by `IconCache.warm`, `contentType`, `ModulateAlpha` fade) the first frame spends 2.8 ms on the UI
+  thread, 13 / 20 ms in total.
+- Same build, 3 series of 3 × swipe up → scroll → Back: before 6–12 janky of 532–540 (1.1–2.3 %), p99 27–44 ms;
+  after 9–12 of 514–516 (1.7–2.3 %), p99 16–22 ms. GPU time per frame is 7–10 ms median in both and in Search too
+  (Nothing's live blur wallpaper is in the frame); not drawer-specific.
+- Brisker motion (Calm durations about −25 %, list in DESIGN_SYSTEM §5.6): 3 series of 3 × LENS → Search → Back →
+  Back: 9–14 janky of 304 (3.0–4.6 %), p99 17–26 ms (previous entry: 4.4–5.0 %, p99 18–24 ms).
+- Home after the change: `uiautomator dump` lists no drawer nodes while it is parked; swipe up opens it ("Aplikace").
+- Owner's `intelia.xml` backed up and restored byte-identical (`cmp`).
+
+Not verified: the owner's feel of the drawer in the debug build (debug is much slower than release). The debug
+reinstall was done with `adb uninstall`, so the Lab lost its other app data; the HOME role holder is now
+`com.nothing.launcher` and the Lab PULSE accessibility service is not enabled — the state before was not recorded.
+
 ## 2026-10-16 — LENS inspector clear of the ghost ARC, TalkBack moves, drag slop (`claude/crystal-redesign`, `7780a44`, `1861107`, `f361373`)
 
 Verified:
