@@ -64,7 +64,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ComposeView
@@ -370,14 +372,14 @@ private fun PulseMenuSheet(
 
     Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
         onClickLabel = stringResource(R.string.close)) { onClose() }) {
-        // The status bar stays visible: only a ring around the camera and a thin thread lead down to the sheet.
+        // The status bar stays visible: a translucent strip, as wide as the lens ring, leads from the camera
+        // down into the sheet; the icons on both sides are never covered.
         AnimatedVisibility(shown, enter = fadeIn(tween(motionMs(160)))) {
             Canvas(Modifier.fillMaxSize()) {
-                // A dark core with a light hairline reads on both light and dark apps.
-                listOf(ink.night to 4.dp.toPx(), ink.onNight.copy(alpha = .45f) to 1.dp.toPx()).forEach { (color, stroke) ->
-                    drawCircle(color, hole.radius + ring, Offset(hole.x, hole.y), style = Stroke(stroke))
-                    drawLine(color, Offset(hole.x, hole.y + hole.radius + ring), Offset(hole.x, top + 2.dp.toPx()), stroke, StrokeCap.Round)
-                }
+                val half = hole.radius + ring
+                drawRoundRect(ink.night.copy(alpha = .55f), Offset(hole.x - half, hole.y - half),
+                    Size(2f * half, top + 30.dp.toPx() - (hole.y - half)), CornerRadius(half))
+                drawCircle(ink.onNight.copy(alpha = .45f), half, Offset(hole.x, hole.y), style = Stroke(1.dp.toPx()))
             }
         }
         AnimatedVisibility(shown, Modifier.offset { IntOffset(left.toInt(), top.toInt()) },

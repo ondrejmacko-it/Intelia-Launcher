@@ -35,7 +35,7 @@ internal fun menuLeftAndWidth(screenWidth: Float, lensX: Float, margin: Float, m
 
 /**
  * Top of the menu sheet: below the status bar and below the lens ring, plus [gap], so the system icons
- * stay visible. A thin thread joins the lens to this edge.
+ * stay visible. A translucent strip joins the lens to this edge.
  */
 internal fun menuTop(statusBar: Float, lensY: Float, lensRadius: Float, ring: Float, gap: Float): Float =
     maxOf(statusBar, lensY + lensRadius + ring) + gap
