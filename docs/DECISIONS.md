@@ -73,3 +73,33 @@ icon. Both facts are already in the status bar, so at rest PULSE now only adds w
 - MT Capsule was only looked at: with its service on it drew no window at rest while charging, so there
   was nothing to copy; this design is ours ("ring and thread", terracotta, system fonts).
 Revert: restore the D7 capsule body in `Pulse.kt` and `pulseWidth`.
+
+## D9 — 2026-10-16 — PULSE everywhere: an opt-in accessibility service with one lens overlay
+A tap on the camera lens should always do something, also in other apps. Touches inside the status bar
+go to SystemUI, so the only window that can sit on the lens is `TYPE_ACCESSIBILITY_OVERLAY`, which needs
+an accessibility service. MT Capsule and the old `.debug` fork do the same; nothing is copied from either.
+- **Service:** `ui/PulseAccessibilityService`, off by default. Studio → PULSE → *PULSE everywhere* opens the
+  system accessibility settings; the owner switches it on there. Intelia never enables it itself.
+- **Scope:** `canRetrieveWindowContent=false`, no `accessibilityEventTypes` (it receives no events), no key
+  filtering, no gestures, no network, no new permissions in the manifest. It reads nothing on screen.
+- **Windows:** one overlay on the lens (square, lens diameter + 2 × 10 dp, at least 32 dp, from the cutout
+  path or the Studio calibration); a tap adds a full-screen overlay with the menu growing down from the
+  lens. Tap outside, *Collapse* or Back closes it and removes that window again.
+- **Menu and the API behind each control:**
+  - alarm time → `AlarmManager.nextAlarmClock`, tap opens `AlarmClock.ACTION_SHOW_ALARMS`;
+  - battery % and state → sticky `ACTION_BATTERY_CHANGED`;
+  - previous / play-pause / next → `AudioManager.dispatchMediaKeyEvent` (goes to the active session; no
+    title or artwork, because `MediaSessionManager.getActiveSessions` needs notification access, which the
+    old `.debug` fork asked for and we do not);
+  - volume −/+ and level → `AudioManager.adjustStreamVolume(STREAM_MUSIC)`; sound ↔ vibrate →
+    `AudioManager.setRingerMode` (silent is left out: it toggles Do Not Disturb, which needs notification
+    policy access);
+  - torch → `CameraManager.setTorchMode`;
+  - screenshot, lock, notifications, quick settings → `AccessibilityService.performGlobalAction`
+    (screenshot and lock need API 28; the menu closes first so it is not in the picture);
+  - links → `Settings.Panel` Wi-Fi / internet (API 29) and the Bluetooth, sound and display settings.
+- **Lab Home:** the existing in-app panel stays. While the service runs, Lab does not draw its own tap target
+  so the two never fight over the same touch.
+- Brightness slider, contacts, barcodes, notification content and app shortcuts (all in MT Capsule) are out:
+  they need `WRITE_SETTINGS`, contacts, camera or notification access.
+Revert: remove the `<service>` entry and `PulseAccessibilityService`; settings are unchanged.
