@@ -4,7 +4,9 @@ import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.HomeItem
 import dev.intelia.launcher.data.ItemKind
+import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.LayoutSpec
+import dev.intelia.launcher.data.lensDx
 import dev.intelia.launcher.data.Placement
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -50,8 +52,21 @@ class HomeGeometry(
         return Anchor.cell(c, r)
     }
 
-    /** ±62 / ±108 dp from LENS on its baseline, kept 24 dp from the edges (phase B2 placement). */
-    fun lensSlot(slot: Int) = Pt((lensX + slotOffset(slot)).coerceIn(24f, width - 24f), lensY)
+    /**
+     * ±62 / ±108 dp from LENS on its baseline (phase B2 placement). A slot that would come closer than 24 dp to the
+     * edge, because LENS sits off centre (§5.5), continues outwards on the other side at the same 46 dp pitch.
+     */
+    fun lensSlot(slot: Int): Pt {
+        val side = if (slot > 0) 1 else -1
+        val room = if (side > 0) width - EDGE - lensX else lensX - EDGE
+        val fit = SIDE.count { it <= room }
+        val i = abs(slot) - 1
+        if (i < fit) return Pt(lensX + side * SIDE[i], lensY)
+        // Overflow: after the other side's own slots that fit there.
+        val otherRoom = if (side > 0) lensX - EDGE else width - EDGE - lensX
+        val k = SIDE.count { it <= otherRoom }.coerceAtMost(SIDE.size) + (i - fit)
+        return Pt((lensX - side * (SIDE[0] + k * PITCH)).coerceIn(EDGE, width - EDGE), lensY)
+    }
 
     /** The LENS-row slot under [p], if it is on the row (±36 dp) and within 30 dp of a slot. */
     fun lensSlotAt(p: Pt): Int? {
@@ -76,7 +91,9 @@ class HomeGeometry(
     companion object {
         const val MARGIN = 16f
         const val LENS_BAND = 56f
-        fun slotOffset(slot: Int) = when (slot) { -2 -> -108f; -1 -> -62f; 1 -> 62f; 2 -> 108f; else -> 0f }
+        private const val EDGE = 24f
+        private const val PITCH = 46f
+        private val SIDE = listOf(62f, 108f)
     }
 }
 
@@ -163,6 +180,62 @@ class HomeEditorState(
 
     fun cancelDrag() { drag = null; bump() }
 
+    /** While LENS is being dragged: its live offset from the centre (dp); null otherwise. */
+    var lensDrag: Float? = null
+        private set
+    private var lensOrigin = 0f
+
+    /** LENS centre on the current geometry; read by gesture handlers that outlive a recomposition. */
+    fun lensAt() = Pt(geometry.lensX, geometry.lensY)
+
+    fun lensId() = layout.items.firstOrNull { it.kind == ItemKind.Lens }?.id
+
+    /** Where LENS is drawn now: the live drag, else the layout's own position. */
+    fun lensDx(): Float = lensDrag ?: layout.lensDx()
+
+    fun startLensDrag() { lensOrigin = layout.lensDx(); lensDrag = lensOrigin; bump() }
+
+    /**
+     * Moves LENS sideways by [deltaX] from where the drag started, within the lower band (§5.5) and snapping to the
+     * centre within [LENS_SNAP] dp. Returns true when it just snapped (for a haptic tick).
+     */
+    fun dragLensBy(deltaX: Float): Boolean {
+        val before = lensDrag ?: return false
+        val next = clampLens(lensOrigin + deltaX).let { if (abs(it) < LENS_SNAP) 0f else it }
+        lensDrag = next
+        bump()
+        return next == 0f && before != 0f
+    }
+
+    /** Ends a LENS drag as one undo step; false if it did not move. */
+    fun dropLens(): Boolean {
+        val dx = lensDrag ?: return false
+        lensDrag = null
+        return setLensDx(dx).also { if (!it) bump() }
+    }
+
+    fun cancelLensDrag() { lensDrag = null; bump() }
+
+    /** Places LENS [dx] dp from the centre (inspector, TalkBack), clamped like a drag, as one undo step. */
+    fun setLensDx(dx: Float): Boolean {
+        val v = clampLens(dx)
+        if (v == layout.lensDx() && layout.items.firstOrNull { it.kind == ItemKind.Lens }?.anchor?.dx != null) return false
+        commit(withLens(layout, v))
+        return true
+    }
+
+    /** Room on either side of the centre for this screen: never past [LauncherSettings.MAX_LENS_DX] or [LENS_EDGE]. */
+    fun lensRoom() = (geometry.width / 2f - LENS_EDGE).coerceIn(0f, LauncherSettings.MAX_LENS_DX)
+
+    private fun clampLens(dx: Float) = LauncherSettings.clampLensDx(dx).coerceIn(-lensRoom(), lensRoom())
+
+    private fun withLens(spec: LayoutSpec, dx: Float) = spec.copy(items = spec.items.map {
+        if (it.kind == ItemKind.Lens) it.copy(anchor = Anchor(AnchorType.Lens, fx = it.anchor.fx, bottomDp = it.anchor.bottomDp, dx = dx)) else it
+    })
+
+    /** A preset keeps LENS where it is now. */
+    private fun keepLens(spec: LayoutSpec) = if (spec.lensDx() == layout.lensDx()) spec else withLens(spec, layout.lensDx())
+
     /**
      * Changes one item (inspector). Calls with the same [key] in a row, e.g. a slider being dragged,
      * collapse into one undo step; any other change starts a new one.
@@ -247,7 +320,7 @@ class HomeEditorState(
     /** Shows [spec] in place without touching history; [confirmPreview] keeps it as one undoable step. */
     fun preview(spec: LayoutSpec) {
         if (previewOf == null) previewOf = layout
-        layout = spec
+        layout = keepLens(spec)
         bump()
     }
 
@@ -308,7 +381,7 @@ class HomeEditorState(
     fun markSaved(baseline: LayoutSpec = layout) { layout = baseline; saved = baseline; bump() }
 
     /** Replaces the whole layout as one undoable step (e.g. a preset). */
-    fun replace(next: LayoutSpec) { if (next != layout) commit(next) }
+    fun replace(next: LayoutSpec) { keepLens(next).let { if (it != layout) commit(it) } }
 
     private var coalesce: String? = null
 
@@ -384,6 +457,7 @@ class HomeEditorState(
     }
 
     companion object {
+        const val LENS_SNAP = 10f
         const val MAX_UNDO = 50
         const val GUIDE_SNAP = 8f
         const val HYBRID_SNAP = 20f

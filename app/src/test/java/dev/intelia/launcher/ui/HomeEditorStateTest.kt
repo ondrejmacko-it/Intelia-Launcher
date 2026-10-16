@@ -7,6 +7,7 @@ import dev.intelia.launcher.data.HomeItem
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.Placement
+import dev.intelia.launcher.data.lensDx
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -237,5 +238,51 @@ class HomeEditorStateTest {
         e.undo(); e.undo()
         assertEquals(56, e.item("a")!!.sizeDp)
         assertFalse(e.item("b")!!.label)
+    }
+
+    @Test fun lensDragsSidewaysSnapsToTheCentreAndUndoesInOneStep() {
+        val e = HomeEditorState(layout(), geo)
+        e.startLensDrag()
+        assertFalse(e.dragLensBy(30f))
+        assertEquals(30f, e.lensDx())
+        assertTrue("snaps back onto the centre", e.dragLensBy(6f))
+        assertEquals(0f, e.lensDx())
+        e.dragLensBy(80f); e.dragLensBy(500f)
+        assertEquals("capped at 120 dp from the centre", 120f, e.lensDx())
+        assertTrue(e.dropLens())
+        assertEquals(120f, e.layout.lensDx())
+        assertTrue(e.canUndo)
+        e.undo()
+        assertEquals(0f, e.lensDx())
+        assertFalse(e.canUndo)
+    }
+
+    @Test fun lensStaysClearOfTheEdgesOnANarrowScreen() {
+        val e = HomeEditorState(layout(), HomeGeometry(320f, 700f, statusTop = 24f, lensX = 160f, lensY = 640f))
+        e.startLensDrag(); e.dragLensBy(-400f)
+        assertEquals(-(160f - LENS_EDGE), e.lensDx())
+        e.cancelLensDrag()
+        assertFalse(e.canUndo)
+        assertTrue(e.setLensDx(-500f))
+        assertEquals(-100f, e.layout.lensDx())
+    }
+
+    @Test fun lensRowSlotsFoldToTheOtherSideNearAnEdge() {
+        val g = HomeGeometry(360f, 800f, statusTop = 24f, lensX = 300f, lensY = 740f)
+        val xs = Anchor.LENS_SLOTS.map { g.lensSlot(it).x }
+        assertEquals(listOf(192f, 238f, 146f, 100f), xs) // -2, -1, 1, 2: everything to the left of LENS
+        assertEquals(4, xs.distinct().size)
+        assertTrue(xs.all { it in 24f..336f })
+        // Centred LENS: unchanged ±62 / ±108.
+        assertEquals(listOf(97.5f, 143.5f, 267.5f, 313.5f), Anchor.LENS_SLOTS.map { geo.lensSlot(it).x })
+    }
+
+    @Test fun aPresetKeepsLensWhereItIs() {
+        val e = HomeEditorState(layout(), geo)
+        e.setLensDx(-80f)
+        e.preview(layout(Placement.Free))
+        assertEquals(-80f, e.lensDx())
+        e.confirmPreview()
+        assertEquals(-80f, e.layout.lensDx())
     }
 }

@@ -73,7 +73,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AppEntry
-import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.FlowAlias
 import kotlin.math.hypot
@@ -81,11 +80,14 @@ import kotlin.math.hypot
 /** LENS centre sits this far above the navigation inset (4.3); Home layouts align to the same centre. */
 val LensLift = 52.dp
 
-fun lensShift(reach: Reach): Dp = when (reach) {
-    Reach.Left -> (-56).dp
-    Reach.Right -> 56.dp
-    Reach.Center -> 0.dp
+/** LENS centre minus the screen centre: the stored [dx] (§5.5), kept at least [LENS_EDGE] from either edge of [width]. */
+fun lensShift(dx: Float, width: Dp): Dp {
+    val room = (width.value / 2 - LENS_EDGE).coerceAtLeast(0f)
+    return dx.coerceIn(-room, room).dp
 }
+
+/** Closest the LENS centre gets to a screen edge, dp (x 60–300 on a 360 dp screen). */
+const val LENS_EDGE = 60f
 
 /** Everything ARC can hold, ring by ring, in fixed slots. */
 class ArcContent(
@@ -120,7 +122,7 @@ internal fun Modifier.centerAt(x: Dp, y: Dp) = layout { measurable, constraints 
 @Composable
 fun LensArc(
     content: ArcContent,
-    reach: Reach,
+    lensDx: Float,
     flowSteps: (FlowAlias) -> List<String?>,
     onSearch: () -> Unit,
     onDrawer: () -> Unit,
@@ -172,7 +174,7 @@ fun LensArc(
     BoxWithConstraints(modifier.fillMaxSize()) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
         val topInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
-        val cx = maxWidth / 2 + lensShift(reach)
+        val cx = maxWidth / 2 + lensShift(lensDx, maxWidth)
         val cy = maxHeight - bottomInset - LensLift
         val rings = remember(content.slots, cx, maxWidth) { ArcRings(content.slots, left = cx.value, right = (maxWidth - cx).value) }
 
@@ -318,7 +320,7 @@ fun LensArc(
                     }
                 }
                 .focusable()
-                .pointerInput(content.slots, cx, reach) {
+                .pointerInput(content.slots, cx) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = true)
                         // LENS owns this touch: Home's own tap, hold (Studio) and swipe must not see it.

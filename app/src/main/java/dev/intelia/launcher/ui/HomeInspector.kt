@@ -58,7 +58,6 @@ import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.DateFormat
-import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.HomeItem
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.ItemTint
@@ -318,9 +317,9 @@ fun DateInspector(state: HomeEditorState, item: HomeItem, shownFy: Float?, onRem
 
 fun defaultWeight(style: ClockStyle) = if (style == ClockStyle.Crystal) 220 else 300
 
-/** LENS: ring size and style only; its touch area and ARC are unchanged (the ghost rings show ARC). */
+/** LENS: ring size, style and position; its touch area stays the same and the ghost rings show the adapted ARC. */
 @Composable
-fun LensInspector(state: HomeEditorState, item: HomeItem, reach: Reach, onReach: (Reach) -> Unit, onChange: () -> Unit) {
+fun LensInspector(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
     val c = LocalCrystal.current
     val size = item.lensDp()
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.LENS_MIN.toFloat(), ItemSizes.LENS_MAX.toFloat(), 2f, "$size dp") { v ->
@@ -330,8 +329,14 @@ fun LensInspector(state: HomeEditorState, item: HomeItem, reach: Reach, onReach:
     Chips(listOf(LensStyle.Ring to stringResource(R.string.lens_ring), LensStyle.Filled to stringResource(R.string.lens_filled)), style) { v ->
         state.edit(item.id, "style") { it.copy(style = if (v == LensStyle.Ring) "" else v.name) }; onChange()
     }
-    Chips(listOf(Reach.Left to stringResource(R.string.reach_left), Reach.Center to stringResource(R.string.reach_center),
-        Reach.Right to stringResource(R.string.reach_right)), reach, onReach)
+    // The drag's accessible twin (§5.5): the same band, in 4 dp steps that always include the centre.
+    val room = (state.lensRoom() / 4f).toInt() * 4f
+    val dx = state.lensDx().coerceIn(-room, room)
+    val at = dx.roundToInt()
+    SliderRow(stringResource(R.string.lens_position), dx, -room, room, 4f,
+        if (at == 0) stringResource(R.string.lens_centre) else stringResource(R.string.lens_offset, at)) { v ->
+        state.edit(item.id, "dx") { it.copy(anchor = it.anchor.copy(dx = v)) }; onChange()
+    }
     Text(stringResource(R.string.lens_hint), Modifier.padding(vertical = 6.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
 }
 
@@ -461,10 +466,22 @@ fun ConfirmDialog(title: String, action: String, onConfirm: () -> Unit, onDismis
 
 /** Faint ARC rings around LENS while its inspector is open (radii 108 / 180 / 250 dp, as on the phone). */
 @Composable
-fun GhostArc(lens: Pt, modifier: Modifier = Modifier) {
+fun GhostArc(lens: Pt, rings: ArcRings, modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
     Canvas(modifier) {
         val o = Offset(lens.x * density, lens.y * density)
-        listOf(108f, 180f, 250f).forEach { r -> drawCircle(c.fg.copy(alpha = .14f), r * density, o, style = Stroke(1.dp.toPx())) }
+        val ink = c.fg.copy(alpha = .22f)
+        // The arcs ARC would really open with LENS here: each ring's span and its slots, clipped by the edges.
+        rings.angles.forEachIndexed { ring, angles ->
+            if (angles.isEmpty()) return@forEachIndexed
+            val r = rings.radius(ring) * density
+            val from = angles.min()
+            val to = angles.max()
+            drawArc(ink, -90f + from - 6f, to - from + 12f, false, Offset(o.x - r, o.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
+            angles.indices.forEach { i ->
+                val (x, y) = rings.position(ring, i)
+                drawCircle(ink, 3.dp.toPx(), Offset(o.x + x * density, o.y + y * density))
+            }
+        }
     }
 }

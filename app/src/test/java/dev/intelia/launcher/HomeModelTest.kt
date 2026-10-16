@@ -10,6 +10,8 @@ import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.SettingsCodec
+import dev.intelia.launcher.data.Reach
+import dev.intelia.launcher.data.lensDx
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -144,5 +146,28 @@ class HomeModelTest {
         assertEquals("Short", date.style)
         assertEquals(AnchorType.Free, date.anchor.type)
         assertEquals("", items.first { it.kind == ItemKind.Clock }.style)
+    }
+
+    @Test fun lensPositionMigratesFromReachAndIsBounded() {
+        // Before the continuous position: no dx anywhere, Reach decides, for the linked preset and a user layout alike.
+        val old = """{"schema":2,"reach":"Left","home":{"active":"mine","layouts":[{"id":"mine","name":"M","base":"None",
+            "items":[{"id":"lens","kind":"Lens","anchor":{"type":"Lens"}}]}]}}"""
+        val s = SettingsCodec.decode(old)
+        assertEquals(-56f, s.home.lensDx())
+        assertEquals(-56f, s.home.layouts.first { it.linked }.lensDx())
+        // Once stored, the layout's own value wins over Reach; it survives a round trip.
+        val moved = s.copy(reach = Reach.Right, home = s.home.copy(layouts = s.home.layouts.map { l ->
+            l.copy(items = l.items.map { if (it.kind == ItemKind.Lens) it.copy(anchor = it.anchor.copy(dx = 97f)) else it })
+        })).sanitized()
+        assertEquals(97f, moved.home.lensDx())
+        assertEquals(97f, SettingsCodec.decode(SettingsCodec.encode(moved)).home.lensDx())
+        assertEquals(56f, moved.home.layouts.first { it.linked }.lensDx())
+        // Out of range or not a number.
+        fun with(dx: Float) = moved.copy(home = moved.home.copy(layouts = moved.home.layouts.map { l ->
+            l.copy(items = l.items.map { if (it.kind == ItemKind.Lens) it.copy(anchor = it.anchor.copy(dx = dx)) else it })
+        })).sanitized().home.lensDx()
+        assertEquals(LauncherSettings.MAX_LENS_DX, with(5000f))
+        assertEquals(-LauncherSettings.MAX_LENS_DX, with(-5000f))
+        assertEquals(0f, with(Float.NaN))
     }
 }

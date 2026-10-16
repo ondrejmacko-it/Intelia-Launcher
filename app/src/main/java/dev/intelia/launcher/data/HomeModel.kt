@@ -21,7 +21,8 @@ import kotlinx.serialization.Serializable
  * - [AnchorType.Cell]: [col], [row] of the layout grid.
  * - [AnchorType.Free]: [fx], [fy] as fractions (0..1) of the safe content area.
  * - [AnchorType.LensRow]: [slot] -2, -1, 1, 2 beside LENS.
- * - [AnchorType.Lens]: LENS itself, [fx] across, [bottomDp] above the gesture inset (reserved; LENS still follows Reach).
+ * - [AnchorType.Lens]: LENS itself, [dx] dp from the screen centre (null in documents before the continuous position:
+ *   migrated from [LauncherSettings.reach]); [fx] and [bottomDp] are reserved.
  * - [AnchorType.Bound]: under the clock (the date); an unpinned date uses [AnchorType.Free] like the clock.
  * - [AnchorType.Stack]: [row]-th line of the legacy text list (preset "Vlastní").
  */
@@ -36,6 +37,7 @@ data class Anchor(
     val fy: Float = .5f,
     val slot: Int = 0,
     val bottomDp: Float = 0f,
+    val dx: Float? = null,
 ) {
     companion object {
         fun cell(col: Int, row: Int) = Anchor(AnchorType.Cell, col = col, row = row)
@@ -73,6 +75,9 @@ data class HomeItem(
 
 @Serializable enum class LensStyle { Ring, Filled }
 
+/** LENS offset in dp from the screen centre in [this] layout; 0 when it has none yet. */
+fun LayoutSpec.lensDx(): Float = items.firstOrNull { it.kind == ItemKind.Lens }?.anchor?.dx ?: 0f
+
 /** Date line formats, stored by name in [HomeItem.style]; empty = [Long]. */
 enum class DateFormat { Long, Short, Weekday }
 
@@ -94,6 +99,9 @@ data class LayoutSpec(
 @Serializable
 data class HomeLayouts(val active: String = LINKED_ID, val layouts: List<LayoutSpec> = emptyList()) {
     fun activeLayout(): LayoutSpec = layouts.firstOrNull { it.id == active } ?: layouts.first()
+
+    /** Where LENS sits in the active layout, in dp from the screen centre (§5.5); Search and ARC follow it. */
+    fun lensDx(): Float = layouts.firstOrNull { it.id == active }?.lensDx() ?: 0f
 
     /**
      * The Home Editor's ✓: one replacement of the document. An edited preset becomes the user's own copy
@@ -174,7 +182,8 @@ object HomeTemplates {
             HomeLayout.Essentials -> LayoutBase.Essentials to false
             HomeLayout.Custom -> LayoutBase.None to true
         }
-        return LayoutSpec(HomeLayouts.LINKED_ID, DEFAULT_NAME, base, Placement.Hybrid,
-            items = build(base, s.favorites, s.showClock, s.showDate, list), linked = true)
+        val items = build(base, s.favorites, s.showClock, s.showDate, list)
+            .map { if (it.kind == ItemKind.Lens) it.copy(anchor = Anchor(AnchorType.Lens, dx = s.reach.dx)) else it }
+        return LayoutSpec(HomeLayouts.LINKED_ID, DEFAULT_NAME, base, Placement.Hybrid, items = items, linked = true)
     }
 }

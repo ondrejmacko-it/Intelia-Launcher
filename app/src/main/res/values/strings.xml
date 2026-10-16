@@ -160,9 +160,6 @@
     <string name="layout_custom">Custom</string>
     <string name="layout_custom_detail">Your favourites as words, the clock to the side.</string>
     <string name="reach">One-handed reach</string>
-    <string name="reach_left">Left</string>
-    <string name="reach_center">Centre</string>
-    <string name="reach_right">Right</string>
     <string name="favorites_count">Favourites · %1$d/%2$d</string>
     <string name="favorites_hint">Hold an app in the drawer to add it. The first four sit around LENS.</string>
     <string name="arc_section">ARC</string>
@@ -242,7 +239,10 @@
     <string name="lens_style">Style</string>
     <string name="lens_ring">Ring</string>
     <string name="lens_filled">Filled</string>
-    <string name="lens_hint">The touch area and ARC stay the same.</string>
+    <string name="lens_hint">Drag LENS to move it; it snaps to the centre. The ghost rings show ARC.</string>
+    <string name="lens_position">Position</string>
+    <string name="lens_centre">centre</string>
+    <string name="lens_offset">%1$d dp</string>
     <string name="add_title">Add here</string>
     <string name="add_app">App</string>
     <string name="add_widget">Widget · later</string>

@@ -26,6 +26,7 @@ import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.HomeTemplates
 import dev.intelia.launcher.data.LayoutBase
 import dev.intelia.launcher.data.LensStyle
+import dev.intelia.launcher.data.lensDx
 import dev.intelia.launcher.data.Placement
 import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -402,12 +403,13 @@ private fun Home(
             onLongClick = { if (editor == null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openRequested = true } })) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
         val statusTop = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
-        val cx = maxWidth / 2 + lensShift(settings.reach)
+        val saved = settings.home.activeLayout()
+        // The editor's live LENS (drag, undo) wins over the saved layout's.
+        val cx = maxWidth / 2 + lensShift(editor?.lensDx() ?: saved.lensDx(), maxWidth)
         val cy = maxHeight - bottomInset - LensLift
         val compact = maxHeight < 560.dp
         val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, cx.value, cy.value)
         check(tick >= 0) // read so that editor changes recompose this scope
-        val saved = settings.home.activeLayout()
         fun open(): HomeEditorState = editor ?: HomeEditorState(saved, geometry,
             blocked = { listOfNotNull(clockZone, dateZone.takeIf { editor?.layout?.items?.any { it.kind == ItemKind.Date && it.anchor.type == AnchorType.Free } == true }) })
             .also { editor = it; refresh() }
@@ -558,7 +560,7 @@ private fun Home(
             }
         }
 
-        LensArc(arc, settings.reach, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
+        LensArc(arc, (cx - maxWidth / 2).value, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
             onShortcut = onShortcut, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
             lensFilled = lensItem?.style == LensStyle.Filled.name)
         if (settings.pulse && ed == null) Pulse(settings)
@@ -575,15 +577,15 @@ private fun Home(
                 .pointerInput(ed) {
                     detectTapGestures(onTap = { o ->
                         val p = Pt(o.x / density.density, o.y / density.density)
-                        val onLens = hypot(p.x - lensPt.x, p.y - lensPt.y) <= 34f
+                        val onLens = hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) <= 34f
                         val onCamera = hypot(p.x - camera.x, p.y - camera.y) <= 36f
-                        val hit = hitItem(ed, p, timeZone, dateZone) ?: lensItem?.id?.takeIf { onLens } ?: PULSE_ID.takeIf { onCamera }
+                        val hit = hitItem(ed, p, timeZone, dateZone) ?: ed.lensId()?.takeIf { onLens } ?: PULSE_ID.takeIf { onCamera }
                         when {
                             lookOpen && hit == null -> lookOpen = false
                             hit != null -> { selected = hit.takeIf { it != selected }; addPoint = null }
                             selected != null || addPoint != null -> { selected = null; addPoint = null }
                             presetsOpen -> { ed.cancelPreview(); presetsOpen = false; previewKey = null }
-                            p.y > barBottom && hypot(p.x - lensPt.x, p.y - lensPt.y) > 50f -> addPoint = p
+                            p.y > barBottom && hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) > 50f -> addPoint = p
                         }
                         refresh()
                     })
@@ -593,7 +595,7 @@ private fun Home(
                     pinchToResize(
                         target = { centre ->
                             val p = Pt(centre.x / density.density, centre.y / density.density)
-                            (hitItem(ed, p, timeZone, dateZone, reach = 56f) ?: lensItem?.id?.takeIf { hypot(p.x - lensPt.x, p.y - lensPt.y) <= 60f }
+                            (hitItem(ed, p, timeZone, dateZone, reach = 56f) ?: ed.lensId()?.takeIf { hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) <= 60f }
                                 ?: selected)?.let(ed::item)?.takeIf { it.kind != ItemKind.Widget }
                         },
                         sizeOf = { it.currentSize(iconDefault) },
@@ -609,19 +611,32 @@ private fun Home(
                     detectDragGestures(
                         onDragStart = { o ->
                             moved = Offset.Zero
-                            hitItem(ed, Pt(o.x / density.density, o.y / density.density), timeZone, dateZone)?.let { ed.startDrag(it) }
+                            val p = Pt(o.x / density.density, o.y / density.density)
+                            val hit = hitItem(ed, p, timeZone, dateZone)
+                            // LENS moves sideways within its band (§5.5); its own hold never opens ARC here.
+                            if (hit == null && hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) <= 42f) { ed.startLensDrag(); selected = ed.lensId() }
+                            else hit?.let { ed.startDrag(it) }
                             refresh()
                         },
                         onDrag = { change, amount ->
-                            if (ed.drag != null) {
+                            if (ed.lensDrag != null) {
+                                change.consume()
+                                moved += amount
+                                if (ed.dragLensBy(moved.x / density.density)) haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                refresh()
+                            } else if (ed.drag != null) {
                                 change.consume()
                                 moved += amount
                                 ed.dragBy(Pt(moved.x / density.density, moved.y / density.density))
                                 refresh()
                             }
                         },
-                        onDragEnd = { if (ed.drop()) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); refresh() },
-                        onDragCancel = { ed.cancelDrag(); refresh() },
+                        onDragEnd = {
+                            if (ed.lensDrag != null) ed.dropLens()
+                            else if (ed.drop()) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            refresh()
+                        },
+                        onDragCancel = { ed.cancelDrag(); ed.cancelLensDrag(); refresh() },
                     )
                 })
             EditorBar(ed.canUndo, ed.canRedo, onUndo = { ed.undo(); refresh() }, onRedo = { ed.redo(); refresh() }, presetsOpen = presetsOpen, onPresets = {
@@ -661,7 +676,11 @@ private fun Home(
                 }
             }
             val sel = selected?.let(ed::item)
-            if (sel != null && drag == null) {
+            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) {
+                val rings = remember(arc.slots, lensPt.x, maxWidth) { ArcRings(arc.slots, left = lensPt.x, right = maxWidth.value - lensPt.x) }
+                GhostArc(lensPt, rings, Modifier.fillMaxSize())
+            }
+            if (sel != null && drag == null && ed.lensDrag == null) {
                 val zone = when (sel.kind) {
                     ItemKind.Clock -> timeZone ?: clockZone
                     ItemKind.Date -> dateZone
@@ -671,7 +690,7 @@ private fun Home(
                         Zone(c.x - r, c.y - r, c.x + r, c.y + r + if (sel.label) 20f else 0f)
                     }
                 }
-                if (sel.kind == ItemKind.Lens) GhostArc(lensPt, Modifier.fillMaxSize())
+                
                 if (sel.kind == ItemKind.Clock && zone != null) ClockHandle(zone) { dx ->
                     val now = if (sel.sizeDp == 0) ItemSizes.CLOCK else sel.sizeDp
                     ed.edit(sel.id, "size") { it.copy(sizeDp = (now + dx.roundToInt()).coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)) }
@@ -682,7 +701,7 @@ private fun Home(
                         ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, onRemoved = { selected = null }, onChange = ::refresh)
                         ItemKind.Date -> DateInspector(ed, sel, zone.let { z ->
                             ((z.top + 6f - statusTop.value - textTop.value) / geometry.areaH).takeIf { it.isFinite() } }, onRemoved = { selected = null }, onChange = ::refresh)
-                        ItemKind.Lens -> LensInspector(ed, sel, settings.reach, onReach = { r -> set { it.copy(reach = r) } }, onChange = ::refresh)
+                        ItemKind.Lens -> LensInspector(ed, sel, onChange = ::refresh)
                         else -> {
                             val app = apps[sel.target]
                             ItemInspector(ed, sel, app?.label ?: flows[sel.target]?.name.orEmpty(), iconDefault,

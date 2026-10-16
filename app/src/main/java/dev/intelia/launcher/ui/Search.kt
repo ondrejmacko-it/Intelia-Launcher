@@ -72,6 +72,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -192,7 +193,7 @@ fun SearchOverlay(
                 .padding(horizontal = 12.dp)) {
                 if (cardReady) ResultsCard(query, rows, resolve, morph::value, ::act, onOptions = { held = true; onOptions(it) })
                 Spacer(Modifier.height(8.dp))
-                SearchField(query, field, morph::value, lensShift(settings.reach), exactMatch = exact != null,
+                SearchField(query, field, morph::value, lensShift(settings.home.lensDx(), LocalConfiguration.current.screenWidthDp.dp), exactMatch = exact != null,
                     onChange = { model.query.value = it }, onSubmit = { SearchPicks.enter(query, rows)?.let(::act) })
             }
         }

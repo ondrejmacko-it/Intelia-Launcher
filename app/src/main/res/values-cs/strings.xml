@@ -159,9 +159,6 @@
     <string name="layout_custom">Vlastní</string>
     <string name="layout_custom_detail">Oblíbené jako text, hodiny stranou.</string>
     <string name="reach">Dosah jednou rukou</string>
-    <string name="reach_left">Vlevo</string>
-    <string name="reach_center">Uprostřed</string>
-    <string name="reach_right">Vpravo</string>
     <string name="favorites_count">Oblíbené · %1$d/%2$d</string>
     <string name="favorites_hint">Přidáš je podržením aplikace v šuplíku. První čtyři jsou kolem LENS.</string>
     <string name="arc_section">ARC</string>
@@ -241,7 +238,10 @@
     <string name="lens_style">Styl</string>
     <string name="lens_ring">Kroužek</string>
     <string name="lens_filled">Plný</string>
-    <string name="lens_hint">Dotyková plocha a ARC zůstávají stejné.</string>
+    <string name="lens_hint">LENS posuneš tažením, u středu se přichytí. Obrysy ukazují ARC.</string>
+    <string name="lens_position">Poloha</string>
+    <string name="lens_centre">střed</string>
+    <string name="lens_offset">%1$d dp</string>
     <string name="add_title">Přidat sem</string>
     <string name="add_app">Aplikace</string>
     <string name="add_widget">Widget · později</string>

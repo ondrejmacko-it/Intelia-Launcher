@@ -9,7 +9,8 @@ import kotlinx.serialization.json.Json
 @Serializable enum class ThemeMode { System, Dark, Light }
 /** [Frost] and [Silver] arrive with the Crystal design (D10); [Dynamic] is "from the wallpaper". */
 @Serializable enum class Accent { Dynamic, Mono, Sage, Slate, Terracotta, Frost, Silver }
-@Serializable enum class Reach { Left, Center, Right }
+/** Legacy three-step LENS position; the continuous one is [Anchor.dx] (§5.5). [dx] is what each step migrates to. */
+@Serializable enum class Reach(val dx: Float) { Left(-56f), Center(0f), Right(56f) }
 @Serializable enum class HomeLayout { Pure, Essentials, Custom }
 /** [Crystal] is Roboto Flex (D10, D11); [Serif] is the original "Ink" clock and stays an option. */
 @Serializable enum class ClockStyle { Serif, Grotesk, Mono, Crystal }
@@ -85,6 +86,8 @@ data class LauncherSettings(
         const val ARC_FLOW_SLOTS = 7
         const val ARC_SHORTCUT_SLOTS = 7
         const val MAX_FAVORITES = 7
+        /** LENS offset from the centre, dp: x 60–300 on a 360 dp screen; the UI clamps further on narrow ones. */
+        const val MAX_LENS_DX = 120f
         const val MAX_LENS_X = 1000f
         const val MAX_LENS_Y = 300f
         const val MIN_LENS_R = 3f
@@ -96,6 +99,8 @@ data class LauncherSettings(
         private const val MAX_KEY = 512
         private const val MAX_HIDDEN = 1000
         private const val MAX_ALIASES = 200
+        /** Bounded LENS offset; NaN or infinity goes back to the centre. */
+        fun clampLensDx(dx: Float) = if (dx.isFinite()) dx.coerceIn(-MAX_LENS_DX, MAX_LENS_DX) else 0f
         private fun validKey(key: String) = key.isNotBlank() && key.length <= MAX_KEY && key.none(Char::isISOControl)
     }
 
@@ -156,7 +161,7 @@ data class LauncherSettings(
             .take(HomeLayouts.MAX_ITEMS)
             .map(::sanitizeLook)
             .toMutableList()
-        if (ItemKind.Lens !in singles) items.add(0, HomeItem("lens", ItemKind.Lens, Anchor.Lens))
+        if (ItemKind.Lens !in singles) items.add(0, HomeItem("lens", ItemKind.Lens, Anchor(AnchorType.Lens, dx = reach.dx)))
         val name = l.name.filterNot(Char::isISOControl).trim().take(HomeLayouts.MAX_NAME).ifEmpty { HomeTemplates.DEFAULT_NAME }
         return l.copy(name = name, grid = grid, items = items, linked = false)
     }
@@ -182,7 +187,8 @@ data class LauncherSettings(
     /** Null drops the item (e.g. a LENS-row slot that does not exist). Cells re-clamp when the grid shrinks. */
     private fun clampAnchor(kind: ItemKind, a: Anchor, grid: GridSpec): Anchor? {
         fun unit(v: Float) = if (v.isFinite()) v.coerceIn(0f, 1f) else .5f
-        if (kind == ItemKind.Lens) return Anchor(AnchorType.Lens, fx = unit(a.fx), bottomDp = if (a.bottomDp.isFinite()) a.bottomDp.coerceIn(0f, 400f) else 0f)
+        if (kind == ItemKind.Lens) return Anchor(AnchorType.Lens, fx = unit(a.fx), bottomDp = if (a.bottomDp.isFinite()) a.bottomDp.coerceIn(0f, 400f) else 0f,
+            dx = clampLensDx(a.dx ?: reach.dx))
         return when (a.type) {
             AnchorType.Cell -> Anchor.cell(a.col.coerceIn(0, grid.cols - 1), a.row.coerceIn(0, grid.rows - 1))
             AnchorType.Free -> Anchor.free(unit(a.fx), unit(a.fy))
