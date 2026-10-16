@@ -45,6 +45,13 @@ class PulseMenuTest {
         assertEquals(448f, menuLeftAndWidth(1080f, 1060f, 32f, 600f).first, 0.01f)
     }
 
+    @Test fun menuStartsBelowStatusBarAndLens() {
+        // Lens ring (68 + 33 + 11) is lower than a 110 px status bar here.
+        assertEquals(136f, menuTop(110f, 68f, 33f, 11f, 24f), 0.01f)
+        // A lens hanging lower than the status bar pushes the sheet down.
+        assertEquals(154f, menuTop(80f, 80f, 40f, 10f, 24f), 0.01f)
+    }
+
     @Test fun ringerOnlyTogglesSoundAndVibrate() {
         assertEquals(RINGER_VIBRATE, nextRinger(RINGER_NORMAL))
         assertEquals(RINGER_NORMAL, nextRinger(RINGER_VIBRATE))

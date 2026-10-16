@@ -364,21 +364,27 @@ private fun PulseMenuSheet(
 
     val margin = with(density) { 12.dp.toPx() }
     val (left, width) = menuLeftAndWidth(screenWidth, hole.x, margin, with(density) { 420.dp.toPx() })
-    val top = (hole.y - hole.radius - with(density) { 6.dp.toPx() }).coerceAtLeast(with(density) { 4.dp.toPx() })
-    val header = with(density) { maxOf(hole.radius * 2 + 18.dp.toPx(), statusBar - top).toDp() }
+    val ring = with(density) { 4.dp.toPx() }
+    val top = with(density) { menuTop(statusBar, hole.y, hole.radius, ring, 10.dp.toPx()) }
     val shown = remember { MutableTransitionState(false).apply { targetState = true } }
 
     Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
         onClickLabel = stringResource(R.string.close)) { onClose() }) {
+        // The status bar stays visible: only a ring around the camera and a thin thread lead down to the sheet.
+        AnimatedVisibility(shown, enter = fadeIn(tween(motionMs(160)))) {
+            Canvas(Modifier.fillMaxSize()) {
+                // A dark core with a light hairline reads on both light and dark apps.
+                listOf(ink.night to 4.dp.toPx(), ink.onNight.copy(alpha = .45f) to 1.dp.toPx()).forEach { (color, stroke) ->
+                    drawCircle(color, hole.radius + ring, Offset(hole.x, hole.y), style = Stroke(stroke))
+                    drawLine(color, Offset(hole.x, hole.y + hole.radius + ring), Offset(hole.x, top + 2.dp.toPx()), stroke, StrokeCap.Round)
+                }
+            }
+        }
         AnimatedVisibility(shown, Modifier.offset { IntOffset(left.toInt(), top.toInt()) },
             enter = fadeIn(tween(motionMs(160))) + expandIn(tween(motionMs(280)), expandFrom = Alignment.TopCenter)) {
             Column(Modifier.width(with(density) { width.toDp() }).clip(RoundedCornerShape(30.dp)).background(ink.night)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }) {
-                // The sheet starts at the lens: its ring is drawn where the camera is, the status bar stays clear.
-                Box(Modifier.fillMaxWidth().height(header).drawBehind {
-                    drawCircle(ink.onNight.copy(alpha = .18f), hole.radius + 4.dp.toPx(), Offset(hole.x - left, hole.y - top), style = Stroke(1.dp.toPx()))
-                })
-                Column(Modifier.padding(start = 20.dp, end = 14.dp, bottom = 10.dp)) {
+                Column(Modifier.padding(start = 20.dp, top = 8.dp, end = 14.dp, bottom = 10.dp)) {
                     val zone = ZoneId.systemDefault()
                     val alarmText = alarm?.let {
                         val at = Instant.ofEpochMilli(it).atZone(zone)
