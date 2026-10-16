@@ -117,6 +117,7 @@ the owner keeps "Ink" as a clock style option.
 - LENS: 44 dp ring, 1.5 dp stroke, centre 731 dp from top on this phone (= bottom inset + 52 dp); touch
   target 100 dp. No underline.
 - Essentials: 4 icons in two pairs at x = 72/118 and 242/288 dp (centre gap 124 dp), same baseline as LENS.
+  (Phase B2: the target phone is 420 dpi = 411 dp wide, so these are applied as ±62 / ±108 dp from LENS.)
 - Radii: sheet/card 22 dp, control 12 dp, capsule = height/2, field 24 dp.
 
 ### 4.4 Components

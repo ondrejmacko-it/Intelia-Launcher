@@ -1,6 +1,7 @@
 package dev.intelia.launcher
 
 import dev.intelia.launcher.data.Accent
+import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.PulseLens
 import dev.intelia.launcher.data.SettingsCodec
@@ -104,6 +105,19 @@ class SettingsCodecTest {
         val fresh = LauncherSettings.fresh()
         assertEquals(fresh, SettingsCodec.decode(SettingsCodec.encode(fresh)))
         assertEquals(LauncherSettings.SCHEMA, SettingsCodec.decode("""{"schema":99}""").schema)
+    }
+
+    @Test fun newInstallGetsCrystalClockExistingUsersKeepTheirs() {
+        assertEquals(ClockStyle.Crystal, SettingsCodec.decode(null).clockStyle)
+        // Pre-B2 documents never stored the Serif default; they keep the Ink clock.
+        val legacy = SettingsCodec.decode("""{"onboarded":true,"accent":"Sage"}""")
+        assertEquals(ClockStyle.Serif, legacy.clockStyle)
+        assertEquals(ClockStyle.Serif, SettingsCodec.decode(SettingsCodec.encode(legacy)).clockStyle)
+        assertEquals(ClockStyle.Mono, SettingsCodec.decode("""{"clockStyle":"Mono"}""").clockStyle)
+        // A user who picks Crystal keeps it; an unknown style from a newer build falls back safely.
+        val crystal = legacy.copy(clockStyle = ClockStyle.Crystal)
+        assertEquals(ClockStyle.Crystal, SettingsCodec.decode(SettingsCodec.encode(crystal)).clockStyle)
+        assertEquals(ClockStyle.Serif, SettingsCodec.decode("""{"clockStyle":"Neon"}""").clockStyle)
     }
 
     @Test fun sanitizesBoundsAndDuplicates() {

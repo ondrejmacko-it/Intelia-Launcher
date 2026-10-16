@@ -138,10 +138,13 @@ fun rememberInkHaptics(): InkHaptics {
     return remember(haptic, mode) { InkHaptics(haptic, mode) }
 }
 
-/** Soft halo that keeps Home type legible on any wallpaper without a full-screen scrim. */
+/**
+ * Text on the wallpaper gets at most a 0–1 dp shadow (4.1); legibility comes from [LocalHomeInk]
+ * switching to dark ink on light wallpapers, not from a halo or scrim. Radius in px (≈1 dp at 3×).
+ */
 fun homeShadow(ink: Color) = Shadow(
-    color = if (ink.luminance() > .5f) Color.Black.copy(alpha = .38f) else Color.White.copy(alpha = .3f),
-    blurRadius = 18f,
+    color = if (ink.luminance() > .5f) Color.Black.copy(alpha = .35f) else Color.White.copy(alpha = .25f),
+    blurRadius = 3f,
 )
 
 @Composable
@@ -212,7 +215,8 @@ fun SystemBarIcons(darkIcons: Boolean) {
 fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
     val dark = isDark(settings)
     val ink = inkPalette(dark, accentColor(settings.accent, dark))
-    val homeInk = if (rememberWallpaperWantsDarkText()) InkLight else Color(0xFFF7F3EC)
+    // Home type follows the wallpaper, not the theme: Crystal fg light on light wallpapers (4.1).
+    val homeInk = if (rememberWallpaperWantsDarkText()) CrystalColors.FgLight else CrystalColors.FgDark
     val base = if (dark) darkColorScheme() else lightColorScheme()
     val scheme = base.copy(
         primary = ink.accent, onPrimary = ink.onAccent, background = ink.paper, surface = ink.paper,
@@ -230,7 +234,6 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
             LocalInkHaptics provides settings.haptics,
             LocalContentColor provides ink.ink,
             LocalTextStyle provides InkText.body.copy(color = ink.ink),
-            content = content,
-        )
+        ) { CrystalTheme(dark, ink.accent, content) }
     }
 }

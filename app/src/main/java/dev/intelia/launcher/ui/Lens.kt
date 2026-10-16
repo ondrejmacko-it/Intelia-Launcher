@@ -78,7 +78,7 @@ import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.FlowAlias
 import kotlin.math.hypot
 
-/** LENS sits this far above the navigation inset; Home layouts align to the same centre. */
+/** LENS centre sits this far above the navigation inset (4.3); Home layouts align to the same centre. */
 val LensLift = 52.dp
 
 fun lensShift(reach: Reach): Dp = when (reach) {
@@ -298,7 +298,7 @@ fun LensArc(
 
         // LENS itself.
         Box(
-            Modifier.centerAt(cx, cy).size(72.dp)
+            Modifier.centerAt(cx, cy).size(CrystalDims.lensTouch)
                 .semantics {
                     role = Role.Button
                     contentDescription = "$lensDescription (LENS)"
@@ -364,7 +364,7 @@ fun LensArc(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            LensMark(if (open) accent else homeInk, accent, active = open)
+            LensMark(homeInk, active = open)
         }
     }
 }

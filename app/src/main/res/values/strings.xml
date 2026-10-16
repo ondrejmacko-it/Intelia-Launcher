@@ -130,7 +130,8 @@
     <string name="studio_live">Studio · live preview</string>
     <string name="appearance">Appearance</string>
     <string name="clock_font">Clock type</string>
-    <string name="clock_serif">Serif</string>
+    <string name="clock_serif">Ink</string>
+    <string name="clock_crystal">Crystal</string>
     <string name="clock_grotesk">Grotesk</string>
     <string name="clock_mono">Mono</string>
     <string name="theme">Theme</string>

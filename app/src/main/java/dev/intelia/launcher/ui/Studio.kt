@@ -118,7 +118,7 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                 .verticalScroll(scroll).navigationBarsPadding().padding(bottom = 24.dp)) {
                 Section(R.string.appearance)
                 Stacked(stringResource(R.string.clock_font)) {
-                    Segments(listOf(ClockStyle.Serif to stringResource(R.string.clock_serif), ClockStyle.Grotesk to stringResource(R.string.clock_grotesk),
+                    Segments(listOf(ClockStyle.Crystal to stringResource(R.string.clock_crystal), ClockStyle.Serif to stringResource(R.string.clock_serif), ClockStyle.Grotesk to stringResource(R.string.clock_grotesk),
                         ClockStyle.Mono to stringResource(R.string.clock_mono)), settings.clockStyle, { v -> set { it.copy(clockStyle = v) } })
                 }
                 Stacked(stringResource(R.string.theme)) {
@@ -413,7 +413,7 @@ fun HomePreview(
             val around = settings.layout == HomeLayout.Essentials
             val slots: List<AppEntry?> = if (around) List(4) { favorites.getOrNull(it) } else emptyList()
             slots.take(2).forEach { PreviewSlot(it, ink, scale) }
-            LensMark(ink, accent, ring = d(26f))
+            LensMark(ink, ring = d(44f))
             slots.drop(2).forEach { PreviewSlot(it, ink, scale) }
         }
     }

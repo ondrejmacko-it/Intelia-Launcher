@@ -129,7 +129,8 @@
     <string name="studio_live">Studio · náhled naživo</string>
     <string name="appearance">Vzhled</string>
     <string name="clock_font">Písmo hodin</string>
-    <string name="clock_serif">Patkové</string>
+    <string name="clock_serif">Ink</string>
+    <string name="clock_crystal">Crystal</string>
     <string name="clock_grotesk">Grotesk</string>
     <string name="clock_mono">Strojové</string>
     <string name="theme">Motiv</string>

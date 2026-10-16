@@ -66,45 +66,49 @@ fun Hairline(modifier: Modifier = Modifier, color: Color = LocalInk.current.line
     Box(modifier.fillMaxWidth().height(1.dp).background(color))
 }
 
-/** The tide dash under LENS; the one "this is selected" mark used everywhere. */
+/** The tide dash: the "this is selected" mark of the Ink screens (no longer under LENS, 4.3). */
 @Composable
 fun TideDash(visible: Boolean, modifier: Modifier = Modifier, width: Dp = 14.dp, color: Color = LocalInk.current.accent) {
     Box(modifier.size(width, 2.dp).clip(RoundedCornerShape(1.dp)).background(if (visible) color else Color.Transparent))
 }
 
 /**
- * LENS mark: an open ring with the tide dash beneath. Pressing fills the ring like a drop of ink.
+ * LENS mark (4.3): a 44 dp ring with a 1.5 dp stroke and nothing beneath it. While ARC is open it
+ * settles to 86 % with a faint fill; with Reduced Motion that change is instant.
  */
 @Composable
-fun LensMark(ink: Color, accent: Color, modifier: Modifier = Modifier, active: Boolean = false, ring: Dp = 26.dp) {
-    val fill by animateFloatAsState(if (active) 1f else 0f, tween(motionMs(160)), label = "lens-ink")
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Canvas(Modifier.size(ring)) {
-            val stroke = 1.6.dp.toPx()
-            val r = size.minDimension / 2f - stroke / 2f
-            drawCircle(if (active) accent else ink, r * (1f + .12f * fill), style = Stroke(stroke))
-            if (fill > 0f) drawCircle(accent.copy(alpha = .22f * fill), r * fill)
-        }
-        TideDash(true, color = accent)
+fun LensMark(ink: Color, modifier: Modifier = Modifier, active: Boolean = false, ring: Dp = CrystalDims.lensRing) {
+    val press by animateFloatAsState(if (active) 1f else 0f, tween(motionMs(160)), label = "lens-press")
+    Canvas(modifier.size(ring)) {
+        val stroke = CrystalDims.lensStroke.toPx() * (ring / CrystalDims.lensRing)
+        val r = (size.minDimension / 2f - stroke / 2f) * (1f - .14f * press)
+        if (press > 0f) drawCircle(ink.copy(alpha = .12f * press), r)
+        drawCircle(ink.copy(alpha = .88f), r, style = Stroke(stroke))
     }
 }
 
 /**
- * Clock in two voices: upright hours, italic minutes, a small accent ring instead of a colon.
- * No seconds and no per-second work.
+ * Home clock, hours and minutes only; no seconds and no per-second work. [ClockStyle.Crystal] is one
+ * voice; the Ink styles keep two voices: upright hours, italic minutes, an accent ring for the colon.
  */
 @Composable
 fun SplitClock(now: LocalTime, style: ClockStyle, ink: Color, accent: Color, size: TextUnit, modifier: Modifier = Modifier,
     shadow: Boolean = true) {
+    val time = "%02d".format(now.hour) to "%02d".format(now.minute)
+    val shade = if (shadow) homeShadow(ink) else null
     val family = when (style) {
+        ClockStyle.Crystal -> {
+            // 4.2: Roboto Flex 220 · 118, tabular figures so the width never jumps.
+            Text("${time.first}:${time.second}", modifier, color = ink, maxLines = 1,
+                style = CrystalType.clock.copy(fontSize = size, lineHeight = size, letterSpacing = (-1).sp, shadow = shade))
+            return
+        }
         ClockStyle.Serif -> InkFonts.serif
         ClockStyle.Grotesk -> InkFonts.sans
         ClockStyle.Mono -> InkFonts.mono
     }
     val base = TextStyle(fontFamily = family, fontWeight = FontWeight.Light, fontSize = size, lineHeight = size,
-        letterSpacing = if (style == ClockStyle.Mono) (-0.06f).em(size) else (-0.03f).em(size),
-        shadow = if (shadow) homeShadow(ink) else null)
-    val time = "%02d".format(now.hour) to "%02d".format(now.minute)
+        letterSpacing = if (style == ClockStyle.Mono) (-0.06f).em(size) else (-0.03f).em(size), shadow = shade)
     Row(modifier.semantics(mergeDescendants = true) { contentDescription = "${time.first}:${time.second}" },
         verticalAlignment = Alignment.CenterVertically) {
         Text(time.first, style = base, color = ink, modifier = Modifier.clearAndSetSemantics { })

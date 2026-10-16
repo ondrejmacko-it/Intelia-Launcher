@@ -49,8 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.intelia.launcher.R
 
-// Crystal design system (D10, docs/DESIGN_SYSTEM.md 4.1–4.4). Phase B1: tokens and components only;
-// nothing on Home, ARC, PULSE or Studio uses them yet, so the app looks and behaves as before.
+// Crystal design system (D10, docs/DESIGN_SYSTEM.md 4.1–4.4). Since phase B2 Home uses the palette,
+// type and LENS sizes; ARC, PULSE and Studio still draw with Ink until their phases (B3–B5).
 
 /** Fixed colours of 4.1; accents are chosen per user through [accentColor]. */
 object CrystalColors {

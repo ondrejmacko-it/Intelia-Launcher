@@ -2,6 +2,29 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Redesign phase B2, Home + LENS (`claude/crystal-redesign`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 44 JVM tests, 0 failures
+  (new: `newInstallGetsCrystalClockExistingUsersKeepTheirs`).
+- Installed on Nothing Phone (3), Android 16 (`dev.intelia.launcher.lab`, default HOME), dark wallpaper:
+  - Before: serif split clock, LENS ring with the terracotta dash, Essentials 30 dp icons.
+  - After install the owner's document kept `clockStyle` Serif (shown as "Ink"); date is Roboto Flex caps at 62 %.
+    Studio → Písmo hodin shows Crystal · Ink · Grotesk · Strojové; picking Crystal gives a one-voice `14:17` clock.
+    **The owner's clock style is now Crystal** (set in this test; switch back in Studio if unwanted).
+  - LENS: ring measured 114 px = 43.4 dp at 420 dpi, no dash. Tap → search with keyboard; swipe up → drawer
+    without keyboard; hold → existing ARC (rings, LENS settles to 86 %), release on LENS cancels.
+  - Essentials: centres measured at ±62 / ±108 dp from LENS on its baseline, 40 dp icons, no backing.
+    Tap Telefon → Dialer, tap Fotoaparát → Nothing Camera; Home key returns to Lab.
+  - Recents (Nothing quickstep) → Home key → Lab `MainActivity` on top.
+- The phone is 420 dpi = 411 × 911 dp, not the 360 dp of the prototype; the Essentials x values of 4.3 are
+  therefore implemented as offsets from LENS (±62 / ±108 dp), and LENS stays at bottom inset + 52 dp.
+
+Not verified on the phone: light wallpaper (dark ink via `HINT_SUPPORTS_DARK_TEXT`; the owner's wallpaper was
+not changed), Reduced Motion with the new LENS press (durations go through `motionMs`, so 0 ms when Off),
+Pure and Custom layouts after the change, TalkBack. Known overlap: the 100 dp LENS target covers the inner
+8 dp of the two inner Essentials icons (same as the prototype's lens zone); LENS wins there.
+
 ## 2026-10-16 — Redesign phase B1, design system and components (`claude/crystal-redesign`, 9fbc7cf)
 
 Verified:

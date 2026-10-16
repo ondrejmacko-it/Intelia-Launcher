@@ -289,29 +289,32 @@ private fun Home(
             horizontalAlignment = if (custom) Alignment.Start else Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (settings.showClock) SplitClock(now.toLocalTime(), settings.clockStyle, homeInk, accent, if (compact) 64.sp else 92.sp)
-            if (settings.showDate) Text(dateLine(now), style = InkText.label.copy(letterSpacing = 2.4.sp, shadow = homeShadow(homeInk)),
-                color = homeInk.copy(alpha = .82f), maxLines = 1)
+            if (settings.showClock) SplitClock(now.toLocalTime(), settings.clockStyle, homeInk, accent, if (compact) 64.sp else 84.sp)
+            // 4.2: 12 sp caps, +2.2 tracking, fg2 (62 %).
+            if (settings.showDate) Text(dateLine(now), style = CrystalType.date.copy(shadow = homeShadow(homeInk)),
+                color = homeInk.copy(alpha = .62f), maxLines = 1)
         }
 
         when (settings.layout) {
             HomeLayout.Pure -> Unit
             HomeLayout.Essentials -> favorites.take(4).let { around ->
-                // Balanced on both sides of LENS, at its height, inside the screen whatever the reach.
+                // 4.3: two pairs at x = 72/118 and 242/288 dp of a 360 dp screen, i.e. ±62 and ±108 dp
+                // from LENS, on its baseline; the wider centre gap keeps it from reading as a dock.
                 val offsets = when (around.size) {
-                    1 -> listOf((-76).dp)
-                    2 -> listOf((-76).dp, 76.dp)
-                    3 -> listOf((-132).dp, (-76).dp, 76.dp)
-                    else -> listOf((-132).dp, (-76).dp, 76.dp, 132.dp)
+                    1 -> listOf((-62).dp)
+                    2 -> listOf((-62).dp, 62.dp)
+                    3 -> listOf((-108).dp, (-62).dp, 62.dp)
+                    else -> listOf((-108).dp, (-62).dp, 62.dp, 108.dp)
                 }
                 around.zip(offsets)
             }.forEach { (app, offset) ->
-                val x = (cx + offset).coerceIn(30.dp, maxWidth - 30.dp)
-                Box(Modifier.centerAt(x, cy).size(52.dp).clip(CircleShape).graphicsLayer { alpha = quiet }
+                val x = (cx + offset).coerceIn(24.dp, maxWidth - 24.dp)
+                Box(Modifier.centerAt(x, cy).size(CrystalDims.touch).clip(CircleShape).graphicsLayer { alpha = quiet }
                     .combinedClickable(role = Role.Button, onLongClickLabel = stringResource(R.string.app_options),
                         onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
                     .semantics { contentDescription = app.label }, contentAlignment = Alignment.Center) {
-                    AppIcon(app, Modifier.size(30.dp), tint = homeInk.copy(alpha = .9f))
+                    // No backing (4.3): system or icon-pack icons as they are; monochrome tinted fg.
+                    AppIcon(app, Modifier.size(CrystalDims.iconHome), tint = homeInk)
                 }
             }
             HomeLayout.Custom -> Column(

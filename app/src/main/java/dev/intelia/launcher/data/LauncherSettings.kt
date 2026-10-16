@@ -11,7 +11,8 @@ import kotlinx.serialization.json.Json
 @Serializable enum class Accent { Dynamic, Mono, Sage, Slate, Terracotta, Frost, Silver }
 @Serializable enum class Reach { Left, Center, Right }
 @Serializable enum class HomeLayout { Pure, Essentials, Custom }
-@Serializable enum class ClockStyle { Serif, Grotesk, Mono }
+/** [Crystal] is Roboto Flex (D10, D11); [Serif] is the original "Ink" clock and stays an option. */
+@Serializable enum class ClockStyle { Serif, Grotesk, Mono, Crystal }
 @Serializable enum class Motion { Calm, Brisk, Off }
 @Serializable enum class Haptics { Soft, Strong, Off }
 @Serializable enum class IconStyle { System, Ink }
@@ -45,6 +46,7 @@ data class LauncherSettings(
     /** ARC ring 3: app shortcut keys ("package/id") in fixed slots. */
     val arcShortcuts: List<String> = emptyList(),
     val arcRings: Int = 2,
+    /** Same rule as [accent]: absent in older documents means [ClockStyle.Serif]; new installs get Crystal. */
     val clockStyle: ClockStyle = ClockStyle.Serif,
     val motion: Motion = Motion.Calm,
     val haptics: Haptics = Haptics.Soft,
@@ -65,8 +67,8 @@ data class LauncherSettings(
     companion object {
         const val SCHEMA = 1
 
-        /** Settings of a new install: current schema and the Crystal default accent. */
-        fun fresh() = LauncherSettings(accent = Accent.Frost, schema = SCHEMA)
+        /** Settings of a new install: current schema and the Crystal defaults (accent, clock). */
+        fun fresh() = LauncherSettings(accent = Accent.Frost, clockStyle = ClockStyle.Crystal, schema = SCHEMA)
 
         const val ARC_SLOTS = 5
         const val ARC_FLOW_SLOTS = 7
