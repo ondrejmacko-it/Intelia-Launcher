@@ -61,6 +61,8 @@ import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.ItemTint
+import dev.intelia.launcher.data.PaletteTarget
+import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.LensStyle
 import dev.intelia.launcher.flow.FlowAlias
@@ -266,7 +268,8 @@ fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, iconDef
 
 /** The clock: typeface, size, date first; weight, colour and opacity under Advanced. */
 @Composable
-fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle, onRemoved: () -> Unit, onChange: () -> Unit) {
+fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle, settings: LauncherSettings, set: SettingsEdit,
+    onRemoved: () -> Unit, onChange: () -> Unit) {
     val style = item.clockStyle(fallback)
     Chips(listOf(ClockStyle.Crystal to stringResource(R.string.clock_crystal), ClockStyle.Serif to stringResource(R.string.clock_serif),
         ClockStyle.Grotesk to stringResource(R.string.clock_grotesk), ClockStyle.Mono to stringResource(R.string.clock_mono)), style) { v ->
@@ -283,6 +286,8 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
             state.edit(item.id, "weight") { it.copy(weight = v.roundToInt()) }; onChange()
         }
         TintAndOpacity(state, item, onChange)
+        // "Accent" above is the clock's place in the palette (§4.5).
+        PlaceSwatches(settings, PaletteTarget.Clock, set)
     }
     Action(stringResource(R.string.clock_hide), LocalCrystal.current.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }
@@ -319,7 +324,7 @@ fun defaultWeight(style: ClockStyle) = if (style == ClockStyle.Crystal) 220 else
 
 /** LENS: ring size, style and position; its touch area stays the same and the ghost rings show the adapted ARC. */
 @Composable
-fun LensInspector(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+fun LensInspector(state: HomeEditorState, item: HomeItem, settings: LauncherSettings, set: SettingsEdit, onChange: () -> Unit) {
     val c = LocalCrystal.current
     val size = item.lensDp()
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.LENS_MIN.toFloat(), ItemSizes.LENS_MAX.toFloat(), 2f, "$size dp") { v ->
@@ -337,6 +342,7 @@ fun LensInspector(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) 
         if (at == 0) stringResource(R.string.lens_centre) else stringResource(R.string.lens_offset, at)) { v ->
         state.edit(item.id, "dx") { it.copy(anchor = it.anchor.copy(dx = v)) }; onChange()
     }
+    Advanced { PlaceSwatches(settings, PaletteTarget.Lens, set) }
     Text(stringResource(R.string.lens_hint), Modifier.padding(vertical = 6.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
 }
 

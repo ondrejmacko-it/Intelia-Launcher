@@ -7,8 +7,47 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 @Serializable enum class ThemeMode { System, Dark, Light }
-/** [Frost] and [Silver] arrive with the Crystal design (D10); [Dynamic] is "from the wallpaper". */
-@Serializable enum class Accent { Dynamic, Mono, Sage, Slate, Terracotta, Frost, Silver }
+/**
+ * [Frost] and [Silver] arrive with the Crystal design (D10); [Dynamic] is "from the wallpaper". Stored by name,
+ * so new hues are only ever appended; the colours live in [AccentColors].
+ */
+@Serializable enum class Accent { Dynamic, Mono, Sage, Slate, Terracotta, Frost, Silver, Rose, Coral, Amber, Lime, Mint, Teal, Sky, Indigo, Violet, Orchid }
+
+/** Where a colour of the [Palette] applies (§4.5). */
+enum class PaletteTarget { Clock, Text, Icons, Lens, Search, Studio }
+
+/**
+ * Per-place colours (§4.5). [unified] (the default) means the main accent everywhere; a null place follows the
+ * main accent too. The places are kept while unified, so switching back restores them.
+ */
+@Serializable
+data class Palette(
+    val unified: Boolean = true,
+    val clock: Accent? = null,
+    val text: Accent? = null,
+    val icons: Accent? = null,
+    val lens: Accent? = null,
+    val search: Accent? = null,
+    val studio: Accent? = null,
+) {
+    operator fun get(target: PaletteTarget): Accent? = when (target) {
+        PaletteTarget.Clock -> clock
+        PaletteTarget.Text -> text
+        PaletteTarget.Icons -> icons
+        PaletteTarget.Lens -> lens
+        PaletteTarget.Search -> search
+        PaletteTarget.Studio -> studio
+    }
+
+    fun with(target: PaletteTarget, accent: Accent?): Palette = when (target) {
+        PaletteTarget.Clock -> copy(clock = accent)
+        PaletteTarget.Text -> copy(text = accent)
+        PaletteTarget.Icons -> copy(icons = accent)
+        PaletteTarget.Lens -> copy(lens = accent)
+        PaletteTarget.Search -> copy(search = accent)
+        PaletteTarget.Studio -> copy(studio = accent)
+    }
+}
 /** Legacy three-step LENS position; the continuous one is [Anchor.dx] (§5.5). [dx] is what each step migrates to. */
 @Serializable enum class Reach(val dx: Float) { Left(-56f), Center(0f), Right(56f) }
 @Serializable enum class HomeLayout { Pure, Essentials, Custom }
@@ -73,6 +112,8 @@ data class LauncherSettings(
     val iconSize: Int = 40,
     /** Home layouts (schema 2, §5.4); built from the legacy fields above by [sanitized] on migration. */
     val home: HomeLayouts = HomeLayouts(),
+    /** Per-place colours; absent in older documents = unified (one accent everywhere). */
+    val palette: Palette = Palette(),
     /** Document version; 0 = written before the Crystal design (phase B1). Migrated by [sanitized]. */
     val schema: Int = 0,
 ) {
@@ -103,6 +144,9 @@ data class LauncherSettings(
         fun clampLensDx(dx: Float) = if (dx.isFinite()) dx.coerceIn(-MAX_LENS_DX, MAX_LENS_DX) else 0f
         private fun validKey(key: String) = key.isNotBlank() && key.length <= MAX_KEY && key.none(Char::isISOControl)
     }
+
+    /** The accent that colours [target]: its own palette colour unless the palette is unified or unset there. */
+    fun accentFor(target: PaletteTarget): Accent = palette.takeUnless { it.unified }?.get(target) ?: accent
 
     /** Bounded and self-consistent; applied on every read and write, including restores. */
     fun sanitized(): LauncherSettings {

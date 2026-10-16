@@ -293,4 +293,25 @@
     <string name="studio_look_moved">Vzhled, ikony, hodiny, datum a PULSE se upravují přímo na ploše.</string>
     <string name="studio_pulse_moved">Vzhled kapsle a události: v editoru plochy klepni na kroužek u kamery.</string>
     <string name="look_pulse">Vzhled kapsle a události</string>
+    <string name="accent_rose">Růžová</string>
+    <string name="accent_coral">Korál</string>
+    <string name="accent_amber">Jantar</string>
+    <string name="accent_lime">Limetka</string>
+    <string name="accent_mint">Máta</string>
+    <string name="accent_teal">Petrolej</string>
+    <string name="accent_sky">Nebe</string>
+    <string name="accent_indigo">Indigo</string>
+    <string name="accent_violet">Fialka</string>
+    <string name="accent_orchid">Orchidej</string>
+    <string name="palette_section">Barvy</string>
+    <string name="palette_unified">Jedna barva všude</string>
+    <string name="palette_main">Hlavní</string>
+    <string name="palette_follow">Hlavní barva</string>
+    <string name="place_clock">Hodiny</string>
+    <string name="place_text">Text</string>
+    <string name="place_icons">Ikony</string>
+    <string name="place_lens">LENS</string>
+    <string name="place_search">Hledání</string>
+    <string name="place_studio">Studio</string>
+    <string name="palette_colour">Barva</string>
 </resources>

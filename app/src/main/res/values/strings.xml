@@ -294,4 +294,25 @@
     <string name="studio_look_moved">Look, icons, clock, date and PULSE are edited right on Home.</string>
     <string name="studio_pulse_moved">Capsule look and events: tap the camera ring in the Home editor.</string>
     <string name="look_pulse">Capsule look and events</string>
+    <string name="accent_rose">Rose</string>
+    <string name="accent_coral">Coral</string>
+    <string name="accent_amber">Amber</string>
+    <string name="accent_lime">Lime</string>
+    <string name="accent_mint">Mint</string>
+    <string name="accent_teal">Teal</string>
+    <string name="accent_sky">Sky</string>
+    <string name="accent_indigo">Indigo</string>
+    <string name="accent_violet">Violet</string>
+    <string name="accent_orchid">Orchid</string>
+    <string name="palette_section">Colours</string>
+    <string name="palette_unified">One colour everywhere</string>
+    <string name="palette_main">Main</string>
+    <string name="palette_follow">Main colour</string>
+    <string name="place_clock">Clock</string>
+    <string name="place_text">Text</string>
+    <string name="place_icons">Icons</string>
+    <string name="place_lens">LENS</string>
+    <string name="place_search">Search</string>
+    <string name="place_studio">Studio</string>
+    <string name="palette_colour">Colour</string>
 </resources>

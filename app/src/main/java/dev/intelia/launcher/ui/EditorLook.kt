@@ -52,7 +52,7 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
         Kick(stringResource(R.string.theme))
         Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
             ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
-        Swatches(settings.accent) { v -> set { it.copy(accent = v) } }
+        PaletteEditor(settings, set)
 
         Kick(stringResource(R.string.icons))
         Chips(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink),

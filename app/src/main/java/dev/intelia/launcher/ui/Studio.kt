@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.intelia.launcher.R
-import dev.intelia.launcher.data.Accent
+import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.Haptics
@@ -111,7 +111,7 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
         Column(Modifier.fillMaxSize()) {
             // Live preview on the real wallpaper: nothing is drawn behind it.
             Box(Modifier.fillMaxWidth().height(300.dp)) {
-                HomePreview(settings, favorites, now, homeInk, ink.accent, Modifier.fillMaxSize().statusBarsPadding(), scale = .78f, onWallpaper = true)
+                HomePreview(settings, favorites, now, homeInk, LocalPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize().statusBarsPadding(), scale = .78f, onWallpaper = true)
                 Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconAction(Glyph.Back, stringResource(R.string.home), onBack, tint = homeInk)
                     Text(stringResource(R.string.studio_live).uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
@@ -124,6 +124,9 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                 Section(R.string.home_section)
                 Hint(stringResource(R.string.studio_look_moved))
                 NavRow(stringResource(R.string.edit_home), null, onEditHome)
+
+                Section(R.string.palette_section)
+                PaletteEditor(settings, ::set, Modifier.padding(horizontal = 24.dp))
 
                 Section(R.string.arc_section)
                 Hint(stringResource(R.string.arc_explain))
@@ -212,38 +215,6 @@ private fun Stacked(label: String, content: @Composable () -> Unit) {
         content()
     }
 }
-
-@Composable
-internal fun Swatches(selected: Accent, onSelect: (Accent) -> Unit) {
-    val ink = LocalInk.current
-    val dark = ink.dark
-    val options = buildList {
-        add(Accent.Frost to R.string.accent_frost)
-        add(Accent.Silver to R.string.accent_silver)
-        add(Accent.Terracotta to R.string.accent_terracotta)
-        add(Accent.Sage to R.string.accent_sage)
-        add(Accent.Slate to R.string.accent_slate)
-        add(Accent.Mono to R.string.accent_mono)
-        if (Build.VERSION.SDK_INT >= 31) add(Accent.Dynamic to R.string.accent_dynamic)
-    }
-    Row(Modifier.horizontalScroll(rememberScrollState()).selectableGroup().padding(top = 4.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        options.forEach { (accent, label) ->
-            val color = swatchColor(accent, dark)
-            val on = accent == selected
-            val name = stringResource(label)
-            Box(Modifier.size(44.dp).clip(CircleShape).selectable(on, role = Role.RadioButton) { onSelect(accent) }
-                .semantics { contentDescription = name }, contentAlignment = Alignment.Center) {
-                Box(Modifier.size(32.dp).border(if (on) 2.dp else 0.dp, if (on) color else Color.Transparent, CircleShape).padding(4.dp)
-                    .clip(CircleShape).background(color))
-            }
-        }
-    }
-}
-
-@Composable
-private fun swatchColor(accent: Accent, dark: Boolean): Color =
-    if (accent == Accent.Mono) LocalInk.current.ink else accentColor(accent, dark)
 
 @Composable
 private fun OrderedAppRow(app: AppEntry, index: Int, onUp: (() -> Unit)?, onRemove: () -> Unit) {

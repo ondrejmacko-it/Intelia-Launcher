@@ -98,6 +98,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.LauncherSettings
+import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.FlowAlias
 import kotlinx.coroutines.delay
@@ -235,7 +236,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                         message(R.string.edit_saved)
                     },
                 )
-                if (page == Page.Search) SearchOverlay(
+                if (page == Page.Search) AccentScope(PaletteTarget.Search) { SearchOverlay(
                     model = model,
                     settings = settings,
                     fromLens = searchFromLens,
@@ -244,11 +245,11 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onLaunch = ::launch,
                     onRun = ::run,
                     onOptions = { focus.clearFocus(); keyboard?.hide(); options = it },
-                )
+                ) }
                 // The drawer is composed once Home has rested, then kept, so a swipe up only animates it.
                 var drawerReady by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) { delay(700); drawerReady = true }
-                if (drawerReady || page == Page.Drawer) DrawerOverlay(
+                if (drawerReady || page == Page.Drawer) AccentScope(PaletteTarget.Search) { DrawerOverlay(
                     model = model,
                     open = page == Page.Drawer,
                     onBack = ::goHome,
@@ -257,7 +258,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onOptions = { options = it },
                     onFlows = { page = Page.Flows },
                     onStudio = { page = Page.Studio },
-                )
+                ) }
                 }
                 Page.Search, Page.Drawer -> Unit
                 Page.Flows -> FlowList(
@@ -285,8 +286,10 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                         onBack = { editing = null; page = editBack },
                     )
                 }
-                Page.Studio -> Studio(model, settings, onBack = { studioLens = false; goHome() }, onFlows = { page = Page.Flows },
-                    onEditHome = { studioLens = false; editOnHome = true; page = Page.Home }, lensFirst = studioLens)
+                Page.Studio -> AccentScope(PaletteTarget.Studio) {
+                    Studio(model, settings, onBack = { studioLens = false; goHome() }, onFlows = { page = Page.Flows },
+                        onEditHome = { studioLens = false; editOnHome = true; page = Page.Home }, lensFirst = studioLens)
+                }
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 132.dp)) { data ->
@@ -340,7 +343,9 @@ private fun Home(
     onSaveLayout: (LayoutSpec) -> Unit,
 ) {
     val homeInk = LocalHomeInk.current
-    val accent = LocalInk.current.accent
+    val places = LocalPlaces.current
+    val accent = places[PaletteTarget.Clock]
+    val textAccent = places[PaletteTarget.Text]
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val now by rememberNow()
@@ -472,13 +477,13 @@ private fun Home(
                 if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: homeInk, accent,
                     (if (clock.sizeDp == 0) (if (compact) 64 else ItemSizes.CLOCK) else clock.sizeDp).sp,
                     Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, weight = clock.weight)
-                if (date != null && freeDate == null) DateText(date, now, homeInk, accent, Modifier.onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
+                if (date != null && freeDate == null) DateText(date, now, homeInk, textAccent, Modifier.onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
             }
         } else clockZone = null
         if (freeDate != null) {
             // An unpinned date: placed like the clock (§5.5), by its own free point.
             val bias = (freeDate.anchor.fx * 2f - 1f).coerceIn(-1f, 1f)
-            DateText(freeDate, now, homeInk, accent, Modifier.fillMaxWidth().statusBarsPadding()
+            DateText(freeDate, now, homeInk, textAccent, Modifier.fillMaxWidth().statusBarsPadding()
                 .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp).padding(horizontal = 28.dp)
                 .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
                 .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
@@ -572,7 +577,7 @@ private fun Home(
             }
         }
 
-        LensArc(arc, (cx - maxWidth / 2).value, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
+        AccentScope(PaletteTarget.Lens) { LensArc(arc, (cx - maxWidth / 2).value, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
             onShortcut = onShortcut, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
             lensFilled = lensItem?.style == LensStyle.Filled.name,
             // TalkBack moves LENS in the editor without a drag (§5.5), each as one undo step.
@@ -580,7 +585,7 @@ private fun Home(
                 CustomAccessibilityAction(lensLeft) { ed.setLensDx(ed.layout.lensDx() - LENS_A11Y_STEP).also { refresh() } },
                 CustomAccessibilityAction(lensRight) { ed.setLensDx(ed.layout.lensDx() + LENS_A11Y_STEP).also { refresh() } },
                 CustomAccessibilityAction(lensCentre) { ed.setLensDx(0f).also { refresh() } },
-            ))
+            )) }
         if (settings.pulse && ed == null) Pulse(settings)
         val hole = rememberLens(settings.pulseLens)
         val camera = Pt(hole.x / density.density, hole.y / density.density)
@@ -725,10 +730,10 @@ private fun Home(
                     // Above the ghost ARC the LENS card may cover the clock: the arcs matter more while LENS is edited.
                     clockZone.takeIf { !sel.kind.isText() && sel.kind != ItemKind.Lens }) {
                     when (sel.kind) {
-                        ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, onRemoved = { selected = null }, onChange = ::refresh)
+                        ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, settings, set, onRemoved = { selected = null }, onChange = ::refresh)
                         ItemKind.Date -> DateInspector(ed, sel, zone.let { z ->
                             ((z.top + 6f - statusTop.value - textTop.value) / geometry.areaH).takeIf { it.isFinite() } }, onRemoved = { selected = null }, onChange = ::refresh)
-                        ItemKind.Lens -> LensInspector(ed, sel, onChange = ::refresh)
+                        ItemKind.Lens -> LensInspector(ed, sel, settings, set, onChange = ::refresh)
                         else -> {
                             val app = apps[sel.target]
                             ItemInspector(ed, sel, app?.label ?: flows[sel.target]?.name.orEmpty(), iconDefault,

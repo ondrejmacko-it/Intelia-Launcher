@@ -38,10 +38,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import dev.intelia.launcher.data.Accent
+import dev.intelia.launcher.data.AccentColors
 import dev.intelia.launcher.data.Haptics
 import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
+import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.ThemeMode
 
 /**
@@ -155,18 +157,32 @@ fun isDark(settings: LauncherSettings): Boolean = when (settings.theme) {
 }
 
 @Composable
-internal fun accentColor(accent: Accent, dark: Boolean): Color = when (accent) {
-    Accent.Frost -> if (dark) CrystalColors.FrostDark else CrystalColors.FrostLight
-    Accent.Silver -> if (dark) CrystalColors.SilverDark else CrystalColors.SilverLight
-    Accent.Terracotta -> if (dark) Color(0xFFE39A78) else Color(0xFFA84B29)
-    Accent.Sage -> if (dark) Color(0xFFA9C9B6) else Color(0xFF3F6B57)
-    Accent.Slate -> if (dark) Color(0xFFAFC3E6) else Color(0xFF3C5A86)
-    Accent.Mono -> if (dark) InkDark else InkLight
-    Accent.Dynamic -> if (Build.VERSION.SDK_INT >= 31) {
+internal fun accentColor(accent: Accent, dark: Boolean): Color =
+    if (accent == Accent.Dynamic && Build.VERSION.SDK_INT >= 31) {
         val context = LocalContext.current
         if (dark) dynamicDarkColorScheme(context).primary else dynamicLightColorScheme(context).primary
-    } else {
-        if (dark) Color(0xFFE39A78) else Color(0xFFA84B29)
+    } else Color(AccentColors.argb(accent, dark))
+
+/** Resolved colours of the palette's places (§4.5); all equal to the main accent while it is unified. */
+@Immutable
+class PlaceColors(private val colors: Map<PaletteTarget, Color>, val main: Color) {
+    operator fun get(target: PaletteTarget): Color = colors[target] ?: main
+}
+
+val LocalPlaces = staticCompositionLocalOf { PlaceColors(emptyMap(), Color(0xFFA84B29)) }
+
+/**
+ * Re-provides the theme (Ink, Crystal and Material primary) with [target]'s colour, so everything inside —
+ * texts, switches, sliders — follows that place of the palette. A no-op while it equals the current accent.
+ */
+@Composable
+fun AccentScope(target: PaletteTarget, content: @Composable () -> Unit) {
+    val acc = LocalPlaces.current[target]
+    val ink = LocalInk.current
+    if (acc == ink.accent) return content()
+    val scoped = inkPalette(ink.dark, acc)
+    MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = acc, onPrimary = scoped.onAccent)) {
+        CompositionLocalProvider(LocalInk provides scoped, LocalCrystal provides crystalPalette(ink.dark, acc), content = content)
     }
 }
 
@@ -215,6 +231,7 @@ fun SystemBarIcons(darkIcons: Boolean) {
 fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
     val dark = isDark(settings)
     val ink = inkPalette(dark, accentColor(settings.accent, dark))
+    val places = PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), dark) }, ink.accent)
     // Home type follows the wallpaper, not the theme: Crystal fg light on light wallpapers (4.1).
     val homeInk = if (rememberWallpaperWantsDarkText()) CrystalColors.FgLight else CrystalColors.FgDark
     val base = if (dark) darkColorScheme() else lightColorScheme()
@@ -228,6 +245,7 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme) {
         CompositionLocalProvider(
             LocalInk provides ink,
+            LocalPlaces provides places,
             LocalHomeInk provides homeInk,
             LocalMotion provides settings.motion,
             LocalIconStyle provides settings.iconStyle,
