@@ -3,7 +3,6 @@ package dev.intelia.launcher.ui
 import android.accessibilityservice.AccessibilityService
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -269,15 +268,15 @@ class PulseAccessibilityService : AccessibilityService() {
         /** True while the service is bound in this process; Lab then hides its own lens target. */
         val running: StateFlow<Boolean> = _running.asStateFlow()
 
-        /** The system page where the owner switches the service on or off; the generic list as fallback. */
+        /**
+         * The system accessibility list, where the owner switches the service on or off. The per-service
+         * details page needs the privileged OPEN_ACCESSIBILITY_DETAILS_SETTINGS permission, so it is not used.
+         */
         fun openSettings(context: Context) {
-            val component = ComponentName(context, PulseAccessibilityService::class.java).flattenToString()
-            val details = Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
-                .putExtra(Intent.EXTRA_COMPONENT_NAME, component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             try {
-                context.startActivity(details)
+                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             } catch (_: ActivityNotFoundException) {
-                runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            } catch (_: SecurityException) {
             }
         }
     }
