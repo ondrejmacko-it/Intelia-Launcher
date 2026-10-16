@@ -312,6 +312,9 @@ style  = App(component, iconOverride?, label: Boolean, labelText?, action: Actio
   edge; absent → migrated from `Reach` ±56); snap within 10 dp with a tick; one drop = one undo step; the inspector's
   Poloha slider (4 dp steps) is the accessible twin. Search and ARC follow the active layout. LENS-row slots that
   would come within 24 dp of an edge continue on the other side at the same 46 dp pitch.
+  Drags in the editor add the touch slop back on their first step, so LENS and icons stay under the finger. The
+  LENS inspector's zone reaches up to the outermost ghost ring, so the card sits above the arcs (it may cover the
+  clock while LENS is edited).
 - **Drag feedback:** element follows the finger; accent ring shows the target; grid dots appear only while
   dragging (Grid, Hybrid); accent guides on alignment with the centre or another element (Free, Hybrid, can be
   switched off); safe bands and the LENS zone are drawn faintly; a dashed ring shows where a displaced icon goes
@@ -327,6 +330,8 @@ style  = App(component, iconOverride?, label: Boolean, labelText?, action: Actio
   ±62 dp are no longer covered.
 - **Accessibility:** every editor action is also reachable from the inspector (posun buttons instead of drag),
   TalkBack custom actions on elements ("Přesunout", "Upravit", "Odebrat z plochy").
+  LENS in the editor: "Posunout LENS vlevo / vpravo" (24 dp, clamped like a drag) and "LENS na střed", each one
+  undo step via `setLensDx`.
 - **As built (V2 parts 4–6, phone-checked):** bar = left "Předlohy" pill + Undo/Redo, right Studio + ✓; the
   placement pill moved into the preset strip. The preset strip sits above the LENS row (not under the bar) so the
   previewed clock stays visible; tap = preview outside the undo history, Použít = one undo step, Obnovit asks.

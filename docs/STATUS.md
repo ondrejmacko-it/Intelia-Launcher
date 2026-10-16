@@ -2,6 +2,24 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — LENS inspector clear of the ghost ARC, TalkBack moves, drag slop (`claude/crystal-redesign`, `7780a44`, `1861107`, `f361373`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 85 JVM tests, 0 failures (new: `ArcRings.reach`,
+  `HomeEditorState.withSlop`).
+- Phone (Nothing Phone (3), debug Lab; owner's `intelia.xml` backed up, restored and byte-identical at the end):
+  - LENS selected in the editor, centred and at +104 dp (this phone's edge limit): the inspector card sits above
+    the outermost ghost ring, all three rings visible (screenshots).
+  - LENS saved at +104 dp, tap → Search recorded (`screenrecord --output-format=raw-frames`, 60 fps): the first
+    changed frame shows the field growing from LENS on the right, then the card and IME; `SearchField` takes `dx`
+    from the active layout.
+  - Editor: `input swipe` LENS 131 px (50 dp) left from +104 dp ended at 55 dp, its centre 685 px vs the finger at
+    682 px (previously it lagged by the slop).
+
+Not verified: the new TalkBack actions — `uiautomator dump` does not list custom actions, so only build and code
+review; owner to try with TalkBack. Icon drags in the editor share the slop fix but were not measured. No release
+measurement this session (no rendering-path change).
+
 ## 2026-10-16 — LENS moves in the Home Editor (`claude/crystal-redesign`, `7dca980`)
 
 Verified:
