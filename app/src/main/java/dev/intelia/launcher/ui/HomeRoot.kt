@@ -104,7 +104,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private enum class Page { Home, Search, Flows, FlowEdit, Studio }
+private enum class Page { Home, Search, Drawer, Flows, FlowEdit, Studio }
 
 @Composable
 fun HomeRoot(model: HomeViewModel, homeSignal: Int) {
@@ -141,7 +141,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     val arcShortcuts by model.arcShortcuts.collectAsStateWithLifecycle()
     val visible by model.visibleApps.collectAsStateWithLifecycle()
     var page by rememberSaveable { mutableStateOf(Page.Home) }
-    var searchKeyboard by rememberSaveable { mutableStateOf(true) }
+    /** Search came from LENS (the ring opens into the field) or from the drawer's field (already open). */
+    var searchFromLens by rememberSaveable { mutableStateOf(true) }
     /** FLOW being edited: an id, or "" for a new command. */
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var editBack by rememberSaveable { mutableStateOf(Page.Flows) }
@@ -162,7 +163,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     fun goHome() {
         page = Page.Home; model.query.value = ""; options = null; editing = null; focus.clearFocus(); keyboard?.hide()
     }
-    fun openSearch(withKeyboard: Boolean) { searchKeyboard = withKeyboard; model.query.value = ""; page = Page.Search }
+    fun openSearch(fromLens: Boolean) { searchFromLens = fromLens; model.query.value = ""; page = Page.Search }
+    fun openDrawer() { model.query.value = ""; page = Page.Drawer }
     fun launch(entry: AppEntry) { if (model.launch(entry)) goHome() else message(R.string.launch_failed) }
     fun launch(shortcut: ShortcutEntry) { if (model.launch(shortcut)) goHome() else message(R.string.launch_failed) }
     fun run(alias: FlowAlias) {
@@ -178,7 +180,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     LaunchedEffect(homeSignal) { if (homeSignal > 0) goHome() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { model.refreshShortcuts() }
     // Search is a paper surface; never leave it behind for Recents or the next return Home.
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (page == Page.Search) goHome() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (page == Page.Search || page == Page.Drawer) goHome() }
     // A launcher never finishes on back: back always steps toward Home.
     BackHandler {
         when (page) {
@@ -189,14 +191,21 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     }
 
     // Studio sets its own: its top is the wallpaper.
-    if (page != Page.Studio) SystemBarIcons(darkIcons = if (page == Page.Home) homeInk.luminance() < .5f else !ink.dark)
+    if (page != Page.Studio) SystemBarIcons(darkIcons = when (page) {
+        Page.Home -> homeInk.luminance() < .5f
+        Page.Search, Page.Drawer -> false // over the dimmed Home
+        else -> !ink.dark
+    })
+    // Search and the drawer are layers over Home: Home stays composed and visible under them.
+    val surface = if (page == Page.Search || page == Page.Drawer) Page.Home else page
     val enter = motionMs(180)
     val exit = motionMs(140)
     Box(Modifier.fillMaxSize()) {
-        AnimatedContent(page, transitionSpec = { fadeIn(tween(enter)) togetherWith fadeOut(tween(exit)) },
+        AnimatedContent(surface, transitionSpec = { fadeIn(tween(enter)) togetherWith fadeOut(tween(exit)) },
             label = "page") { target ->
             when (target) {
-                Page.Home -> Home(
+                Page.Home -> Box(Modifier.fillMaxSize()) {
+                Home(
                     settings = settings,
                     apps = remember(favorites, visible) { (visible + favorites).associateBy { it.key } },
                     arc = remember(arcApps, arcFlows, arcShortcuts, settings.arcRings) {
@@ -204,7 +213,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     },
                     flowSteps = steps,
                     onSearch = { openSearch(true) },
-                    onDrawer = { openSearch(false) },
+                    onDrawer = ::openDrawer,
                     onStudio = { page = Page.Studio },
                     onPulseLens = { studioLens = true; page = Page.Studio },
                     startEditing = editOnHome,
@@ -220,18 +229,27 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                         message(R.string.edit_saved)
                     },
                 )
-                Page.Search -> SearchPage(
+                if (page == Page.Search) SearchOverlay(
                     model = model,
                     settings = settings,
-                    requestKeyboard = searchKeyboard,
-                    flowSteps = steps,
+                    fromLens = searchFromLens,
+                    resolve = model::entry,
                     onBack = ::goHome,
                     onLaunch = ::launch,
                     onRun = ::run,
                     onOptions = { focus.clearFocus(); keyboard?.hide(); options = it },
-                    onFlows = { focus.clearFocus(); keyboard?.hide(); page = Page.Flows },
-                    onStudio = { focus.clearFocus(); keyboard?.hide(); page = Page.Studio },
                 )
+                if (page == Page.Drawer) DrawerOverlay(
+                    model = model,
+                    onBack = ::goHome,
+                    onSearch = { openSearch(false) },
+                    onLaunch = ::launch,
+                    onOptions = { options = it },
+                    onFlows = { page = Page.Flows },
+                    onStudio = { page = Page.Studio },
+                )
+                }
+                Page.Search, Page.Drawer -> Unit
                 Page.Flows -> FlowList(
                     aliases = settings.aliases,
                     arcFlows = settings.arcFlows,

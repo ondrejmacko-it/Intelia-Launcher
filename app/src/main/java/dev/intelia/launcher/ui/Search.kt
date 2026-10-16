@@ -1,5 +1,9 @@
 package dev.intelia.launcher.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -8,35 +12,42 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,32 +57,32 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Offset
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,180 +92,313 @@ import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
 import dev.intelia.launcher.search.AppSearch
+import dev.intelia.launcher.search.SearchPick
+import dev.intelia.launcher.search.SearchPicks
 import kotlinx.coroutines.launch
+import kotlin.math.max
 
 private const val RAIL = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 private fun indexLetter(label: String): Char =
     AppSearch.fold(label).firstOrNull()?.uppercaseChar()?.takeIf { it in 'A'..'Z' } ?: '#'
 
-/**
- * Search and the drawer are one page: the field sits at the thumb, an empty query shows "Mine"
- * and A–Z, typing turns the list into results that grow upwards from the field. Enter runs an
- * exact FLOW match or opens the first app; typing alone never runs anything (D5).
- */
+/** Home under Search and the drawer: dimmed, never replaced (§5.6). */
+private val Scrim = Color.Black.copy(alpha = .42f)
+
+/** The paper-ink kit (rows, rail) re-coloured for text on a Veil surface of the current theme. */
 @Composable
-fun SearchPage(
+private fun veilInk(): InkPalette {
+    val c = LocalCrystal.current
+    val ink = LocalInk.current
+    return remember(c, ink) { ink.copy(paper = Color.Transparent, ink = c.fg, muted = c.fg2, faint = c.fg3, line = c.fg3.copy(alpha = .4f)) }
+}
+
+/**
+ * LENS → Search (§5.6, prototype `openSearch`): Home stays visible behind a scrim, the LENS ring opens into a Veil
+ * pill that rides the keyboard, and up to six results sit in a Veil Dense card above it, nearest first. The first
+ * row is what Enter does; typing alone never runs anything. Back (or closing the keyboard) plays it in reverse.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SearchOverlay(
     model: HomeViewModel,
     settings: LauncherSettings,
-    requestKeyboard: Boolean,
-    flowSteps: (FlowAlias) -> List<String?>,
+    fromLens: Boolean,
+    resolve: (String) -> AppEntry?,
     onBack: () -> Unit,
     onLaunch: (AppEntry) -> Unit,
     onRun: (FlowAlias) -> Unit,
     onOptions: (AppEntry) -> Unit,
-    onFlows: () -> Unit,
-    onStudio: () -> Unit,
 ) {
-    val ink = LocalInk.current
     val query by model.query.collectAsStateWithLifecycle()
-    val apps by model.visibleApps.collectAsStateWithLifecycle()
     val results by model.results.collectAsStateWithLifecycle()
     val flows by model.flowMatches.collectAsStateWithLifecycle()
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
+    val exact = remember(settings.aliases, query) { Flow.exact(settings.aliases, query) }
+    val rows = remember(query, results, flows, exact, favorites) { SearchPicks.of(query, results, flows, exact, favorites) }
     val field = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    val drawer = query.isBlank()
-    val exact = remember(settings.aliases, query) { Flow.exact(settings.aliases, query) }
+    val focus = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
 
-    // §5.6: from LENS the ring becomes the field; focus and the IME come in the first frame, the field rides the IME.
-    val morph = remember { Animatable(if (requestKeyboard) 0f else 1f) }
+    val morph = remember { Animatable(if (fromLens) 0f else 1f) }
     val grow = motionMs(170)
     val growDelay = motionMs(70)
     val shrink = motionMs(160)
-    val scope = rememberCoroutineScope()
+    var leaving by remember { mutableStateOf(false) }
+    /** The options sheet hides the keyboard on purpose; that must not close Search. */
+    var held by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        if (requestKeyboard) {
-            field.requestFocus(); keyboard?.show()
-            morph.animateTo(1f, tween(grow, delayMillis = growDelay, easing = CubicBezierEasing(.05f, .7f, .1f, 1f)))
-        }
+        field.requestFocus(); keyboard?.show()
+        if (fromLens) morph.animateTo(1f, tween(grow, delayMillis = growDelay, easing = CubicBezierEasing(.05f, .7f, .1f, 1f)))
     }
     fun leave() {
-        if (!requestKeyboard) { onBack(); return }
-        scope.launch { keyboard?.hide(); morph.animateTo(0f, tween(shrink)); onBack() }
+        if (leaving) return
+        leaving = true
+        scope.launch { keyboard?.hide(); focus.clearFocus(); morph.animateTo(0f, tween(shrink)); onBack() }
+    }
+    BackHandler { leave() }
+    // The first Back goes to the IME; when it closes the keyboard, Search follows in the same gesture.
+    val imeVisible = WindowInsets.isImeVisible
+    var imeSeen by remember { mutableStateOf(false) }
+    LaunchedEffect(imeVisible) { if (imeVisible) { imeSeen = true; held = false } else if (imeSeen && !held) leave() }
+
+    fun act(pick: SearchPick<AppEntry>) {
+        when (pick) {
+            is SearchPick.Run -> onRun(pick.alias)
+            is SearchPick.App -> onLaunch(pick.app)
+            // Completing the name is safe: it only turns the row into the exact match.
+            is SearchPick.Complete -> model.query.value = pick.alias.name
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = morph.value }.background(Scrim)
+            .pointerInput(Unit) { detectTapGestures { leave() } })
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val ringX = maxWidth / 2 + lensShift(settings.reach) - 12.dp
+            val nav = WindowInsets.navigationBars
+            val ime = WindowInsets.ime
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .offset {
+                    // Centred on LENS while the keyboard is down, then riding it (same frame, no relayout).
+                    val rest = nav.getBottom(this) + (LensLift - 28.dp).roundToPx()
+                    IntOffset(0, -max(rest, ime.getBottom(this) + 10.dp.roundToPx()))
+                }
+                .padding(horizontal = 12.dp)) {
+                ResultsCard(query, rows, resolve, morph::value, ::act, onOptions = { held = true; onOptions(it) })
+                Spacer(Modifier.height(8.dp))
+                SearchField(query, field, morph::value, ringX, exactMatch = exact != null,
+                    onChange = { model.query.value = it }, onSubmit = { SearchPicks.enter(query, rows)?.let(::act) })
+            }
+        }
+    }
+}
+
+/** The Veil pill: drawn from the LENS ring (morph 0) to the full field (morph 1); layout never changes. */
+@Composable
+private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float, ringX: Dp, exactMatch: Boolean,
+                        onChange: (String) -> Unit, onSubmit: () -> Unit) {
+    val c = LocalCrystal.current
+    val tokens = veil(VeilLevel.Dense)
+    val homeInk = LocalHomeInk.current
+    val description = stringResource(R.string.lens_description)
+    Row(Modifier.fillMaxWidth().height(56.dp)
+        .drawWithContent {
+            val m = morph()
+            val r = CrystalDims.lensRing.toPx() / 2f
+            val x = ringX.toPx()
+            val h = size.height
+            val left = x - r + (0f - (x - r)) * m
+            val right = x + r + (size.width - (x + r)) * m
+            val top = h / 2f - r + (0f - (h / 2f - r)) * m
+            val bottom = h / 2f + r + (h - (h / 2f + r)) * m
+            val radius = r + (h / 2f - r) * m
+            val corner = CornerRadius(radius)
+            val at = Offset(left, top)
+            val box = Size(right - left, bottom - top)
+            drawRoundRect(Brush.verticalGradient(listOf(tokens.top, tokens.bottom), top, bottom), at, box, corner, alpha = m)
+            clipRect(left, top, right, bottom) { this@drawWithContent.drawContent() }
+            drawRoundRect(lerp(homeInk.copy(alpha = .88f), tokens.edgeHot, m), at, box, corner, style = Stroke(if (m < 1f) 1.5.dp.toPx() else 1.dp.toPx()))
+        }
+        .padding(start = 18.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f).graphicsLayer { alpha = ((morph() - .5f) * 2f).coerceIn(0f, 1f) }, verticalAlignment = Alignment.CenterVertically) {
+            Canvas(Modifier.size(16.dp)) { drawCircle(c.fg2, size.minDimension / 2f - .75.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
+            BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).focusRequester(focus).semantics { contentDescription = description },
+                singleLine = true, textStyle = CrystalType.body.copy(fontSize = 17.sp, color = c.fg), cursorBrush = SolidColor(c.acc),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { onSubmit() }),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (query.isEmpty()) Text(stringResource(R.string.search), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg3)
+                        inner()
+                    }
+                })
+            if (exactMatch) Text(stringResource(R.string.enter_runs).uppercase(), Modifier.padding(horizontal = 6.dp), style = CrystalType.label, color = c.acc)
+            if (query.isNotEmpty()) IconAction(Glyph.Close, stringResource(R.string.clear), { onChange("") }, tint = c.fg2)
+        }
+    }
+}
+
+/** Veil Dense card of at most [SearchPicks.MAX] rows, first row (Enter) nearest the field and lit in the accent. */
+@Composable
+private fun ResultsCard(
+    query: String,
+    rows: List<SearchPick<AppEntry>>,
+    resolve: (String) -> AppEntry?,
+    morph: () -> Float,
+    act: (SearchPick<AppEntry>) -> Unit,
+    onOptions: (AppEntry) -> Unit,
+) {
+    val c = LocalCrystal.current
+    val blank = query.isBlank()
+    if (blank && rows.isEmpty()) return
+    val missing = stringResource(R.string.flow_target_missing)
+    Column(Modifier.fillMaxWidth()
+        .graphicsLayer {
+            val a = ((morph() - .6f) / .4f).coerceIn(0f, 1f)
+            alpha = a; translationY = (1f - a) * 8.dp.toPx()
+        }
+        .veilSurface(veil(VeilLevel.Dense), VeilOrigin.Bottom).padding(6.dp)) {
+        if (blank) Text(stringResource(R.string.mine).uppercase(), Modifier.padding(start = 10.dp, top = 8.dp, bottom = 4.dp),
+            style = CrystalType.label, color = c.fg2)
+        if (rows.isEmpty()) Text(stringResource(R.string.no_results, query.trim()), Modifier.padding(horizontal = 10.dp, vertical = 14.dp),
+            style = CrystalType.body, color = c.fg2)
+        rows.asReversed().forEachIndexed { reversed, pick ->
+            val first = !blank && reversed == rows.lastIndex
+            when (pick) {
+                is SearchPick.App -> AppPick(pick.app, first, { act(pick) }, { onOptions(pick.app) })
+                is SearchPick.Run -> FlowCard(pick.alias, resolve, missing, onRun = { act(pick) })
+                is SearchPick.Complete -> FlowPick(pick.alias, first, resolve, missing) { act(pick) }
+            }
+        }
+    }
+}
+
+private val PickShape = RoundedCornerShape(16.dp)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AppPick(app: AppEntry, first: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val c = LocalCrystal.current
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(PickShape)
+        .then(if (first) Modifier.background(c.acc.copy(alpha = .16f)) else Modifier)
+        .combinedClickable(role = Role.Button, onLongClickLabel = stringResource(R.string.app_options), onClick = onClick, onLongClick = onLongClick)
+        .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        AppIcon(app, Modifier.size(32.dp), tint = c.fg)
+        Text(app.label, Modifier.padding(start = 12.dp).weight(1f), style = CrystalType.body.copy(fontSize = 15.sp),
+            color = if (app.suspended) c.fg3 else c.fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** The exact FLOW: name, the numbered chain of its apps, Run. Always shown before it can run (D5). */
+@Composable
+private fun FlowCard(alias: FlowAlias, resolve: (String) -> AppEntry?, missing: String, onRun: () -> Unit) {
+    val c = LocalCrystal.current
+    Row(Modifier.fillMaxWidth().clip(PickShape).background(c.acc.copy(alpha = .14f)).padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 10.dp)) {
+            Text(alias.name, style = CrystalType.arcName, color = c.fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            FlowChain(alias, resolve, missing, Modifier.padding(top = 8.dp), icon = 22.dp)
+        }
+        Capsule(stringResource(R.string.flow_run), onRun)
+    }
+}
+
+/** A FLOW whose name starts with the query; a tap completes the name (the row then becomes [FlowCard]). */
+@Composable
+private fun FlowPick(alias: FlowAlias, first: Boolean, resolve: (String) -> AppEntry?, missing: String, onClick: () -> Unit) {
+    val c = LocalCrystal.current
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(PickShape)
+        .then(if (first) Modifier.background(c.acc.copy(alpha = .16f)) else Modifier)
+        .clickable(role = Role.Button, onClickLabel = alias.name, onClick = onClick)
+        .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        HomeGlyph(Glyph.Flow, null, tint = c.acc, size = 20.dp)
+        Text(alias.name, Modifier.padding(start = 12.dp).weight(1f), style = CrystalType.body.copy(fontSize = 15.sp), color = c.fg,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        FlowChain(alias, resolve, missing, icon = 18.dp)
+    }
+}
+
+@Composable
+private fun FlowChain(alias: FlowAlias, resolve: (String) -> AppEntry?, missing: String, modifier: Modifier = Modifier, icon: Dp) {
+    val c = LocalCrystal.current
+    val labels = alias.targets.map { resolve(it)?.label ?: missing }.joinToString(", ")
+    Row(modifier.semantics { contentDescription = labels }, verticalAlignment = Alignment.CenterVertically) {
+        alias.targets.forEachIndexed { i, key ->
+            if (i > 0) Box(Modifier.padding(horizontal = 5.dp).width(12.dp).height(1.dp).background(c.fg3))
+            Text("${i + 1}", Modifier.padding(end = 4.dp), style = CrystalType.label.copy(letterSpacing = 0.sp, fontSize = 10.sp), color = c.fg2)
+            val app = resolve(key)
+            if (app != null) AppIcon(app, Modifier.size(icon), tint = c.fg)
+            else Canvas(Modifier.size(icon)) { drawCircle(c.fg3, size.minDimension / 2f - .5.dp.toPx(), style = Stroke(1.dp.toPx())) }
+        }
+    }
+}
+
+/**
+ * Swipe up: the A–Z drawer as a Veil Focus sheet over dimmed Home (owner, 2026-10-16). Its field is a door to
+ * Search, so the drawer is never composed behind LENS → Search.
+ */
+@Composable
+fun DrawerOverlay(
+    model: HomeViewModel,
+    onBack: () -> Unit,
+    onSearch: () -> Unit,
+    onLaunch: (AppEntry) -> Unit,
+    onOptions: (AppEntry) -> Unit,
+    onFlows: () -> Unit,
+    onStudio: () -> Unit,
+) {
+    val c = LocalCrystal.current
+    val apps by model.visibleApps.collectAsStateWithLifecycle()
+    val favorites by model.favoriteApps.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val shown = remember { Animatable(0f) }
+    val inMs = motionMs(200)
+    val outMs = motionMs(150)
+    LaunchedEffect(Unit) { shown.animateTo(1f, tween(inMs, easing = CubicBezierEasing(.2f, .9f, .25f, 1f))) }
+    var leaving by remember { mutableStateOf(false) }
+    fun leave() {
+        if (leaving) return
+        leaving = true
+        scope.launch { shown.animateTo(0f, tween(outMs)); onBack() }
     }
     BackHandler { leave() }
 
-    Column(Modifier.fillMaxSize().background(ink.paper).statusBarsPadding().navigationBarsPadding().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 4.dp).heightIn(min = 56.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            BackButton(stringResource(R.string.home), ::leave)
-            if (drawer) Text(stringResource(R.string.apps), Modifier.padding(start = 4.dp), style = InkText.title.copy(fontSize = 30.sp))
-            Spacer(Modifier.weight(1f))
-            Kicker(if (drawer) apps.size.toString() else stringResource(R.string.results_count, results.size + flows.size),
-                Modifier.padding(end = 6.dp), color = ink.faint)
-            IconAction(Glyph.Flow, stringResource(R.string.flow), onFlows)
-            IconAction(Glyph.Studio, stringResource(R.string.studio), onStudio)
-        }
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (drawer) Drawer(apps, favorites, onLaunch, onOptions)
-            else Results(query, results, flows, exact, flowSteps, onLaunch, onRun, onOptions, onComplete = { model.query.value = it })
-        }
-        SearchField(query, field, morph.value, lensShift(settings.reach), exactMatch = exact != null, onChange = { model.query.value = it }, onSubmit = {
-            when {
-                exact != null -> onRun(exact)
-                results.isNotEmpty() -> onLaunch(results.first())
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown.value }.background(Scrim)
+            .pointerInput(Unit) { detectTapGestures { leave() } })
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(8.dp)
+            .graphicsLayer { alpha = shown.value; translationY = (1f - shown.value) * 32.dp.toPx() }
+            .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Bottom)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}) {
+            CompositionLocalProvider(LocalInk provides veilInk()) {
+                Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 6.dp, top = 6.dp).heightIn(min = 56.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.apps), style = CrystalType.title, color = c.fg)
+                    Spacer(Modifier.weight(1f))
+                    Text(apps.size.toString(), Modifier.padding(end = 6.dp), style = CrystalType.label, color = c.fg3)
+                    IconAction(Glyph.Flow, stringResource(R.string.flow), onFlows, tint = c.fg)
+                    IconAction(Glyph.Studio, stringResource(R.string.studio), onStudio, tint = c.fg)
+                }
+                Box(Modifier.weight(1f).fillMaxWidth()) { Drawer(apps, favorites, onLaunch, onOptions) }
+                // The field opens Search in place: same pill, same spot at the thumb.
+                val solid = veil(VeilLevel.Focus).bottom.copy(alpha = 1f)
+                Row(Modifier.fillMaxWidth().padding(10.dp).height(52.dp).clip(CircleShape)
+                    .background(solid).background(c.fg.copy(alpha = .06f))
+                    .clickable(role = Role.Button, onClick = onSearch).padding(horizontal = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Canvas(Modifier.size(16.dp)) { drawCircle(c.fg2, size.minDimension / 2f - .75.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
+                    Text(stringResource(R.string.search), Modifier.padding(start = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg3)
+                }
             }
-        })
+        }
     }
 }
 
 @Composable
-internal fun IconAction(glyph: Glyph, label: String, onClick: () -> Unit, tint: androidx.compose.ui.graphics.Color = LocalInk.current.ink) {
+internal fun IconAction(glyph: Glyph, label: String, onClick: () -> Unit, tint: Color = LocalInk.current.ink) {
     Box(Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         HomeGlyph(glyph, label, tint = tint)
-    }
-}
-
-/** An underline field: the open LENS ring, the query, and what Enter will do. */
-@Composable
-private fun SearchField(query: String, focus: FocusRequester, morph: Float, lensDx: Dp, exactMatch: Boolean, onChange: (String) -> Unit, onSubmit: () -> Unit) {
-    val ink = LocalInk.current
-    val description = stringResource(R.string.lens_description)
-    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 10.dp).height(56.dp)
-        .drawWithContent {
-            if (morph >= 1f) { drawContent(); return@drawWithContent }
-            // The LENS ring opening into the field: a rounded rect from the ring's place to the full row.
-            val r = CrystalDims.lensRing.toPx() / 2f
-            val cx = size.width / 2f + lensDx.toPx()
-            val cy = size.height / 2f - (1f - morph) * 14.dp.toPx()
-            val left = cx - r + (0f - (cx - r)) * morph
-            val right = cx + r + (size.width - (cx + r)) * morph
-            val top = cy - r + (0f - (cy - r)) * morph
-            val bottom = cy + r + (size.height - (cy + r)) * morph
-            clipRect(left, top, right, bottom) { this@drawWithContent.drawContent() }
-            drawRoundRect(ink.ink.copy(alpha = .88f * (1f - morph)), Offset(left, top), Size(right - left, bottom - top),
-                CornerRadius(r * (1f - morph)), style = Stroke(1.5.dp.toPx()))
-        }
-        .drawBehind {
-            val y = size.height - 1.dp.toPx()
-            drawLine(ink.ink, Offset(0f, y), Offset(size.width, y), 1.5.dp.toPx())
-        }.padding(start = 12.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.size(16.dp)) { drawCircle(ink.ink, size.minDimension / 2f - .75.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
-        BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).focusRequester(focus).semantics { contentDescription = description },
-            singleLine = true, textStyle = InkText.body.copy(fontSize = 18.sp, color = ink.ink), cursorBrush = SolidColor(ink.accent),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { onSubmit() }),
-            decorationBox = { inner ->
-                Box(contentAlignment = Alignment.CenterStart) {
-                    if (query.isEmpty()) Text(stringResource(R.string.search), style = InkText.body.copy(fontSize = 18.sp), color = ink.faint)
-                    inner()
-                }
-            })
-        if (exactMatch) Kicker(stringResource(R.string.enter_runs), Modifier.padding(horizontal = 6.dp), color = ink.accent)
-        if (query.isNotEmpty()) IconAction(Glyph.Close, stringResource(R.string.clear), { onChange("") }, tint = ink.muted)
-    }
-}
-
-@Composable
-private fun Results(
-    query: String,
-    results: List<AppEntry>,
-    flows: List<FlowAlias>,
-    exact: FlowAlias?,
-    flowSteps: (FlowAlias) -> List<String?>,
-    onLaunch: (AppEntry) -> Unit,
-    onRun: (FlowAlias) -> Unit,
-    onOptions: (AppEntry) -> Unit,
-    onComplete: (String) -> Unit,
-) {
-    val ink = LocalInk.current
-    val missing = stringResource(R.string.flow_target_missing)
-    val others = flows.filter { it != exact }
-    // Reverse layout: the first item sits right above the field, nearest the thumb.
-    LazyColumn(Modifier.fillMaxSize(), reverseLayout = true, contentPadding = PaddingValues(vertical = 8.dp)) {
-        if (exact != null) item(key = "exact") {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 10.dp, bottom = 12.dp)) {
-                Hairline()
-                Kicker(stringResource(R.string.flow_exact), Modifier.padding(top = 16.dp, bottom = 6.dp), color = ink.accent)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                        Text(exact.name, style = InkText.title.copy(fontSize = 40.sp, lineHeight = 44.sp, fontStyle = FontStyle.Italic),
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        BeadThread(flowSteps(exact), missing, Modifier.padding(top = 6.dp))
-                    }
-                    Capsule(stringResource(R.string.flow_run), { onRun(exact) })
-                }
-            }
-        }
-        if (results.isEmpty() && others.isEmpty() && exact == null) item(key = "none") {
-            Text(stringResource(R.string.no_results, query.trim()), Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-                style = InkText.body, color = ink.muted)
-        }
-        items(results, key = { it.key }) { app -> AppRow(app, onClick = { onLaunch(app) }, onLongClick = { onOptions(app) }) }
-        if (others.isNotEmpty()) {
-            items(others, key = { "flow:" + it.id }) { alias ->
-                // Completing the name is safe: it only turns the row into the exact match above.
-                Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClickLabel = alias.name) { onComplete(alias.name) }
-                    .padding(horizontal = 24.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(alias.name, style = InkText.item.copy(fontStyle = FontStyle.Italic), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        BeadThread(flowSteps(alias), missing)
-                    }
-                    Quiet(stringResource(R.string.flow_run), { onRun(alias) })
-                }
-            }
-            item(key = "flows-kicker") { Kicker(stringResource(R.string.flow), Modifier.padding(start = 24.dp, top = 12.dp, bottom = 2.dp), color = ink.accent) }
-        }
     }
 }
 
@@ -266,9 +410,9 @@ internal fun AppRow(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit,
         onLongClickLabel = stringResource(R.string.app_options), onClick = onClick, onLongClick = onLongClick)
         .padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (letter != null) Text(letter, Modifier.width(26.dp).semantics { hideFromAccessibility() },
-            style = InkText.label.copy(letterSpacing = 0.sp), color = ink.faint)
+            style = CrystalType.label.copy(letterSpacing = 0.sp), color = ink.faint)
         AppIcon(app, Modifier.size(32.dp))
-        Text(app.label, Modifier.padding(start = 16.dp).weight(1f), style = InkText.item.copy(fontSize = 20.sp),
+        Text(app.label, Modifier.padding(start = 16.dp).weight(1f), style = CrystalType.body.copy(fontSize = 17.sp),
             color = if (app.suspended) ink.faint else ink.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -284,16 +428,16 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, onLaunch: (A
     val haptics = rememberInkHaptics()
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp)) {
-            Kicker(stringResource(R.string.mine), Modifier.padding(start = 24.dp, bottom = 10.dp), color = ink.accent)
+            Text(stringResource(R.string.mine).uppercase(), Modifier.padding(start = 24.dp, bottom = 10.dp), style = CrystalType.label, color = ink.muted)
             if (favorites.isEmpty()) Text(stringResource(R.string.mine_empty), Modifier.padding(horizontal = 24.dp),
-                style = InkText.small, color = ink.muted)
+                style = CrystalType.caption, color = ink.muted)
             else Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 favorites.forEach { app ->
                     Column(Modifier.width(72.dp).combinedClickable(role = Role.Button,
                         onLongClickLabel = stringResource(R.string.app_options), onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
                         .padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AppIcon(app, Modifier.size(44.dp))
-                        Text(app.label, Modifier.padding(top = 6.dp), style = InkText.small.copy(fontSize = 11.sp, lineHeight = 14.sp),
+                        Text(app.label, Modifier.padding(top = 6.dp), style = CrystalType.caption.copy(fontSize = 11.sp, lineHeight = 14.sp),
                             color = ink.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -339,7 +483,7 @@ private fun AlphabetRail(present: Set<Char>, onLetter: (Char) -> Unit) {
         verticalArrangement = Arrangement.SpaceBetween, horizontalAlignment = Alignment.CenterHorizontally) {
         RAIL.forEach { c ->
             val on = c == active
-            Text(c.toString(), style = InkText.label.copy(fontSize = if (on) 13.sp else 10.sp, letterSpacing = 0.sp,
+            Text(c.toString(), style = CrystalType.label.copy(fontSize = if (on) 13.sp else 10.sp, letterSpacing = 0.sp,
                 fontWeight = if (on) FontWeight.Bold else FontWeight.Medium),
                 color = when { on -> ink.accent; c in present -> ink.ink; else -> ink.line })
         }
