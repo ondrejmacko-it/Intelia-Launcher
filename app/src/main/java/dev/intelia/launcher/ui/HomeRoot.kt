@@ -58,6 +58,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -97,6 +98,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AppEntry
+import dev.intelia.launcher.data.ClockBackground
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.ShortcutEntry
@@ -467,17 +469,23 @@ private fun Home(
             val a = clock?.anchor ?: Anchor.free(if (listLayout) 0f else .5f, 0f)
             val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
             val topPad = (if (compact) 24.dp else if (listLayout) 72.dp else 92.dp) + (geometry.areaH * a.fy).dp
+            // §5.10 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
+            val plate = clock?.background == ClockBackground.Veil.name
+            val clockInk = if (plate) LocalCrystal.current.fg else homeInk
+            // The plate's 20 dp inset comes out of the 28 dp margin, so the time keeps its width.
             Column(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(top = topPad).padding(horizontal = 28.dp)
+                Modifier.fillMaxWidth().statusBarsPadding().padding(top = topPad).padding(horizontal = if (plate) 8.dp else 28.dp)
                     .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
-                    .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) },
+                    .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) }
+                    .then(if (plate) Modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Top, RoundedCornerShape(26.dp))
+                        .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 16.dp) else Modifier),
                 horizontalAlignment = if (bias < 0f) Alignment.Start else if (bias > 0f) Alignment.End else Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: homeInk, accent,
+                if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: clockInk, accent,
                     (if (clock.sizeDp == 0) (if (compact) 64 else ItemSizes.CLOCK) else clock.sizeDp).sp,
-                    Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, weight = clock.weight)
-                if (date != null && freeDate == null) DateText(date, now, homeInk, textAccent, Modifier.onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
+                    Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, shadow = !plate, weight = clock.weight)
+                if (date != null && freeDate == null) DateText(date, now, clockInk, textAccent, Modifier.onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
             }
         } else clockZone = null
         if (freeDate != null) {

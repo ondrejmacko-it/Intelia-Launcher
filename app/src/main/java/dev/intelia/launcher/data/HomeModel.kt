@@ -71,6 +71,8 @@ data class HomeItem(
     val tint: String = "",
     /** 0.3..1. */
     val alpha: Float = 1f,
+    /** Clock: a [ClockBackground] name; empty = none. */
+    val background: String = "",
 )
 
 @Serializable enum class LensStyle { Ring, Filled }
@@ -80,6 +82,9 @@ fun LayoutSpec.lensDx(): Float = items.firstOrNull { it.kind == ItemKind.Lens }?
 
 /** Date line formats, stored by name in [HomeItem.style]; empty = [Long]. */
 enum class DateFormat { Long, Short, Weekday }
+
+/** What sits behind the clock and its bound date (§5.10); stored by name in [HomeItem.background]. */
+enum class ClockBackground { None, Veil }
 
 /** Colour choices of the clock inspector, stored by name. */
 enum class ItemTint { Accent, Light, Dark }

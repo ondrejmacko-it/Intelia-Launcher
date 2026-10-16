@@ -56,6 +56,7 @@ import androidx.compose.ui.window.Dialog
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.AppEntry
+import dev.intelia.launcher.data.ClockBackground
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
@@ -287,6 +288,9 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
     Toggle(stringResource(R.string.inspect_date), state.layout.items.any { it.kind == ItemKind.Date }) { on -> state.setDate(on); onChange() }
+    Chips(listOf("" to stringResource(R.string.clock_bg_none), ClockBackground.Veil.name to stringResource(R.string.look_veil)), item.background) { v ->
+        state.edit(item.id, "background") { it.copy(background = v) }; onChange()
+    }
     Advanced {
         val weight = if (item.weight == 0) defaultWeight(style) else item.weight
         SliderRow(stringResource(R.string.inspect_weight), weight.toFloat(), 100f, 700f, 50f, "$weight") { v ->

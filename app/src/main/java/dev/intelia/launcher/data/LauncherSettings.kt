@@ -228,6 +228,7 @@ data class LauncherSettings(
             weight = if (it.kind != ItemKind.Clock || it.weight == 0) 0 else it.weight.coerceIn(100, 900),
             tint = it.tint.takeIf { t -> ItemTint.entries.any { e -> e.name == t } }.orEmpty(),
             alpha = if (it.alpha.isFinite()) it.alpha.coerceIn(.3f, 1f) else 1f,
+            background = if (it.kind == ItemKind.Clock && it.background == ClockBackground.Veil.name) it.background else "",
         )
     }
 

@@ -170,4 +170,18 @@ class HomeModelTest {
         assertEquals(-LauncherSettings.MAX_LENS_DX, with(-5000f))
         assertEquals(0f, with(Float.NaN))
     }
+
+    @Test
+    fun clockBackgroundIsKeptOnlyOnTheClock() {
+        val items = listOf(
+            HomeItem("c", ItemKind.Clock, Anchor.free(.5f, .1f), background = "Veil"),
+            HomeItem("a", ItemKind.App, Anchor.cell(0, 0), target = "p/a", background = "Veil"),
+        )
+        val s = LauncherSettings(home = HomeLayouts("u", listOf(LayoutSpec("u", items = items))), schema = 2).sanitized()
+        val kept = s.home.activeLayout().items
+        assertEquals("Veil", kept.first { it.id == "c" }.background)
+        assertEquals("", kept.first { it.id == "a" }.background)
+        val odd = LauncherSettings(home = HomeLayouts("u", listOf(LayoutSpec("u", items = listOf(items[0].copy(background = "Glass"))))), schema = 2)
+        assertEquals("", odd.sanitized().home.activeLayout().items.first { it.id == "c" }.background)
+    }
 }
