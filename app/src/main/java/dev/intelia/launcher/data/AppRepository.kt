@@ -3,6 +3,9 @@ package dev.intelia.launcher.data
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
@@ -14,6 +17,7 @@ import android.os.Looper
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
+import android.provider.MediaStore
 import dev.intelia.launcher.search.AppSearch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +42,8 @@ data class AppEntry(
 ) {
     val searchKey: String = AppSearch.fold(label)
 }
+
+data class ShortcutEntry(val key: String, val label: String, val packageName: String, val id: String, val rank: Int)
 
 /** Launchable activities from public LauncherApps, refreshed on package and profile events. */
 class AppRepository(private val context: Context) {
@@ -107,6 +113,19 @@ class AppRepository(private val context: Context) {
         return entries
     }
 
+    /** Default dialer, messages, camera and browser packages, for the Essentials layout. Local lookup only. */
+    fun essentialPackages(): List<String> = listOf(
+        Intent(Intent.ACTION_DIAL),
+        Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MESSAGING),
+        Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA),
+        Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER),
+    ).mapNotNull { intent ->
+        val pm = context.packageManager
+        // With no default chosen the system resolver answers ("android"); fall back to the first handler.
+        pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName?.takeIf { it != "android" }
+            ?: pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).firstOrNull()?.activityInfo?.packageName
+    }.distinct()
+
     fun icon(entry: AppEntry, densityDpi: Int): Drawable? {
         val icon = infos[entry.key]?.getIcon(densityDpi) ?: return null
         return if (entry.mainProfile) icon else context.packageManager.getUserBadgedIcon(icon, entry.user)
@@ -114,6 +133,59 @@ class AppRepository(private val context: Context) {
 
     fun launch(entry: AppEntry, bounds: Rect? = null, options: Bundle? = null): Boolean = try {
         launcherApps.startMainActivity(entry.component, entry.user, bounds, options)
+        true
+    } catch (_: SecurityException) {
+        false
+    } catch (_: ActivityNotFoundException) {
+        false
+    } catch (_: IllegalStateException) {
+        false
+    }
+
+    /** App shortcuts are only visible to the default home app; false otherwise. */
+    fun canUseShortcuts(): Boolean = try {
+        launcherApps.hasShortcutHostPermission()
+    } catch (_: SecurityException) {
+        false
+    } catch (_: IllegalStateException) {
+        false
+    }
+
+    private val shortcutInfos = ConcurrentHashMap<String, ShortcutInfo>()
+
+    /** Static, dynamic and pinned shortcuts of main-profile apps, sorted by app then rank. */
+    fun shortcuts(): List<ShortcutEntry> {
+        if (!canUseShortcuts()) return emptyList()
+        val query = LauncherApps.ShortcutQuery().setQueryFlags(
+            LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
+                LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED,
+        )
+        val infos = try {
+            launcherApps.getShortcuts(query, Process.myUserHandle()).orEmpty()
+        } catch (_: SecurityException) {
+            emptyList()
+        } catch (_: IllegalStateException) {
+            emptyList()
+        }
+        return infos.filter { it.isEnabled && it.`package` != context.packageName }.map { info ->
+            val key = "${info.`package`}/${info.id}"
+            shortcutInfos[key] = info
+            ShortcutEntry(key, (info.shortLabel ?: info.longLabel ?: info.id).toString().trim(), info.`package`, info.id, info.rank)
+        }.sortedWith(compareBy({ it.packageName }, { it.rank }))
+    }
+
+    fun shortcutIcon(key: String, densityDpi: Int): Drawable? = shortcutInfos[key]?.let {
+        try {
+            launcherApps.getShortcutIconDrawable(it, densityDpi)
+        } catch (_: SecurityException) {
+            null
+        } catch (_: IllegalStateException) {
+            null
+        }
+    }
+
+    fun startShortcut(entry: ShortcutEntry): Boolean = try {
+        launcherApps.startShortcut(entry.packageName, entry.id, null, null, Process.myUserHandle())
         true
     } catch (_: SecurityException) {
         false

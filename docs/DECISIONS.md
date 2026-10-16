@@ -14,3 +14,26 @@ justifies it.
 ## D3 — 2026-10-15 — Debug package `dev.intelia.launcher.dev`
 The test phone already runs the older fork build as `dev.intelia.launcher.debug` (current HOME).
 The new debug build uses a different suffix so installing it never replaces that app or its data.
+
+## D4 — 2026-10-16 — Shared debug signing key, debug package `dev.intelia.launcher.lab`
+The `.dev` build on the phone was signed by the old PC's per-user debug key, which no longer exists, so it
+cannot be updated. A debug-only key now lives in `keystore/debug.keystore` (well-known `android` passwords,
+never used for release) and every PC signs debug builds identically. The debug package moved to `.lab`
+(label "Intelia Lab") and installs beside `.dev` without touching it or its data. Revert: point
+`signingConfigs.debug` back to the default key and restore the suffix in `app/build.gradle.kts`.
+
+## D5 — 2026-10-16 — Ink rework: explicit FLOW triggers, three ARC rings, PULSE on Home only
+- **Explicit FLOW run.** A FLOW still never runs while typing. Three gestures count as an explicit run:
+  the *Spustit* button, Enter in search when the query is an exact FLOW name, and releasing on a FLOW
+  slot in ARC ring 2.
+- **Swipe up on LENS opens the app drawer**; tap opens search with the keyboard.
+- **ARC has up to three rings** (`arcRings`, default 2): ring 1 = apps (5 slots), ring 2 = FLOW (7),
+  ring 3 = app shortcuts (7, `package/id`). Shortcuts come from `LauncherApps` and are only available
+  while Intelia is the default home, so ring 3 and the Studio shortcut picker work only then.
+- **PULSE lives on Home only** — a capsule around the camera (charging, near alarm) and an echo out of
+  LENS when Home returns. It is not drawn over other apps and adds no permission or overlay.
+- **Visual language "Prstenec a nit"** (ring and thread): wallpaper-only Home, controls drawn as rings
+  and thin lines, system fonts (bundled fonts need a separate decision).
+- **Camera calibration.** `pulseLens = null` means automatic detection from the display cutout
+  (`DisplayCutout.cutoutPath`); a saved value is a manual override adjusted in 0.5 dp steps, clamped by
+  `LauncherSettings.sanitized()`, with non-finite values falling back to automatic.

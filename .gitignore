@@ -7,5 +7,7 @@ local.properties
 captures/
 *.keystore
 *.jks
+# Shared debug-only key so every PC signs debug builds identically (D4).
+!keystore/debug.keystore
 .signing/
 *.log

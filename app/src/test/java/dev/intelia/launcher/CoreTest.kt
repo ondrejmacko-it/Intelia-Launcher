@@ -1,14 +1,15 @@
 package dev.intelia.launcher
 
 import dev.intelia.launcher.data.LauncherSettings
+import dev.intelia.launcher.data.PulseLens
 import dev.intelia.launcher.data.SettingsCodec
 import dev.intelia.launcher.data.ThemeMode
 import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
 import dev.intelia.launcher.flow.FlowError
 import dev.intelia.launcher.search.AppSearch
-import dev.intelia.launcher.ui.ArcGesture
-import dev.intelia.launcher.ui.arcCenters
+import dev.intelia.launcher.ui.ArcPick
+import dev.intelia.launcher.ui.ArcRings
 import dev.intelia.launcher.ui.lensSwipeSearch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -90,42 +91,91 @@ class SettingsCodecTest {
         assertEquals(listOf("a", "b", "c", "d", "e"), decoded.arc)
         assertEquals(1, decoded.aliases.size)
     }
+
+    @Test fun designFieldsAreBoundedAndLegacyMotionMigrates() {
+        val decoded = SettingsCodec.decode("""{"reduceMotion":true,"arcRings":9,"arcFlows":["1","ghost","1"],
+            "favorites":["a","a","b"],"aliases":[{"id":"1","name":"vlak","targets":["a"]}]}""")
+        assertEquals(3, decoded.arcRings)
+        assertEquals(listOf("1"), decoded.arcFlows)
+        assertEquals(listOf("a", "b"), decoded.favorites)
+        assertEquals(dev.intelia.launcher.data.Motion.Off, decoded.motion)
+        assertFalse(decoded.reduceMotion)
+    }
+
+    @Test fun pulseLensIsClampedAndNonFiniteFallsBackToAuto() {
+        val decoded = SettingsCodec.decode("""{"pulseLens":{"x":-5,"y":900,"r":0.5}}""")
+        assertEquals(PulseLens(0f, LauncherSettings.MAX_LENS_Y, LauncherSettings.MIN_LENS_R), decoded.pulseLens)
+        val big = LauncherSettings(pulseLens = PulseLens(5000f, 24f, 99f)).sanitized()
+        assertEquals(PulseLens(LauncherSettings.MAX_LENS_X, 24f, LauncherSettings.MAX_LENS_R), big.pulseLens)
+        val kept = PulseLens(205.5f, 26f, 8f)
+        assertEquals(kept, LauncherSettings(pulseLens = kept).sanitized().pulseLens)
+        assertNull(LauncherSettings(pulseLens = PulseLens(Float.NaN, 24f, 10f)).sanitized().pulseLens)
+        assertNull(LauncherSettings(pulseLens = PulseLens(200f, 24f, Float.POSITIVE_INFINITY)).sanitized().pulseLens)
+        assertNull(SettingsCodec.decode("{}").pulseLens)
+    }
+
+    @Test fun pulseAlarmHoursStayWithinADay() {
+        assertEquals(12, SettingsCodec.decode("{}").pulseAlarmHours)
+        assertEquals(1, SettingsCodec.decode("""{"pulseAlarmHours":0}""").pulseAlarmHours)
+        assertEquals(1, LauncherSettings(pulseAlarmHours = -3).sanitized().pulseAlarmHours)
+        assertEquals(24, SettingsCodec.decode("""{"pulseAlarmHours":999}""").pulseAlarmHours)
+        assertEquals(6, SettingsCodec.decode("""{"pulseAlarmHours":6}""").pulseAlarmHours)
+    }
+
+    @Test fun foundationSettingsStillDecode() {
+        val decoded = SettingsCodec.decode("""{"theme":"Dark","accent":"Sage","arc":["a"]}""")
+        assertEquals(ThemeMode.Dark, decoded.theme)
+        assertEquals(listOf("a"), decoded.arc)
+        assertFalse(decoded.onboarded)
+    }
 }
 
-class ArcGestureTest {
-    private val centers = arcCenters(5, 300f)
+class ArcRingsTest {
+    private val full = listOf(List(5) { true }, List(7) { true }, List(7) { true })
+    private val rings = ArcRings(full, left = 205f, right = 205f)
 
-    @Test fun selectsOnlyAfterArming() {
-        val gesture = ArcGesture(centers)
-        assertNull(gesture.move(centers[2].first, -10f))
-        assertEquals(2, gesture.move(centers[2].first, centers[2].second))
-        assertEquals(2, gesture.finish())
-        assertNull(gesture.finish())
+    private fun at(ring: Int, index: Int) = rings.position(ring, index)
+
+    @Test fun distanceChoosesRingAngleChoosesSlot() {
+        val (x0, y0) = at(0, 2)
+        assertEquals(ArcPick(0, 2), rings.select(x0, y0))
+        val (x1, y1) = at(1, 6)
+        assertEquals(ArcPick(1, 6), rings.select(x1, y1))
+        val (x2, y2) = at(2, 0)
+        assertEquals(ArcPick(2, 0), rings.select(x2, y2))
     }
 
-    @Test fun returningToLensCancelsSelection() {
-        val gesture = ArcGesture(centers)
-        gesture.move(centers[0].first, centers[0].second)
-        assertNull(gesture.move(0f, 0f))
-        assertNull(gesture.finish())
+    @Test fun backOnLensOrBelowCancels() {
+        assertNull(rings.select(0f, -20f))
+        assertNull(rings.select(40f, 60f))
+        assertNull(rings.select(0f, -400f))
     }
 
-    @Test fun fastCrossingSelects() {
-        val gesture = ArcGesture(centers)
-        gesture.move(centers[1].first, -40f)
-        assertEquals(1, gesture.move(centers[1].first, centers[1].second - 35f))
+    @Test fun emptySlotsStayEmptyAndDoNotShift() {
+        val sparse = ArcRings(listOf(listOf(true, false, true, false, false)), 205f, 205f)
+        val (x, y) = sparse.position(0, 1)
+        assertNull(sparse.select(x, y))
+        assertEquals(sparse.position(0, 2), ArcRings(listOf(List(5) { true }), 205f, 205f).position(0, 2))
     }
 
-    @Test fun secondPointerCancels() {
-        val gesture = ArcGesture(centers)
-        gesture.move(centers[2].first, centers[2].second)
-        assertNull(gesture.move(centers[2].first, centers[2].second, pointers = 2))
-        assertNull(gesture.finish())
+    @Test fun selectionHoldsNearPreviousSlot() {
+        val previous = ArcPick(1, 3)
+        val (x, y) = at(1, 3)
+        val drift = x + 30f
+        assertEquals(previous, rings.select(drift, y, previous))
+    }
+
+    @Test fun slotsStayOnScreenWhenLensIsOffCentre() {
+        val shifted = ArcRings(full, left = 120f, right = 290f)
+        for (ring in full.indices) for (i in full[ring].indices) {
+            val (x, _) = shifted.position(ring, i)
+            assertTrue("ring $ring slot $i at $x", x >= -120f + 30f && x <= 290f - 30f)
+        }
     }
 
     @Test fun swipeUpDetection() {
         assertTrue(lensSwipeSearch(0f, -60f))
-        assertFalse(lensSwipeSearch(120f, -60f))
         assertFalse(lensSwipeSearch(0f, -20f))
+        assertFalse(lensSwipeSearch(200f, -60f))
     }
 }

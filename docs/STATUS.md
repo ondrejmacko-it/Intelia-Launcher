@@ -2,6 +2,47 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Ink rework (`claude/ink-rework`, 402d10a)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS (21 JVM tests, incl. new
+  `pulseLensIsClampedAndNonFiniteFallsBackToAuto` and `pulseAlarmHoursStayWithinADay`).
+- On Nothing Phone (3), Android 16, `dev.intelia.launcher.lab` debug build:
+  - Onboarding (3 steps); Home shows only the wallpaper; Essentials around LENS.
+  - Tap LENS → search with keyboard; swipe up → drawer; results grow upwards; Enter opens the first app.
+  - Exact FLOW match shows *Spustit*; Enter runs the FLOW in the right order; typing runs nothing.
+  - App options; ARC ring 1 (apps) and ring 2 (FLOW launched on release); Studio with live preview; light theme.
+  - PULSE capsule with battery while charging.
+  - Camera calibration (Studio → PULSE → Poloha kamery): ‹ › change the value by exactly 0.5 dp; *Uložit* →
+    Studio shows "Vlastní" and values survive reopening; *Automaticky* → "Automaticky", detected from
+    `cutoutPath` as 205.5 / 26.0 / 8.0 dp. Capsule sits around the camera on Home (1 screenshot, deleted).
+  - With Lab as HOME: Recents (Nothing quickstep fallback) shows only wallpaper behind the cards, no rectangle;
+    Home from Recents, from an app (Calculator launched from LENS) and from the drawer returns a clean Home;
+    Studio shortcut picker works only as HOME; ARC ring 3 ("ZKRATKY") appears and selects a shortcut by angle
+    (−40° = 1st shortcut); returning to LENS cancels. Test shortcuts removed, rings set back to 2.
+- Debug build timings: cold start ~845 ms, warm ~57 ms; PSS ~131 MB.
+
+Not verified:
+- Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
+- PULSE toggles Ozvěna (echo), alarm and charging.
+- Performance on a release build; battery.
+- The PULSE panel cannot be opened via adb while MT Capsule's overlay is running (it catches taps on the camera).
+
+## 2026-10-16 — new PC setup (`claude/ink-rework` from `main` 012140f)
+
+Verified:
+- `main` = merged PR #1 (012140f). The docs commit `4ac6078` (DESIGN_HANDOFF.md) was pushed after the merge
+  and was not in `main`; cherry-picked onto `claude/ink-rework`.
+- New Windows PC: JDK 17.0.20.1, Android SDK with platform 37.1 + build-tools 36.0.0/37.0.0, Gradle 9.5.0 wrapper.
+  `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS (16/16 JVM tests).
+- Phone: Nothing Phone (3) A059, Nothing OS 4.1 (B4.1-260810-1153), Android 16 / API 36, USB debugging authorised.
+- Installed: `dev.intelia.launcher.debug` (old fork build) and `dev.intelia.launcher.dev` (this repo).
+  **Default HOME is now `dev.intelia.launcher.dev`.**
+- Installed `.dev` APK is signed by a debug key with SHA-256 `730a1bbe…59f8`; this PC's debug key is `FA:62:AA:87…5E:D5`.
+  A plain `adb install -r` from this PC would fail on signature mismatch; nothing was reinstalled or uninstalled.
+- Baseline on the installed `.dev` (debug build): HOME cold start `am start -W` TotalTime 678 ms; warm HOME 8 ms wait;
+  PSS ≈123 MB after settling. No Intelia crashes in the crash buffer.
+
 ## 2026-10-15 — standalone foundation (`claude/standalone-foundation`)
 
 Rewritten from scratch as a standalone repository (no Kvaesitso code). Concepts and our own
