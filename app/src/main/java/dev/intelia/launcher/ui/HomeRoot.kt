@@ -547,7 +547,7 @@ private fun Home(
                         onDragCancel = { ed.cancelDrag(); refresh() },
                     )
                 })
-            EditorBar(ed, presetsOpen, onPresets = {
+            EditorBar(ed.canUndo, ed.canRedo, onUndo = { ed.undo(); refresh() }, onRedo = { ed.redo(); refresh() }, presetsOpen = presetsOpen, onPresets = {
                     if (presetsOpen) { ed.cancelPreview(); previewKey = null }
                     presetsOpen = !presetsOpen; selected = null; addPoint = null; refresh()
                 }, onStudio = { leave(onStudio) }, onDone = { save() },
@@ -567,7 +567,8 @@ private fun Home(
                     onApply = { if (ed.canUndo) ask = EditorAsk.Replace else { applyPreset(); refresh() } },
                     onCancel = { ed.cancelPreview(); presetsOpen = false; previewKey = null; refresh() },
                     onReset = { ask = EditorAsk.Reset },
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = barBottom.dp))
+                    // Above the LENS row, so the clock and the top of the previewed layout stay visible.
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (maxHeight.value - geometry.lensY + 64f).dp))
             }
 
             val sel = selected?.let(ed::item)
@@ -586,7 +587,7 @@ private fun Home(
                     ed.edit(sel.id, "size") { it.copy(sizeDp = (now + dx.roundToInt()).coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)) }
                     refresh()
                 }
-                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom) {
+                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom, clockZone.takeIf { sel.kind != ItemKind.Clock }) {
                     when (sel.kind) {
                         ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, ::refresh)
                         ItemKind.Lens -> LensInspector(ed, sel, ::refresh)
@@ -599,7 +600,7 @@ private fun Home(
                 } }
             }
             addPoint?.let { at ->
-                AddMenu(at, maxWidth.value, barBottom, onApp = { picker = ItemKind.App }, onFlow = { picker = ItemKind.Flow })
+                AddMenu(at, maxWidth.value, barBottom, clockZone, onApp = { picker = ItemKind.App }, onFlow = { picker = ItemKind.Flow })
             }
         }
     }

@@ -50,7 +50,11 @@ import dev.intelia.launcher.data.Placement
  */
 @Composable
 fun EditorBar(
-    state: HomeEditorState,
+    /** Plain values: [HomeEditorState] is plain Kotlin, so the caller refreshes after undo/redo. */
+    canUndo: Boolean,
+    canRedo: Boolean,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
     presetsOpen: Boolean,
     onPresets: () -> Unit,
     onStudio: () -> Unit,
@@ -69,8 +73,8 @@ fun EditorBar(
                 .padding(horizontal = 14.dp, vertical = 11.dp),
             style = CrystalType.date.copy(fontSize = 13.sp, letterSpacing = .2.sp), color = c.fg)
         Row(Modifier.padding(start = 8.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
-            BarIcon(Glyph.Undo, stringResource(R.string.edit_undo), state.canUndo, state::undo)
-            BarIcon(Glyph.Redo, stringResource(R.string.edit_redo), state.canRedo, state::redo)
+            BarIcon(Glyph.Undo, stringResource(R.string.edit_undo), canUndo, onUndo)
+            BarIcon(Glyph.Redo, stringResource(R.string.edit_redo), canRedo, onRedo)
         }
         Box(Modifier.weight(1f))
         Box(Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape)) {

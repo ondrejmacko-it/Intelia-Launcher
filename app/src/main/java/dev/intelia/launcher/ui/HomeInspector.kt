@@ -95,14 +95,17 @@ fun HomeItem.tintColor(accent: Color): Color? = when (tint) {
  * the edge lights from the element's side. [target] and [topLimit] are dp in Home coordinates.
  */
 @Composable
-fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, content: @Composable () -> Unit) {
+fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = null, content: @Composable () -> Unit) {
     val c = LocalCrystal.current
     val density = LocalDensity.current
     var h by remember { mutableIntStateOf(0) }
     val width = minOf(312f, screenW - 24f)
     val hDp = h / density.density
-    val above = target.top - 12f - hDp >= topLimit
     val x = ((target.left + target.right) / 2f - width / 2f).coerceIn(12f, screenW - 12f - width)
+    // Above when it fits and leaves [avoid] (the clock) visible; otherwise below.
+    val aboveTop = target.top - 12f - hDp
+    val above = aboveTop >= topLimit && (avoid == null || avoid.bottom <= aboveTop || avoid.top >= target.top ||
+        avoid.right <= x || avoid.left >= x + width)
     val y = if (above) target.top - 12f - hDp else target.bottom + 12f
     val fx = (((target.left + target.right) / 2f - x) / width).coerceIn(0f, 1f)
     // §5.6: scale 0.86 → 1 from the element, 220 ms (0 ms with Reduced Motion).
@@ -274,9 +277,9 @@ fun LensInspector(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) 
 
 /** Tap on an empty spot: what can be added there (§5.5). Widgets are reserved. */
 @Composable
-fun AddMenu(at: Pt, screenW: Float, topLimit: Float, onApp: () -> Unit, onFlow: () -> Unit) {
+fun AddMenu(at: Pt, screenW: Float, topLimit: Float, avoid: Zone?, onApp: () -> Unit, onFlow: () -> Unit) {
     val c = LocalCrystal.current
-    InspectorCard(Zone(at.x - 4f, at.y - 4f, at.x + 4f, at.y + 4f), screenW, topLimit) {
+    InspectorCard(Zone(at.x - 4f, at.y - 4f, at.x + 4f, at.y + 4f), screenW, topLimit, avoid) {
         Text(stringResource(R.string.add_title), Modifier.padding(vertical = 6.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2)
         Action(stringResource(R.string.add_app), c.fg, onApp)
         Action(stringResource(R.string.flow), c.fg, onFlow)
@@ -327,7 +330,7 @@ fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: Home
     onPick: (PresetChoice) -> Unit,
     onApply: () -> Unit, onCancel: () -> Unit, onReset: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
-    Column(modifier.padding(horizontal = 12.dp).fillMaxWidth().veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin(.1f, 0f))
+    Column(modifier.padding(horizontal = 12.dp).fillMaxWidth().veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin(.5f, 1f))
         .pointerInput(Unit) { detectTapGestures() }.padding(12.dp)) {
         Row(Modifier.horizontalScroll(rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             choices.forEach { choice ->

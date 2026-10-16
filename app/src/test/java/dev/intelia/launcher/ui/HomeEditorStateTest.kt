@@ -1,6 +1,7 @@
 package dev.intelia.launcher.ui
 
 import dev.intelia.launcher.data.Anchor
+import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.GridSpec
 import dev.intelia.launcher.data.HomeItem
 import dev.intelia.launcher.data.ItemKind
@@ -180,5 +181,15 @@ class HomeEditorStateTest {
         e.undo()
         assertEquals(Anchor.cell(1, 0), e.item("a")!!.anchor)
         assertFalse(e.nudge("lens", 1, 0))
+    }
+
+    @Test fun nudgeOnLensRowGoesToTheNextSlotOrUp() {
+        val e = HomeEditorState(layout(Placement.Grid, app("a", Anchor.lensRow(-2)), app("b", Anchor.lensRow(-1))), geo)
+        assertTrue(e.nudge("a", 1, 0))
+        assertEquals(Anchor.lensRow(-1), e.item("a")!!.anchor)
+        assertEquals(Anchor.lensRow(-2), e.item("b")!!.anchor)
+        assertTrue(e.nudge("b", 0, -1))
+        assertEquals(AnchorType.Cell, e.item("b")!!.anchor.type)
+        assertEquals(5, e.item("b")!!.anchor.row)
     }
 }

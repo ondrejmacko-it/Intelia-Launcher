@@ -241,8 +241,19 @@ class HomeEditorState(
         val free = layout.placement == Placement.Free || item.anchor.type == AnchorType.Free
         val stepX = if (free) 24f else geometry.areaW / layout.grid.cols
         val stepY = if (free) 24f else geometry.areaH / layout.grid.rows
+        val delta = if (item.anchor.type == AnchorType.LensRow) {
+            // On the LENS row: sideways to the neighbouring slot, up into the lowest grid row.
+            val from = geometry.lensSlot(item.anchor.slot)
+            if (dy < 0) Pt(0f, geometry.areaBottom - geometry.areaH / layout.grid.rows / 2f - from.y)
+            else if (dy > 0) return false
+            else {
+                val slots = Anchor.LENS_SLOTS.sorted()
+                val next = slots.getOrNull(slots.indexOf(item.anchor.slot) + dx) ?: return false
+                Pt(geometry.lensSlot(next).x - from.x, 0f)
+            }
+        } else Pt(dx * stepX, dy * stepY)
         if (!startDrag(id)) return false
-        dragBy(Pt(dx * stepX, dy * stepY))
+        dragBy(delta)
         return drop()
     }
 
