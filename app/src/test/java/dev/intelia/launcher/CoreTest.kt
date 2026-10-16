@@ -10,6 +10,8 @@ import dev.intelia.launcher.flow.FlowError
 import dev.intelia.launcher.search.AppSearch
 import dev.intelia.launcher.ui.ArcPick
 import dev.intelia.launcher.ui.ArcRings
+import dev.intelia.launcher.ui.centreOut
+import dev.intelia.launcher.ui.fillFromCentre
 import dev.intelia.launcher.ui.lensSwipeSearch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -171,6 +173,18 @@ class ArcRingsTest {
             val (x, _) = shifted.position(ring, i)
             assertTrue("ring $ring slot $i at $x", x >= -120f + 30f && x <= 290f - 30f)
         }
+    }
+
+    @Test fun flowRingFillsFromTheCentre() {
+        assertEquals(listOf(3, 2, 4, 1, 5, 0, 6), centreOut(7))
+        assertEquals(listOf(2, 3, 1, 4, 0, 5), centreOut(6))
+        assertEquals(listOf(0), centreOut(1))
+        assertEquals(listOf(null, null, "b", "a", "c", null, null), fillFromCentre(listOf("a", "b", "c"), 7))
+        // A missing FLOW keeps its slot empty; extra items beyond capacity are dropped.
+        assertEquals(listOf(null, null, null, "a", null, null, null), fillFromCentre(listOf("a", null), 7))
+        assertEquals(listOf("a", "b"), fillFromCentre(listOf("a", "b", "c"), 2))
+        // The first FLOW sits straight above a centred LENS.
+        assertEquals(0f, rings.position(1, centreOut(7).first()).first, .01f)
     }
 
     @Test fun swipeUpDetection() {

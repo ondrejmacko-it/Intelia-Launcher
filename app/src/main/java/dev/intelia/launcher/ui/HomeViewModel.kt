@@ -49,9 +49,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         List(LauncherSettings.ARC_SLOTS) { i -> s.arc.getOrNull(i)?.let(byKey::get) }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherSettings.ARC_SLOTS) { null })
 
+    /** Ring 2 fills from the centre outwards, so the first FLOW sits straight above LENS (D6). */
     val arcFlows: StateFlow<List<FlowAlias?>> = settings.map { s ->
         val byId = s.aliases.associateBy { it.id }
-        List(LauncherSettings.ARC_FLOW_SLOTS) { i -> s.arcFlows.getOrNull(i)?.let(byId::get) }
+        fillFromCentre(s.arcFlows.map(byId::get), LauncherSettings.ARC_FLOW_SLOTS)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherSettings.ARC_FLOW_SLOTS) { null })
 
     private val _shortcuts = MutableStateFlow<List<ShortcutEntry>>(emptyList())

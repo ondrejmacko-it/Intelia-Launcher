@@ -37,3 +37,11 @@ never used for release) and every PC signs debug builds identically. The debug p
 - **Camera calibration.** `pulseLens = null` means automatic detection from the display cutout
   (`DisplayCutout.cutoutPath`); a saved value is a manual override adjusted in 0.5 dp steps, clamped by
   `LauncherSettings.sanitized()`, with non-finite values falling back to automatic.
+
+## D6 — 2026-10-16 — ARC ring 2 fills from the centre outwards
+FLOW slots in ring 2 used to fill strictly from the left, so one or two FLOWs sat at the far left edge.
+Ring 2 now places the n-th FLOW of `arcFlows` into the n-th slot from the centre: centre, then left
+and right alternately (7 slots: 3, 2, 4, 1, 5, 0, 6). The first FLOW sits straight above LENS. Slots
+stay fixed and the stored order is unchanged, so no migration is needed; only the mapping in
+`HomeViewModel.arcFlows` (`fillFromCentre`) moved. Rings 1 and 3 keep left-to-right order.
+Revert: map `arcFlows` index-to-slot again.

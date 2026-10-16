@@ -84,5 +84,15 @@ class ArcRings(val slots: List<List<Boolean>>, left: Float, right: Float) {
     }
 }
 
+/** Slot indices of an [n]-slot ring from the centre outwards: centre first, then left and right alternately. */
+fun centreOut(n: Int): List<Int> = (0 until n).sortedWith(compareBy({ abs(it - (n - 1) / 2f) }, { it }))
+
+/** Places the i-th item into the i-th slot from the centre outwards; unused slots stay empty. */
+fun <T : Any> fillFromCentre(items: List<T?>, n: Int): List<T?> {
+    val slots = MutableList<T?>(n) { null }
+    centreOut(n).zip(items).forEach { (slot, item) -> slots[slot] = item }
+    return slots
+}
+
 /** Upward flick from LENS opens search; mostly vertical, tolerant of thumb arcs. */
 fun lensSwipeSearch(x: Float, y: Float): Boolean = y <= -48f && abs(x) <= maxOf(72f, -y * .7f)
