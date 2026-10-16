@@ -61,10 +61,15 @@ Verified:
   is not in the picture; test file deleted), lock (phone went to doze with lockscreen).
   Studio → PULSE → *PULSE všude* opens the system accessibility list. The first build opened the per-service
   details page instead, which needs the privileged `OPEN_ACCESSIBILITY_DETAILS_SETTINGS` permission and crashed Lab; fixed.
+- PULSE menu header (3c37b28): `:app:testDebugUnitTest :app:installDebug` PASS (34 tests, new `menuStartsBelowStatusBarAndLens`).
+  The sheet now starts below the status bar; a ring around the camera and a thin thread join it to the lens.
+  Checked in Calculator: the clock, notification and system icons stay visible, Back closes the menu.
+  `uiautomator dump --windows` does not list accessibility overlays, so the menu nodes could not be read from
+  adb; `dumpsys accessibility` does list the window as `TYPE_ACCESSIBILITY_OVERLAY`.
 
 Not verified:
-- PULSE menu: previous / next track; landscape; TalkBack; a phone without a cutout; how the menu header
-  covering the status icons looks to the owner.
+- PULSE menu: previous / next track (no media session was playing); landscape; TalkBack; a phone without a
+  cutout; the owner's verdict on the thread header.
 - Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
 - Performance on a release build; battery.
 - D8 rest state with a real near alarm (next alarm was 2 d 19 h away; only the Studio preview showed the dot).
