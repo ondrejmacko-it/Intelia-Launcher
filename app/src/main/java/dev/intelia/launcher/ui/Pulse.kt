@@ -48,6 +48,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -92,7 +93,7 @@ import java.time.format.DateTimeFormatter
 
 private val TARGET_BELOW = 28.dp
 
-private data class Battery(val percent: Int, val charging: Boolean)
+internal data class Battery(val percent: Int, val charging: Boolean)
 
 /** Where the camera cut-out sits, in window px. */
 internal data class Hole(val x: Float, val y: Float, val radius: Float)
@@ -136,7 +137,7 @@ internal fun rememberLens(lens: PulseLens?): Hole {
     }
 }
 
-private fun Intent.battery(): Battery? {
+internal fun Intent.battery(): Battery? {
     val level = getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
     val scale = getIntExtra(BatteryManager.EXTRA_SCALE, -1)
     if (level < 0 || scale <= 0) return null
@@ -146,10 +147,10 @@ private fun Intent.battery(): Battery? {
     return Battery(level * 100 / scale, plugged || status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
 }
 
-private fun nextAlarm(context: Context): Long? =
+internal fun nextAlarm(context: Context): Long? =
     context.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.triggerTime
 
-private fun torchCamera(manager: CameraManager): String? = try {
+internal fun torchCamera(manager: CameraManager): String? = try {
     manager.cameraIdList.firstOrNull { id ->
         val c = manager.getCameraCharacteristics(id)
         c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true &&
@@ -180,6 +181,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
     var battery by remember { mutableStateOf<Battery?>(null) }
     var alarm by remember { mutableStateOf<Long?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    val global by PulseAccessibilityService.running.collectAsState()
     val echo = remember { Animatable(1f) }
 
     LifecycleStartEffect(Unit) {
@@ -250,7 +252,8 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         // Touch target on the lens. The status bar window takes touches inside it, so the target also reaches
         // [TARGET_BELOW] under the status bar, where a finger aiming at the camera usually lands.
         val targetTop = hy - 24.dp
-        if (!preview && !expanded) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
+        // With PULSE everywhere on (D9) the service owns the lens; Lab draws no second target under it.
+        if (!preview && !expanded && !global) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
             .size(64.dp, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
                 role = Role.Button) { expanded = true }
@@ -333,7 +336,7 @@ private fun PulsePanel(alarm: Long?, battery: Battery?, holeRadius: Dp, header: 
 }
 
 @Composable
-private fun PanelRow(glyph: Glyph, title: String, detail: String?, onClick: (() -> Unit)?) {
+internal fun PanelRow(glyph: Glyph, title: String, detail: String?, onClick: (() -> Unit)?) {
     val ink = LocalInk.current
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
         verticalAlignment = Alignment.CenterVertically) {

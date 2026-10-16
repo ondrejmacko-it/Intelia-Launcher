@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus }
+enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next }
 
 /** Original monoline glyphs on a 24-unit grid; no icon font or bitmap assets. */
 @Composable
@@ -63,6 +63,11 @@ fun HomeGlyph(glyph: Glyph, label: String?, modifier: Modifier = Modifier, tint:
                 drawRoundRect(tint, point(9f, 9f), Size(6f * unit, 11f * unit), CornerRadius(1.5f * unit), style = Stroke(w))
                 line(12f, 12f, 12f, 15f)
             }
+            // Media: a bead and a short thread instead of the usual triangles.
+            Glyph.Prev -> { line(6f, 6f, 6f, 18f); line(18f, 6f, 9f, 12f); line(9f, 12f, 18f, 18f) }
+            Glyph.Next -> { line(18f, 6f, 18f, 18f); line(6f, 6f, 15f, 12f); line(15f, 12f, 6f, 18f) }
+            Glyph.Play -> { line(8f, 5f, 8f, 19f); line(8f, 5f, 19f, 12f); line(19f, 12f, 8f, 19f) }
+            Glyph.Pause -> { line(9f, 5f, 9f, 19f); line(15f, 5f, 15f, 19f) }
         }
     }
 }

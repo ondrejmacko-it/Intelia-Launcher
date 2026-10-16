@@ -181,6 +181,11 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                 Section(R.string.pulse)
                 ToggleRow(stringResource(R.string.pulse_toggle), settings.pulse, { v -> set { it.copy(pulse = v) } },
                     detail = stringResource(R.string.pulse_detail))
+                // D9: the switch only mirrors the service; Android settings are where it is turned on or off.
+                val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+                val context = LocalContext.current
+                ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
+                    detail = stringResource(R.string.pulse_everywhere_detail))
                 if (settings.pulse) {
                     NavRow(stringResource(R.string.pulse_lens), stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short
                         else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
