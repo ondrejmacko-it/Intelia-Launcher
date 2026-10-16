@@ -120,8 +120,10 @@ class AppRepository(private val context: Context) {
         Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA),
         Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER),
     ).mapNotNull { intent ->
-        context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
-            ?.takeIf { it != "android" }
+        val pm = context.packageManager
+        // With no default chosen the system resolver answers ("android"); fall back to the first handler.
+        pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName?.takeIf { it != "android" }
+            ?: pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).firstOrNull()?.activityInfo?.packageName
     }.distinct()
 
     fun icon(entry: AppEntry, densityDpi: Int): Drawable? {

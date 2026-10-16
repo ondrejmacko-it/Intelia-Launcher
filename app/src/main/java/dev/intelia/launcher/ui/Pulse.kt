@@ -95,7 +95,9 @@ private fun Intent.battery(): Battery? {
     val scale = getIntExtra(BatteryManager.EXTRA_SCALE, -1)
     if (level < 0 || scale <= 0) return null
     val status = getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-    return Battery(level * 100 / scale, status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
+    // Plugged in counts too: with a charge limit the phone sits on power without "charging".
+    val plugged = getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
+    return Battery(level * 100 / scale, plugged || status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
 }
 
 private fun nextAlarm(context: Context): Long? =
@@ -183,16 +185,18 @@ fun Pulse(modifier: Modifier = Modifier) {
 
         // Capsule around the camera when there is something worth a glance.
         val compact = (soonAlarm != null || charging) && !expanded
-        val side = 54.dp
+        // Each half is only as wide as what it says, so the capsule hides as few status icons as possible.
+        val left = if (alarmText != null) 58.dp else 12.dp
+        val right = if (charging) 48.dp else 12.dp
         val pillHeight = hr * 2 + 10.dp
-        AnimatedVisibility(compact, Modifier.offset(x = hx - hr - 5.dp - side, y = hy - pillHeight / 2),
+        AnimatedVisibility(compact, Modifier.offset(x = hx - hr - 5.dp - left, y = hy - pillHeight / 2),
             enter = fadeIn(tween(motionMs(200))) + expandIn(tween(motionMs(260)), expandFrom = Alignment.Center),
             exit = fadeOut(tween(motionMs(160))) + shrinkOut(tween(motionMs(200)), shrinkTowards = Alignment.Center)) {
             Row(Modifier.height(pillHeight).clip(RoundedCornerShape(50)).background(ink.night)
                 .clickable(onClickLabel = label, role = Role.Button) { expanded = true }
                 .semantics { contentDescription = label },
                 verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.width(side).padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.width(left).padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (alarmText != null) {
                         HomeGlyph(Glyph.Bell, null, tint = ink.onNight, size = 12.dp)
                         Text(alarmText, Modifier.padding(start = 3.dp), style = InkText.label.copy(fontSize = 11.sp, letterSpacing = 0.sp),
@@ -209,7 +213,7 @@ fun Pulse(modifier: Modifier = Modifier) {
                             style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
                     }
                 }
-                Row(Modifier.width(side).padding(end = 10.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.width(right).padding(end = 10.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     if (charging) Text("${battery?.percent ?: 0}%", style = InkText.label.copy(fontSize = 11.sp, letterSpacing = 0.sp),
                         color = ink.onNight, maxLines = 1)
                 }

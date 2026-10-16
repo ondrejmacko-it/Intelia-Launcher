@@ -99,9 +99,15 @@ class ArcContent(
     val empty get() = slots.all { ring -> ring.none { it } }
 }
 
+/**
+ * Centres the content at ([x], [y]) of the parent. The node itself fills the parent: content placed
+ * outside a node's own bounds would draw but never receive touches.
+ */
 internal fun Modifier.centerAt(x: Dp, y: Dp) = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
-    layout(placeable.width, placeable.height) {
+    val width = if (constraints.hasBoundedWidth) constraints.maxWidth else placeable.width
+    val height = if (constraints.hasBoundedHeight) constraints.maxHeight else placeable.height
+    layout(width, height) {
         placeable.place(x.roundToPx() - placeable.width / 2, y.roundToPx() - placeable.height / 2)
     }
 }
@@ -213,7 +219,7 @@ fun LensArc(
             }
             rings.slots.indices.forEach { ring ->
                 val a = ringAlpha(ring)
-                if (a > 0f) Kicker(kinds[ring], Modifier.centerAt(cx, cy - rings.radius(ring).dp - 28.dp).graphicsLayer { alpha = a * reveal },
+                if (a > 0f) Kicker(kinds[ring], Modifier.centerAt(cx, cy - rings.radius(ring).dp - 44.dp).graphicsLayer { alpha = a * reveal },
                     color = homeInk.copy(alpha = .7f))
             }
 
@@ -313,6 +319,8 @@ fun LensArc(
                 .pointerInput(content.slots, cx, reach) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = true)
+                        // LENS owns this touch: Home's own tap, hold (Studio) and swipe must not see it.
+                        down.consume()
                         focus.clearFocus()
                         val hold = awaitLongPressOrCancellation(down.id)
                         if (hold == null) {

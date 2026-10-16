@@ -264,7 +264,8 @@ private fun Home(
     val density = LocalDensity.current
     val now by rememberNow()
     var arcOpen by remember { mutableStateOf(false) }
-    val quiet by animateFloatAsState(if (arcOpen) .18f else 1f, tween(motionMs(180)), label = "home-quiet")
+    // ARC speaks over the top of Home, so the clock and favourites step fully aside.
+    val quiet by animateFloatAsState(if (arcOpen) 0f else 1f, tween(motionMs(180)), label = "home-quiet")
     val swipe = with(density) { 64.dp.toPx() }
     val studioLabel = stringResource(R.string.studio)
 
@@ -295,9 +296,16 @@ private fun Home(
 
         when (settings.layout) {
             HomeLayout.Pure -> Unit
-            HomeLayout.Essentials -> favorites.take(4).forEachIndexed { index, app ->
-                // Two on each side of LENS, at its height, inside the screen whatever the reach.
-                val offset = listOf((-132).dp, (-76).dp, 76.dp, 132.dp)[index]
+            HomeLayout.Essentials -> favorites.take(4).let { around ->
+                // Balanced on both sides of LENS, at its height, inside the screen whatever the reach.
+                val offsets = when (around.size) {
+                    1 -> listOf((-76).dp)
+                    2 -> listOf((-76).dp, 76.dp)
+                    3 -> listOf((-132).dp, (-76).dp, 76.dp)
+                    else -> listOf((-132).dp, (-76).dp, 76.dp, 132.dp)
+                }
+                around.zip(offsets)
+            }.forEach { (app, offset) ->
                 val x = (cx + offset).coerceIn(30.dp, maxWidth - 30.dp)
                 Box(Modifier.centerAt(x, cy).size(52.dp).clip(CircleShape).graphicsLayer { alpha = quiet }
                     .combinedClickable(role = Role.Button, onLongClickLabel = stringResource(R.string.app_options),

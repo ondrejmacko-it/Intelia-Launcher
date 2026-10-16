@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -249,7 +250,7 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, onLaunch: (A
                 style = InkText.small, color = ink.muted)
             else Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 favorites.forEach { app ->
-                    Column(Modifier.width(70.dp).clip(CircleShape).combinedClickable(role = Role.Button,
+                    Column(Modifier.width(72.dp).combinedClickable(role = Role.Button,
                         onLongClickLabel = stringResource(R.string.app_options), onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
                         .padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AppIcon(app, Modifier.size(44.dp))
@@ -260,7 +261,10 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, onLaunch: (A
             }
         }
         Hairline()
-        Row(Modifier.weight(1f)) {
+        BoxWithConstraints(Modifier.weight(1f)) {
+        // The rail needs room for 27 legible letters; above a raised keyboard it steps aside.
+        val rail = maxHeight >= 380.dp
+        Row(Modifier.fillMaxSize()) {
             LazyColumn(Modifier.weight(1f), state = state, contentPadding = PaddingValues(top = 6.dp, bottom = 12.dp)) {
                 itemsIndexed(apps, key = { _, app -> app.key }) { index, app ->
                     val letter = letters[index]
@@ -268,11 +272,12 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, onLaunch: (A
                         letter = if (index == 0 || letters[index - 1] != letter) letter.toString() else "")
                 }
             }
-            AlphabetRail(first.keys, onLetter = { c ->
+            if (rail) AlphabetRail(first.keys, onLetter = { c ->
                 val target = RAIL.substring(RAIL.indexOf(c)).firstNotNullOfOrNull { first[it] } ?: return@AlphabetRail
                 haptics.tick()
                 scope.launch { state.scrollToItem(target) }
             })
+        }
         }
     }
 }

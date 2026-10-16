@@ -77,7 +77,8 @@ fun inkPalette(dark: Boolean, accent: Color): InkPalette {
         faint = ink.copy(alpha = .46f),
         line = ink.copy(alpha = .14f),
         accent = accent,
-        onAccent = if (accent.luminance() > .45f) InkLight else Color.White,
+        // Ink on light accents (all dark-theme accents), white on deep ones; both keep 4.5:1.
+        onAccent = if (accent.luminance() > .3f) InkLight else Color.White,
         danger = if (dark) Color(0xFFE58C78) else Color(0xFFA23B2A),
         night = Color(0xFF0E0D0C),
         onNight = InkDark,
