@@ -308,6 +308,10 @@ style  = App(component, iconOverride?, label: Boolean, labelText?, action: Actio
 - **Gestures in the editor:** tap element → inspector; drag (> 8 dp) → move; tap empty → "+" at the snapped spot
   → add menu (App, FLOW, hidden clock, Widget reserved). LENS hold does **not** open ARC; dragging LENS moves it
   within the lower band (x 60–300 dp, snaps to centre) and the ghost arc shows the adapted ARC.
+  Implemented: the position is `Anchor.dx` of the layout's LENS (dp from the centre, ±120, at least 60 dp from an
+  edge; absent → migrated from `Reach` ±56); snap within 10 dp with a tick; one drop = one undo step; the inspector's
+  Poloha slider (4 dp steps) is the accessible twin. Search and ARC follow the active layout. LENS-row slots that
+  would come within 24 dp of an edge continue on the other side at the same 46 dp pitch.
 - **Drag feedback:** element follows the finger; accent ring shows the target; grid dots appear only while
   dragging (Grid, Hybrid); accent guides on alignment with the centre or another element (Free, Hybrid, can be
   switched off); safe bands and the LENS zone are drawn faintly; a dashed ring shows where a displaced icon goes
@@ -398,7 +402,8 @@ UI (composition of the layer); frames while the IME rides take 10–13 ms (> 8.3
 start: 107–109 MB old, 108–112 MB new (same within noise).
 Release build (R8 + `compile -m speed`, debug key, same `.lab` id; debug builds stay interpreted/JIT and inflate
 UI time ~2.5×), same procedure: `7fc3707` 14–18 janky of ~310 (4.5–5.8 %), p99 28–29 ms, longest UI frame
-21–26 ms; card two frames later (`61484cf`) 15–16 janky, p99 21–25 ms, longest UI frame 10–19 ms. Remaining jank:
+21–26 ms; card two frames later (`61484cf`) 15–16 janky, p99 21–25 ms, longest UI frame 10–19 ms. After the LENS drag
+(`7dca980`, LENS centred): 14–16 janky, p99 18–24 ms, longest UI frame 11–12 ms. Remaining jank:
 the open frame (~12 ms UI + first-use GPU), focus/IME setup (~16 ms), IME ride frames GPU 5–10 ms, and one
 GPU context re-init after ~0.5 s idle. Third-party accessibility services add semantics work after every layout.
 

@@ -2,6 +2,25 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — LENS moves in the Home Editor (`claude/crystal-redesign`, `7dca980`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 83 JVM tests, 0 failures (new: `Reach` → `dx`
+  migration and bounds, LENS drag/snap/cap/one-step undo, narrow-screen clamp, LENS-row slots folding at an edge,
+  presets keep LENS).
+- Phone (Nothing Phone (3), owner's `intelia.xml` backed up, restored and byte-identical at the end):
+  - Editor: dragging LENS left moved it to −83 dp with the LENS row re-laid around it, inspector "Poloha" showed it;
+    one Undo returned it to the centre ("střed") and disabled Undo; dragging right capped at +120 dp; ✓ saved.
+  - After saving: LENS at the right, all four LENS-row apps folded to its left; tap opened Search; hold opened ARC
+    with its rings bent around the right-hand LENS.
+  - Release build (debug key, `.lab`, `compile -m speed`), LENS centred, 3 series of 3 × LENS → Search → Back →
+    Back: 14–16 janky of ~316 (4.4–5.0 %), p99 18–24 ms, longest UI frame 10.9–11.7 ms — no regression against
+    `61484cf` (15–16, p99 21–25, UI 10–19).
+
+Not verified: the Search morph's start point with LENS off centre (only the end state seen), ghost arcs while the
+inspector is open (partly covered by the card), TalkBack on the Poloha slider. Owner to try: LENS drag feel,
+pinch, Veil icon style, the morph recording from the previous session.
+
 ## 2026-10-16 — Search open split, options sheet over layers, phone checks (`claude/crystal-redesign`, `61484cf`, `41eb836`)
 
 Verified:

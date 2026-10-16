@@ -66,7 +66,6 @@ import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
-import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.ThemeMode
 import java.time.LocalDateTime
 import kotlin.math.roundToInt
