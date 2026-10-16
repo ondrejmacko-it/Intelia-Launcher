@@ -136,8 +136,11 @@ fun LensArc(
     lensRing: Dp = CrystalDims.lensRing,
     lensFilled: Boolean = false,
     editActions: List<CustomAccessibilityAction> = emptyList(),
+    /** In the Home Editor: a click (TalkBack double tap, Enter) selects LENS instead of opening Search; no ARC. */
+    onEditSelect: (() -> Unit)? = null,
 ) {
     val homeInk = LocalHomeInk.current
+    val selectLabel = stringResource(R.string.a11y_select)
     val ink = LocalInk.current
     val accent = ink.accent
     val haptics = rememberInkHaptics()
@@ -311,13 +314,16 @@ fun LensArc(
                     contentDescription = "$lensDescription (LENS)"
                     if (open) stateDescription = arcOpen
                     if (editActions.isNotEmpty()) customActions = editActions
-                    onClick(label = searchLabel) { close(); onSearch(); true }
-                    onLongClick(label = arcAction) { open = true; assisted = true; true }
+                    if (onEditSelect != null) onClick(label = selectLabel) { onEditSelect(); true }
+                    else {
+                        onClick(label = searchLabel) { close(); onSearch(); true }
+                        onLongClick(label = arcAction) { open = true; assisted = true; true }
+                    }
                 }
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyUp) return@onKeyEvent false
                     when (event.key) {
-                        Key.Enter, Key.NumPadEnter, Key.Spacebar -> { close(); onSearch(); true }
+                        Key.Enter, Key.NumPadEnter, Key.Spacebar -> { if (onEditSelect != null) onEditSelect() else { close(); onSearch() }; true }
                         Key.DirectionUp -> { open = true; assisted = true; true }
                         Key.Escape -> { close(); true }
                         else -> false

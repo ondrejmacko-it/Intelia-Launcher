@@ -593,7 +593,8 @@ private fun Home(
                 CustomAccessibilityAction(lensLeft) { ed.setLensDx(ed.layout.lensDx() - LENS_A11Y_STEP).also { refresh() } },
                 CustomAccessibilityAction(lensRight) { ed.setLensDx(ed.layout.lensDx() + LENS_A11Y_STEP).also { refresh() } },
                 CustomAccessibilityAction(lensCentre) { ed.setLensDx(0f).also { refresh() } },
-            )) }
+            ),
+            onEditSelect = if (ed == null) null else { { selected = ed.lensId(); refresh() } }) }
         if (settings.pulse && ed == null) Pulse(settings)
         val hole = rememberLens(settings.pulseLens)
         val camera = Pt(hole.x / density.density, hole.y / density.density)
