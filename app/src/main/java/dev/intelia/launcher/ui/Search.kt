@@ -175,8 +175,7 @@ fun SearchOverlay(
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = morph.value }.background(Scrim)
             .pointerInput(Unit) { detectTapGestures { leave() } })
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val ringX = maxWidth / 2 + lensShift(settings.reach) - 12.dp
+        Box(Modifier.fillMaxSize()) {
             val nav = WindowInsets.navigationBars
             val ime = WindowInsets.ime
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
@@ -188,7 +187,7 @@ fun SearchOverlay(
                 .padding(horizontal = 12.dp)) {
                 ResultsCard(query, rows, resolve, morph::value, ::act, onOptions = { held = true; onOptions(it) })
                 Spacer(Modifier.height(8.dp))
-                SearchField(query, field, morph::value, ringX, exactMatch = exact != null,
+                SearchField(query, field, morph::value, lensShift(settings.reach), exactMatch = exact != null,
                     onChange = { model.query.value = it }, onSubmit = { SearchPicks.enter(query, rows)?.let(::act) })
             }
         }
@@ -197,7 +196,7 @@ fun SearchOverlay(
 
 /** The Veil pill: drawn from the LENS ring (morph 0) to the full field (morph 1); layout never changes. */
 @Composable
-private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float, ringX: Dp, exactMatch: Boolean,
+private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float, lensDx: Dp, exactMatch: Boolean,
                         onChange: (String) -> Unit, onSubmit: () -> Unit) {
     val c = LocalCrystal.current
     val tokens = veil(VeilLevel.Dense)
@@ -207,7 +206,7 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
         .drawWithContent {
             val m = morph()
             val r = CrystalDims.lensRing.toPx() / 2f
-            val x = ringX.toPx()
+            val x = size.width / 2f + lensDx.toPx() // the field is centred like LENS
             val h = size.height
             val left = x - r + (0f - (x - r)) * m
             val right = x + r + (size.width - (x + r)) * m
