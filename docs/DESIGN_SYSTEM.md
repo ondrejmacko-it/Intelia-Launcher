@@ -334,6 +334,17 @@ style  = App(component, iconOverride?, label: Boolean, labelText?, action: Actio
   Plný, ghost ARC; LENS cannot be moved yet. Add menu: Aplikace, FLOW (drawn on Home as the FLOW glyph, tap runs
   it), Widget reserved. LENS touch area is 84 × 100 dp (checked on the phone).
 
+- **Customisation lives on Home (owner, 2026-10-16):** Studio no longer styles anything; it links to the editor.
+  Bar pill **Vzhled** = Look panel (Veil Dense, above the LENS row): Panely Veil / Matné (= Solid), Hustota −10…+10
+  percent points on every Veil level, Světelná hrana on/off (off = neutral 12 % hairline), Motiv, accent, Ikony
+  Barevné / Mono / Veil (§5.8 disc + ring), global icon size 32–64 dp (an item's own size wins; "Stejná velikost"
+  clears them), popisky for all, entry to PULSE. Settings in the panel apply at once; labels/sizes are layout edits
+  with undo. Every slider has − / + buttons of one step. Pinch with two fingers resizes the element under them
+  (or the selected one), coalesced into one undo step. Date is its own element: format Dlouhé / Krátké / Den,
+  size 9–32 sp, pinned under the clock or free (dragged like the clock), colour, opacity, hide. Clock: Skrýt hodiny;
+  the Add menu offers Hodiny / Datum when hidden. LENS inspector adds Poloha (Vlevo / Střed / Vpravo). PULSE
+  inspector: on/off, krytí, ozvěna, nabíjení, budík + okno, Poloha kamery → Studio calibration.
+
 ## 5.6 Motion
 | moment | spec | haptic |
 |---|---|---|

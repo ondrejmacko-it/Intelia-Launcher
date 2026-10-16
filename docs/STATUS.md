@@ -2,6 +2,30 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Customisation moves into the Home editor (`claude/crystal-redesign`, `bfc5c8e` + data commit before it)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 74 JVM tests, 0 failures (new: date unpin/move/pin
+  back, clock and date hide + add back once, labels and icon sizes as one undo step, Veil/icon settings clamped,
+  date keeps its own size range and format).
+- Phone (Nothing Phone (3), Android 16, Lab build; owner's `intelia.xml` backed up first, restored, `cmp` identical):
+  - Editor bar shows Předlohy · Vzhled · undo/redo · Studio · ✓; Vzhled opens the Look panel above the LENS row
+    (Panely Veil/Matné, Hustota with − / +, Světelná hrana, Motiv, accent swatches, Ikony Barevné/Mono/Veil,
+    velikost, popisky, PULSE entry); clock and date stay visible.
+  - Icon style Mono: before this change every monochrome icon was an opaque white disc (AdaptiveIconDrawable
+    wrapper on Android 16); after the fix the glyphs render (Telefon, Zprávy, Fotoaparát, Chrome checked).
+  - Tap on the date opens its own inspector (Dlouhé/Krátké/Den, size 9–32 with − / +, Připnout pod hodiny,
+    Pokročilé, Skrýt datum). Unpinning keeps it in place (653 px vs 672 px pinned); dragging moved it to 1069 px.
+  - PULSE inspector opens from the Look panel and hangs below the bar. A tap on the camera ring itself is taken by
+    the PULSE everywhere overlay (accessibility service on) and opens its Quick View instead.
+  - Studio now lists PLOCHA (hint + Upravit plochu → opens the editor on Home), ARC, PULSE (PULSE všude +
+    poloha kamery), pohyb, výchozí plocha, skryté aplikace, o aplikaci; Upravit plochu checked.
+
+Not verified: pinch to resize (adb `input` has no multi-touch — owner to try), Solid panels and density on the
+phone,
+Veil icon style after the fix, clock hide/add back on the phone, theme switch from the panel, TalkBack, light
+wallpapers. Not done: LENS → Search in Veil (prototype), drawer as Veil over Home, part 7 measurements.
+
 ## 2026-10-16 — Intelia Veil V2, parts 4–6 (`claude/crystal-redesign`, `00d62f5` … `2fa6217`)
 
 Verified:
