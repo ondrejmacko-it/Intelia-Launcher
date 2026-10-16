@@ -27,6 +27,8 @@ import dev.intelia.launcher.data.LensStyle
 import dev.intelia.launcher.data.Placement
 import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import kotlin.math.hypot
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -320,6 +322,8 @@ private fun Home(
     val quiet by animateFloatAsState(if (arcOpen) 0f else 1f, tween(motionMs(180)), label = "home-quiet")
     val swipe = with(density) { 64.dp.toPx() }
     val editLabel = stringResource(R.string.edit_home)
+    val moveLabel = stringResource(R.string.a11y_move)
+    val removeLabel = stringResource(R.string.inspect_remove)
 
     fun refresh() { tick++ }
     fun close() {
@@ -458,7 +462,15 @@ private fun Home(
                             flow != null -> onRun(flow)
                         }
                     }
-                    .semantics { contentDescription = name }, contentAlignment = Alignment.Center) {
+                    .semantics {
+                        contentDescription = name
+                        // TalkBack (§4.8): move, edit and remove without the hold-and-drag gesture.
+                        if (editor == null) customActions = listOf(
+                            CustomAccessibilityAction(moveLabel) { open(); selected = item.id; refresh(); true },
+                            CustomAccessibilityAction(editLabel) { open(); selected = item.id; refresh(); true },
+                            CustomAccessibilityAction(removeLabel) { open().remove(item.id); refresh(); true },
+                        )
+                    }, contentAlignment = Alignment.Center) {
                     // No backing (4.3): system or icon-pack icons as they are; monochrome tinted fg.
                     if (app != null) AppIcon(app, Modifier.size(iconDp), tint = homeInk)
                     else HomeGlyph(Glyph.Flow, null, tint = homeInk, size = iconDp * .7f)
@@ -574,7 +586,7 @@ private fun Home(
                     ed.edit(sel.id, "size") { it.copy(sizeDp = (now + dx.roundToInt()).coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)) }
                     refresh()
                 }
-                if (zone != null) InspectorCard(zone, maxWidth.value, barBottom) {
+                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom) {
                     when (sel.kind) {
                         ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, ::refresh)
                         ItemKind.Lens -> LensInspector(ed, sel, ::refresh)
@@ -584,7 +596,7 @@ private fun Home(
                                 onMore = app?.let { a -> { onOptions(a) } }, onRemoved = { selected = null }, onChange = ::refresh)
                         }
                     }
-                }
+                } }
             }
             addPoint?.let { at ->
                 AddMenu(at, maxWidth.value, barBottom, onApp = { picker = ItemKind.App }, onFlow = { picker = ItemKind.Flow })

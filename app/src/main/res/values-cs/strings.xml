@@ -262,4 +262,10 @@
     <string name="confirm_replace">Nahradit</string>
     <string name="confirm_reset_action">Obnovit</string>
     <string name="clock_resize">Změnit velikost hodin</string>
+    <string name="inspect_move">Posunout</string>
+    <string name="move_left">Vlevo</string>
+    <string name="move_right">Vpravo</string>
+    <string name="move_up">Nahoru</string>
+    <string name="move_down">Dolů</string>
+    <string name="a11y_move">Přesunout</string>
 </resources>

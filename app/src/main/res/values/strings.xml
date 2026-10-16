@@ -263,4 +263,10 @@
     <string name="confirm_replace">Replace</string>
     <string name="confirm_reset_action">Reset</string>
     <string name="clock_resize">Resize the clock</string>
+    <string name="inspect_move">Move</string>
+    <string name="move_left">Left</string>
+    <string name="move_right">Right</string>
+    <string name="move_up">Up</string>
+    <string name="move_down">Down</string>
+    <string name="a11y_move">Move</string>
 </resources>

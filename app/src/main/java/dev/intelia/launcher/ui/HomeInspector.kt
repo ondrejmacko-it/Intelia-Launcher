@@ -46,6 +46,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -103,8 +105,17 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, content: @Compo
     val x = ((target.left + target.right) / 2f - width / 2f).coerceIn(12f, screenW - 12f - width)
     val y = if (above) target.top - 12f - hDp else target.bottom + 12f
     val fx = (((target.left + target.right) / 2f - x) / width).coerceIn(0f, 1f)
+    // §5.6: scale 0.86 → 1 from the element, 220 ms (0 ms with Reduced Motion).
+    val appear = remember { androidx.compose.animation.core.Animatable(0f) }
+    val ms = motionMs(220)
+    androidx.compose.runtime.LaunchedEffect(Unit) { appear.animateTo(1f, androidx.compose.animation.core.tween(ms)) }
     Column(Modifier.offset { IntOffset((x * density.density).roundToInt(), (y * density.density).roundToInt()) }
-        .width(width.dp).onSizeChanged { h = it.height }.graphicsLayer { alpha = if (h == 0) 0f else 1f }
+        .width(width.dp).onSizeChanged { h = it.height }.graphicsLayer {
+            alpha = if (h == 0) 0f else appear.value
+            val k = .86f + .14f * appear.value
+            scaleX = k; scaleY = k
+            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(fx, if (above) 1f else 0f)
+        }
         .veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin(fx, if (above) 1f else 0f))
         .pointerInput(Unit) { detectTapGestures() }
         .padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -169,6 +180,22 @@ private fun Action(label: String, color: Color, onClick: () -> Unit) {
         style = CrystalType.body.copy(fontSize = 14.sp), color = color)
 }
 
+/** Step-by-step moving without dragging (TalkBack, switch access, fine placement). */
+@Composable
+private fun MoveButtons(onMove: (Int, Int) -> Unit) {
+    val c = LocalCrystal.current
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.inspect_move), Modifier.width(76.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2, maxLines = 1)
+        listOf(Triple("←", R.string.move_left, -1 to 0), Triple("↑", R.string.move_up, 0 to -1),
+            Triple("↓", R.string.move_down, 0 to 1), Triple("→", R.string.move_right, 1 to 0)).forEach { (arrow, label, d) ->
+            val text = stringResource(label)
+            Text(arrow, Modifier.size(44.dp).clip(CircleShape).clickable(role = Role.Button) { onMove(d.first, d.second) }
+                .semantics { contentDescription = text }.padding(top = 11.dp),
+                style = CrystalType.body.copy(fontSize = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center), color = c.fg)
+        }
+    }
+}
+
 /** Progressive disclosure: the less common options stay folded. */
 @Composable
 private fun Advanced(content: @Composable () -> Unit) {
@@ -194,6 +221,7 @@ fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, onMore:
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp") { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
+    MoveButtons { dx, dy -> state.nudge(item.id, dx, dy); onChange() }
     Toggle(stringResource(R.string.inspect_label), item.label) { on -> state.edit(item.id, "label") { it.copy(label = on) }; onChange() }
     Action(stringResource(R.string.inspect_remove), c.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }

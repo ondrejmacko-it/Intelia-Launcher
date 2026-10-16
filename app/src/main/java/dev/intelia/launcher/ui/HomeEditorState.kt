@@ -232,6 +232,20 @@ class HomeEditorState(
         bump()
     }
 
+    /**
+     * Moves an icon one cell (24 dp when free) for TalkBack and the inspector's move buttons,
+     * with exactly the rules of a drag and drop.
+     */
+    fun nudge(id: String, dx: Int, dy: Int): Boolean {
+        val item = item(id) ?: return false
+        val free = layout.placement == Placement.Free || item.anchor.type == AnchorType.Free
+        val stepX = if (free) 24f else geometry.areaW / layout.grid.cols
+        val stepY = if (free) 24f else geometry.areaH / layout.grid.rows
+        if (!startDrag(id)) return false
+        dragBy(Pt(dx * stepX, dy * stepY))
+        return drop()
+    }
+
     fun setPlacement(p: Placement) { if (p != layout.placement) commit(layout.copy(placement = p)) }
 
     fun undo() {

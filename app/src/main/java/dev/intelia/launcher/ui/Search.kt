@@ -50,6 +50,15 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -108,12 +117,28 @@ fun SearchPage(
     val drawer = query.isBlank()
     val exact = remember(settings.aliases, query) { Flow.exact(settings.aliases, query) }
 
-    LaunchedEffect(Unit) { if (requestKeyboard) { field.requestFocus(); keyboard?.show() } }
+    // §5.6: from LENS the ring becomes the field; focus and the IME come in the first frame, the field rides the IME.
+    val morph = remember { Animatable(if (requestKeyboard) 0f else 1f) }
+    val grow = motionMs(170)
+    val growDelay = motionMs(70)
+    val shrink = motionMs(160)
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        if (requestKeyboard) {
+            field.requestFocus(); keyboard?.show()
+            morph.animateTo(1f, tween(grow, delayMillis = growDelay, easing = CubicBezierEasing(.05f, .7f, .1f, 1f)))
+        }
+    }
+    fun leave() {
+        if (!requestKeyboard) { onBack(); return }
+        scope.launch { keyboard?.hide(); morph.animateTo(0f, tween(shrink)); onBack() }
+    }
+    BackHandler { leave() }
 
     Column(Modifier.fillMaxSize().background(ink.paper).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 4.dp).heightIn(min = 56.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            BackButton(stringResource(R.string.home), onBack)
+            BackButton(stringResource(R.string.home), ::leave)
             if (drawer) Text(stringResource(R.string.apps), Modifier.padding(start = 4.dp), style = InkText.title.copy(fontSize = 30.sp))
             Spacer(Modifier.weight(1f))
             Kicker(if (drawer) apps.size.toString() else stringResource(R.string.results_count, results.size + flows.size),
@@ -125,7 +150,7 @@ fun SearchPage(
             if (drawer) Drawer(apps, favorites, onLaunch, onOptions)
             else Results(query, results, flows, exact, flowSteps, onLaunch, onRun, onOptions, onComplete = { model.query.value = it })
         }
-        SearchField(query, field, exactMatch = exact != null, onChange = { model.query.value = it }, onSubmit = {
+        SearchField(query, field, morph.value, lensShift(settings.reach), exactMatch = exact != null, onChange = { model.query.value = it }, onSubmit = {
             when {
                 exact != null -> onRun(exact)
                 results.isNotEmpty() -> onLaunch(results.first())
@@ -143,10 +168,24 @@ internal fun IconAction(glyph: Glyph, label: String, onClick: () -> Unit, tint: 
 
 /** An underline field: the open LENS ring, the query, and what Enter will do. */
 @Composable
-private fun SearchField(query: String, focus: FocusRequester, exactMatch: Boolean, onChange: (String) -> Unit, onSubmit: () -> Unit) {
+private fun SearchField(query: String, focus: FocusRequester, morph: Float, lensDx: Dp, exactMatch: Boolean, onChange: (String) -> Unit, onSubmit: () -> Unit) {
     val ink = LocalInk.current
     val description = stringResource(R.string.lens_description)
     Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 10.dp).height(56.dp)
+        .drawWithContent {
+            if (morph >= 1f) { drawContent(); return@drawWithContent }
+            // The LENS ring opening into the field: a rounded rect from the ring's place to the full row.
+            val r = CrystalDims.lensRing.toPx() / 2f
+            val cx = size.width / 2f + lensDx.toPx()
+            val cy = size.height / 2f - (1f - morph) * 14.dp.toPx()
+            val left = cx - r + (0f - (cx - r)) * morph
+            val right = cx + r + (size.width - (cx + r)) * morph
+            val top = cy - r + (0f - (cy - r)) * morph
+            val bottom = cy + r + (size.height - (cy + r)) * morph
+            clipRect(left, top, right, bottom) { this@drawWithContent.drawContent() }
+            drawRoundRect(ink.ink.copy(alpha = .88f * (1f - morph)), Offset(left, top), Size(right - left, bottom - top),
+                CornerRadius(r * (1f - morph)), style = Stroke(1.5.dp.toPx()))
+        }
         .drawBehind {
             val y = size.height - 1.dp.toPx()
             drawLine(ink.ink, Offset(0f, y), Offset(size.width, y), 1.5.dp.toPx())

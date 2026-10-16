@@ -170,4 +170,15 @@ class HomeEditorStateTest {
         e.setDate(false)
         assertFalse(e.layout.items.any { it.kind == ItemKind.Date })
     }
+
+    @Test fun nudgeMovesOneCellWithDropRules() {
+        val e = HomeEditorState(layout(Placement.Grid, app("a", Anchor.cell(0, 0)), app("b", Anchor.cell(2, 0))), geo)
+        assertTrue(e.nudge("a", 1, 0))
+        assertEquals(Anchor.cell(1, 0), e.item("a")!!.anchor)
+        assertTrue(e.nudge("a", 0, 1))
+        assertEquals(Anchor.cell(1, 1), e.item("a")!!.anchor)
+        e.undo()
+        assertEquals(Anchor.cell(1, 0), e.item("a")!!.anchor)
+        assertFalse(e.nudge("lens", 1, 0))
+    }
 }
