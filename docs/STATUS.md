@@ -2,6 +2,43 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Intelia Veil V2, parts 4–6 (`claude/crystal-redesign`, `00d62f5` … `2fa6217`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 70 JVM tests, 0 failures (new: item look
+  clamping, slider edits collapse into one undo step, remove never takes LENS, add-at snaps without pushing aside,
+  preset preview outside history, date toggle, nudge by cell and on the LENS row).
+- Phone (Nothing Phone (3), Android 16, Lab build, dark wallpaper unchanged; the owner's `intelia.xml` was backed up
+  first and is byte-identical afterwards):
+  - Clock inspector (Veil Dense, 312 dp) opens below the clock, the clock and date stay visible; typeface chips
+    change the clock live; size handle drawn at the clock corner; date toggle; weight / colour / opacity under
+    "Pokročilé".
+  - App inspector opens above the icon: size 32–64 dp, Posunout ← ↑ ↓ →, Popisek, Odebrat z plochy, "Další volby"
+    (old sheet). → on the LENS-row phone icon swaps it with Messages; undo in the bar restores it.
+  - LENS inspector: size, Kroužek / Plný, faint ghost ARC rings.
+  - Tap on empty Home → "Přidat sem" (Aplikace, FLOW, Widget · později), placed below the point when above would
+    cover the clock; Aplikace → list → adidas lands at the tapped spot; Back → Zahodit removes it again.
+  - Předlohy: strip above the LENS row with thumbnails Prázdná / Kolem LENS / Vyvážená / Vlastní, tap previews in
+    place, Zrušit returns; after Použít, ✓ asks "Přepsat vlastní rozložení?" (Zrušit keeps editing). Editing the
+    active own layout and ✓ saves without a question (date removed in the saved document; then restored).
+  - LENS tap → Search: field focused and the IME up in the same transition, field above the keyboard; typing
+    "chr" shows Chrome and launches nothing; Back hides the IME, Back again returns Home.
+  - LENS touch area now 84 × 100 dp: tap at −44 dp from the LENS centre opens Messages (before: Search, measured on
+    100 × 100); −40 dp and centre → Search; swipe up → drawer; hold at −38 dp → ARC, release on LENS cancels.
+  - `dumpsys gfxinfo` (adb input, 120 Hz): 3 × LENS → Search → Back: 599 frames, 12.85 % janky, p50 8 ms,
+    p90 24 ms, p99 133 ms, 76 slow UI thread. Icon drag with 22 `input motionevent` moves: 88 frames, 26 % janky,
+    p50 6 ms, p90 25 ms (adb spawns a process per move, so this is not a finger drag).
+  - PSS settled 15 s after a cold start: 112.9 MB (Graphics 46 MB); about 2 s after start 320 MB was read once.
+    Cold start `am start -W`: 622 / 466 / 439 ms.
+
+Fixed during the phone check: the editor bar's undo/redo did not redraw (plain-Kotlin state); the preset strip
+covered the clock it was previewing; the add menu could cover the date; → on a LENS-row icon did nothing.
+
+Not done / not verified: light and coloured wallpapers; TalkBack itself (custom actions Přesunout / Upravit /
+Odebrat z plochy are in the semantics, TalkBack was not switched on); the morph frames themselves (screencap is too
+slow to catch 170 ms); Reduced Motion on the phone; wallpaper zoom-out; dragging LENS; FLOW items on Home are drawn
+and run on tap but were not added on the phone; the 12.85 % jank and the 320 MB transient are not analysed.
+
 ## 2026-10-16 — Intelia Veil V2, parts 1–3 (`claude/crystal-redesign`, `9f2b215`, `fc1c7a4`, `4af8723`)
 
 Verified:

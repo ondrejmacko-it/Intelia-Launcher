@@ -1,4 +1,4 @@
-# Prompt pro další session — Intelia Veil V2, části 4–6
+# Prompt pro další session — Intelia Veil V2, část 7 (dokončení a měření)
 
 Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka = tento repozitář).
 
@@ -6,30 +6,26 @@ Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka
 
 Pokračujeme na Intelia Launcheru (`AGENTS.md` platí). Odpovídej česky, stručně. Tvrdý limit 250 000 tokenů na session, cíl ~180k. Žádní agenti, žádné dlouhé shrnutí, soubory nečti celé opakovaně (jen potřebné řádky), nepiš dlouhé texty do chatu. Když se blížíš ke 200k, zastav se, commitni hotové a napiš prompt na pokračování.
 
-Směr Intelia Veil (D12) je schválený i s úpravami majitele (viz D12 v docs/DECISIONS.md). Podklady (čti jen relevantní části): docs/DESIGN_SYSTEM.md §5.2 (hustoty Light/Dense/Focus), §5.4–5.8; horní záznam docs/STATUS.md; vizuální reference docs/design/veil-prototype.html (13 scén). Nevymýšlej jinou podobu.
+Směr Intelia Veil (D12) je schválený i s úpravami majitele (viz D12 v docs/DECISIONS.md). Podklady (čti jen relevantní části): docs/DESIGN_SYSTEM.md §5.5 (odstavec „As built“), §5.6; horní záznam docs/STATUS.md; vizuální reference docs/design/veil-prototype.html. Nevymýšlej jinou podobu.
 
-Hotovo (části 1–3, commity `9f2b215`, `fc1c7a4`, `4af8723`):
-- `ui/Veil.kt`: `VeilLevel` Light/Dense/Focus, `veilTokens()`, `Modifier.veilSurface(tokens, origin, shape)`. Studio = Focus, sheet aplikace = Dense (80–85 % + scrim 40 %).
-- `data/HomeModel.kt`: `HomeLayouts`/`LayoutSpec`/`HomeItem`/`Anchor` (plochá kotva: Cell/Free/LensRow/Lens/Bound/Stack), `HomeTemplates` (Pure/Essentials/Balanced), `HomeLayouts.save()`. Schema 2; migrace a validace jen v `LauncherSettings.sanitized()`. Propojená předloha (`linked`, id `preset`) se vždy skládá ze starých polí (`layout`, `favorites`, `showClock`, `showDate`); ✓ v editoru zapíše vlastní kopii (id `mine`). Studio → Rozvržení přepne zpět na předlohu, vlastní rozložení zůstane.
-- `ui/HomeEditorState.kt`: čistý Kotlin — `HomeGeometry` (oblast obsahu, buňky, sloty LENS ±62/±108 dp, zóna LENS), tažení, přichycení, vodítka, uhnutí, výměna v řadě LENS, blokované zóny (hodiny), undo/redo ≤ 50. JVM testy.
-- `ui/HomeEditor.kt` + `Home()` v `ui/HomeRoot.kt`: edit mode (podržení plochy / ikony; ikona se táhne hned), horní lišta (undo, redo, umístění, Studio, ✓), body mřížky, cílový kroužek, zóna LENS, dialog Pokračovat/Zahodit/Uložit. Řetězec modifikátorů rodiče se v edit mode nesmí měnit (jinak se zruší tažení z ikony).
-- Prozatím: klepnutí na ikonu v editoru otevře starý sheet místo inspektoru; LENS se v modelu jen rezervuje (pozici dál určuje Reach); `Flow`/`Widget` položky se nekreslí.
+Hotovo (části 1–6, poslední commity `00d62f5` … `2fa6217` + docs):
 
-Úpravy majitele, které platí dál:
-- Panely klidné a matné (Light / Dense ~75–85 % / Focus ~88–95 %), ostrý text, žádné neonové hrany, jemná hrana od původu. Musí fungovat na světlé, tmavé i barevné tapetě.
-- Kontextové editory s progressive disclosure: první úroveň jen nejčastější volby, zbytek pod „Pokročilé“. Inspektor nesmí zakrýt upravovaný prvek (hodiny i ikona vidět se změnou živě).
-- Horní lišta: vlevo předlohy + zpět/reset, vpravo Studio + ✓; nesmí překážet hodinám ani sobě. Předlohy jako vizuální miniatury s náhledem před potvrzením; vlastní rozložení se nesmí smazat bez varování.
-- Hitbox LENS 84 × 100 dp nepřebírat bez testu na telefonu (tap, hold, swipe up, ARC vs. vnitřní Essentials).
-- Nedělat: redesign ARC, PULSE 2.0, přepis FLOW, nesouvisející systémové integrace, velké frameworky. Widgety jen rezervované.
+* Editor: inspektory (ui/HomeInspector.kt) pro aplikaci/FLOW (velikost, Posunout ← ↑ ↓ →, Popisek, Odebrat z plochy, Další volby), hodiny (písmo, velikost + úchyt, datum; Pokročilé: tloušťka, barva, krytí) a LENS (velikost, Kroužek/Plný, ghost ARC). Add menu (Aplikace, FLOW, Widget rezervovaný). Lišta: Předlohy + undo/redo vlevo, Studio + ✓ vpravo; pruh předloh nad řadou LENS s náhledem, Obnovit a varováním „Přepsat vlastní rozložení?“. Vše přes `HomeEditorState` (`edit`, `remove`, `addAt`, `setDate`, `preview/confirmPreview/cancelPreview`, `nudge`), 70 JVM testů.
+* LENS → Search: morf kroužek → pole (clip + obrys nad plným polem, IME a fokus od prvního snímku), Back opačně.
+* Hitbox LENS 84 × 100 dp ověřen na telefonu (tap −44 dp = Zprávy, −40 dp = Hledání, swipe, hold → ARC).
+* TalkBack: vlastní akce Přesunout / Upravit / Odebrat z plochy na ikonách (v sémantice, TalkBack nezapnutý).
 
-Git: větev `claude/crystal-redesign`, na začátku `git fetch` a `git status`. Malé commity + push, žádný merge do `main`, nic destruktivního. Data majitele (Essentials, hodiny Crystal/Ink dle jeho volby, FLOW, ARC) se nesmí ztratit — před testem ukládání zazálohuj `shared_prefs/intelia.xml` přes `run-as dev.intelia.launcher.lab` a po testu ho vrať.
+Úpravy majitele, které platí dál: panely klidné a matné (Light / Dense ~80–85 % / Focus ~88–95 %), ostrý text, žádné neonové hrany; progressive disclosure; inspektor nesmí zakrýt upravovaný prvek ani hodiny; vlastní rozložení se nesmí smazat bez varování. Nedělat: redesign ARC, PULSE 2.0, přepis FLOW, nesouvisející systémové integrace, velké frameworky. Widgety jen rezervované.
 
-Tato session = části 4–6 (každá: testy → build → telefon → commit):
+Git: větev `claude/crystal-redesign`, na začátku `git fetch` a `git status`. Malé commity + push, žádný merge do `main`, nic destruktivního. Data majitele (Essentials, hodiny dle jeho volby, FLOW, ARC, vlastní rozložení `mine`) se nesmí ztratit — před testem ukládání zazálohuj `shared_prefs/intelia.xml` přes `run-as dev.intelia.launcher.lab` (`adb exec-out run-as … cat`) a po testu ho vrať (`adb push` do /data/local/tmp, `am force-stop`, `run-as … cp`, ověř `cmp`).
 
-4. Kontextové editory + předlohy: inspektor (Veil Dense, 312 dp, nad prvkem když se vejde, jinak pod, hrana od prvku) pro aplikaci (ikona, velikost 32–64 dp, popisek, Odebrat z plochy — nikdy neodinstalovat), hodiny (písmo, velikost vč. úchytu, tloušťka, barva, krytí, datum; zbytek pod „Pokročilé“) a LENS (velikost, styl; ghost ARC). Add menu po klepnutí na prázdné místo (App, FLOW; Widget jen rezervovaný). Předlohy vlevo v liště: miniatury Pure/Essentials/Balanced + vlastní, náhled před potvrzením, reset s potvrzením, přepnutí s neuloženými změnami se zeptá. Vše přes `HomeEditorState` (rozšiř o úpravy položek, testy).
-5. LENS → Search s reálným IME: morf z kroužku LENS do pole (§5.6), pole jede s `WindowInsets.ime` ve stejném snímku, Back opačně; psaní funguje od prvního snímku, nic se nespouští při psaní. Ověřit na telefonu se skutečnou klávesnicí. Rozhodnout a otestovat hitbox LENS 84 × 100 dp.
-6. Polish, TalkBack (vlastní akce Přesunout / Upravit / Odebrat z plochy, posun tlačítky v inspektoru), Reduced Motion, výkon: `adb shell dumpsys gfxinfo dev.intelia.launcher.lab` při LENS → Search a tažení, PSS (`dumpsys meminfo`), studený start. Žádná tvrzení o výkonu bez měření.
+Tato session = část 7 (každý bod: testy → build → telefon → commit):
 
-Build: `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` (JAVA_HOME = `C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1`; v Git Bash s `MSYS_NO_PATHCONV=1` zadávej JAVA_HOME Windows cestou), instalace `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Telefon: Nothing Phone (3), Android 16, 1080×2392, 420 dpi (411 × 911 dp), LENS na (540, 2193) px. adb `C:\Users\Ondra\AppData\Local\lesnik-toolchain\sdk\platform-tools\adb.exe`. Před každým `input` ověř `topResumedActivity` (`dev.intelia.launcher.lab/`); když telefon používá majitel, počkej a nic neklikej. Gesta přes `input motionevent DOWN/MOVE/UP`; texty přes `uiautomator dump` místo screenshotů. MT Capsule, tapetu a jiné aplikace neměnit bez souhlasu (světlou/barevnou tapetu jen se souhlasem majitele).
+1. Výkon LENS → Search: změřeno 12,85 % janky snímků (p99 133 ms, 76 slow UI thread) při 3 × LENS → Search → Back. Najdi příčinu (pravděpodobně první kompozice šuplíku s ~221 aplikacemi / ikony) a sniž ji; před a po `adb shell dumpsys gfxinfo dev.intelia.launcher.lab reset` + stejný postup. Prověř jednorázových 320 MB PSS ~2 s po studeném startu (`dumpsys meminfo` v čase 1/2/5/15 s). Bez měření žádná tvrzení.
+2. Ověřit na telefonu, co zbylo: přidání FLOW na plochu (Add menu → FLOW → klepnutí spustí FLOW jen na explicitní akci), Reduced Motion (Studio) → morf a inspektor 0 ms, popisek pod ikonou, velikost ikony, krytí/barva hodin. TalkBack zapínat jen se souhlasem majitele.
+3. Světlá a barevná tapeta jen se souhlasem majitele: čitelnost Veil Light/Dense, inspektory, lišta.
+4. Pokud zbude rozpočet: tažení LENS v editoru (x 60–300 dp, přichycení na střed) podle §5.5, s testy v `HomeEditorState`; wallpaper zoom-out (§5.5) jen pokud ho tapeta Atmosphere podporuje — ověř a zapiš.
 
-Na konci: docs/STATUS.md jen ověřená fakta, doplnit docs/DESIGN_SYSTEM.md §5 o to, co se změnilo, nový prompt v docs/NEXT_SESSION.md (stejný limit 250k), krátký report: co je hotové, screenshoty před/po, testy, omezení, commit.
+Build: `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` (JAVA_HOME = `C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1`; v Git Bash s `MSYS_NO_PATHCONV=1` zadávej JAVA_HOME Windows cestou), instalace `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Telefon: Nothing Phone (3), Android 16, 1080×2392, 420 dpi (411 × 911 dp), LENS na (540, 2193) px. Výchozí plocha telefonu je Nothing launcher; Lab se otevírá `am start -n dev.intelia.launcher.lab/dev.intelia.launcher.MainActivity`. adb `C:\Users\Ondra\AppData\Local\lesnik-toolchain\sdk\platform-tools\adb.exe`. Když je telefon zamčený (`isKeyguardShowing=true`), požádej majitele o odemčení. Před každým `input` ověř `topResumedActivity` (`dev.intelia.launcher.lab/`); když telefon používá majitel, počkej a nic neklikej. Gesta přes `input motionevent DOWN/MOVE/UP`; texty přes `uiautomator dump` místo screenshotů. Python skripty piš přes heredoc do scratchpadu (inline `python - <<EOF` s trojitými uvozovkami Bash nástroj občas rozbije). MT Capsule, tapetu a jiné aplikace neměnit bez souhlasu.
+
+Na konci: docs/STATUS.md jen ověřená fakta, docs/DESIGN_SYSTEM.md §5 doplnit o změny, nový prompt v docs/NEXT_SESSION.md (stejný limit 250k), krátký report: co je hotové, měření před/po, testy, omezení, commit.

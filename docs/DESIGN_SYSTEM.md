@@ -323,6 +323,16 @@ style  = App(component, iconOverride?, label: Boolean, labelText?, action: Actio
   ±62 dp are no longer covered.
 - **Accessibility:** every editor action is also reachable from the inspector (posun buttons instead of drag),
   TalkBack custom actions on elements ("Přesunout", "Upravit", "Odebrat z plochy").
+- **As built (V2 parts 4–6, phone-checked):** bar = left "Předlohy" pill + Undo/Redo, right Studio + ✓; the
+  placement pill moved into the preset strip. The preset strip sits above the LENS row (not under the bar) so the
+  previewed clock stays visible; tap = preview outside the undo history, Použít = one undo step, Obnovit asks.
+  ✓ asks "Přepsat vlastní rozložení?" when a saved own layout would be replaced from a preset or from the linked
+  preset. Inspectors and the add menu go above their element only when that leaves the clock uncovered, else
+  below. App inspector today: size, Posunout (one cell, or the next LENS-row slot), Popisek, Odebrat z plochy,
+  Další volby (old sheet); icon variants, custom label text and actions are not built. Clock: typeface, size
+  (+ handle), date; Pokročilé: weight, colour (Auto/Akcent/Světlá/Tmavá), opacity. LENS: size 36–56 dp, Kroužek /
+  Plný, ghost ARC; LENS cannot be moved yet. Add menu: Aplikace, FLOW (drawn on Home as the FLOW glyph, tap runs
+  it), Widget reserved. LENS touch area is 84 × 100 dp (checked on the phone).
 
 ## 5.6 Motion
 | moment | spec | haptic |
@@ -333,6 +343,10 @@ style  = App(component, iconOverride?, label: Boolean, labelText?, action: Actio
 | element → inspector | scale 0.86 → 1 from the element, 220 ms, overshoot ≤ 3 % | none |
 | drop | 220 ms to the target, overshoot ≤ 4 % | `CONFIRM` |
 | ARC | unchanged from 4.5/4.6; selected arc segment lit in `acc` | as 4.6 |
+
+As built: the ring → field morph is drawn as a clip + outline over the full-size field (layout never changes, so
+focus and the IME start in the first frame); Back runs it in reverse after hiding the IME. Inspector entry is
+scale 0.86 → 1 from the element edge. All durations go through `motionMs`, so Reduced Motion makes them 0 ms.
 
 Input is never delayed: typing works from the first frame, the IME opens with the morph, the action runs on
 release. Reduced Motion → all 0 ms. No idle animation; nothing animates while Home is at rest.
