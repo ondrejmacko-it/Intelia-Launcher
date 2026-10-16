@@ -12,7 +12,10 @@ import dev.intelia.launcher.ui.ArcPick
 import dev.intelia.launcher.ui.ArcRings
 import dev.intelia.launcher.ui.centreOut
 import dev.intelia.launcher.ui.fillFromCentre
+import dev.intelia.launcher.ui.PulseRest
 import dev.intelia.launcher.ui.lensSwipeSearch
+import dev.intelia.launcher.ui.pulseRest
+import dev.intelia.launcher.ui.restCapsule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -116,15 +119,14 @@ class SettingsCodecTest {
         assertNull(SettingsCodec.decode("{}").pulseLens)
     }
 
-    @Test fun pulseCapsuleWidthAndOpacityAreBounded() {
+    @Test fun pulseCapsuleOpacityIsBounded() {
         val defaults = SettingsCodec.decode("{}")
-        assertEquals(0, defaults.pulseWidth)
         assertEquals(100, defaults.pulseOpacity)
-        assertEquals(LauncherSettings.MAX_PULSE_WIDTH, SettingsCodec.decode("""{"pulseWidth":500}""").pulseWidth)
-        assertEquals(0, LauncherSettings(pulseWidth = -8).sanitized().pulseWidth)
+        // D8 dropped the width; documents that still carry it decode.
+        assertEquals(70, SettingsCodec.decode("""{"pulseWidth":14,"pulseOpacity":70}""").pulseOpacity)
         assertEquals(LauncherSettings.MIN_PULSE_OPACITY, SettingsCodec.decode("""{"pulseOpacity":0}""").pulseOpacity)
         assertEquals(100, LauncherSettings(pulseOpacity = 250).sanitized().pulseOpacity)
-        val custom = LauncherSettings(pulseWidth = 14, pulseOpacity = 70)
+        val custom = LauncherSettings(pulseOpacity = 70)
         assertEquals(custom, SettingsCodec.decode(SettingsCodec.encode(custom)))
     }
 
@@ -203,5 +205,40 @@ class ArcRingsTest {
         assertTrue(lensSwipeSearch(0f, -60f))
         assertFalse(lensSwipeSearch(0f, -20f))
         assertFalse(lensSwipeSearch(200f, -60f))
+    }
+}
+
+class PulseShapeTest {
+    // Nothing Phone (3): lens at 205.5/26 dp, radius 8, status bar 48 dp; icons end ~145 dp, start ~290 dp.
+    @Test fun restCapsuleStaysBetweenTheStatusIcons() {
+        for (mark in listOf(false, true)) {
+            val c = restCapsule(205.5f, 26f, 8f, 48f, mark)
+            assertEquals(28f, c.height, 0.001f)
+            assertEquals(12f, c.top, 0.001f)
+            assertEquals(205.5f, c.left + c.lensX, 0.001f)
+            assertTrue(c.left > 145f && c.right < 290f)
+            assertTrue(c.top >= 0f && c.top + c.height <= 48f)
+        }
+        assertEquals(28f, restCapsule(205.5f, 26f, 8f, 48f, mark = false).width, 0.001f)
+        assertEquals(38f, restCapsule(205.5f, 26f, 8f, 48f, mark = true).width, 0.001f)
+    }
+
+    @Test fun restCapsuleShrinksToALowStatusBarButKeepsTheLensClear() {
+        val low = restCapsule(180f, 12f, 8f, 24f, mark = false)
+        assertEquals(22f, low.height, 0.001f)
+        assertTrue(low.top >= 0f && low.top + low.height <= 24f)
+        val tiny = restCapsule(180f, 10f, 9f, 16f, mark = false)
+        assertEquals(20f, tiny.height, 0.001f)
+        assertEquals(26f, restCapsule(180f, 13f, 7f, 0f, mark = false).height, 0.001f)
+    }
+
+    @Test fun restShowsOnlyGaugeAndAlarmDot() {
+        val hour = 3_600_000L
+        assertFalse(pulseRest(charging = false, alarmAt = null, now = 0, alarmHours = 12).visible)
+        assertEquals(PulseRest(gauge = true, alarmMark = false), pulseRest(true, null, 0, 12))
+        assertEquals(PulseRest(gauge = false, alarmMark = true), pulseRest(false, 10 * hour, 0, 12))
+        assertEquals(PulseRest(gauge = true, alarmMark = true), pulseRest(true, 12 * hour, 0, 12))
+        assertFalse(pulseRest(false, 13 * hour, 0, 12).visible)
+        assertFalse(pulseRest(false, -1, 0, 12).visible)
     }
 }

@@ -184,11 +184,6 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                 if (settings.pulse) {
                     NavRow(stringResource(R.string.pulse_lens), stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short
                         else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
-                    val widthLabel = stringResource(R.string.pulse_width)
-                    Stacked("$widthLabel · +${settings.pulseWidth} dp") {
-                        BeadSlider(settings.pulseWidth.toFloat(), 0f, LauncherSettings.MAX_PULSE_WIDTH.toFloat(), widthLabel, Modifier.fillMaxWidth(),
-                            { v -> set { it.copy(pulseWidth = (v / 2f).roundToInt() * 2) } }, track = ink.ink)
-                    }
                     val opacityLabel = stringResource(R.string.pulse_opacity)
                     Stacked("$opacityLabel · ${settings.pulseOpacity} %") {
                         BeadSlider(settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, opacityLabel, Modifier.fillMaxWidth(),

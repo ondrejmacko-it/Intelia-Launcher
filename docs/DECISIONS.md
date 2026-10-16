@@ -53,3 +53,23 @@ side of the camera (2 dp steps, default 0) and *Neprůhlednost kapsle* sets the 
 Both are `LauncherSettings` fields clamped in `sanitized()`. While PULSE is on, Studio draws the real
 capsule at the camera in preview mode (always shown as charging, no echo, no panel, no touch) so changes
 are visible while dragging. Revert: drop `pulseWidth`/`pulseOpacity`; old documents decode unchanged.
+
+## D8 — 2026-10-16 — PULSE capsule sits in the status bar and shows no text at rest
+The D7 capsule showed a bell + "10:00" on the left and "90%" on the right and covered the system alarm
+icon. Both facts are already in the status bar, so at rest PULSE now only adds what the system lacks:
+- **Charging:** a disc around the camera; the ring on the lens rim is the battery gauge (terracotta arc).
+- **Alarm within `pulseAlarmHours`:** the same disc plus one terracotta dot to the right of the lens.
+- **Both:** gauge and dot. **Neither:** nothing (only the echo when Home returns).
+- **Size:** height = lens diameter + 2 × 6 dp, capped at `WindowInsets.statusBars` top − 2 dp and kept
+  inside the status bar; width = height, + 10 dp for the dot (on the right only, the lens stays centred).
+  On Phone (3) that is 28 × 28 dp (38 dp with the dot), x 191.5–229.5 dp; status icons end ≈145 dp and
+  start ≈290 dp. Pure logic in `ui/PulseShape.kt` (`restCapsule`, `pulseRest`), JVM tested.
+- **Tap** on the lens opens the existing `PulsePanel` from the camera downwards (alarm
+  time and day, battery % and state, torch); tap outside or Back closes it. TalkBack reads the rest state.
+  The status bar window takes touches inside it, so the target is 64 dp wide and reaches 28 dp below the
+  status bar. The panel's top strip is as tall as the status bar and carries no text (system icons draw there).
+- **D7:** the width slider is removed (`pulseWidth` dropped; old documents still decode because unknown
+  keys are ignored). Extra width would only cover status icons. The opacity slider stays.
+- MT Capsule was only looked at: with its service on it drew no window at rest while charging, so there
+  was nothing to copy; this design is ours ("ring and thread", terracotta, system fonts).
+Revert: restore the D7 capsule body in `Pulse.kt` and `pulseWidth`.

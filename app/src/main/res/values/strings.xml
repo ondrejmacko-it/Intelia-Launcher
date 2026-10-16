@@ -99,7 +99,7 @@
     <string name="pulse_alarm_window">Alarm within</string>
     <string name="pulse_charging">Show charging</string>
     <string name="pulse_charging_detail">The ring around the camera becomes the battery gauge.</string>
-    <string name="pulse_width">Capsule width</string>
+    <string name="pulse_alarm_near">alarm at %1$s</string>
     <string name="pulse_opacity">Capsule opacity</string>
     <string name="collapse">Collapse</string>
 
