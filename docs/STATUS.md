@@ -24,6 +24,9 @@ Verified:
 - PULSE toggles (Lab started with `am start`, not HOME; on AC power): *Ukázat nabíjení* off → no capsule
   while charging, on → capsule with 90 % is back. *Ozvěna při návratu* on → a ring leaves the camera right after
   returning to Lab from the system home; off → no ring at the same moment. All PULSE toggles left on.
+- D6 (ring 2 from the centre, `ac65740`): `:app:testDebugUnitTest :app:assembleDebug` PASS (22 tests). On the phone
+  the only ARC FLOW (`pocty`) sits straight above LENS in ring 2 (before: far left) and is selected by sliding
+  straight up; sliding back onto LENS and releasing cancelled it (nothing launched). Not run by release this time.
 
 Not verified:
 - Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
