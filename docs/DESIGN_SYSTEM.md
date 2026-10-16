@@ -365,7 +365,10 @@ under a black 42 % scrim. Field = Veil Dense pill, centred on LENS while the IME
 lit with the accent at 16 % and run by Enter; exact FLOW = card with name, numbered app-icon chain, Spustit; a FLOW
 name that only starts with the query completes on Enter, never runs; blank query = Moje (favourites; there is no
 launch history, so no "recent"). Back, or the IME closing, plays the morph in reverse (one Back). Drawer = Veil
-Focus sheet (8 dp inset) with A–Z, rail and Moje; its bottom field opens Search. Not built: 18 ms row stagger.
+Focus sheet (8 dp inset) with A–Z, rail and Moje; its bottom field opens Search. The card is composed two
+frames after the field (it is invisible until the morph is 60 % through), so the open cost is split. App options
+over Search or the drawer use Veil Focus and a 60 % scrim. Not built: 18 ms row stagger (no room inside the
+card's 40 % fade window of a 170 ms morph).
 
 Input is never delayed: typing works from the first frame, the IME opens with the morph, the action runs on
 release. Reduced Motion → all 0 ms. No idle animation; nothing animates while Home is at rest.
@@ -393,6 +396,11 @@ Measured 2026-10-16 on the Nothing Phone (3) (120 Hz), Lab build, warm (one open
 flat because the new path draws half the frames; janky count and p99 halved. First open frame still costs ~46 ms
 UI (composition of the layer); frames while the IME rides take 10–13 ms (> 8.3 ms budget). PSS 5 s after a cold
 start: 107–109 MB old, 108–112 MB new (same within noise).
+Release build (R8 + `compile -m speed`, debug key, same `.lab` id; debug builds stay interpreted/JIT and inflate
+UI time ~2.5×), same procedure: `7fc3707` 14–18 janky of ~310 (4.5–5.8 %), p99 28–29 ms, longest UI frame
+21–26 ms; card two frames later (`61484cf`) 15–16 janky, p99 21–25 ms, longest UI frame 10–19 ms. Remaining jank:
+the open frame (~12 ms UI + first-use GPU), focus/IME setup (~16 ms), IME ride frames GPU 5–10 ms, and one
+GPU context re-init after ~0.5 s idle. Third-party accessibility services add semantics work after every layout.
 
 Veil = one gradient fill + one gradient stroke per open surface; Clear/idle Home = no extra draw. Own-layer blur
 only while Search/Studio is open (API 31+). Editor marks and guides exist only in edit mode. Expected cost is

@@ -2,6 +2,36 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Search open split, options sheet over layers, phone checks (`claude/crystal-redesign`, `61484cf`, `41eb836`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 78 JVM tests, 0 failures.
+- Phone (Nothing Phone (3), Android 16; owner's `intelia.xml` backed up first, byte-identical at the end):
+  - Debug (Lab) numbers are not representative: the debuggable build cannot be AOT-compiled (`dexopt` stays
+    `verify`). A release build signed with the debug key and installed over Lab (`compile -m speed`) gives 14–18
+    janky of ~310 (4.5–5.8 %), p99 28–29 ms at `7fc3707`.
+  - systrace of the open frame (debug): composition 22 ms (Search 19: card 9.4, field 5.6; Home 0.3 ms, so Home
+    does not recompose on `page`), apply 10 ms, measure/layout 20 ms; then focus + IME setup ~18 ms before the next
+    frame. Accessibility services on the phone (Kea, MT Island) add 6–12 ms of semantics work after layout changes.
+  - Card composed two frames after the field (`61484cf`, release, 3 runs): janky 15–16 (4.8–5.1 %), p99 21–25 ms,
+    longest UI frame 10–19 ms (was 21–26). Tried and dropped: one row per frame (each frame re-measured the card,
+    26 ms each in debug), a layer translation instead of `offset` for the IME ride, an offscreen layer for Home
+    under Search (no measurable gain). Frames while the IME rides are GPU-bound (5–10 ms, also with Home cached),
+    and the first frame after ~0.5 s idle pays a GPU context re-init (~16 ms, HWUI "GPU Context timeout").
+  - Reduced Motion (Pohyb Off): screenshot ~120 ms after the tap already shows the full pill, card and scrim.
+  - Long-press on a Search row opens the options sheet; Search stays (query kept, IME hidden), Back returns to it.
+    The rows showed through the Dense sheet; now Focus + 60 % scrim over Search/drawer (`41eb836`), checked.
+  - Enter: "ma" → Mapy (first lit row) launched; "pocty" → nothing ran while typing, Enter ran the FLOW
+    (Kalkulačka, then Hodiny).
+  - Light theme: Search card and pill readable over the dimmed Home (clock faintly visible through the card).
+  - Morph ring → pill recorded with `screenrecord` (720p) and sent to the owner; not analysed frame by frame here.
+
+Not verified: TalkBack, light wallpaper. Not done: LENS drag in the editor (needs a continuous LENS x instead of
+`Reach`), 18 ms row stagger (the card fades in during the last 40 % of a 170 ms morph — no room for 6 × 18 ms
+without lengthening it). Owner to try: pinch in the editor, Veil icon style.
+During the session one measuring run tapped into an Instagram modal that was on top after an install (script now
+aborts unless Lab is on top), and one test tap opened HBO Max from the Search card.
+
 ## 2026-10-16 — Search and drawer in Veil over Home (`claude/crystal-redesign`, `53b9769`, `a59a4a2`)
 
 Verified:
