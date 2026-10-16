@@ -242,6 +242,9 @@
     <string name="lens_position">Poloha</string>
     <string name="lens_centre">střed</string>
     <string name="lens_offset">%1$d dp</string>
+    <string name="a11y_lens_left">Posunout LENS vlevo</string>
+    <string name="a11y_lens_right">Posunout LENS vpravo</string>
+    <string name="a11y_lens_centre">LENS na střed</string>
     <string name="add_title">Přidat sem</string>
     <string name="add_app">Aplikace</string>
     <string name="add_widget">Widget · později</string>

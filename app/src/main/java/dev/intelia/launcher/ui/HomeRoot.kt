@@ -363,6 +363,9 @@ private fun Home(
     val swipe = with(density) { 64.dp.toPx() }
     val editLabel = stringResource(R.string.edit_home)
     val moveLabel = stringResource(R.string.a11y_move)
+    val lensLeft = stringResource(R.string.a11y_lens_left)
+    val lensRight = stringResource(R.string.a11y_lens_right)
+    val lensCentre = stringResource(R.string.a11y_lens_centre)
     val removeLabel = stringResource(R.string.inspect_remove)
 
     fun refresh() { tick++ }
@@ -562,7 +565,13 @@ private fun Home(
 
         LensArc(arc, (cx - maxWidth / 2).value, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
             onShortcut = onShortcut, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
-            lensFilled = lensItem?.style == LensStyle.Filled.name)
+            lensFilled = lensItem?.style == LensStyle.Filled.name,
+            // TalkBack moves LENS in the editor without a drag (§5.5), each as one undo step.
+            editActions = if (ed == null) emptyList() else listOf(
+                CustomAccessibilityAction(lensLeft) { ed.setLensDx(ed.layout.lensDx() - LENS_A11Y_STEP).also { refresh() } },
+                CustomAccessibilityAction(lensRight) { ed.setLensDx(ed.layout.lensDx() + LENS_A11Y_STEP).also { refresh() } },
+                CustomAccessibilityAction(lensCentre) { ed.setLensDx(0f).also { refresh() } },
+            ))
         if (settings.pulse && ed == null) Pulse(settings)
         val hole = rememberLens(settings.pulseLens)
         val camera = Pt(hole.x / density.density, hole.y / density.density)
@@ -774,6 +783,8 @@ private fun hitItem(state: HomeEditorState, p: Pt, timeZone: Zone?, dateZone: Zo
 
 /** Id of the PULSE pseudo-element in the editor (it is a setting, not a layout item). */
 private const val PULSE_ID = "#pulse"
+/** How far one TalkBack "move LENS" action shifts it (dp). */
+private const val LENS_A11Y_STEP = 24f
 
 /** The date line in its own format, size, colour and opacity; 4.2 default: 12 sp caps, +2.2 tracking, fg2 (62 %). */
 @Composable

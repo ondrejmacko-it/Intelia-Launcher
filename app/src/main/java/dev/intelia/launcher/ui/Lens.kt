@@ -55,7 +55,9 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.onClick
@@ -133,6 +135,7 @@ fun LensArc(
     modifier: Modifier = Modifier,
     lensRing: Dp = CrystalDims.lensRing,
     lensFilled: Boolean = false,
+    editActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val homeInk = LocalHomeInk.current
     val ink = LocalInk.current
@@ -307,6 +310,7 @@ fun LensArc(
                     role = Role.Button
                     contentDescription = "$lensDescription (LENS)"
                     if (open) stateDescription = arcOpen
+                    if (editActions.isNotEmpty()) customActions = editActions
                     onClick(label = searchLabel) { close(); onSearch(); true }
                     onLongClick(label = arcAction) { open = true; assisted = true; true }
                 }

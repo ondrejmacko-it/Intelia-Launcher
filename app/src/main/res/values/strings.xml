@@ -243,6 +243,9 @@
     <string name="lens_position">Position</string>
     <string name="lens_centre">centre</string>
     <string name="lens_offset">%1$d dp</string>
+    <string name="a11y_lens_left">Move LENS left</string>
+    <string name="a11y_lens_right">Move LENS right</string>
+    <string name="a11y_lens_centre">Move LENS to the centre</string>
     <string name="add_title">Add here</string>
     <string name="add_app">App</string>
     <string name="add_widget">Widget · later</string>
