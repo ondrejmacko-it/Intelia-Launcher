@@ -151,3 +151,4 @@ Phase A of the owner's "Intelia Veil & Home Studio V2" brief. Spec: `docs/DESIGN
 - **LENS → Search** morph from the LENS ring, field riding the IME.
 Rejected: a blur imitation presented as blur; a separate full-screen editor page; storing absolute px positions.
 Open: does the Atmosphere wallpaper honour `setWallpaperZoomOut`; icon-pack support needs its own entry.
+**Approved by the owner 2026-10-16** with changes: calmer matte panels in three densities (Veil Light / Dense ~75–85 % / Focus ~88–95 %), progressive-disclosure inspectors that never cover the edited element, preset thumbnails, LENS 84 × 100 dp only after a phone test; ARC, PULSE 2.0 and FLOW untouched now, widgets reserved only.

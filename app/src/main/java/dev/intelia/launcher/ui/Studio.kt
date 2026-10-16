@@ -114,7 +114,8 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                     Text(stringResource(R.string.studio_live).uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
                 }
             }
-            Column(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(ink.paper)
+            Column(Modifier.weight(1f).fillMaxWidth()
+                .veilSurface(veilTokens(VeilLevel.Focus, ink.dark, ink.accent), VeilOrigin.Top, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .verticalScroll(scroll).navigationBarsPadding().padding(bottom = 24.dp)) {
                 Section(R.string.appearance)
                 Stacked(stringResource(R.string.clock_font)) {

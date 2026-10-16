@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -90,13 +91,18 @@ fun AppOptionsSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded)),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = ink.paper,
+        containerColor = Color.Transparent,
         contentColor = ink.ink,
-        scrimColor = Color.Black.copy(alpha = .32f),
+        scrimColor = Color.Black.copy(alpha = .40f),
         tonalElevation = 0.dp,
-        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 6.dp).size(28.dp, 3.dp).clip(RoundedCornerShape(2.dp)).background(ink.line)) },
+        dragHandle = null,
+        contentWindowInsets = { WindowInsets(0) },
     ) {
-        Column(Modifier.navigationBarsPadding().padding(bottom = 12.dp)) {
+        // Veil Dense (§5.2): the sheet rises from the icon row at the bottom, so its edge is lit there.
+        Column(Modifier.fillMaxWidth().veilSurface(veilTokens(VeilLevel.Dense, ink.dark, ink.accent), VeilOrigin(.5f, 1.15f),
+            RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).navigationBarsPadding().padding(bottom = 12.dp)) {
+            Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp, bottom = 6.dp).size(28.dp, 3.dp)
+                .clip(RoundedCornerShape(2.dp)).background(ink.line))
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(app, Modifier.size(40.dp))
                 Text(app.label, Modifier.padding(start = 16.dp), style = InkText.title.copy(fontSize = 26.sp, lineHeight = 30.sp),
