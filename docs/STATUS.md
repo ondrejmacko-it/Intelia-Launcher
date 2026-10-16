@@ -34,14 +34,21 @@ Verified:
 - Near-alarm capsule (owner set an alarm for 10:00; checked 09:46 while charging): the capsule shows bell + 10:00
   on the left and the battery ring + 90 % on the right. **Problem:** its left half covers the system status-bar
   alarm icon and the 90 % repeats the system battery. Status bar is 126 px (48 dp) high.
+- D8 (status-bar capsule, no text at rest): `:app:testDebugUnitTest :app:assembleDebug` PASS (26 tests, new
+  `PulseShapeTest`). On the phone (AC power, 90 %, Lab via `am start`): at rest only a 28 dp disc around the
+  camera with the terracotta battery ring, x ≈ 503–577 px, clear of the status icons (left end ≈ 445 px,
+  right start ≈ 770 px). Studio preview shows the disc plus the alarm dot (38 dp). Tap just below the camera
+  (540,165) opens the panel from the lens (alarm 5:40 po 19. 10., 90 % nabíjí se, torch) with the status icons
+  readable on top; Back closes it; a tap outside closes it.
+- MT Capsule (`com.pryshedko.mtisland`): its accessibility service is on but it had no window at rest while
+  charging; its expanded state was not seen (needs the owner). Taps at the camera itself (y < 126 px) go to
+  SystemUI's status bar, or to the old `dev.intelia.launcher.debug` "Intelia Pulse" accessibility overlay
+  (frame 498,24–582,108 px), which opened that build's drawer once; nothing was changed in either.
 
 Not verified:
 - Launching an app shortcut by releasing in ring 3 (available shortcuts led into personal apps).
-- PULSE capsule design (owner, 2026-10-16): it should fit the status bar, never cover status icons, show as
-  little as possible at rest and show details on tap, like MT Capsule but in Intelia's own way. Planned in
-  `docs/NEXT_SESSION.md`.
 - Performance on a release build; battery.
-- The PULSE panel cannot be opened via adb while MT Capsule's overlay is running (it catches taps on the camera).
+- D8 rest state with a real near alarm (next alarm was 2 d 19 h away; only the Studio preview showed the dot).
 
 ## 2026-10-16 — new PC setup (`claude/ink-rework` from `main` 012140f)
 
