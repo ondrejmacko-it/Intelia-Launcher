@@ -231,6 +231,7 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
             LocalHomeInk provides homeInk,
             LocalMotion provides settings.motion,
             LocalIconStyle provides settings.iconStyle,
+            LocalVeil provides VeilPrefs(settings.veilSolid, settings.veilShift, settings.veilEdge),
             LocalInkHaptics provides settings.haptics,
             LocalContentColor provides ink.ink,
             LocalTextStyle provides InkText.body.copy(color = ink.ink),

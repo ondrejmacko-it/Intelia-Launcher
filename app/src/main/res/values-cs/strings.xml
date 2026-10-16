@@ -147,7 +147,7 @@
     <string name="accent_slate">Břidlice</string>
     <string name="icons">Ikony</string>
     <string name="icons_system">Barevné</string>
-    <string name="icons_ink">Inkoust</string>
+    <string name="icons_ink">Mono</string>
     <string name="show_clock">Zobrazit hodiny</string>
     <string name="show_date">Zobrazit datum</string>
     <string name="home_section">Plocha</string>
@@ -268,4 +268,26 @@
     <string name="move_up">Nahoru</string>
     <string name="move_down">Dolů</string>
     <string name="a11y_move">Přesunout</string>
+    <string name="step_less">Méně: %1$s</string>
+    <string name="step_more">Více: %1$s</string>
+    <string name="clock_hide">Skrýt hodiny</string>
+    <string name="date_hide">Skrýt datum</string>
+    <string name="date_long">Dlouhé</string>
+    <string name="date_short">Krátké</string>
+    <string name="date_weekday">Den</string>
+    <string name="date_pinned">Připnout pod hodiny</string>
+    <string name="add_clock">Hodiny</string>
+    <string name="add_date">Datum</string>
+    <string name="look">Vzhled</string>
+    <string name="look_material">Panely</string>
+    <string name="look_veil">Veil</string>
+    <string name="look_solid">Matné</string>
+    <string name="look_density">Hustota</string>
+    <string name="look_edge">Světelná hrana</string>
+    <string name="look_icons_same">Stejná velikost všech ikon</string>
+    <string name="look_labels">Popisky pod ikonami</string>
+    <string name="look_hint">Roztažením nebo stažením dvou prstů změníš velikost prvku. Kroužek u kamery = PULSE.</string>
+    <string name="studio_look_moved">Vzhled, ikony, hodiny, datum a PULSE se upravují přímo na ploše.</string>
+    <string name="studio_pulse_moved">Vzhled kapsle a události: v editoru plochy klepni na kroužek u kamery.</string>
+    <string name="look_pulse">Vzhled kapsle a události</string>
 </resources>

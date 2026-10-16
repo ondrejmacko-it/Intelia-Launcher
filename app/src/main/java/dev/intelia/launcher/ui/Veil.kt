@@ -1,7 +1,9 @@
 package dev.intelia.launcher.ui
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
@@ -50,8 +52,28 @@ internal fun veilAlpha(level: VeilLevel): Pair<Float, Float> = when (level) {
     VeilLevel.Focus -> .90f to .94f
 }
 
-fun veilTokens(level: VeilLevel, dark: Boolean, acc: Color): VeilTokens {
-    val (aTop, aBottom) = veilAlpha(level)
+/** The owner's Veil choices from the editor's Look panel (§5.2): Solid panels, density shift, origin edge. */
+@Immutable
+data class VeilPrefs(val solid: Boolean = false, val shift: Int = 0, val edge: Boolean = true)
+
+val LocalVeil = staticCompositionLocalOf { VeilPrefs() }
+
+/** Tokens for [level] in the current theme and the owner's Veil choices. */
+@Composable
+fun veil(level: VeilLevel): VeilTokens {
+    val c = LocalCrystal.current
+    return veilTokens(level, c.dark, c.acc, LocalVeil.current)
+}
+
+fun veilTokens(level: VeilLevel, dark: Boolean, acc: Color, prefs: VeilPrefs = VeilPrefs()): VeilTokens {
+    if (prefs.solid) {
+        // §5.2 Solid: opaque matte fill, 1 dp white @ 15 % (black in light), accent only at the origin.
+        val solid = if (dark) Color(0xFF16181C) else Color(0xFFF5F6F7)
+        val edge = if (dark) Color.White.copy(alpha = .15f) else Color.Black.copy(alpha = .15f)
+        return VeilTokens(solid, solid, edge, if (prefs.edge) lerp(acc, edge, .3f) else edge, Color.Transparent)
+    }
+    val shift = prefs.shift.coerceIn(-10, 10) / 100f
+    val (aTop, aBottom) = veilAlpha(level).let { (t, b) -> (t + shift).coerceIn(.5f, 1f) to (b + shift).coerceIn(.5f, 1f) }
     // Neutral matte bases with a trace (6 %) of the accent, so the material belongs to the theme
     // without turning into a coloured glass.
     val base = if (dark) Color(0xFF15171B) else Color(0xFFF5F6F7)
@@ -61,7 +83,8 @@ fun veilTokens(level: VeilLevel, dark: Boolean, acc: Color): VeilTokens {
         top = tinted.copy(alpha = aTop),
         bottom = deep.copy(alpha = aBottom),
         edgeCold = if (dark) Color.White.copy(alpha = .07f) else Color.Black.copy(alpha = .07f),
-        edgeHot = lerp(acc, if (dark) Color.White else Color.Black, .35f).copy(alpha = if (dark) .55f else .45f),
+        edgeHot = if (prefs.edge) lerp(acc, if (dark) Color.White else Color.Black, .35f).copy(alpha = if (dark) .55f else .45f)
+            else if (dark) Color.White.copy(alpha = .12f) else Color.Black.copy(alpha = .12f),
         glow = acc.copy(alpha = if (dark) .07f else .05f),
     )
 }

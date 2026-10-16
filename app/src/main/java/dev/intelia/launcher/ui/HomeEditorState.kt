@@ -193,15 +193,15 @@ class HomeEditorState(
     }
 
     /**
-     * Pins the date under the clock or unpins it to move on its own. Unpinning keeps it where it was:
-     * just under the clock's free point (or near the top when there is no clock).
+     * Pins the date under the clock or unpins it to move on its own. Unpinning keeps it where it was ([keepFy],
+     * measured by the caller), else just under the clock's free point.
      */
-    fun pinDate(pinned: Boolean) {
+    fun pinDate(pinned: Boolean, keepFy: Float? = null) {
         val date = layout.items.firstOrNull { it.kind == ItemKind.Date } ?: return
         if (pinned == (date.anchor.type == AnchorType.Bound)) return
         val clock = layout.items.firstOrNull { it.kind == ItemKind.Clock }?.anchor?.takeIf { it.type == AnchorType.Free }
         val anchor = if (pinned) Anchor.Bound
-            else Anchor.free(clock?.fx ?: .5f, ((clock?.fy ?: 0f) + DATE_BELOW).coerceAtMost(CLOCK_MAX_FY))
+            else Anchor.free(clock?.fx ?: .5f, (keepFy ?: ((clock?.fy ?: 0f) + DATE_BELOW)).coerceIn(0f, CLOCK_MAX_FY))
         commit(layout.copy(items = layout.items.map { if (it.id == date.id) it.copy(anchor = anchor) else it }))
     }
 

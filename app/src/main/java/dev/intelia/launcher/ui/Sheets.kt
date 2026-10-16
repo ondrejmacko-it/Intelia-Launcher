@@ -99,7 +99,7 @@ fun AppOptionsSheet(
         contentWindowInsets = { WindowInsets(0) },
     ) {
         // Veil Dense (§5.2): the sheet rises from the icon row at the bottom, so its edge is lit there.
-        Column(Modifier.fillMaxWidth().veilSurface(veilTokens(VeilLevel.Dense, ink.dark, ink.accent), VeilOrigin(.5f, 1.15f),
+        Column(Modifier.fillMaxWidth().veilSurface(veil(VeilLevel.Dense), VeilOrigin(.5f, 1.15f),
             RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).navigationBarsPadding().padding(bottom = 12.dp)) {
             Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp, bottom = 6.dp).size(28.dp, 3.dp)
                 .clip(RoundedCornerShape(2.dp)).background(ink.line))

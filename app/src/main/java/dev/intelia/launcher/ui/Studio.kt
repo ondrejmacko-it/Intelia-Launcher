@@ -3,6 +3,7 @@ package dev.intelia.launcher.ui
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -77,13 +78,14 @@ private enum class StudioPane { Main, Shortcuts, Hidden, Lens }
  * every choice on paper below it. Changes apply immediately and persist through SettingsStore.
  */
 @Composable
-fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onFlows: () -> Unit) {
-    var pane by rememberSaveable { mutableStateOf(StudioPane.Main) }
+fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onFlows: () -> Unit, onEditHome: () -> Unit,
+    lensFirst: Boolean = false) {
+    var pane by rememberSaveable { mutableStateOf(if (lensFirst) StudioPane.Lens else StudioPane.Main) }
     // Hoisted so coming back from a sub-page lands where you left the list.
     val scroll = rememberScrollState()
     BackHandler(enabled = pane != StudioPane.Main) { pane = StudioPane.Main }
     when (pane) {
-        StudioPane.Main -> StudioMain(model, settings, scroll, onBack, onFlows, onPane = { pane = it })
+        StudioPane.Main -> StudioMain(model, settings, scroll, onBack, onFlows, onEditHome, onPane = { pane = it })
         StudioPane.Shortcuts -> ShortcutPicker(model, settings, onBack = { pane = StudioPane.Main })
         StudioPane.Hidden -> HiddenApps(model, onBack = { pane = StudioPane.Main })
         StudioPane.Lens -> LensCalibration(settings.pulseLens, onSave = { lens ->
@@ -94,7 +96,8 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
 }
 
 @Composable
-private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll: ScrollState, onBack: () -> Unit, onFlows: () -> Unit, onPane: (StudioPane) -> Unit) {
+private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll: ScrollState, onBack: () -> Unit, onFlows: () -> Unit, onEditHome: () -> Unit,
+    onPane: (StudioPane) -> Unit) {
     val ink = LocalInk.current
     val homeInk = LocalHomeInk.current
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
@@ -116,40 +119,12 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                 }
             }
             Column(Modifier.weight(1f).fillMaxWidth()
-                .veilSurface(veilTokens(VeilLevel.Focus, ink.dark, ink.accent), VeilOrigin.Top, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Top, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .verticalScroll(scroll).navigationBarsPadding().padding(bottom = 24.dp)) {
-                Section(R.string.appearance)
-                Stacked(stringResource(R.string.clock_font)) {
-                    Segments(listOf(ClockStyle.Crystal to stringResource(R.string.clock_crystal), ClockStyle.Serif to stringResource(R.string.clock_serif), ClockStyle.Grotesk to stringResource(R.string.clock_grotesk),
-                        ClockStyle.Mono to stringResource(R.string.clock_mono)), settings.clockStyle, { v -> set { it.copy(clockStyle = v) } })
-                }
-                Stacked(stringResource(R.string.theme)) {
-                    Segments(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
-                        ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme, { v -> set { it.copy(theme = v) } })
-                }
-                Stacked(stringResource(R.string.accent)) { Swatches(settings.accent) { v -> set { it.copy(accent = v) } } }
-                Stacked(stringResource(R.string.icons)) {
-                    Segments(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink)),
-                        settings.iconStyle, { v -> set { it.copy(iconStyle = v) } })
-                }
-                ToggleRow(stringResource(R.string.show_clock), settings.showClock, { v -> set { it.copy(showClock = v) } })
-                ToggleRow(stringResource(R.string.show_date), settings.showDate, { v -> set { it.copy(showDate = v) } })
-
+                // Everything that changes how Home looks is edited on Home itself (owner, 2026-10-16); Studio keeps behaviour.
                 Section(R.string.home_section)
-                Stacked(stringResource(R.string.layout)) {
-                    Segments(listOf(HomeLayout.Pure to stringResource(R.string.layout_pure), HomeLayout.Essentials to stringResource(R.string.layout_essentials),
-                        HomeLayout.Custom to stringResource(R.string.layout_custom)), settings.layout, { v -> set { it.copy(layout = v, home = it.home.copy(active = HomeLayouts.LINKED_ID)) } })
-                }
-                Stacked(stringResource(R.string.reach)) {
-                    Segments(listOf(Reach.Left to stringResource(R.string.reach_left), Reach.Center to stringResource(R.string.reach_center),
-                        Reach.Right to stringResource(R.string.reach_right)), settings.reach, { v -> set { it.copy(reach = v) } })
-                }
-                Kicker(stringResource(R.string.favorites_count, favorites.size, LauncherSettings.MAX_FAVORITES), Modifier.padding(start = 24.dp, top = 18.dp, bottom = 4.dp),
-                    color = ink.muted)
-                if (favorites.isEmpty()) Hint(stringResource(R.string.favorites_hint))
-                favorites.forEachIndexed { index, app ->
-                    OrderedAppRow(app, index, onUp = { model.moveFavorite(app.key, -1) }, onRemove = { model.toggleFavorite(app) })
-                }
+                Hint(stringResource(R.string.studio_look_moved))
+                NavRow(stringResource(R.string.edit_home), null, onEditHome)
 
                 Section(R.string.arc_section)
                 Hint(stringResource(R.string.arc_explain))
@@ -181,32 +156,14 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                 NavRow(stringResource(R.string.shortcuts_pick), null, { onPane(StudioPane.Shortcuts) })
 
                 Section(R.string.pulse)
-                ToggleRow(stringResource(R.string.pulse_toggle), settings.pulse, { v -> set { it.copy(pulse = v) } },
-                    detail = stringResource(R.string.pulse_detail))
+                Hint(stringResource(R.string.studio_pulse_moved))
                 // D9: the switch only mirrors the service; Android settings are where it is turned on or off.
                 val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
                 val context = LocalContext.current
                 ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
                     detail = stringResource(R.string.pulse_everywhere_detail))
-                if (settings.pulse) {
-                    NavRow(stringResource(R.string.pulse_lens), stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short
-                        else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
-                    val opacityLabel = stringResource(R.string.pulse_opacity)
-                    Stacked("$opacityLabel · ${settings.pulseOpacity} %") {
-                        BeadSlider(settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, 5f, opacityLabel,
-                            "${settings.pulseOpacity} %", Modifier.fillMaxWidth(),
-                            { v -> set { it.copy(pulseOpacity = (v / 5f).roundToInt() * 5) } }, track = ink.ink)
-                    }
-                    ToggleRow(stringResource(R.string.pulse_echo), settings.pulseEcho, { v -> set { it.copy(pulseEcho = v) } },
-                        detail = stringResource(R.string.pulse_echo_detail))
-                    ToggleRow(stringResource(R.string.pulse_alarm), settings.pulseAlarm, { v -> set { it.copy(pulseAlarm = v) } })
-                    if (settings.pulseAlarm) Stacked(stringResource(R.string.pulse_alarm_window)) {
-                        Segments(listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours,
-                            { v -> set { it.copy(pulseAlarmHours = v) } })
-                    }
-                    ToggleRow(stringResource(R.string.pulse_charging), settings.pulseCharging, { v -> set { it.copy(pulseCharging = v) } },
-                        detail = stringResource(R.string.pulse_charging_detail))
-                }
+                NavRow(stringResource(R.string.pulse_lens), stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short
+                    else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
 
                 Section(R.string.motion_section)
                 Stacked(stringResource(R.string.motion)) {
@@ -258,7 +215,7 @@ private fun Stacked(label: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Swatches(selected: Accent, onSelect: (Accent) -> Unit) {
+internal fun Swatches(selected: Accent, onSelect: (Accent) -> Unit) {
     val ink = LocalInk.current
     val dark = ink.dark
     val options = buildList {
@@ -270,7 +227,8 @@ private fun Swatches(selected: Accent, onSelect: (Accent) -> Unit) {
         add(Accent.Mono to R.string.accent_mono)
         if (Build.VERSION.SDK_INT >= 31) add(Accent.Dynamic to R.string.accent_dynamic)
     }
-    Row(Modifier.selectableGroup().padding(top = 8.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(Modifier.horizontalScroll(rememberScrollState()).selectableGroup().padding(top = 4.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         options.forEach { (accent, label) ->
             val color = swatchColor(accent, dark)
             val on = accent == selected

@@ -57,6 +57,8 @@ import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockStyle
+import dev.intelia.launcher.data.DateFormat
+import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.HomeItem
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.ItemTint
@@ -76,9 +78,28 @@ object ItemSizes {
     const val LENS = 44
     const val LENS_MIN = 36
     const val LENS_MAX = 56
+    const val DATE = 12
+    const val DATE_MIN = 9
+    const val DATE_MAX = 32
 }
 
-fun HomeItem.iconDp() = if (sizeDp == 0) ItemSizes.ICON else sizeDp.coerceIn(ItemSizes.ICON_MIN, ItemSizes.ICON_MAX)
+fun HomeItem.iconDp(default: Int = ItemSizes.ICON) = if (sizeDp == 0) default else sizeDp.coerceIn(ItemSizes.ICON_MIN, ItemSizes.ICON_MAX)
+fun HomeItem.dateSp() = if (sizeDp == 0) ItemSizes.DATE else sizeDp.coerceIn(ItemSizes.DATE_MIN, ItemSizes.DATE_MAX)
+fun HomeItem.dateFormat() = DateFormat.entries.firstOrNull { it.name == style } ?: DateFormat.Long
+
+/** Size range of an item for the inspector slider and the pinch gesture. */
+fun HomeItem.sizeRange(): IntRange = when (kind) {
+    ItemKind.Clock -> ItemSizes.CLOCK_MIN..ItemSizes.CLOCK_MAX
+    ItemKind.Date -> ItemSizes.DATE_MIN..ItemSizes.DATE_MAX
+    ItemKind.Lens -> ItemSizes.LENS_MIN..ItemSizes.LENS_MAX
+    else -> ItemSizes.ICON_MIN..ItemSizes.ICON_MAX
+}
+fun HomeItem.currentSize(iconDefault: Int): Int = when (kind) {
+    ItemKind.Clock -> if (sizeDp == 0) ItemSizes.CLOCK else sizeDp.coerceIn(sizeRange())
+    ItemKind.Date -> dateSp()
+    ItemKind.Lens -> lensDp()
+    else -> iconDp(iconDefault)
+}
 fun HomeItem.lensDp() = if (sizeDp == 0) ItemSizes.LENS else sizeDp.coerceIn(ItemSizes.LENS_MIN, ItemSizes.LENS_MAX)
 fun HomeItem.clockStyle(fallback: ClockStyle) = ClockStyle.entries.firstOrNull { it.name == style } ?: fallback
 
@@ -119,7 +140,7 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
             scaleX = k; scaleY = k
             transformOrigin = androidx.compose.ui.graphics.TransformOrigin(fx, if (above) 1f else 0f)
         }
-        .veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin(fx, if (above) 1f else 0f))
+        .veilSurface(veil(VeilLevel.Dense), VeilOrigin(fx, if (above) 1f else 0f))
         .pointerInput(Unit) { detectTapGestures() }
         .padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         content()
@@ -127,7 +148,7 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
 }
 
 @Composable
-private fun Title(text: String, trailing: (@Composable () -> Unit)? = null) {
+internal fun Title(text: String, trailing: (@Composable () -> Unit)? = null) {
     val c = LocalCrystal.current
     Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(text, Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 15.sp), color = c.fg, maxLines = 1,
@@ -136,20 +157,35 @@ private fun Title(text: String, trailing: (@Composable () -> Unit)? = null) {
     }
 }
 
+/** Label and value above, then − slider + : the buttons move exactly one [step] for fine tuning. */
 @Composable
-private fun SliderRow(label: String, value: Float, min: Float, max: Float, step: Float, valueText: String, onChange: (Float) -> Unit) {
+internal fun SliderRow(label: String, value: Float, min: Float, max: Float, step: Float, valueText: String, onChange: (Float) -> Unit) {
     val c = LocalCrystal.current
+    fun snap(v: Float) = (((v - min) / step).roundToInt() * step + min).coerceIn(min, max)
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2, maxLines = 1)
+        Text(valueText, style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg, maxLines = 1)
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.width(76.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2, maxLines = 1)
-        BeadSlider(value, min, max, step, label, valueText, Modifier.weight(1f), onChange = { v ->
-            onChange(((v - min) / step).roundToInt() * step + min)
-        }, track = c.fg)
-        Text(valueText, Modifier.width(48.dp).padding(start = 8.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2, maxLines = 1)
+        StepButton("−", stringResource(R.string.step_less, label), value > min) { onChange(snap(value - step)) }
+        BeadSlider(value, min, max, step, label, valueText, Modifier.weight(1f).padding(horizontal = 4.dp), onChange = { v -> onChange(snap(v)) },
+            track = c.fg)
+        StepButton("+", stringResource(R.string.step_more, label), value < max) { onChange(snap(value + step)) }
     }
 }
 
 @Composable
-private fun <T> Chips(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+private fun StepButton(sign: String, label: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = LocalCrystal.current
+    Box(Modifier.size(40.dp).clip(CircleShape).border(1.dp, if (enabled) c.fg3 else c.fg3.copy(alpha = .4f), CircleShape)
+        .clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = label },
+        contentAlignment = Alignment.Center) {
+        Text(sign, style = CrystalType.body.copy(fontSize = 18.sp, lineHeight = 18.sp), color = if (enabled) c.fg else c.fg3)
+    }
+}
+
+@Composable
+internal fun <T> Chips(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     val c = LocalCrystal.current
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -163,7 +199,7 @@ private fun <T> Chips(options: List<Pair<T, String>>, selected: T, onSelect: (T)
 }
 
 @Composable
-private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val c = LocalCrystal.current
     Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).toggleable(checked, role = Role.Switch, onValueChange = onChange),
         verticalAlignment = Alignment.CenterVertically) {
@@ -178,7 +214,7 @@ private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit)
 }
 
 @Composable
-private fun Action(label: String, color: Color, onClick: () -> Unit) {
+internal fun Action(label: String, color: Color, onClick: () -> Unit) {
     Text(label, Modifier.fillMaxWidth().heightIn(min = 44.dp).clickable(role = Role.Button, onClick = onClick).padding(vertical = 12.dp),
         style = CrystalType.body.copy(fontSize = 14.sp), color = color)
 }
@@ -201,7 +237,7 @@ private fun MoveButtons(onMove: (Int, Int) -> Unit) {
 
 /** Progressive disclosure: the less common options stay folded. */
 @Composable
-private fun Advanced(content: @Composable () -> Unit) {
+internal fun Advanced(content: @Composable () -> Unit) {
     val c = LocalCrystal.current
     var open by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().heightIn(min = 40.dp).toggleable(open, role = Role.Button) { open = it },
@@ -214,13 +250,13 @@ private fun Advanced(content: @Composable () -> Unit) {
 
 /** App or FLOW on Home: size, label, remove from Home (never uninstall). */
 @Composable
-fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
+fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, iconDefault: Int, onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
     val c = LocalCrystal.current
     Title(title) {
         if (onMore != null) Text(stringResource(R.string.inspect_more), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onMore)
             .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.acc)
     }
-    val size = item.iconDp()
+    val size = item.iconDp(iconDefault)
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp") { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
@@ -231,7 +267,7 @@ fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, onMore:
 
 /** The clock: typeface, size, date first; weight, colour and opacity under Advanced. */
 @Composable
-fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle, onChange: () -> Unit) {
+fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle, onRemoved: () -> Unit, onChange: () -> Unit) {
     val style = item.clockStyle(fallback)
     Chips(listOf(ClockStyle.Crystal to stringResource(R.string.clock_crystal), ClockStyle.Serif to stringResource(R.string.clock_serif),
         ClockStyle.Grotesk to stringResource(R.string.clock_grotesk), ClockStyle.Mono to stringResource(R.string.clock_mono)), style) { v ->
@@ -247,22 +283,44 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
         SliderRow(stringResource(R.string.inspect_weight), weight.toFloat(), 100f, 700f, 50f, "$weight") { v ->
             state.edit(item.id, "weight") { it.copy(weight = v.roundToInt()) }; onChange()
         }
-        Chips(listOf("" to stringResource(R.string.tint_auto), ItemTint.Accent.name to stringResource(R.string.tint_accent),
-            ItemTint.Light.name to stringResource(R.string.tint_light), ItemTint.Dark.name to stringResource(R.string.tint_dark)), item.tint) { v ->
-            state.edit(item.id, "tint") { it.copy(tint = v) }; onChange()
-        }
-        val pct = (item.alpha * 100).roundToInt()
-        SliderRow(stringResource(R.string.inspect_opacity), pct.toFloat(), 30f, 100f, 5f, "$pct %") { v ->
-            state.edit(item.id, "alpha") { it.copy(alpha = v / 100f) }; onChange()
-        }
+        TintAndOpacity(state, item, onChange)
     }
+    Action(stringResource(R.string.clock_hide), LocalCrystal.current.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
+}
+
+@Composable
+private fun TintAndOpacity(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+    Chips(listOf("" to stringResource(R.string.tint_auto), ItemTint.Accent.name to stringResource(R.string.tint_accent),
+        ItemTint.Light.name to stringResource(R.string.tint_light), ItemTint.Dark.name to stringResource(R.string.tint_dark)), item.tint) { v ->
+        state.edit(item.id, "tint") { it.copy(tint = v) }; onChange()
+    }
+    val pct = (item.alpha * 100).roundToInt()
+    SliderRow(stringResource(R.string.inspect_opacity), pct.toFloat(), 30f, 100f, 5f, "$pct %") { v ->
+        state.edit(item.id, "alpha") { it.copy(alpha = v / 100f) }; onChange()
+    }
+}
+
+/** The date on its own (§5.5): format, size, pinned under the clock or free; colour and opacity under Advanced. */
+@Composable
+fun DateInspector(state: HomeEditorState, item: HomeItem, shownFy: Float?, onRemoved: () -> Unit, onChange: () -> Unit) {
+    Chips(listOf(DateFormat.Long to stringResource(R.string.date_long), DateFormat.Short to stringResource(R.string.date_short),
+        DateFormat.Weekday to stringResource(R.string.date_weekday)), item.dateFormat()) { v ->
+        state.edit(item.id, "style") { it.copy(style = if (v == DateFormat.Long) "" else v.name) }; onChange()
+    }
+    val size = item.dateSp()
+    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.DATE_MIN.toFloat(), ItemSizes.DATE_MAX.toFloat(), 1f, "$size") { v ->
+        state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
+    }
+    Toggle(stringResource(R.string.date_pinned), item.anchor.type == AnchorType.Bound) { on -> state.pinDate(on, shownFy); onChange() }
+    Advanced { TintAndOpacity(state, item, onChange) }
+    Action(stringResource(R.string.date_hide), LocalCrystal.current.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }
 
 fun defaultWeight(style: ClockStyle) = if (style == ClockStyle.Crystal) 220 else 300
 
 /** LENS: ring size and style only; its touch area and ARC are unchanged (the ghost rings show ARC). */
 @Composable
-fun LensInspector(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+fun LensInspector(state: HomeEditorState, item: HomeItem, reach: Reach, onReach: (Reach) -> Unit, onChange: () -> Unit) {
     val c = LocalCrystal.current
     val size = item.lensDp()
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.LENS_MIN.toFloat(), ItemSizes.LENS_MAX.toFloat(), 2f, "$size dp") { v ->
@@ -272,17 +330,21 @@ fun LensInspector(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) 
     Chips(listOf(LensStyle.Ring to stringResource(R.string.lens_ring), LensStyle.Filled to stringResource(R.string.lens_filled)), style) { v ->
         state.edit(item.id, "style") { it.copy(style = if (v == LensStyle.Ring) "" else v.name) }; onChange()
     }
+    Chips(listOf(Reach.Left to stringResource(R.string.reach_left), Reach.Center to stringResource(R.string.reach_center),
+        Reach.Right to stringResource(R.string.reach_right)), reach, onReach)
     Text(stringResource(R.string.lens_hint), Modifier.padding(vertical = 6.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
 }
 
 /** Tap on an empty spot: what can be added there (§5.5). Widgets are reserved. */
 @Composable
-fun AddMenu(at: Pt, screenW: Float, topLimit: Float, avoid: Zone?, onApp: () -> Unit, onFlow: () -> Unit) {
+fun AddMenu(at: Pt, screenW: Float, topLimit: Float, avoid: Zone?, onApp: () -> Unit, onFlow: () -> Unit, onClock: (() -> Unit)?, onDate: (() -> Unit)?) {
     val c = LocalCrystal.current
     InspectorCard(Zone(at.x - 4f, at.y - 4f, at.x + 4f, at.y + 4f), screenW, topLimit, avoid) {
         Text(stringResource(R.string.add_title), Modifier.padding(vertical = 6.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2)
         Action(stringResource(R.string.add_app), c.fg, onApp)
         Action(stringResource(R.string.flow), c.fg, onFlow)
+        if (onClock != null) Action(stringResource(R.string.add_clock), c.fg, onClock)
+        if (onDate != null) Action(stringResource(R.string.add_date), c.fg, onDate)
         Text(stringResource(R.string.add_widget), Modifier.padding(vertical = 12.dp), style = CrystalType.body.copy(fontSize = 14.sp), color = c.fg3)
     }
 }
@@ -292,7 +354,7 @@ fun AddMenu(at: Pt, screenW: Float, topLimit: Float, avoid: Zone?, onApp: () -> 
 fun AddPicker(title: String, apps: List<AppEntry>, flows: List<FlowAlias>, onApp: (AppEntry) -> Unit, onFlow: (FlowAlias) -> Unit, onDismiss: () -> Unit) {
     val c = LocalCrystal.current
     Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin.Bottom)
+        Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Bottom)
             .padding(vertical = 12.dp)) {
             Text(title, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
             if (apps.isEmpty() && flows.isEmpty()) Text(stringResource(R.string.pick_none), Modifier.padding(20.dp),
@@ -330,7 +392,7 @@ fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: Home
     onPick: (PresetChoice) -> Unit,
     onApply: () -> Unit, onCancel: () -> Unit, onReset: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
-    Column(modifier.padding(horizontal = 12.dp).fillMaxWidth().veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin(.5f, 1f))
+    Column(modifier.padding(horizontal = 12.dp).fillMaxWidth().veilSurface(veil(VeilLevel.Dense), VeilOrigin(.5f, 1f))
         .pointerInput(Unit) { detectTapGestures() }.padding(12.dp)) {
         Row(Modifier.horizontalScroll(rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             choices.forEach { choice ->
@@ -388,7 +450,7 @@ fun LayoutThumb(spec: LayoutSpec, geometry: HomeGeometry, selected: Boolean) {
 fun ConfirmDialog(title: String, action: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val c = LocalCrystal.current
     Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin.Top)
+        Column(Modifier.fillMaxWidth().veilSurface(veil(VeilLevel.Dense), VeilOrigin.Top)
             .padding(horizontal = 20.dp, vertical = 18.dp)) {
             Text(title, Modifier.padding(bottom = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
             Action(stringResource(R.string.preset_cancel), c.fg2, onDismiss)

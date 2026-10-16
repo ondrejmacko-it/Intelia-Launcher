@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.selection.toggleable
@@ -57,21 +59,19 @@ fun EditorBar(
     onRedo: () -> Unit,
     presetsOpen: Boolean,
     onPresets: () -> Unit,
+    lookOpen: Boolean,
+    onLook: () -> Unit,
     onStudio: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ink = LocalInk.current
     val c = LocalCrystal.current
-    val veil = veilTokens(VeilLevel.Light, c.dark, c.acc)
+    val veil = veil(VeilLevel.Light)
     Row(modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.presets),
-            Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape).heightIn(min = 40.dp)
-                .then(if (presetsOpen) Modifier.border(1.dp, c.acc, CircleShape) else Modifier)
-                .toggleable(presetsOpen, role = Role.Button) { onPresets() }
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-            style = CrystalType.date.copy(fontSize = 13.sp, letterSpacing = .2.sp), color = c.fg)
+        BarPill(stringResource(R.string.presets), presetsOpen, onPresets)
+        BarPill(stringResource(R.string.look), lookOpen, onLook, Modifier.padding(start = 8.dp))
         Row(Modifier.padding(start = 8.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Glyph.Undo, stringResource(R.string.edit_undo), canUndo, onUndo)
             BarIcon(Glyph.Redo, stringResource(R.string.edit_redo), canRedo, onRedo)
@@ -115,6 +115,52 @@ fun ClockHandle(zone: Zone, onResize: (Float) -> Unit) {
             }
         }, contentAlignment = Alignment.Center) {
         Box(Modifier.size(14.dp).clip(CircleShape).background(c.acc).border(2.dp, c.accInk, CircleShape))
+    }
+}
+
+@Composable
+private fun BarPill(label: String, open: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val c = LocalCrystal.current
+    Text(label, modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Bottom, CircleShape).heightIn(min = 40.dp)
+        .then(if (open) Modifier.border(1.dp, c.acc, CircleShape) else Modifier)
+        .toggleable(open, role = Role.Button) { onClick() }
+        .padding(horizontal = 13.dp, vertical = 11.dp),
+        style = CrystalType.date.copy(fontSize = 13.sp, letterSpacing = .2.sp), color = c.fg)
+}
+
+/**
+ * Two-finger pinch in the editor: [target] picks the element at the first two fingers' centre (null = ignore),
+ * the size follows the finger distance from where it started. Consumes the pointers, so a running drag cancels.
+ */
+suspend fun androidx.compose.ui.input.pointer.PointerInputScope.pinchToResize(
+    target: (Offset) -> dev.intelia.launcher.data.HomeItem?,
+    sizeOf: (dev.intelia.launcher.data.HomeItem) -> Int,
+    onStart: () -> Unit,
+    onSize: (dev.intelia.launcher.data.HomeItem, Int) -> Unit,
+) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        var item: dev.intelia.launcher.data.HomeItem? = null
+        var startDistance = 0f
+        var startSize = 0
+        while (true) {
+            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+            val down = event.changes.filter { it.pressed }
+            if (down.isEmpty()) break
+            if (down.size < 2) { if (item != null) break else continue }
+            val a = down[0].position
+            val b = down[1].position
+            val distance = (a - b).getDistance()
+            if (item == null) {
+                item = target((a + b) / 2f) ?: break
+                startDistance = distance.coerceAtLeast(1f)
+                startSize = sizeOf(item)
+                onStart()
+            }
+            event.changes.forEach { it.consume() }
+            val next = (startSize * distance / startDistance).roundToInt()
+            item.let { onSize(it, next) }
+        }
     }
 }
 
@@ -189,7 +235,7 @@ fun AnchorType.isPlaced() = this == AnchorType.Cell || this == AnchorType.Free |
 fun LeaveEditorDialog(onKeep: () -> Unit, onDiscard: () -> Unit, onSave: () -> Unit) {
     val c = LocalCrystal.current
     Dialog(onDismissRequest = onKeep) {
-        Column(Modifier.widthIn(max = 320.dp).veilSurface(veilTokens(VeilLevel.Dense, c.dark, c.acc), VeilOrigin.Top)
+        Column(Modifier.widthIn(max = 320.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Top)
             .padding(horizontal = 20.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(stringResource(R.string.edit_unsaved), style = CrystalType.date.copy(fontSize = 17.sp, letterSpacing = 0.sp), color = c.fg,
                 modifier = Modifier.padding(bottom = 8.dp))

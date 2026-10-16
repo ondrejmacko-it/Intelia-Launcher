@@ -19,6 +19,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.ItemKind
+import dev.intelia.launcher.data.DateFormat
+import dev.intelia.launcher.data.HomeItem
 import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.HomeTemplates
@@ -154,6 +156,9 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     fun message(id: Int) {
         scope.launch { snackbar.currentSnackbarData?.dismiss(); snackbar.showSnackbar(context.getString(id)) }
     }
+    /** Studio → "Upravit plochu" opens the editor on Home; PULSE → "Poloha čočky" opens Studio's calibration. */
+    var editOnHome by remember { mutableStateOf(false) }
+    var studioLens by remember { mutableStateOf(false) }
     fun goHome() {
         page = Page.Home; model.query.value = ""; options = null; editing = null; focus.clearFocus(); keyboard?.hide()
     }
@@ -201,6 +206,10 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onSearch = { openSearch(true) },
                     onDrawer = { openSearch(false) },
                     onStudio = { page = Page.Studio },
+                    onPulseLens = { studioLens = true; page = Page.Studio },
+                    startEditing = editOnHome,
+                    onEditingStarted = { editOnHome = false },
+                    set = model::updateSettings,
                     onLaunch = ::launch,
                     onOptions = { options = it },
                     onRun = ::run,
@@ -248,7 +257,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                         onBack = { editing = null; page = editBack },
                     )
                 }
-                Page.Studio -> Studio(model, settings, onBack = ::goHome, onFlows = { page = Page.Flows })
+                Page.Studio -> Studio(model, settings, onBack = { studioLens = false; goHome() }, onFlows = { page = Page.Flows },
+                    onEditHome = { studioLens = false; editOnHome = true; page = Page.Home }, lensFirst = studioLens)
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 132.dp)) { data ->
@@ -288,6 +298,10 @@ private fun Home(
     onSearch: () -> Unit,
     onDrawer: () -> Unit,
     onStudio: () -> Unit,
+    onPulseLens: () -> Unit,
+    startEditing: Boolean,
+    onEditingStarted: () -> Unit,
+    set: SettingsEdit,
     onLaunch: (AppEntry) -> Unit,
     onOptions: (AppEntry) -> Unit,
     onRun: (FlowAlias) -> Unit,
@@ -308,6 +322,11 @@ private fun Home(
     var openRequested by remember { mutableStateOf(false) }
     var leaveThen by remember { mutableStateOf<(() -> Unit)?>(null) }
     var clockZone by remember { mutableStateOf<Zone?>(null) }
+    /** The time and the date apart, for hit testing; [clockZone] is the whole block (never covered). */
+    var timeZone by remember { mutableStateOf<Zone?>(null) }
+    var dateZone by remember { mutableStateOf<Zone?>(null) }
+    var lookOpen by remember { mutableStateOf(false) }
+    if (startEditing) { onEditingStarted(); openRequested = true }
     /** Editor: the item whose inspector is open, the empty spot of the Add menu, its picker, the preset strip. */
     var selected by remember { mutableStateOf<String?>(null) }
     var addPoint by remember { mutableStateOf<Pt?>(null) }
@@ -328,7 +347,7 @@ private fun Home(
     fun refresh() { tick++ }
     fun close() {
         editor = null; leaveThen = null; selected = null; addPoint = null; picker = null
-        presetsOpen = false; previewKey = null; presetApplied = false; ask = null; afterSave = null; refresh()
+        presetsOpen = false; lookOpen = false; previewKey = null; presetApplied = false; ask = null; afterSave = null; refresh()
     }
     fun commitSave() { editor?.let { it.cancelPreview(); onSaveLayout(it.layout); it.markSaved() }; close() }
     /** ✓: the user's own layout is never replaced by a preset without a question. */
@@ -369,7 +388,8 @@ private fun Home(
         val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, cx.value, cy.value)
         check(tick >= 0) // read so that editor changes recompose this scope
         val saved = settings.home.activeLayout()
-        fun open(): HomeEditorState = editor ?: HomeEditorState(saved, geometry, blocked = { listOfNotNull(clockZone) })
+        fun open(): HomeEditorState = editor ?: HomeEditorState(saved, geometry,
+            blocked = { listOfNotNull(clockZone, dateZone.takeIf { editor?.layout?.items?.any { it.kind == ItemKind.Date && it.anchor.type == AnchorType.Free } == true }) })
             .also { editor = it; refresh() }
         if (openRequested) { openRequested = false; open() }
         val ed = editor
@@ -383,6 +403,15 @@ private fun Home(
         })
         val clock = layout.items.firstOrNull { it.kind == ItemKind.Clock }
         val date = layout.items.firstOrNull { it.kind == ItemKind.Date }
+        /** Where free text (fy = 0) starts below the status bar. */
+        val textTop = if (compact) 24.dp else 92.dp
+        val freeDate = date?.takeIf { it.anchor.type == AnchorType.Free }
+        val iconDefault = settings.iconSize
+        fun zoneOf(c: androidx.compose.ui.layout.LayoutCoordinates, pad: Float): Zone {
+            val r = c.boundsInRoot()
+            val d = density.density
+            return Zone(r.left / d - pad, r.top / d - pad, r.right / d + pad, r.bottom / d + pad)
+        }
         val listLayout = layout.items.any { it.anchor.type == AnchorType.Stack }
         val lensItem = layout.items.firstOrNull { it.kind == ItemKind.Lens }
         val lensPt = Pt(geometry.lensX, geometry.lensY)
@@ -393,28 +422,32 @@ private fun Home(
             EditorMarks(ed, layout)
         }
 
-        if (clock != null || date != null) {
+        if (clock == null) timeZone = null
+        if (date == null) dateZone = null
+        if (clock != null || (date != null && freeDate == null)) {
             val a = clock?.anchor ?: Anchor.free(if (listLayout) 0f else .5f, 0f)
             val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
             val topPad = (if (compact) 24.dp else if (listLayout) 72.dp else 92.dp) + (geometry.areaH * a.fy).dp
             Column(
                 Modifier.fillMaxWidth().statusBarsPadding().padding(top = topPad).padding(horizontal = 28.dp)
                     .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
-                    .onGloballyPositioned { c ->
-                        val r = c.boundsInRoot()
-                        val d = density.density
-                        clockZone = Zone(r.left / d - 8f, r.top / d - 8f, r.right / d + 8f, r.bottom / d + 8f)
-                    },
+                    .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) },
                 horizontalAlignment = if (bias < 0f) Alignment.Start else if (bias > 0f) Alignment.End else Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: homeInk, accent,
                     (if (clock.sizeDp == 0) (if (compact) 64 else ItemSizes.CLOCK) else clock.sizeDp).sp,
-                    Modifier.graphicsLayer { alpha = clock.alpha }, weight = clock.weight)
-                // 4.2: 12 sp caps, +2.2 tracking, fg2 (62 %).
-                if (date != null) Text(dateLine(now), style = CrystalType.date.copy(shadow = homeShadow(homeInk)),
-                    color = homeInk.copy(alpha = .62f), maxLines = 1)
+                    Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, weight = clock.weight)
+                if (date != null && freeDate == null) DateText(date, now, homeInk, accent, Modifier.onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
             }
+        } else clockZone = null
+        if (freeDate != null) {
+            // An unpinned date: placed like the clock (§5.5), by its own free point.
+            val bias = (freeDate.anchor.fx * 2f - 1f).coerceIn(-1f, 1f)
+            DateText(freeDate, now, homeInk, accent, Modifier.fillMaxWidth().statusBarsPadding()
+                .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp).padding(horizontal = 28.dp)
+                .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
+                .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
         }
 
         // Icons placed by geometry: LENS row, grid cells, free positions; apps and FLOWs.
@@ -427,7 +460,7 @@ private fun Home(
             // The node stays put while it is dragged (its gesture needs a still frame); a ghost follows the finger.
             val dragging = drag?.id == item.id
             val p = geometry.position(item, layout) ?: return@forEach
-            val iconDp = item.iconDp().dp
+            val iconDp = item.iconDp(iconDefault).dp
             key(item.id) {
                 if (item.label) Text(name, Modifier.centerAt(p.x.dp, p.y.dp + iconDp / 2 + 12.dp).widthIn(max = 76.dp)
                     .graphicsLayer { alpha = if (dragging) 0f else quiet }.clearAndSetSemantics {},
@@ -481,10 +514,10 @@ private fun Home(
         drag?.let { d -> ed.item(d.id)?.takeIf { it.kind == ItemKind.App || it.kind == ItemKind.Flow }?.let { item ->
             val app = apps[item.target]
             if (app == null && flows[item.target] == null) return@let
-            Box(Modifier.centerAt(d.point.x.dp, d.point.y.dp).size(maxOf(CrystalDims.touch, item.iconDp().dp + 8.dp))
+            Box(Modifier.centerAt(d.point.x.dp, d.point.y.dp).size(maxOf(CrystalDims.touch, item.iconDp(iconDefault).dp + 8.dp))
                 .graphicsLayer { scaleX = 1.08f; scaleY = 1.08f }, contentAlignment = Alignment.Center) {
-                if (app != null) AppIcon(app, Modifier.size(item.iconDp().dp), tint = homeInk)
-                else HomeGlyph(Glyph.Flow, null, tint = homeInk, size = item.iconDp().dp * .7f)
+                if (app != null) AppIcon(app, Modifier.size(item.iconDp(iconDefault).dp), tint = homeInk)
+                else HomeGlyph(Glyph.Flow, null, tint = homeInk, size = item.iconDp(iconDefault).dp * .7f)
             }
         } }
 
@@ -509,6 +542,12 @@ private fun Home(
             onShortcut = onShortcut, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
             lensFilled = lensItem?.style == LensStyle.Filled.name)
         if (settings.pulse && ed == null) Pulse(settings)
+        val hole = rememberLens(settings.pulseLens)
+        val camera = Pt(hole.x / density.density, hole.y / density.density)
+        if (ed != null) {
+            if (settings.pulse) Pulse(settings, preview = true)
+            CameraMark(camera, selected == PULSE_ID)
+        }
 
         if (ed != null) {
             // Editor layer above LENS: a hold on LENS never opens ARC here; drags move elements.
@@ -517,8 +556,10 @@ private fun Home(
                     detectTapGestures(onTap = { o ->
                         val p = Pt(o.x / density.density, o.y / density.density)
                         val onLens = hypot(p.x - lensPt.x, p.y - lensPt.y) <= 34f
-                        val hit = hitItem(ed, p, clockZone) ?: lensItem?.id?.takeIf { onLens }
+                        val onCamera = hypot(p.x - camera.x, p.y - camera.y) <= 36f
+                        val hit = hitItem(ed, p, timeZone, dateZone) ?: lensItem?.id?.takeIf { onLens } ?: PULSE_ID.takeIf { onCamera }
                         when {
+                            lookOpen && hit == null -> lookOpen = false
                             hit != null -> { selected = hit.takeIf { it != selected }; addPoint = null }
                             selected != null || addPoint != null -> { selected = null; addPoint = null }
                             presetsOpen -> { ed.cancelPreview(); presetsOpen = false; previewKey = null }
@@ -528,11 +569,27 @@ private fun Home(
                     })
                 }
                 .pointerInput(ed) {
+                    // Pinch (§5.5 extension): two fingers resize the element under them, or the selected one.
+                    pinchToResize(
+                        target = { centre ->
+                            val p = Pt(centre.x / density.density, centre.y / density.density)
+                            (hitItem(ed, p, timeZone, dateZone, reach = 56f) ?: lensItem?.id?.takeIf { hypot(p.x - lensPt.x, p.y - lensPt.y) <= 60f }
+                                ?: selected)?.let(ed::item)?.takeIf { it.kind != ItemKind.Widget }
+                        },
+                        sizeOf = { it.currentSize(iconDefault) },
+                        onStart = { ed.cancelDrag(); refresh() },
+                        onSize = { item, size ->
+                            ed.edit(item.id, "size") { it.copy(sizeDp = size.coerceIn(item.sizeRange())) }
+                            selected = item.id; refresh()
+                        },
+                    )
+                }
+                .pointerInput(ed) {
                     var moved = Offset.Zero
                     detectDragGestures(
                         onDragStart = { o ->
                             moved = Offset.Zero
-                            hitItem(ed, Pt(o.x / density.density, o.y / density.density), clockZone)?.let { ed.startDrag(it) }
+                            hitItem(ed, Pt(o.x / density.density, o.y / density.density), timeZone, dateZone)?.let { ed.startDrag(it) }
                             refresh()
                         },
                         onDrag = { change, amount ->
@@ -549,7 +606,10 @@ private fun Home(
                 })
             EditorBar(ed.canUndo, ed.canRedo, onUndo = { ed.undo(); refresh() }, onRedo = { ed.redo(); refresh() }, presetsOpen = presetsOpen, onPresets = {
                     if (presetsOpen) { ed.cancelPreview(); previewKey = null }
-                    presetsOpen = !presetsOpen; selected = null; addPoint = null; refresh()
+                    presetsOpen = !presetsOpen; lookOpen = false; selected = null; addPoint = null; refresh()
+                }, lookOpen = lookOpen, onLook = {
+                    if (presetsOpen) { ed.cancelPreview(); previewKey = null; presetsOpen = false }
+                    lookOpen = !lookOpen; selected = null; addPoint = null; refresh()
                 }, onStudio = { leave(onStudio) }, onDone = { save() },
                 modifier = Modifier.align(Alignment.TopCenter))
 
@@ -571,10 +631,20 @@ private fun Home(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (maxHeight.value - geometry.lensY + 64f).dp))
             }
 
+            if (lookOpen) LookPanel(settings, ed, set, ::refresh, onPulse = { lookOpen = false; selected = PULSE_ID; refresh() },
+                Modifier.align(Alignment.BottomCenter).padding(bottom = (maxHeight.value - geometry.lensY + 64f).dp))
+            if (selected == PULSE_ID && drag == null) {
+                val r = hole.radius / density.density + 10f
+                // Below the editor bar: the camera sits under the status bar, the card hangs from the bar.
+                InspectorCard(Zone(camera.x - r, barBottom - 12f - r, camera.x + r, barBottom - 12f), maxWidth.value, barBottom, null) {
+                    PulseInspector(settings, set, onLens = { leave(onPulseLens) })
+                }
+            }
             val sel = selected?.let(ed::item)
             if (sel != null && drag == null) {
                 val zone = when (sel.kind) {
-                    ItemKind.Clock -> clockZone
+                    ItemKind.Clock -> timeZone ?: clockZone
+                    ItemKind.Date -> dateZone
                     ItemKind.Lens -> (sel.lensDp() / 2f + 6f).let { r -> Zone(lensPt.x - r, lensPt.y - r, lensPt.x + r, lensPt.y + r) }
                     else -> ed.pointOf(sel)?.let { c ->
                         val r = sel.iconDp() / 2f + 6f
@@ -587,20 +657,24 @@ private fun Home(
                     ed.edit(sel.id, "size") { it.copy(sizeDp = (now + dx.roundToInt()).coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)) }
                     refresh()
                 }
-                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom, clockZone.takeIf { sel.kind != ItemKind.Clock }) {
+                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom, clockZone.takeIf { !sel.kind.isText() }) {
                     when (sel.kind) {
-                        ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, ::refresh)
-                        ItemKind.Lens -> LensInspector(ed, sel, ::refresh)
+                        ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, onRemoved = { selected = null }, onChange = ::refresh)
+                        ItemKind.Date -> DateInspector(ed, sel, zone.let { z ->
+                            ((z.top + 6f - statusTop.value - textTop.value) / geometry.areaH).takeIf { it.isFinite() } }, onRemoved = { selected = null }, onChange = ::refresh)
+                        ItemKind.Lens -> LensInspector(ed, sel, settings.reach, onReach = { r -> set { it.copy(reach = r) } }, onChange = ::refresh)
                         else -> {
                             val app = apps[sel.target]
-                            ItemInspector(ed, sel, app?.label ?: flows[sel.target]?.name.orEmpty(),
+                            ItemInspector(ed, sel, app?.label ?: flows[sel.target]?.name.orEmpty(), iconDefault,
                                 onMore = app?.let { a -> { onOptions(a) } }, onRemoved = { selected = null }, onChange = ::refresh)
                         }
                     }
                 } }
             }
             addPoint?.let { at ->
-                AddMenu(at, maxWidth.value, barBottom, clockZone, onApp = { picker = ItemKind.App }, onFlow = { picker = ItemKind.Flow })
+                fun addText(kind: ItemKind) { ed.addText(kind, at); addPoint = null; refresh() }
+                AddMenu(at, maxWidth.value, barBottom, clockZone, onApp = { picker = ItemKind.App }, onFlow = { picker = ItemKind.Flow },
+                    onClock = { addText(ItemKind.Clock) }.takeIf { clock == null }, onDate = { addText(ItemKind.Date) }.takeIf { date == null })
             }
         }
     }
@@ -645,14 +719,44 @@ private fun Home(
     }
 }
 
-/** The element under [p]: the nearest icon within 30 dp, else the clock block. */
-private fun hitItem(state: HomeEditorState, p: Pt, clockZone: Zone? = null): String? {
+/** The element under [p]: the nearest icon within [reach] dp, else the date, else the time. */
+private fun hitItem(state: HomeEditorState, p: Pt, timeZone: Zone?, dateZone: Zone?, reach: Float = 30f): String? {
     val near = state.layout.items.filter { (it.kind == ItemKind.App || it.kind == ItemKind.Flow) && it.anchor.type.isPlaced() }
         .mapNotNull { item -> state.pointOf(item)?.let { item.id to hypot(it.x - p.x, it.y - p.y) } }
-        .filter { it.second <= 30f }.minByOrNull { it.second }?.first
+        .filter { it.second <= reach }.minByOrNull { it.second }?.first
     if (near != null) return near
+    state.layout.items.firstOrNull { it.kind == ItemKind.Date }?.let { if (dateZone != null && p in dateZone) return it.id }
     val clock = state.layout.items.firstOrNull { it.kind == ItemKind.Clock } ?: return null
-    return clock.id.takeIf { clockZone != null && p in clockZone }
+    return clock.id.takeIf { timeZone != null && p in timeZone }
+}
+
+/** Id of the PULSE pseudo-element in the editor (it is a setting, not a layout item). */
+private const val PULSE_ID = "#pulse"
+
+/** The date line in its own format, size, colour and opacity; 4.2 default: 12 sp caps, +2.2 tracking, fg2 (62 %). */
+@Composable
+private fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent: Color, modifier: Modifier) {
+    val size = item.dateSp()
+    Text(dateText(now, item.dateFormat()), modifier.graphicsLayer { alpha = item.alpha },
+        style = CrystalType.date.copy(fontSize = size.sp, letterSpacing = (2.2f * size / ItemSizes.DATE).sp, shadow = homeShadow(homeInk)),
+        color = item.tintColor(accent) ?: homeInk.copy(alpha = .62f), maxLines = 1)
+}
+
+fun dateText(now: LocalDateTime, format: DateFormat): String = when (format) {
+    DateFormat.Long -> dateLine(now)
+    DateFormat.Short -> now.format(DateTimeFormatter.ofPattern("d. M.", Locale.getDefault()))
+    DateFormat.Weekday -> now.format(DateTimeFormatter.ofPattern("EEEE", Locale.getDefault())).uppercase(Locale.getDefault())
+}
+
+/** A faint dashed ring around the camera in the editor: tap it to edit PULSE. */
+@Composable
+private fun CameraMark(at: Pt, selected: Boolean) {
+    val c = LocalCrystal.current
+    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+        drawCircle(if (selected) c.acc else c.fg2, 22.dp.toPx(), Offset(at.x * density, at.y * density),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx(),
+                pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))))
+    }
 }
 
 @Composable

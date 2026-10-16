@@ -72,9 +72,14 @@ class IconCache(context: Context, private val apps: AppRepository) {
     private fun render(icon: Drawable, ink: Boolean): RenderedIcon? {
         if (ink && Build.VERSION.SDK_INT >= 33 && icon is AdaptiveIconDrawable) {
             icon.monochrome?.let { mono ->
-                // The themed glyph inside the launcher's mask, on a transparent ground; tinted at draw time.
-                val glyph = AdaptiveIconDrawable(ColorDrawable(Color.TRANSPARENT), mono)
-                return RenderedIcon(glyph.toBitmap(sizePx, sizePx).asImageBitmap(), glyph = true)
+                // The themed glyph alone, tinted at draw time. Wrapping it in an AdaptiveIconDrawable rendered an
+                // opaque disc on Android 16 (phone, 2026-10-16), so the layer is drawn directly: an adaptive layer is
+                // 108 dp for 72 dp shown, hence a quarter of the size beyond each edge.
+                val bitmap = android.graphics.Bitmap.createBitmap(sizePx, sizePx, android.graphics.Bitmap.Config.ARGB_8888)
+                val inset = sizePx / 4
+                mono.setBounds(-inset, -inset, sizePx + inset, sizePx + inset)
+                mono.draw(android.graphics.Canvas(bitmap))
+                return RenderedIcon(bitmap.asImageBitmap(), glyph = true)
             }
         }
         return RenderedIcon(icon.toBitmap(sizePx, sizePx).asImageBitmap(), glyph = false)
