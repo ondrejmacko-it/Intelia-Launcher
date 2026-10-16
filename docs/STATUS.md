@@ -2,6 +2,23 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Redesign phase A, design review (`claude/crystal-redesign`)
+
+Verified (no Android code changed, no build run):
+- Phone screenshots (Lab build, default HOME): Search with query, FLOW exact match `pocty`, drawer (223 apps),
+  PULSE tapped over Calculator with `PulseAccessibilityService` running; only one overlay window
+  (`Intelia PULSE`, 94 × 94 px at 493,21, `ACCESSIBILITY_OVERLAY`).
+- MT Capsule 17.2 inspected read-only: its accessibility and notification services run, portrait screen
+  profile is off so it draws no window; granted permissions include INTERNET, AD_ID, notification listener.
+  Nothing in it was changed.
+- Prototype `docs/design/crystal-prototype.html`: no console errors; scripted pointer test in the browser —
+  hold LENS → 5 slots, slide to the right end → set FLOW, slide up → slot 3 `běh`, release → run;
+  hold the camera on the app screen → Global ARC, slide down → FLOW `vlak`, release → run; Studio ARC
+  shows 3 sets.
+
+Open: owner approval of D10 (direction, ARC set switching, PULSE 2.0). Ergonomics of the arc ends and of
+Global ARC not tested on the phone (prototype only). Roboto Flex licence entry before bundling.
+
 ## 2026-10-16 — Ink rework (`claude/ink-rework`, 402d10a)
 
 Verified:

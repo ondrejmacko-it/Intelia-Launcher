@@ -103,3 +103,20 @@ an accessibility service. MT Capsule and the old `.debug` fork do the same; noth
 - Brightness slider, contacts, barcodes, notification content and app shortcuts (all in MT Capsule) are out:
   they need `WRITE_SETTINGS`, contacts, camera or notification access.
 Revert: remove the `<service>` entry and `PulseAccessibilityService`; settings are unchanged.
+
+## D10 — 2026-10-16 — Redesign direction: Quiet Crystal (PROPOSED, awaiting owner approval)
+Phase A of `docs/REDESIGN_BRIEF.md`. Full spec in `docs/DESIGN_SYSTEM.md`, prototype in
+`docs/design/crystal-prototype.html` (published privately as https://claude.ai/artifact/BPhBEVCpmzktdFPXDGDEta).
+- **Direction A "Quiet Crystal"** over B "Matte Ambient" and C "Minimal System": empty at rest, one matte
+  material with a 1 dp light edge, no blur, one font family (Roboto Flex, OFL — licence entry needed before
+  bundling), frost-blue accent by default; terracotta stays as an accent option for existing users.
+- **ARC = one low arc, 5 fixed slots per set, up to 4 sets; the arc's two ends switch sets** (option C of
+  the brief). Rejected A (distance bands): the second band sits ~190 dp above LENS, out of thumb reach.
+  Rejected plain B without a switch gesture: needs a second control.
+- **PULSE 2.0**: idle draws nothing; live capsule from the camera; tap = context or quick set; hold =
+  Global ARC with the same model; the half-screen quick-settings menu of D9 retires.
+- **One Action Engine**: a sealed `Action` type with `isAvailable`/`run` returning `Done | Opened |
+  Unavailable`, plus bindings per surface. No new permissions for defaults; notification access only as a
+  later opt-in decision.
+- Settings migration (ARC rings → sets, accent, PULSE toggles) in `LauncherSettings.sanitized()` with tests.
+Nothing is implemented. If the owner rejects or changes the direction, this entry is rewritten before phase B.

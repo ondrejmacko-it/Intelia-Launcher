@@ -1,4 +1,4 @@
-# Prompt pro další session — Redesign, fáze A (design review)
+# Prompt pro další session — Redesign, fáze B1 (po schválení fáze A)
 
 Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka = tento repozitář).
 
@@ -6,18 +6,19 @@ Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka
 
 Pokračujeme na **Intelia Launcheru** (`AGENTS.md` platí). **Odpovídej česky.** Rozpočet 200k tokenů, cíl ~120k, žádní zbyteční agenti, soubory nečti opakovaně celé.
 
-**Zadání je v `docs/REDESIGN_BRIEF.md`. Přečti ho celé jako první, je to zdroj pravdy.** Redesign „Crystal Matte Minimalism“: ARC jako jeden oblouk se sadami, PULSE 2.0 jako jádro (idle nic, live kompaktní, tap kontext, hold Global ARC), jeden Action Engine, Studio s progressive disclosure.
+Zdroj pravdy: `docs/REDESIGN_BRIEF.md` (zadání) a `docs/DESIGN_SYSTEM.md` (schválená specifikace). Rozhodnutí D10 v `docs/DECISIONS.md`. Prototyp: `docs/design/crystal-prototype.html` (https://claude.ai/artifact/BPhBEVCpmzktdFPXDGDEta).
 
-Git: pracuj na větvi `claude/crystal-redesign` (vznikla z `claude/ink-rework` `f63cf46`, obsahuje 18 commitů, které v `main` nejsou; PR #2 do `main` bylo sloučeno jen po `5a96934`). Nemergovat do `main`, nic destruktivního. Na začátku `git fetch` a ověř stav.
+**Nejdřív:** zeptej se mě na verdikt k fázi A, pokud ho nemáš v této zprávě: směr A Quiet Crystal, přepínání sad ARC konci oblouku, PULSE 2.0 s Global ARC, Roboto Flex, výchozí akcent Mráz. Připomínky zapiš do D10 a `DESIGN_SYSTEM.md` dřív, než začneš kódovat. Bez schválení nic v Android UI neměň.
 
-Dělej **jen fázi A**:
-1. Doplň audit: screenshoty Search, Drawer, FLOW a PULSE nad cizí aplikací (Home, ARC, PULSE menu a Studio už jsou popsané v briefu).
-2. MT Capsule (`com.pryshedko.mtisland`): veřejné info + prohlédnutí na telefonu, **nic neměnit**. Pak srovnání MT Capsule / PULSE / PULSE 2.0.
-3. 2–3 odlišné vizuální směry, jeden doporuč a zdůvodni.
-4. Interaktivní HTML prototyp (Artifact) s 12 obrazovkami z briefu (A3) a skutečnými přechody: ARC výběr a přepnutí sady, PULSE idle → live → expanded → Global ARC, Studio přehled → detail.
-5. Specifikace (A5) zapiš do `docs/DESIGN_SYSTEM.md`, rozhodnutí do `docs/DECISIONS.md`.
-6. **STOP: předlož majiteli ke schválení.** Android UI zatím neměň.
+Git: větev `claude/crystal-redesign`, na začátku `git fetch` a ověř stav. Nemergovat do `main`, nic destruktivního.
 
-Telefon: Nothing Phone (3), Android 16, 1080×2392. adb `C:\Users\Ondra\AppData\Local\lesnik-toolchain\sdk\platform-tools\adb.exe` (v Git Bash `MSYS_NO_PATHCONV=1`), JDK `C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1`; cesty ověř. Před každým `input` ověř `topResumedActivity`. Lab (`dev.intelia.launcher.lab`) je výchozí HOME, 3 prstence. LENS 540,2193 (ARC: `input motionevent DOWN`, MOVE nahoru, UP). Menu PULSE klepnutím na 540,68. Studio podržením plochy (swipe 540 1100 540 1100 900). Služby jen číst, nastavení cizích aplikací neměnit.
+Po schválení dělej **jen B1 — design systém a komponenty**:
+1. Licence Roboto Flex (OFL) zapsat do `docs/DECISIONS.md`, font přidat do `res/font`.
+2. Tokeny z `DESIGN_SYSTEM.md` 4.1–4.3 jako Compose theme (barvy dark/light, typografie, rozměry), akcent jako volba v nastavení s migrací (`Terracotta` zůstává pro stávající uživatele) — migrace v `LauncherSettings.sanitized()` + JVM testy.
+3. Komponenty: materiál `mat` (bez blur), oblouk + slot + koncový přepínač sady (jen vykreslení, gesto až B3), Studio řádek, živá kapsle (jen tvar).
+4. Pure-Kotlin `Action` engine (sealed type + `isAvailable`/`run` výsledek) s testy, zatím nenapojený na UI.
+5. `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug`, instalace na telefon, screenshot před/po na Home (beze změny chování).
 
-Na konci: commit a push do `claude/crystal-redesign`, `docs/STATUS.md` jen s ověřenými fakty, nový prompt v `docs/NEXT_SESSION.md`.
+Telefon: Nothing Phone (3), Android 16, 1080×2392. adb `C:\Users\Ondra\AppData\Local\lesnik-toolchain\sdk\platform-tools\adb.exe` (v Git Bash `MSYS_NO_PATHCONV=1`), JDK `C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1`. Před každým `input` ověř `topResumedActivity` — majitel telefon občas používá (Instagram atd.), v tom případě počkej a nic neklikej. Lab (`dev.intelia.launcher.lab`) je výchozí HOME. MT Capsule je nainstalovaná, ale má vypnutý portrait profil; nic v ní neměnit.
+
+Na konci: commit a push do `claude/crystal-redesign`, `docs/STATUS.md` jen s ověřenými fakty, nový prompt v `docs/NEXT_SESSION.md` (B2 Home + LENS).
