@@ -204,8 +204,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     })
     // Search and the drawer are layers over Home: Home stays composed and visible under them.
     val surface = if (page == Page.Search || page == Page.Drawer) Page.Home else page
-    val enter = motionMs(180)
-    val exit = motionMs(140)
+    val enter = motionMs(140)
+    val exit = motionMs(100)
     Box(Modifier.fillMaxSize()) {
         AnimatedContent(surface, transitionSpec = { fadeIn(tween(enter)) togetherWith fadeOut(tween(exit)) },
             label = "page") { target ->
@@ -368,7 +368,7 @@ private fun Home(
     var afterSave by remember { mutableStateOf<(() -> Unit)?>(null) }
     val flows = remember(settings.aliases) { settings.aliases.associateBy { it.id } }
     // ARC speaks over the top of Home, so the clock and favourites step fully aside.
-    val quiet by animateFloatAsState(if (arcOpen) 0f else 1f, tween(motionMs(180)), label = "home-quiet")
+    val quiet by animateFloatAsState(if (arcOpen) 0f else 1f, tween(motionMs(130)), label = "home-quiet")
     val swipe = with(density) { 64.dp.toPx() }
     val editLabel = stringResource(R.string.edit_home)
     val moveLabel = stringResource(R.string.a11y_move)

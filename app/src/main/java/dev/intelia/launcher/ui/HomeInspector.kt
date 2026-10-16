@@ -130,7 +130,7 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
     val fx = (((target.left + target.right) / 2f - x) / width).coerceIn(0f, 1f)
     // §5.6: scale 0.86 → 1 from the element, 220 ms (0 ms with Reduced Motion).
     val appear = remember { androidx.compose.animation.core.Animatable(0f) }
-    val ms = motionMs(220)
+    val ms = motionMs(160)
     androidx.compose.runtime.LaunchedEffect(Unit) { appear.animateTo(1f, androidx.compose.animation.core.tween(ms)) }
     Column(Modifier.offset { IntOffset((x * density.density).roundToInt(), (y * density.density).roundToInt()) }
         .width(width.dp).onSizeChanged { h = it.height }.graphicsLayer {

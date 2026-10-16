@@ -78,7 +78,7 @@ fun TideDash(visible: Boolean, modifier: Modifier = Modifier, width: Dp = 14.dp,
  */
 @Composable
 fun LensMark(ink: Color, modifier: Modifier = Modifier, active: Boolean = false, ring: Dp = CrystalDims.lensRing, filled: Boolean = false) {
-    val press by animateFloatAsState(if (active) 1f else 0f, tween(motionMs(160)), label = "lens-press")
+    val press by animateFloatAsState(if (active) 1f else 0f, tween(motionMs(110)), label = "lens-press")
     Canvas(modifier.size(ring)) {
         val stroke = CrystalDims.lensStroke.toPx() * (ring / CrystalDims.lensRing)
         val r = (size.minDimension / 2f - stroke / 2f) * (1f - .14f * press)
@@ -173,7 +173,7 @@ fun <T> Segments(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> U
 @Composable
 fun RingToggle(checked: Boolean, modifier: Modifier = Modifier) {
     val ink = LocalInk.current
-    val fill by animateFloatAsState(if (checked) 1f else 0f, tween(motionMs(160)), label = "ring-toggle")
+    val fill by animateFloatAsState(if (checked) 1f else 0f, tween(motionMs(120)), label = "ring-toggle")
     Canvas(modifier.size(24.dp)) {
         val stroke = 1.5.dp.toPx()
         val r = size.minDimension / 2f - stroke

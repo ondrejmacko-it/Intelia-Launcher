@@ -368,6 +368,10 @@ As built: the ring → field morph is drawn as a clip + outline over the full-si
 focus and the IME start in the first frame); Back runs it in reverse after hiding the IME. Inspector entry is
 scale 0.86 → 1 from the element edge. All durations go through `motionMs`, so Reduced Motion makes them 0 ms.
 
+As built (brisker motion, 2026-10-16): Calm durations cut by about a quarter — Search ring → field 40 ms delay +
+140 ms, back 120 ms; drawer in 160 ms / out 110 ms; page fade 140 / 100 ms; inspector 160 ms; ARC reveal 130 ms,
+slot 80 ms; Home quiet 130 ms; LENS press 110 ms; ring toggle 120 ms. The table above keeps the original intent.
+
 As built (Search in Veil, `53b9769`): Search and the drawer are layers over Home, not pages; Home stays composed
 under a black 42 % scrim. Field = Veil Dense pill, centred on LENS while the IME is down, then riding it via an
 `offset {}` that reads `WindowInsets.ime` (placement only). Card = Veil Dense, ≤ 6 rows (`SearchPicks`), first row

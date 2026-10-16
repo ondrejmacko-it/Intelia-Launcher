@@ -166,7 +166,7 @@ fun LensArc(
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { close() }
     BackHandler(enabled = open) { close() }
 
-    val reveal by animateFloatAsState(if (open) 1f else 0f, tween(motionMs(180)), label = "arc-reveal")
+    val reveal by animateFloatAsState(if (open) 1f else 0f, tween(motionMs(130)), label = "arc-reveal")
     val searchLabel = stringResource(R.string.search)
     val lensDescription = stringResource(R.string.lens_description)
     val arcAction = stringResource(R.string.arc_action)
@@ -237,7 +237,7 @@ fun LensArc(
                     if (!filled) return@forEachIndexed
                     val (x, y) = rings.position(ring, index)
                     val chosen = pick == ArcPick(ring, index)
-                    val scale by animateFloatAsState(if (chosen) 1.22f else 1f, tween(motionMs(110)), label = "arc-slot")
+                    val scale by animateFloatAsState(if (chosen) 1.22f else 1f, tween(motionMs(80)), label = "arc-slot")
                     val itemModifier = Modifier.centerAt(cx + x.dp, cy + y.dp).graphicsLayer {
                         alpha = (if (a == 0f) 0f else a) * reveal
                         scaleX = scale; scaleY = scale

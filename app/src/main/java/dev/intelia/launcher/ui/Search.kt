@@ -148,9 +148,9 @@ fun SearchOverlay(
     val scope = rememberCoroutineScope()
 
     val morph = remember { Animatable(if (fromLens) 0f else 1f) }
-    val grow = motionMs(170)
-    val growDelay = motionMs(70)
-    val shrink = motionMs(160)
+    val grow = motionMs(140)
+    val growDelay = motionMs(40)
+    val shrink = motionMs(120)
     var leaving by remember { mutableStateOf(false) }
     /** The options sheet hides the keyboard on purpose; that must not close Search. */
     var held by remember { mutableStateOf(false) }
@@ -364,8 +364,8 @@ fun DrawerOverlay(
     val scope = rememberCoroutineScope()
     val shown = remember { Animatable(0f) }
     val list = rememberLazyListState()
-    val inMs = motionMs(200)
-    val outMs = motionMs(150)
+    val inMs = motionMs(160)
+    val outMs = motionMs(110)
     var leaving by remember { mutableStateOf(false) }
     // Composed ahead while Home rests and kept: opening only animates, the rows and icons are already laid out.
     LaunchedEffect(open) {
