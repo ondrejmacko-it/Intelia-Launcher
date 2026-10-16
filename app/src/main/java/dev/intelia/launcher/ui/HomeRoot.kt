@@ -296,6 +296,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
             onHide = { model.hide(entry); options = null },
             onDetails = { options = null; if (!model.openDetails(entry)) message(R.string.launch_failed) },
             onDismiss = { options = null },
+            // Over Search or the drawer the sheet covers rows of text: Focus density keeps them from showing through.
+            level = if (page == Page.Search || page == Page.Drawer) VeilLevel.Focus else VeilLevel.Dense,
         )
     }
 }

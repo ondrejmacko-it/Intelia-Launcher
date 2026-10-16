@@ -85,6 +85,7 @@ fun AppOptionsSheet(
     onHide: () -> Unit,
     onDetails: () -> Unit,
     onDismiss: () -> Unit,
+    level: VeilLevel = VeilLevel.Dense,
 ) {
     val ink = LocalInk.current
     ModalBottomSheet(
@@ -93,13 +94,14 @@ fun AppOptionsSheet(
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = Color.Transparent,
         contentColor = ink.ink,
-        scrimColor = Color.Black.copy(alpha = .40f),
+        // Over Search or the drawer (Focus) the rows below are bright text: a deeper scrim keeps them out of the sheet.
+        scrimColor = Color.Black.copy(alpha = if (level == VeilLevel.Focus) .60f else .40f),
         tonalElevation = 0.dp,
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0) },
     ) {
-        // Veil Dense (§5.2): the sheet rises from the icon row at the bottom, so its edge is lit there.
-        Column(Modifier.fillMaxWidth().veilSurface(veil(VeilLevel.Dense), VeilOrigin(.5f, 1.15f),
+        // Veil Dense (§5.2; Focus over a layer): the sheet rises from the icon row at the bottom, so its edge is lit there.
+        Column(Modifier.fillMaxWidth().veilSurface(veil(level), VeilOrigin(.5f, 1.15f),
             RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).navigationBarsPadding().padding(bottom = 12.dp)) {
             Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp, bottom = 6.dp).size(28.dp, 3.dp)
                 .clip(RoundedCornerShape(2.dp)).background(ink.line))
