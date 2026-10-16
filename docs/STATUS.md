@@ -16,7 +16,8 @@ Verified (no Android code changed, no build run):
   hold the camera on the app screen → Global ARC, slide down → FLOW `vlak`, release → run; Studio ARC
   shows 3 sets.
 
-Open: owner approval of D10 (direction, ARC set switching, PULSE 2.0). Ergonomics of the arc ends and of
+Owner approved D10 (direction A, arc-end set switching, PULSE 2.0) on 2026-10-16.
+Open: ergonomics of the arc ends and of
 Global ARC not tested on the phone (prototype only). Roboto Flex licence entry before bundling.
 
 ## 2026-10-16 — Ink rework (`claude/ink-rework`, 402d10a)

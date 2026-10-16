@@ -104,7 +104,7 @@ an accessibility service. MT Capsule and the old `.debug` fork do the same; noth
   they need `WRITE_SETTINGS`, contacts, camera or notification access.
 Revert: remove the `<service>` entry and `PulseAccessibilityService`; settings are unchanged.
 
-## D10 — 2026-10-16 — Redesign direction: Quiet Crystal (PROPOSED, awaiting owner approval)
+## D10 — 2026-10-16 — Redesign direction: Quiet Crystal (APPROVED by the owner 2026-10-16)
 Phase A of `docs/REDESIGN_BRIEF.md`. Full spec in `docs/DESIGN_SYSTEM.md`, prototype in
 `docs/design/crystal-prototype.html` (published privately as https://claude.ai/artifact/BPhBEVCpmzktdFPXDGDEta).
 - **Direction A "Quiet Crystal"** over B "Matte Ambient" and C "Minimal System": empty at rest, one matte
@@ -119,4 +119,4 @@ Phase A of `docs/REDESIGN_BRIEF.md`. Full spec in `docs/DESIGN_SYSTEM.md`, proto
   Unavailable`, plus bindings per surface. No new permissions for defaults; notification access only as a
   later opt-in decision.
 - Settings migration (ARC rings → sets, accent, PULSE toggles) in `LauncherSettings.sanitized()` with tests.
-Nothing is implemented. If the owner rejects or changes the direction, this entry is rewritten before phase B.
+Owner approved direction A, arc-end set switching and PULSE 2.0 on 2026-10-16; phase B1 may start.

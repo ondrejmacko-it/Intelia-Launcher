@@ -1,4 +1,4 @@
-# Prompt pro další session — Redesign, fáze B1 (po schválení fáze A)
+# Prompt pro další session — Redesign, fáze B1 (fáze A schválena)
 
 Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka = tento repozitář).
 
@@ -8,11 +8,11 @@ Pokračujeme na **Intelia Launcheru** (`AGENTS.md` platí). **Odpovídej česky.
 
 Zdroj pravdy: `docs/REDESIGN_BRIEF.md` (zadání) a `docs/DESIGN_SYSTEM.md` (schválená specifikace). Rozhodnutí D10 v `docs/DECISIONS.md`. Prototyp: `docs/design/crystal-prototype.html` (https://claude.ai/artifact/BPhBEVCpmzktdFPXDGDEta).
 
-**Nejdřív:** zeptej se mě na verdikt k fázi A, pokud ho nemáš v této zprávě: směr A Quiet Crystal, přepínání sad ARC konci oblouku, PULSE 2.0 s Global ARC, Roboto Flex, výchozí akcent Mráz. Připomínky zapiš do D10 a `DESIGN_SYSTEM.md` dřív, než začneš kódovat. Bez schválení nic v Android UI neměň.
+Majitel 2026-10-16 **schválil** směr A Quiet Crystal včetně přepínání sad konci oblouku a PULSE 2.0 (D10). Začni rovnou B1.
 
 Git: větev `claude/crystal-redesign`, na začátku `git fetch` a ověř stav. Nemergovat do `main`, nic destruktivního.
 
-Po schválení dělej **jen B1 — design systém a komponenty**:
+Dělej **jen B1 — design systém a komponenty**:
 1. Licence Roboto Flex (OFL) zapsat do `docs/DECISIONS.md`, font přidat do `res/font`.
 2. Tokeny z `DESIGN_SYSTEM.md` 4.1–4.3 jako Compose theme (barvy dark/light, typografie, rozměry), akcent jako volba v nastavení s migrací (`Terracotta` zůstává pro stávající uživatele) — migrace v `LauncherSettings.sanitized()` + JVM testy.
 3. Komponenty: materiál `mat` (bez blur), oblouk + slot + koncový přepínač sady (jen vykreslení, gesto až B3), Studio řádek, živá kapsle (jen tvar).

@@ -1,6 +1,6 @@
 # Design system — Crystal Matte Minimalism (phase A proposal, 2026-10-16)
 
-**Status: proposal, waiting for the owner's approval. Android UI is unchanged.**
+**Status: approved by the owner 2026-10-16 (D10). Implementation starts with phase B1.**
 Source of truth for the requirements: `docs/REDESIGN_BRIEF.md`.
 Interactive prototype (private, open signed in on claude.ai): https://claude.ai/artifact/BPhBEVCpmzktdFPXDGDEta
 Prototype source: `docs/design/crystal-prototype.html` (1 px = 1 dp on a 360 × 797 dp phone).
