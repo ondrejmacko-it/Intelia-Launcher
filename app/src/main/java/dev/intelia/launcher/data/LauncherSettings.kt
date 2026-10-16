@@ -15,7 +15,8 @@ import kotlinx.serialization.json.Json
 @Serializable enum class ClockStyle { Serif, Grotesk, Mono, Crystal }
 @Serializable enum class Motion { Calm, Brisk, Off }
 @Serializable enum class Haptics { Soft, Strong, Off }
-@Serializable enum class IconStyle { System, Ink }
+/** [Ink] is the monochrome glyph ("Mono"); [Veil] puts that glyph on a faint disc with a hairline ring (§5.8). */
+@Serializable enum class IconStyle { System, Ink, Veil }
 
 /** Manual camera position for PULSE, in dp from the top-left of the portrait screen; [r] is the lens radius. */
 @Serializable data class PulseLens(val x: Float, val y: Float, val r: Float)
@@ -61,6 +62,14 @@ data class LauncherSettings(
     val pulseAlarmHours: Int = 12,
     /** Capsule background opacity in percent; text stays opaque. */
     val pulseOpacity: Int = 100,
+    /** Veil panels (§5.2): Solid = opaque matte panels (accessibility, busy wallpapers). */
+    val veilSolid: Boolean = false,
+    /** Panel density shift in percent points, added to every Veil level's fill opacity. */
+    val veilShift: Int = 0,
+    /** The accent-lit origin edge; off = a plain neutral hairline. */
+    val veilEdge: Boolean = true,
+    /** Default size of Home icons in dp; an item's own size wins. */
+    val iconSize: Int = 40,
     /** Home layouts (schema 2, §5.4); built from the legacy fields above by [sanitized] on migration. */
     val home: HomeLayouts = HomeLayouts(),
     /** Document version; 0 = written before the Crystal design (phase B1). Migrated by [sanitized]. */
@@ -81,6 +90,9 @@ data class LauncherSettings(
         const val MIN_LENS_R = 3f
         const val MAX_LENS_R = 60f
         const val MIN_PULSE_OPACITY = 40
+        const val MAX_VEIL_SHIFT = 10
+        const val MIN_ICON = 32
+        const val MAX_ICON = 64
         private const val MAX_KEY = 512
         private const val MAX_HIDDEN = 1000
         private const val MAX_ALIASES = 200
@@ -105,6 +117,8 @@ data class LauncherSettings(
                 ?.let { PulseLens(it.x.coerceIn(0f, MAX_LENS_X), it.y.coerceIn(0f, MAX_LENS_Y), it.r.coerceIn(MIN_LENS_R, MAX_LENS_R)) },
             pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
+            veilShift = veilShift.coerceIn(-MAX_VEIL_SHIFT, MAX_VEIL_SHIFT),
+            iconSize = iconSize.coerceIn(MIN_ICON, MAX_ICON),
             reduceMotion = false,
             // 0 → 1: nothing to rewrite; an existing user's accent (Terracotta when absent) is kept as is.
             schema = SCHEMA,
@@ -151,10 +165,12 @@ data class LauncherSettings(
         val styles = when (it.kind) {
             ItemKind.Clock -> ClockStyle.entries.map { e -> e.name }
             ItemKind.Lens -> LensStyle.entries.map { e -> e.name }
+            ItemKind.Date -> DateFormat.entries.map { e -> e.name }
             else -> emptyList()
         }
+        val (minSize, maxSize) = if (it.kind == ItemKind.Date) 8 to 40 else 24 to 160
         return it.copy(
-            sizeDp = if (it.sizeDp == 0) 0 else it.sizeDp.coerceIn(24, 160),
+            sizeDp = if (it.sizeDp == 0) 0 else it.sizeDp.coerceIn(minSize, maxSize),
             z = it.z.coerceIn(-100, 100),
             style = it.style.takeIf { s -> s in styles }.orEmpty(),
             weight = if (it.kind != ItemKind.Clock || it.weight == 0) 0 else it.weight.coerceIn(100, 900),

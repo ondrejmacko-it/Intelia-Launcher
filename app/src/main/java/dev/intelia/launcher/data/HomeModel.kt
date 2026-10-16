@@ -22,7 +22,7 @@ import kotlinx.serialization.Serializable
  * - [AnchorType.Free]: [fx], [fy] as fractions (0..1) of the safe content area.
  * - [AnchorType.LensRow]: [slot] -2, -1, 1, 2 beside LENS.
  * - [AnchorType.Lens]: LENS itself, [fx] across, [bottomDp] above the gesture inset (reserved; LENS still follows Reach).
- * - [AnchorType.Bound]: under the clock (the date).
+ * - [AnchorType.Bound]: under the clock (the date); an unpinned date uses [AnchorType.Free] like the clock.
  * - [AnchorType.Stack]: [row]-th line of the legacy text list (preset "Vlastní").
  */
 @Serializable enum class AnchorType { Cell, Free, LensRow, Lens, Bound, Stack }
@@ -61,7 +61,7 @@ data class HomeItem(
     /** App key, FLOW id or reserved widget id; empty for Clock, Date and Lens. */
     val target: String = "",
     val label: Boolean = false,
-    /** Clock: a [ClockStyle] name; LENS: a [LensStyle] name; empty = the default (the clock follows Studio). */
+    /** Clock: a [ClockStyle] name; LENS: a [LensStyle] name; date: a [DateFormat] name; empty = the default (the clock follows Studio). */
     val style: String = "",
     /** Clock font weight 100..900; 0 = the style's own. */
     val weight: Int = 0,
@@ -72,6 +72,9 @@ data class HomeItem(
 )
 
 @Serializable enum class LensStyle { Ring, Filled }
+
+/** Date line formats, stored by name in [HomeItem.style]; empty = [Long]. */
+enum class DateFormat { Long, Short, Weekday }
 
 /** Colour choices of the clock inspector, stored by name. */
 enum class ItemTint { Accent, Light, Dark }

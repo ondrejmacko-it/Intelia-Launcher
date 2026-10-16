@@ -64,7 +64,7 @@ class HomeGeometry(
         val a = item.anchor
         return when (a.type) {
             AnchorType.Cell -> cellCentre(a.col, a.row, layout.grid.cols, layout.grid.rows)
-            AnchorType.Free -> if (item.kind == ItemKind.Clock) null else freePoint(a.fx, a.fy)
+            AnchorType.Free -> if (item.kind.isText()) null else freePoint(a.fx, a.fy)
             AnchorType.LensRow -> lensSlot(a.slot)
             else -> null
         }
@@ -120,11 +120,11 @@ class HomeEditorState(
 
     fun item(id: String) = layout.items.firstOrNull { it.id == id }
 
-    /** Reference point of an item for dragging: its centre, or for the clock its free point. */
+    /** Reference point of an item for dragging: its centre, or for the clock and an unpinned date their free point. */
     fun pointOf(item: HomeItem): Pt? = geometry.position(item, layout)
-        ?: if (item.kind == ItemKind.Clock && item.anchor.type == AnchorType.Free) geometry.freePoint(item.anchor.fx, item.anchor.fy) else null
+        ?: if (item.kind.isText() && item.anchor.type == AnchorType.Free) geometry.freePoint(item.anchor.fx, item.anchor.fy) else null
 
-    fun canDrag(item: HomeItem) = (item.kind == ItemKind.App || item.kind == ItemKind.Flow || item.kind == ItemKind.Clock) && pointOf(item) != null
+    fun canDrag(item: HomeItem) = (item.kind == ItemKind.App || item.kind == ItemKind.Flow || item.kind.isText()) && pointOf(item) != null
 
     fun startDrag(id: String): Boolean {
         val item = item(id) ?: return false
@@ -176,7 +176,7 @@ class HomeEditorState(
         else { commit(next); coalesce = "$id/$key" }
     }
 
-    /** Removes an app or FLOW from Home only (never uninstalls); the clock, date and LENS stay. */
+    /** Removes an item from Home only (never uninstalls); LENS always stays. The clock and date come back from the Add menu. */
     fun remove(id: String): Boolean {
         val item = item(id) ?: return false
         if (item.kind == ItemKind.Lens) return false
@@ -190,6 +190,39 @@ class HomeEditorState(
         if (on == has) return
         commit(layout.copy(items = if (on) layout.items + HomeItem("date", ItemKind.Date, Anchor.Bound)
             else layout.items.filter { it.kind != ItemKind.Date }))
+    }
+
+    /**
+     * Pins the date under the clock or unpins it to move on its own. Unpinning keeps it where it was:
+     * just under the clock's free point (or near the top when there is no clock).
+     */
+    fun pinDate(pinned: Boolean) {
+        val date = layout.items.firstOrNull { it.kind == ItemKind.Date } ?: return
+        if (pinned == (date.anchor.type == AnchorType.Bound)) return
+        val clock = layout.items.firstOrNull { it.kind == ItemKind.Clock }?.anchor?.takeIf { it.type == AnchorType.Free }
+        val anchor = if (pinned) Anchor.Bound
+            else Anchor.free(clock?.fx ?: .5f, ((clock?.fy ?: 0f) + DATE_BELOW).coerceAtMost(CLOCK_MAX_FY))
+        commit(layout.copy(items = layout.items.map { if (it.id == date.id) it.copy(anchor = anchor) else it }))
+    }
+
+    /** Adds the hidden clock or date back at [p] (Add menu); false if it is already on Home. */
+    fun addText(kind: ItemKind, p: Pt): Boolean {
+        if (!kind.isText() || layout.items.any { it.kind == kind }) return false
+        val anchor = resolve(HomeItem(kind.name.lowercase(), kind), p).target
+        commit(layout.copy(items = layout.items + HomeItem(kind.name.lowercase(), kind, anchor)))
+        return true
+    }
+
+    /** Labels under every app and FLOW on or off, as one undo step. */
+    fun setLabels(on: Boolean) {
+        val next = layout.items.map { if (it.kind == ItemKind.App || it.kind == ItemKind.Flow) it.copy(label = on) else it }
+        if (next != layout.items) commit(layout.copy(items = next))
+    }
+
+    /** Clears every icon's own size so the global icon size applies, as one undo step. */
+    fun resetIconSizes() {
+        val next = layout.items.map { if (it.kind == ItemKind.App || it.kind == ItemKind.Flow) it.copy(sizeDp = 0) else it }
+        if (next != layout.items) commit(layout.copy(items = next))
     }
 
     /**
@@ -292,8 +325,8 @@ class HomeEditorState(
 
     private fun resolve(item: HomeItem, p: Pt): DragPreview {
         val g = geometry
-        if (item.kind == ItemKind.Clock) {
-            // The clock moves freely in the upper part of the area and never into the LENS band.
+        if (item.kind.isText()) {
+            // The clock (and an unpinned date) moves freely in the upper part of the area and never into the LENS band.
             val a = g.toFree(p).let { Anchor.free(it.fx, it.fy.coerceAtMost(CLOCK_MAX_FY)) }
             return DragPreview(item.id, p, a, null, emptyList(), true)
         }
@@ -355,5 +388,10 @@ class HomeEditorState(
         const val GUIDE_SNAP = 8f
         const val HYBRID_SNAP = 20f
         const val CLOCK_MAX_FY = .6f
+        /** How far below the clock's free point an unpinned date starts, as a fraction of the area. */
+        const val DATE_BELOW = .12f
     }
 }
+
+/** The clock and the date: text laid out by a free point, never by the grid. */
+fun ItemKind.isText() = this == ItemKind.Clock || this == ItemKind.Date

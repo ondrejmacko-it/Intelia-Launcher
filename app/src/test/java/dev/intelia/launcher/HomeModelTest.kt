@@ -131,4 +131,18 @@ class HomeModelTest {
         val app = l.items.first { it.kind == ItemKind.App }
         assertEquals("", app.style); assertEquals("Accent", app.tint)
     }
+
+    @Test fun lookSettingsAreClampedAndDateKeepsItsOwnSizeRange() {
+        val s = LauncherSettings(veilShift = 99, iconSize = 7, home = HomeLayouts(HomeLayouts.USER_ID, listOf(LayoutSpec(HomeLayouts.USER_ID, items = listOf(
+            HomeItem("date", ItemKind.Date, Anchor.free(.2f, .3f), sizeDp = 14, style = "Short"),
+            HomeItem("clock", ItemKind.Clock, Anchor.free(.5f, .1f), style = "Short")))))).sanitized()
+        assertEquals(LauncherSettings.MAX_VEIL_SHIFT, s.veilShift)
+        assertEquals(LauncherSettings.MIN_ICON, s.iconSize)
+        val items = s.home.layouts.first { it.id == HomeLayouts.USER_ID }.items
+        val date = items.first { it.kind == ItemKind.Date }
+        assertEquals(14, date.sizeDp)
+        assertEquals("Short", date.style)
+        assertEquals(AnchorType.Free, date.anchor.type)
+        assertEquals("", items.first { it.kind == ItemKind.Clock }.style)
+    }
 }

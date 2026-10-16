@@ -192,4 +192,50 @@ class HomeEditorStateTest {
         assertEquals(AnchorType.Cell, e.item("b")!!.anchor.type)
         assertEquals(5, e.item("b")!!.anchor.row)
     }
+
+    private fun withText(vararg items: HomeItem) = layout(Placement.Grid,
+        HomeItem("clock", ItemKind.Clock, Anchor.free(.3f, .1f)), HomeItem("date", ItemKind.Date, Anchor.Bound), *items)
+
+    @Test fun dateUnpinsBelowTheClockMovesOnItsOwnAndPinsBack() {
+        val e = HomeEditorState(withText(), geo)
+        e.pinDate(false)
+        val free = e.item("date")!!.anchor
+        assertEquals(AnchorType.Free, free.type)
+        assertEquals(.3f, free.fx, .001f)
+        assertEquals(.1f + HomeEditorState.DATE_BELOW, free.fy, .001f)
+        assertTrue(e.canDrag(e.item("date")!!))
+        assertTrue(e.move("date", geo.freePoint(.7f, .4f)))
+        assertEquals(.7f, e.item("date")!!.anchor.fx, .01f)
+        assertEquals(.3f, e.item("clock")!!.anchor.fx, .001f)
+        e.pinDate(true)
+        assertEquals(Anchor.Bound, e.item("date")!!.anchor)
+        assertFalse(e.canDrag(e.item("date")!!))
+    }
+
+    @Test fun clockAndDateCanBeHiddenAndAddedBackOnce() {
+        val e = HomeEditorState(withText(), geo)
+        assertTrue(e.remove("clock"))
+        assertTrue(e.remove("date"))
+        assertNull(e.item("clock"))
+        assertFalse(e.remove("lens"))
+        assertTrue(e.addText(ItemKind.Clock, geo.freePoint(.5f, .2f)))
+        assertFalse(e.addText(ItemKind.Clock, geo.freePoint(.5f, .2f)))
+        assertTrue(e.addText(ItemKind.Date, geo.freePoint(.5f, .9f)))
+        // Text never lands in the LENS band.
+        assertTrue(e.item("date")!!.anchor.fy <= HomeEditorState.CLOCK_MAX_FY)
+        e.undo(); e.undo()
+        assertNull(e.item("clock"))
+    }
+
+    @Test fun labelsAndIconSizesChangeAsOneStep() {
+        val e = HomeEditorState(withText(app("a", Anchor.cell(0, 0)).copy(sizeDp = 56), app("b", Anchor.cell(1, 0))), geo)
+        e.setLabels(true)
+        assertTrue(e.layout.items.filter { it.kind == ItemKind.App }.all { it.label })
+        assertFalse(e.item("clock")!!.label)
+        e.resetIconSizes()
+        assertEquals(0, e.item("a")!!.sizeDp)
+        e.undo(); e.undo()
+        assertEquals(56, e.item("a")!!.sizeDp)
+        assertFalse(e.item("b")!!.label)
+    }
 }
