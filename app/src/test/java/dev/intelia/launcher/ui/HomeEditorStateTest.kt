@@ -285,4 +285,12 @@ class HomeEditorStateTest {
         e.confirmPreview()
         assertEquals(-80f, e.layout.lensDx())
     }
+
+    @Test fun firstDragStepGetsTheTouchSlopBack() {
+        assertEquals(Pt(11f, 0f), HomeEditorState.withSlop(Pt(3f, 0f), 8f))
+        val diag = HomeEditorState.withSlop(Pt(3f, 4f), 5f)
+        assertEquals(6f, diag.x, 1e-4f)
+        assertEquals(8f, diag.y, 1e-4f)
+        assertEquals(Pt(0f, 0f), HomeEditorState.withSlop(Pt(0f, 0f), 8f))
+    }
 }

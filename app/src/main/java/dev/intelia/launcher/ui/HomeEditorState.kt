@@ -458,6 +458,17 @@ class HomeEditorState(
 
     companion object {
         const val LENS_SNAP = 10f
+
+        /**
+         * The first delta of a drag only counts movement past the touch slop; giving the slop back along the same
+         * direction keeps what is dragged under the finger instead of [slop] behind it (all in the same unit).
+         */
+        fun withSlop(delta: Pt, slop: Float): Pt {
+            val d = hypot(delta.x, delta.y)
+            if (d == 0f) return delta
+            val k = (d + slop) / d
+            return Pt(delta.x * k, delta.y * k)
+        }
         const val MAX_UNDO = 50
         const val GUIDE_SNAP = 8f
         const val HYBRID_SNAP = 20f

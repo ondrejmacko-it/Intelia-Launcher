@@ -617,9 +617,11 @@ private fun Home(
                 }
                 .pointerInput(ed) {
                     var moved = Offset.Zero
+                    var first = true
                     detectDragGestures(
                         onDragStart = { o ->
                             moved = Offset.Zero
+                            first = true
                             val p = Pt(o.x / density.density, o.y / density.density)
                             val hit = hitItem(ed, p, timeZone, dateZone)
                             // LENS moves sideways within its band (§5.5); its own hold never opens ARC here.
@@ -628,14 +630,18 @@ private fun Home(
                             refresh()
                         },
                         onDrag = { change, amount ->
+                            // The first step arrives without the touch slop; add it back so LENS and icons stay under the finger.
+                            val step = if (first) HomeEditorState.withSlop(Pt(amount.x, amount.y), viewConfiguration.touchSlop)
+                                .let { Offset(it.x, it.y) } else amount
+                            first = false
                             if (ed.lensDrag != null) {
                                 change.consume()
-                                moved += amount
+                                moved += step
                                 if (ed.dragLensBy(moved.x / density.density)) haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
                                 refresh()
                             } else if (ed.drag != null) {
                                 change.consume()
-                                moved += amount
+                                moved += step
                                 ed.dragBy(Pt(moved.x / density.density, moved.y / density.density))
                                 refresh()
                             }
