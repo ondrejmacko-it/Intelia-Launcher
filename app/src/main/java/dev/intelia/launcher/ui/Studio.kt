@@ -191,7 +191,8 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                         else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
                     val opacityLabel = stringResource(R.string.pulse_opacity)
                     Stacked("$opacityLabel · ${settings.pulseOpacity} %") {
-                        BeadSlider(settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, opacityLabel, Modifier.fillMaxWidth(),
+                        BeadSlider(settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, 5f, opacityLabel,
+                            "${settings.pulseOpacity} %", Modifier.fillMaxWidth(),
                             { v -> set { it.copy(pulseOpacity = (v / 5f).roundToInt() * 5) } }, track = ink.ink)
                     }
                     ToggleRow(stringResource(R.string.pulse_echo), settings.pulseEcho, { v -> set { it.copy(pulseEcho = v) } },

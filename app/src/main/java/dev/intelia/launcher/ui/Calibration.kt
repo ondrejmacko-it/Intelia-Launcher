@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +47,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.intelia.launcher.R
@@ -126,14 +128,15 @@ private fun BeadControl(label: String, value: Float, min: Float, max: Float, onC
     val on = ink.onNight
     fun set(v: Float) = onChange(v.coerceIn(min, max).snap())
     Column(Modifier.fillMaxWidth().padding(top = 14.dp)) {
+        val shown = String.format(Locale.ROOT, "%.1f dp", value)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = InkText.body, color = on)
-            Text(String.format(Locale.ROOT, "%.1f dp", value), Modifier.padding(start = 10.dp),
+            Text(shown, Modifier.padding(start = 10.dp),
                 style = InkText.label.copy(letterSpacing = 0.sp), color = on.copy(alpha = .55f))
         }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             StepRing("‹", stringResource(R.string.pulse_lens_less, label)) { set(value - STEP) }
-            BeadSlider(value, min, max, label, Modifier.weight(1f).padding(horizontal = 10.dp), ::set)
+            BeadSlider(value, min, max, STEP, label, shown, Modifier.weight(1f).padding(horizontal = 10.dp), ::set)
             StepRing("›", stringResource(R.string.pulse_lens_more, label)) { set(value + STEP) }
         }
     }
@@ -149,20 +152,26 @@ private fun StepRing(mark: String, description: String, onClick: () -> Unit) {
     }
 }
 
-/** A hairline track; the chosen part is accent thread, the value is a bead. Tap or drag anywhere on it. */
+/**
+ * A hairline track; the chosen part is accent thread, the value is a bead. Tap or drag anywhere on it.
+ * TalkBack reads [valueText] (not a percentage of the range) and its swipes move by one [step].
+ */
 @Composable
-internal fun BeadSlider(value: Float, min: Float, max: Float, label: String, modifier: Modifier, onChange: (Float) -> Unit,
-    track: Color = LocalInk.current.onNight) {
+internal fun BeadSlider(value: Float, min: Float, max: Float, step: Float, label: String, valueText: String, modifier: Modifier,
+    onChange: (Float) -> Unit, track: Color = LocalInk.current.onNight) {
     val ink = LocalInk.current
     val current by rememberUpdatedState(onChange)
     val span = (max - min).coerceAtLeast(1f)
     val fraction = ((value - min) / span).coerceIn(0f, 1f)
+    val steps = if (step > 0f) ((max - min) / step).roundToInt() - 1 else 0
     Canvas(modifier.height(44.dp)
         .semantics {
             contentDescription = label
-            progressBarRangeInfo = ProgressBarRangeInfo(value, min..max)
+            stateDescription = valueText
+            progressBarRangeInfo = ProgressBarRangeInfo(value, min..max, steps.coerceAtLeast(0))
             setProgress { v -> current(v); true }
         }
+        .focusable()
         .pointerInput(min, max) {
             fun at(px: Float) = current(min + (px / size.width).coerceIn(0f, 1f) * span)
             detectTapGestures { at(it.x) }
