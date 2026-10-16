@@ -2,6 +2,20 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-16 — Redesign phase B1, design system and components (`claude/crystal-redesign`, 9fbc7cf)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; `testDebugUnitTest --rerun`: 43 JVM tests,
+  0 failures (new: `ActionTest` ×6, `CrystalArcGeometryTest` ×2, `newInstallGetsFrostExistingUsersKeepTerracotta`).
+- Installed on Nothing Phone (3), Android 16 (`dev.intelia.launcher.lab`, update 13:29). Home screenshots before
+  (13:28) and after (13:29) are identical apart from the time: serif clock, date, Essentials, LENS, PULSE ring;
+  the owner's existing settings kept the Terracotta accent (schema 0 → 1 migration on a real document).
+- D11: Roboto Flex (OFL 1.1) bundled as `res/font/roboto_flex.ttf`, licence in `assets/licenses/`.
+
+Not verified on the phone: the Frost/Silver swatches in Studio (no touch input this session; the owner was
+using the phone), rendering of the Crystal components and Roboto Flex axes (no screen uses them yet; B2).
+Not measured: APK size impact of the font (+1.7 MB file; debug APK is 15.0 MB).
+
 ## 2026-10-16 — Redesign phase A, design review (`claude/crystal-redesign`)
 
 Verified (no Android code changed, no build run):
@@ -18,7 +32,7 @@ Verified (no Android code changed, no build run):
 
 Owner approved D10 (direction A, arc-end set switching, PULSE 2.0) on 2026-10-16.
 Open: ergonomics of the arc ends and of
-Global ARC not tested on the phone (prototype only). Roboto Flex licence entry before bundling.
+Global ARC not tested on the phone (prototype only). Roboto Flex licence entry before bundling (done in B1, D11).
 
 ## 2026-10-16 — Ink rework (`claude/ink-rework`, 402d10a)
 
