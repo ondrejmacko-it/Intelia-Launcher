@@ -23,7 +23,7 @@ JDK 17+ and Android SDK platform 37.1.
 scripts/dev.sh
 ```
 
-`scripts/dev.sh` installs the debug build (`dev.intelia.launcher.dev`) on a USB-connected phone and opens it.
+`scripts/dev.sh` installs the debug build (`dev.intelia.launcher.lab`) on a USB-connected phone and opens it.
 To use it as your home screen, open Settings in Intelia (hold the clock area) and choose *Use Intelia as home screen*.
 
 ## Licence

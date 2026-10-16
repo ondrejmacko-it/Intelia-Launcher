@@ -22,10 +22,20 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        // Debug-only key committed to the repo so every PC produces updatable builds (D4).
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
-            // Coexists with older Intelia builds on the test phone.
-            applicationIdSuffix = ".dev"
+            // Coexists with older Intelia builds on the test phone (D3, D4).
+            applicationIdSuffix = ".lab"
             versionNameSuffix = "-dev"
         }
         release {

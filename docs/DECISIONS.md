@@ -14,3 +14,10 @@ justifies it.
 ## D3 — 2026-10-15 — Debug package `dev.intelia.launcher.dev`
 The test phone already runs the older fork build as `dev.intelia.launcher.debug` (current HOME).
 The new debug build uses a different suffix so installing it never replaces that app or its data.
+
+## D4 — 2026-10-16 — Shared debug signing key, debug package `dev.intelia.launcher.lab`
+The `.dev` build on the phone was signed by the old PC's per-user debug key, which no longer exists, so it
+cannot be updated. A debug-only key now lives in `keystore/debug.keystore` (well-known `android` passwords,
+never used for release) and every PC signs debug builds identically. The debug package moved to `.lab`
+(label "Intelia Lab") and installs beside `.dev` without touching it or its data. Revert: point
+`signingConfigs.debug` back to the default key and restore the suffix in `app/build.gradle.kts`.
