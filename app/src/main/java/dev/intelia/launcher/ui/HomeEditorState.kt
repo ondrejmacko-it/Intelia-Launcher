@@ -566,3 +566,22 @@ class HomeEditorState(
 
 /** The clock and the date: text laid out by a free point, never by the grid. */
 fun ItemKind.isText() = this == ItemKind.Clock || this == ItemKind.Date
+
+/**
+ * Width of each icon name under its icon, dp, so that no two names overlap and none runs under LENS (D15).
+ * Names on one line share the gap between their centres; a name narrower than [LABEL_MIN] is left out.
+ * [labelled] maps item ids to icon centres; unlabelled icons sit above the name line and never meet it.
+ */
+fun labelWidths(labelled: Map<String, Pt>, lens: Pt?, maxWidth: Float = LABEL_MAX): Map<String, Float> =
+    labelled.mapNotNull { (id, p) ->
+        var half = maxWidth / 2
+        labelled.forEach { (other, q) -> if (other != id && kotlin.math.abs(q.y - p.y) < LABEL_LINE) half = minOf(half, kotlin.math.abs(q.x - p.x) / 2 - LABEL_GAP) }
+        if (lens != null && kotlin.math.abs(lens.y - p.y) < LABEL_LINE) half = minOf(half, kotlin.math.abs(lens.x - p.x) - LENS_HALF - LABEL_GAP)
+        (half * 2).takeIf { it >= LABEL_MIN }?.let { id to it }
+    }.toMap()
+
+const val LABEL_MAX = 76f
+const val LABEL_MIN = 48f
+private const val LABEL_LINE = 24f
+private const val LABEL_GAP = 2f
+private const val LENS_HALF = 28f

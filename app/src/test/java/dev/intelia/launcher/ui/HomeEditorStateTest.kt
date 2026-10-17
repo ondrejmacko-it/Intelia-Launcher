@@ -293,4 +293,24 @@ class HomeEditorStateTest {
         assertEquals(8f, diag.y, 1e-4f)
         assertEquals(Pt(0f, 0f), HomeEditorState.withSlop(Pt(0f, 0f), 8f))
     }
+
+    @Test fun lensRowNamesNeverOverlap() {
+        val slots = Anchor.LENS_SLOTS.associate { "s$it" to geo.lensSlot(it) }
+        val lens = Pt(geo.lensX, geo.lensY)
+        val w = labelWidths(slots, lens)
+        // ±62 / ±108 dp: the outer pair stands 46 dp from the inner one, too close for a name.
+        assertTrue(w.isEmpty())
+        val two = labelWidths(mapOf("a" to geo.lensSlot(-1), "b" to geo.lensSlot(1)), lens)
+        assertEquals(setOf("a", "b"), two.keys)
+        two.forEach { (id, width) ->
+            val x = (if (id == "a") geo.lensSlot(-1) else geo.lensSlot(1)).x
+            assertTrue(kotlin.math.abs(x - lens.x) - width / 2 >= 28f)
+        }
+        val grid = (0 until 4).associate { "c$it" to geo.cellCentre(it, 5, 4, 6) }
+        val g = labelWidths(grid, lens)
+        assertEquals(4, g.size)
+        val xs = (0 until 4).map { geo.cellCentre(it, 5, 4, 6).x }
+        for (i in 0 until 3) assertTrue(xs[i] + g.getValue("c$i") / 2 <= xs[i + 1] - g.getValue("c${i + 1}") / 2)
+    }
 }
+

@@ -14,6 +14,9 @@ import dev.intelia.launcher.data.SettingsCodec
 import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.lensDx
 import dev.intelia.launcher.data.ClockLayout
+import dev.intelia.launcher.data.ClockStyle
+import dev.intelia.launcher.data.HomeTemplates
+import dev.intelia.launcher.data.LayoutBase
 import dev.intelia.launcher.data.ClockSeparator
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.DatePart
@@ -245,4 +248,18 @@ class HomeModelTest {
         val drop = LauncherSettings.fresh().copy(iconShape = IconShape.Drop)
         assertEquals(IconShape.Drop, SettingsCodec.decode(SettingsCodec.encode(drop)).iconShape)
     }
+
+    /** D15: a new install gets the "Čisté" clock straight on the wallpaper and no icon names. */
+    @Test fun freshInstallHasThePureClockAndNoNames() {
+        val fresh = LauncherSettings.fresh()
+        assertEquals(ClockStyle.Crystal, fresh.clockStyle)
+        val clock = fresh.home.activeLayout().items.single { it.kind == ItemKind.Clock }
+        assertEquals(ClockLayout.Row, clock.look.layout)
+        assertEquals("", clock.background)
+        for (base in listOf(LayoutBase.Essentials, LayoutBase.Balanced)) {
+            val items = HomeTemplates.build(base, (1..8).map { "p$it/A" }, showClock = true, showDate = true)
+            assertTrue(items.none { it.label })
+        }
+    }
 }
+

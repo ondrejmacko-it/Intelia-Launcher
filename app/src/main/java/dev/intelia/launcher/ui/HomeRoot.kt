@@ -538,6 +538,10 @@ private fun Home(
         }
 
         // Icons placed by geometry: LENS row, grid cells, free positions; apps and FLOWs.
+        // On a side row the slots stand 46 dp apart: no room for a name under each icon.
+        val names = labelWidths(layout.items.filter { (it.kind == ItemKind.App || it.kind == ItemKind.Flow) && it.label &&
+            !(dock.edge.vertical && it.anchor.type == AnchorType.LensRow) }
+            .mapNotNull { item -> geometry.position(item, layout)?.let { item.id to it } }.toMap(), lensPt.takeIf { !dock.edge.vertical })
         layout.items.forEach { item ->
             if ((item.kind != ItemKind.App && item.kind != ItemKind.Flow) || !item.anchor.type.isPlaced()) return@forEach
             val app = if (item.kind == ItemKind.App) apps[item.target] else null
@@ -549,9 +553,8 @@ private fun Home(
             val p = geometry.position(item, layout) ?: return@forEach
             val iconDp = item.iconDp(iconDefault).dp
             key(item.id) {
-                // On a side row the slots stand 46 dp apart: no room for a name under each icon.
-                val labelled = item.label && !(dock.edge.vertical && item.anchor.type == AnchorType.LensRow)
-                if (labelled) Text(name, Modifier.centerAt(p.x.dp, p.y.dp + iconDp / 2 + 12.dp).widthIn(max = 76.dp)
+                val nameWidth = names[item.id]
+                if (nameWidth != null) Text(name, Modifier.centerAt(p.x.dp, p.y.dp + iconDp / 2 + 12.dp).widthIn(max = nameWidth.dp)
                     .graphicsLayer { alpha = if (dragging) 0f else quiet }.clearAndSetSemantics {},
                     style = CrystalType.body.copy(fontSize = 12.sp, lineHeight = 14.sp, shadow = homeShadow(homeInk)),
                     color = homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
