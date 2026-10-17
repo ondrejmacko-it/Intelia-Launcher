@@ -2,6 +2,27 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Preset thumbnails use their own LENS row; device pass (`claude/crystal-redesign`)
+
+- `./gradlew :app:testDebugUnitTest :app:assembleLab` — PASS (149 JVM tests, new `DockTest.presetMiniatureUsesItsOwnLensRow`).
+  Lab installed with `install -r`, profile broadcast, `speed-profile` compiled.
+- `HomeGeometry.forLayout(spec)`: a preset thumbnail places LENS by the preset's own dock and offset, not the live
+  one. On the phone Magazín's thumbnail shows LENS last while the live row is centred.
+- On the phone (screenshots): previews of Terminál (mono clock, short date, filled LENS, named list), Plakát
+  (huge slanted clock, weekday below), Sklo (clock on a frosted plate, row spread) and Vyvážená (light clock, four
+  icons in a row above LENS) render; Použít closes the card and enables undo; ✓ after a preset asks "Přepsat vlastní
+  rozložení?" (cancelled, then the editor closed via ✕ › Zahodit, Home unchanged); Mřížka plochy: + / − columns
+  (4→5→4) and placement Mřížka / Hybrid switch and show at once (restored); Oblíbené lists 4/7 with ↑ and ✕;
+  light theme on Vzhled, the main page and the drawer is legible (restored to Systém).
+- Semantics tree (`uiautomator`) of the main Settings page: the decorative "→" on every row is exposed as text, and
+  the miniature exposes the live time and date as content.
+
+Found, not fixed (awaiting the owner): Terminál's app list uses the legacy serif at 30 sp, not the monospaced face;
+the preset card lets Plakát's clock show through its text; edit corner ticks have a fixed 22 dp radius, so icons
+without a monochrome layer (larger) cover them; the Oblíbené note says the first four sit around LENS, which is true
+only for presets, not the owner's own layout.
+Not verified: real TalkBack speech; Boční / Magazín applied and saved.
+
 ## 2026-10-17 — Settings: one page per section, 50/50, distinct presets (`claude/crystal-redesign`)
 
 - `./gradlew :app:testDebugUnitTest :app:assembleLab` — PASS (148 JVM tests). Lab installed with `install -r`,

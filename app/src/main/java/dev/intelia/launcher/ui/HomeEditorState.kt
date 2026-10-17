@@ -55,6 +55,12 @@ class HomeGeometry(
 
     fun freePoint(fx: Float, fy: Float) = Pt(areaLeft + fx * areaW, areaTop + fy * areaH)
 
+    /** The same screen with [spec]'s own LENS row (edge, end, offset): a preset's miniature must not follow the live one. */
+    fun forLayout(spec: LayoutSpec): HomeGeometry {
+        val c = Dock.centre(spec.dock, spec.lensDx(), width, height, statusTop, bottomInset)
+        return HomeGeometry(width, height, statusTop, c.x, c.y, spec.dock, bottomInset)
+    }
+
     fun toFree(p: Pt) = Anchor.free(((p.x - areaLeft) / areaW).coerceIn(0f, 1f), ((p.y - areaTop) / areaH).coerceIn(0f, 1f))
 
     fun nearestCell(p: Pt, cols: Int, rows: Int): Anchor {

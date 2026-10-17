@@ -817,8 +817,9 @@ fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: Home
  * the date, icons as dots, named apps as lines and LENS (ring or filled) on its own edge, so presets differ at a glance.
  */
 @Composable
-fun LayoutThumb(spec: LayoutSpec, geometry: HomeGeometry, selected: Boolean) {
+fun LayoutThumb(spec: LayoutSpec, screen: HomeGeometry, selected: Boolean) {
     val c = LocalCrystal.current
+    val geometry = remember(spec, screen) { screen.forLayout(spec) }
     Canvas(Modifier.size(56.dp, 100.dp).clip(RoundedCornerShape(10.dp)).background(c.fg.copy(alpha = .06f))
         .border(if (selected) 1.5.dp else 1.dp, if (selected) c.acc else c.fg3, RoundedCornerShape(10.dp))) {
         val k = size.width / geometry.width

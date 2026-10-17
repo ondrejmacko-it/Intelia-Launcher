@@ -107,6 +107,15 @@ class DockTest {
         assertTrue(fs.zipWithNext().all { (a, b) -> b - a > 46f } && fs.last() <= w - 24f)
     }
 
+    @Test fun presetMiniatureUsesItsOwnLensRow() {
+        // The live screen has LENS on the right edge (Side previewed); a bottom preset still sees it centred below.
+        val live = geometry(DockSpec(edge = DockEdge.Right))
+        val own = live.forLayout(LayoutSpec(id = "p", dock = DockSpec()))
+        assertEquals(Pt(180f, h - bottom - Dock.INSET), Pt(own.lensX, own.lensY))
+        assertEquals(DockEdge.Bottom, own.dock.edge)
+        assertEquals(geometry(DockSpec(lensAt = LensAt.End)).lensX, live.forLayout(LayoutSpec(id = "e", dock = DockSpec(lensAt = LensAt.End))).lensX, .01f)
+    }
+
     @Test fun spacingIsClampedOnRestore() {
         assertEquals(DockSpec(gap = DockSpec.MIN_GAP, pitch = DockSpec.MAX_PITCH), DockSpec(gap = -5, pitch = 9999).sanitized())
         val s = SettingsCodec.decode("{\"schema\":2,\"home\":{\"active\":\"mine\",\"layouts\":[{\"id\":\"mine\",\"dock\":{\"gap\":1,\"pitch\":500,\"spread\":true}}]}}")
