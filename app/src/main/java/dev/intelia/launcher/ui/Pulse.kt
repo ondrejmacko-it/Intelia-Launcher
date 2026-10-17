@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import android.app.AlarmManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
@@ -42,12 +46,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,6 +77,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -89,7 +94,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private data class Battery(val percent: Int, val charging: Boolean)
+private val TARGET_BELOW = 28.dp
+
+internal data class Battery(val percent: Int, val charging: Boolean)
 
 /** Where the camera cut-out sits, in window px. */
 internal data class Hole(val x: Float, val y: Float, val radius: Float)
@@ -122,7 +129,7 @@ internal fun rememberLens(lens: PulseLens?): Hole {
     val view = LocalView.current
     val density = LocalDensity.current
     val detected = rememberDetectedHole()
-    val statusTop = with(density) { WindowInsets.statusBars.getTop(this).toFloat() }
+    val statusTop = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toFloat() }
     val portrait = view.height >= view.width
     return with(density) {
         when {
@@ -133,7 +140,7 @@ internal fun rememberLens(lens: PulseLens?): Hole {
     }
 }
 
-private fun Intent.battery(): Battery? {
+internal fun Intent.battery(): Battery? {
     val level = getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
     val scale = getIntExtra(BatteryManager.EXTRA_SCALE, -1)
     if (level < 0 || scale <= 0) return null
@@ -143,10 +150,10 @@ private fun Intent.battery(): Battery? {
     return Battery(level * 100 / scale, plugged || status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
 }
 
-private fun nextAlarm(context: Context): Long? =
+internal fun nextAlarm(context: Context): Long? =
     context.getSystemService(AlarmManager::class.java)?.nextAlarmClock?.triggerTime
 
-private fun torchCamera(manager: CameraManager): String? = try {
+internal fun torchCamera(manager: CameraManager): String? = try {
     manager.cameraIdList.firstOrNull { id ->
         val c = manager.getCameraCharacteristics(id)
         c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true &&
@@ -158,12 +165,15 @@ private fun torchCamera(manager: CameraManager): String? = try {
 
 /**
  * PULSE: the camera cut-out as Intelia's second focus. At rest it is invisible. Returning Home sends
- * one echo out of the lens; a near alarm or charging shows a capsule around the camera, and the ring
- * around the lens becomes the battery gauge. Tap opens the panel. Home only, no permissions,
+ * one echo out of the lens; charging or a near alarm shows a small disc around the camera inside the
+ * status bar (D8): the ring is the battery gauge, one dot marks the alarm, no text. Tap opens the panel. Home only, no permissions,
  * no background work: everything is read while Home is started.
+ *
+ * [preview] (Studio) always shows the capsule as if charging (with the alarm dot when alarms are on),
+ * without echo or panel, so opacity can be tuned live.
  */
 @Composable
-fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
+fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val ink = LocalInk.current
@@ -174,6 +184,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
     var battery by remember { mutableStateOf<Battery?>(null) }
     var alarm by remember { mutableStateOf<Long?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    val global by PulseAccessibilityService.running.collectAsState()
     val echo = remember { Animatable(1f) }
 
     LifecycleStartEffect(Unit) {
@@ -191,16 +202,21 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
         onStopOrDispose { context.unregisterReceiver(receiver); expanded = false }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
-        if (motion != Motion.Off && settings.pulseEcho) scope.launch { echo.snapTo(0f); echo.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
+        if (!preview && motion != Motion.Off && settings.pulseEcho) scope.launch { echo.snapTo(0f); echo.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
     }
     BackHandler(enabled = expanded) { expanded = false }
 
-    val now = System.currentTimeMillis()
-    val soonAlarm = alarm?.takeIf { settings.pulseAlarm && it - now in 0..settings.pulseAlarmHours * 3_600_000L }
-    val charging = settings.pulseCharging && battery?.charging == true
-    val time = DateTimeFormatter.ofPattern("H:mm")
-    val alarmText = soonAlarm?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(time) }
+    val rest = pulseRest(preview || settings.pulseCharging && battery?.charging == true,
+        alarm?.takeIf { settings.pulseAlarm }, System.currentTimeMillis(), settings.pulseAlarmHours)
+        .let { if (preview) it.copy(alarmMark = settings.pulseAlarm) else it }
     val label = stringResource(R.string.pulse)
+    // No text at rest, so TalkBack reads what the dot and the gauge mean.
+    val restState = listOfNotNull(
+        battery?.takeIf { rest.gauge }?.let { "${it.percent} %" },
+        alarm?.takeIf { rest.alarmMark }?.let { stringResource(R.string.pulse_alarm_near,
+            Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("H:mm"))) },
+    ).joinToString(", ")
+    val statusBar = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp().value }
 
     Box(modifier.fillMaxSize()) {
         val hx = with(density) { h.x.toDp() }
@@ -218,61 +234,47 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier) {
             }
         }
 
-        // Capsule around the camera when there is something worth a glance.
-        val compact = (soonAlarm != null || charging) && !expanded
-        // Each half is only as wide as what it says, so the capsule hides as few status icons as possible.
-        val left = if (alarmText != null) 58.dp else 12.dp
-        val right = if (charging) 48.dp else 12.dp
-        val pillHeight = hr * 2 + 10.dp
-        AnimatedVisibility(compact, Modifier.offset(x = hx - hr - 5.dp - left, y = hy - pillHeight / 2),
-            enter = fadeIn(tween(motionMs(200))) + expandIn(tween(motionMs(260)), expandFrom = Alignment.Center),
-            exit = fadeOut(tween(motionMs(160))) + shrinkOut(tween(motionMs(200)), shrinkTowards = Alignment.Center)) {
-            Row(Modifier.height(pillHeight).clip(RoundedCornerShape(50)).background(ink.night)
-                .clickable(onClickLabel = label, role = Role.Button) { expanded = true }
-                .semantics { contentDescription = label },
-                verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.width(left).padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (alarmText != null) {
-                        HomeGlyph(Glyph.Bell, null, tint = ink.onNight, size = 12.dp)
-                        Text(alarmText, Modifier.padding(start = 3.dp), style = InkText.label.copy(fontSize = 11.sp, letterSpacing = 0.sp),
-                            color = ink.onNight, maxLines = 1)
-                    }
-                }
-                // The lens itself; while charging its rim is the battery gauge.
-                Canvas(Modifier.size(hr * 2 + 10.dp)) {
-                    val r = h.radius + 3.dp.toPx()
-                    val c = Offset(size.width / 2f, size.height / 2f)
-                    if (charging) {
-                        drawCircle(ink.onNight.copy(alpha = .18f), r, c, style = Stroke(1.5.dp.toPx()))
-                        drawArc(ink.accent, -90f, 360f * (battery?.percent ?: 0) / 100f, false, Offset(c.x - r, c.y - r), Size(2 * r, 2 * r),
-                            style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
-                    }
-                }
-                Row(Modifier.width(right).padding(end = 10.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    if (charging) Text("${battery?.percent ?: 0}%", style = InkText.label.copy(fontSize = 11.sp, letterSpacing = 0.sp),
-                        color = ink.onNight, maxLines = 1)
-                }
+        // At rest (D8): a disc around the lens inside the status bar, no wider than the cut-out plus one dot,
+        // so it never covers status icons and repeats nothing the system already shows.
+        val capsule = restCapsule(hx.value, hy.value, hr.value, statusBar, rest.alarmMark)
+        AnimatedVisibility(rest.visible && !expanded, Modifier.offset(x = capsule.left.dp, y = capsule.top.dp),
+            enter = fadeIn(tween(motionMs(200))) + expandIn(tween(motionMs(260)), expandFrom = Alignment.CenterStart),
+            exit = fadeOut(tween(motionMs(160))) + shrinkOut(tween(motionMs(200)), shrinkTowards = Alignment.CenterStart)) {
+            Canvas(Modifier.size(capsule.width.dp, capsule.height.dp).clip(RoundedCornerShape(50))
+                .background(ink.night.copy(alpha = settings.pulseOpacity / 100f))) {
+                val c = Offset(capsule.lensX.dp.toPx(), size.height / 2f)
+                val r = h.radius + 3.dp.toPx()
+                // The ring: a quiet track, and while charging the thread of the battery gauge.
+                drawCircle(ink.onNight.copy(alpha = .18f), r, c, style = Stroke(1.5.dp.toPx()))
+                if (rest.gauge) drawArc(ink.accent, -90f, 360f * (battery?.percent ?: 0) / 100f, false, Offset(c.x - r, c.y - r),
+                    Size(2 * r, 2 * r), style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                if (rest.alarmMark) drawCircle(ink.accent, 2.5.dp.toPx(), Offset(capsule.markX.dp.toPx(), size.height / 2f))
             }
         }
 
-        // Invisible touch target on the lens at rest.
-        if (!compact && !expanded) Box(Modifier.offset(x = hx - 24.dp, y = hy - 24.dp).size(48.dp)
+        // Touch target on the lens. The status bar window takes touches inside it, so the target also reaches
+        // [TARGET_BELOW] under the status bar, where a finger aiming at the camera usually lands.
+        val targetTop = hy - 24.dp
+        // With PULSE everywhere on (D9) the service owns the lens; Lab draws no second target under it.
+        if (!preview && !expanded && !global) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
+            .size(64.dp, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
                 role = Role.Button) { expanded = true }
-            .semantics { contentDescription = label })
+            .semantics { contentDescription = label; if (restState.isNotEmpty()) stateDescription = restState })
 
         if (expanded) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() },
             indication = null, onClickLabel = stringResource(R.string.close)) { expanded = false })
-        AnimatedVisibility(expanded, Modifier.fillMaxWidth().padding(horizontal = 12.dp).offset(y = (hy - hr - 6.dp).coerceAtLeast(4.dp)),
+        val panelTop = (hy - hr - 6.dp).coerceAtLeast(4.dp)
+        AnimatedVisibility(expanded, Modifier.fillMaxWidth().padding(horizontal = 12.dp).offset(y = panelTop),
             enter = fadeIn(tween(motionMs(160))) + expandIn(tween(motionMs(300)), expandFrom = Alignment.TopCenter),
             exit = fadeOut(tween(motionMs(140))) + shrinkOut(tween(motionMs(220)), shrinkTowards = Alignment.TopCenter)) {
-            PulsePanel(alarm, battery, hr, onClose = { expanded = false })
+            PulsePanel(alarm, battery, hr, maxOf(hr * 2 + 18.dp, statusBar.dp - panelTop), onClose = { expanded = false })
         }
     }
 }
 
 @Composable
-private fun PulsePanel(alarm: Long?, battery: Battery?, holeRadius: androidx.compose.ui.unit.Dp, onClose: () -> Unit) {
+private fun PulsePanel(alarm: Long?, battery: Battery?, holeRadius: Dp, header: Dp, onClose: () -> Unit) {
     val context = LocalContext.current
     val ink = LocalInk.current
     val manager = remember(context) { context.getSystemService(CameraManager::class.java) }
@@ -289,13 +291,11 @@ private fun PulsePanel(alarm: Long?, battery: Battery?, holeRadius: androidx.com
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(ink.night)
         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
         .padding(start = 22.dp, end = 14.dp, bottom = 10.dp)) {
-        // Keep the camera clear: the panel grows out of it.
-        Box(Modifier.fillMaxWidth().height(holeRadius * 2 + 18.dp).drawBehind {
-            drawCircle(ink.onNight.copy(alpha = .18f), holeRadius.toPx() + 4.dp.toPx(), Offset(size.width / 2f - 4.dp.toPx(), size.height / 2f),
+        // Keep the camera and the status bar clear: the panel grows out of the lens, the system icons stay on top.
+        Box(Modifier.fillMaxWidth().height(header).drawBehind {
+            drawCircle(ink.onNight.copy(alpha = .18f), holeRadius.toPx() + 4.dp.toPx(), Offset(size.width / 2f - 4.dp.toPx(), holeRadius.toPx() + 6.dp.toPx()),
                 style = Stroke(1.dp.toPx()))
-        }) {
-            Kicker(stringResource(R.string.pulse), Modifier.align(Alignment.CenterStart), color = ink.onNight.copy(alpha = .62f))
-        }
+        })
         val alarmRow = alarm?.let {
             val at = Instant.ofEpochMilli(it).atZone(zone)
             val day = when (at.toLocalDate()) {
@@ -339,7 +339,7 @@ private fun PulsePanel(alarm: Long?, battery: Battery?, holeRadius: androidx.com
 }
 
 @Composable
-private fun PanelRow(glyph: Glyph, title: String, detail: String?, onClick: (() -> Unit)?) {
+internal fun PanelRow(glyph: Glyph, title: String, detail: String?, onClick: (() -> Unit)?) {
     val ink = LocalInk.current
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
         verticalAlignment = Alignment.CenterVertically) {

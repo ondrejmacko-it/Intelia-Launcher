@@ -51,7 +51,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.intelia.launcher.data.ClockLayout
+import dev.intelia.launcher.data.ClockSeparator
 import dev.intelia.launcher.data.ClockStyle
+import dev.intelia.launcher.data.ItemAlign
+import dev.intelia.launcher.data.TextLook
+import androidx.compose.foundation.layout.IntrinsicSize
 import java.time.LocalTime
 import java.util.Locale
 
@@ -66,54 +71,86 @@ fun Hairline(modifier: Modifier = Modifier, color: Color = LocalInk.current.line
     Box(modifier.fillMaxWidth().height(1.dp).background(color))
 }
 
-/** The tide dash under LENS; the one "this is selected" mark used everywhere. */
+/** The tide dash: the "this is selected" mark of the Ink screens (no longer under LENS, 4.3). */
 @Composable
 fun TideDash(visible: Boolean, modifier: Modifier = Modifier, width: Dp = 14.dp, color: Color = LocalInk.current.accent) {
     Box(modifier.size(width, 2.dp).clip(RoundedCornerShape(1.dp)).background(if (visible) color else Color.Transparent))
 }
 
 /**
- * LENS mark: an open ring with the tide dash beneath. Pressing fills the ring like a drop of ink.
+ * LENS mark (4.3): a 44 dp ring with a 1.5 dp stroke and nothing beneath it. While ARC is open it
+ * settles to 86 % with a faint fill; with Reduced Motion that change is instant.
  */
 @Composable
-fun LensMark(ink: Color, accent: Color, modifier: Modifier = Modifier, active: Boolean = false, ring: Dp = 26.dp) {
-    val fill by animateFloatAsState(if (active) 1f else 0f, tween(motionMs(160)), label = "lens-ink")
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Canvas(Modifier.size(ring)) {
-            val stroke = 1.6.dp.toPx()
-            val r = size.minDimension / 2f - stroke / 2f
-            drawCircle(if (active) accent else ink, r * (1f + .12f * fill), style = Stroke(stroke))
-            if (fill > 0f) drawCircle(accent.copy(alpha = .22f * fill), r * fill)
-        }
-        TideDash(true, color = accent)
+fun LensMark(ink: Color, modifier: Modifier = Modifier, active: Boolean = false, ring: Dp = CrystalDims.lensRing, filled: Boolean = false) {
+    val press by animateFloatAsState(if (active) 1f else 0f, tween(motionMs(110)), label = "lens-press")
+    Canvas(modifier.size(ring)) {
+        val stroke = CrystalDims.lensStroke.toPx() * (ring / CrystalDims.lensRing)
+        val r = (size.minDimension / 2f - stroke / 2f) * (1f - .14f * press)
+        if (press > 0f) drawCircle(ink.copy(alpha = .12f * press), r)
+        if (filled) drawCircle(ink.copy(alpha = .22f), r)
+        drawCircle(ink.copy(alpha = .88f), r, style = Stroke(stroke))
     }
 }
 
 /**
- * Clock in two voices: upright hours, italic minutes, a small accent ring instead of a colon.
- * No seconds and no per-second work.
+ * Home clock, hours and minutes only; no seconds and no per-second work. [ClockStyle.Crystal] is one
+ * voice; the Ink styles keep two voices: upright hours, italic minutes, an accent ring for the colon.
  */
 @Composable
 fun SplitClock(now: LocalTime, style: ClockStyle, ink: Color, accent: Color, size: TextUnit, modifier: Modifier = Modifier,
-    shadow: Boolean = true) {
-    val family = when (style) {
+    shadow: Boolean = true, weight: Int = 0, look: TextLook = TextLook()) {
+    val time = clockDigits(now, look.hours12)
+    val shade = if (shadow) homeShadow(ink) else null
+    val crystal = style == ClockStyle.Crystal
+    val own = faceFamily(look.face, if (weight == 0) (if (crystal) 220 else 300) else weight)
+    val family = own ?: when (style) {
+        // 4.2: Roboto Flex 220 · 118, tabular figures so the width never jumps.
+        ClockStyle.Crystal -> if (weight == 0) CrystalType.clock.fontFamily!! else flex(weight, 118f)
         ClockStyle.Serif -> InkFonts.serif
         ClockStyle.Grotesk -> InkFonts.sans
         ClockStyle.Mono -> InkFonts.mono
     }
-    val base = TextStyle(fontFamily = family, fontWeight = FontWeight.Light, fontSize = size, lineHeight = size,
-        letterSpacing = if (style == ClockStyle.Mono) (-0.06f).em(size) else (-0.03f).em(size),
-        shadow = if (shadow) homeShadow(ink) else null)
-    val time = "%02d".format(now.hour) to "%02d".format(now.minute)
-    Row(modifier.semantics(mergeDescendants = true) { contentDescription = "${time.first}:${time.second}" },
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(time.first, style = base, color = ink, modifier = Modifier.clearAndSetSemantics { })
-        val ringSize = (size.value * .11f).dp
-        Canvas(Modifier.padding(horizontal = (size.value * .07f).dp).size(ringSize)) {
-            drawCircle(accent, this.size.minDimension / 2f - 1.dp.toPx(), style = Stroke(1.6.dp.toPx()))
+    val tracking = (if (crystal && own == null) -1f / size.value else if (style == ClockStyle.Mono) -.06f else -.03f) + look.tracking / 100f
+    val base = TextStyle(fontFamily = family, fontWeight = if (weight == 0 || own != null) (if (crystal) null else FontWeight.Light) else FontWeight(weight),
+        fontSize = size, lineHeight = size, letterSpacing = tracking.em(size), shadow = shade, fontFeatureSettings = "tnum")
+    val said = "${time.first}:${time.second}"
+    val minutes = base.copy(fontStyle = if (style == ClockStyle.Serif && own == null) FontStyle.Italic else FontStyle.Normal)
+    val hAlign = when (look.align) {
+        ItemAlign.Start -> Alignment.Start
+        ItemAlign.End -> Alignment.End
+        else -> Alignment.CenterHorizontally
+    }
+    // Stacked lines sit tight: the line box is cut to the figures, so the column's height is what is drawn.
+    fun tight(k: Float) = base.copy(lineHeight = (size.value * k).sp,
+        lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+            androidx.compose.ui.text.style.LineHeightStyle.Trim.Both))
+    when (look.layout) {
+        // Hours over minutes, the lines drawn tight together.
+        ClockLayout.Stack -> Column(modifier.semantics(mergeDescendants = true) { contentDescription = said }, horizontalAlignment = hAlign) {
+            Text(time.first, style = tight(.86f), color = ink, maxLines = 1, modifier = Modifier.clearAndSetSemantics { })
+            Text(time.second, style = tight(.86f).copy(fontStyle = minutes.fontStyle), color = ink, maxLines = 1, modifier = Modifier.clearAndSetSemantics { })
         }
-        Text(time.second, style = base.copy(fontStyle = if (style == ClockStyle.Serif) FontStyle.Italic else FontStyle.Normal),
-            color = ink, modifier = Modifier.clearAndSetSemantics { })
+        // Hours up-left, minutes down-right, overlapping by a quarter of the size.
+        ClockLayout.Slant -> Column(modifier.width(IntrinsicSize.Max).semantics(mergeDescendants = true) { contentDescription = said }) {
+            Text(time.first, style = tight(.72f), color = ink, maxLines = 1, modifier = Modifier.clearAndSetSemantics { })
+            Text(time.second, style = tight(.72f).copy(fontStyle = minutes.fontStyle), color = ink, maxLines = 1,
+                modifier = Modifier.align(Alignment.End).padding(start = (size.value * .55f).dp).clearAndSetSemantics { })
+        }
+        ClockLayout.Row -> Row(modifier.semantics(mergeDescendants = true) { contentDescription = said }, verticalAlignment = Alignment.CenterVertically) {
+            Text(time.first, style = base, color = ink, maxLines = 1, modifier = Modifier.clearAndSetSemantics { })
+            // The Ink styles keep their accent ring for the colon; everything else draws the separator as a glyph.
+            if (!crystal && own == null && look.separator == ClockSeparator.Colon) {
+                val ringSize = (size.value * .11f).dp
+                Canvas(Modifier.padding(horizontal = (size.value * .07f).dp).size(ringSize)) {
+                    drawCircle(accent, this.size.minDimension / 2f - 1.dp.toPx(), style = Stroke(1.6.dp.toPx()))
+                }
+            } else if (look.separator != ClockSeparator.None) {
+                Text(separatorText(look.separator), style = base.copy(fontStyle = FontStyle.Normal), color = ink, maxLines = 1,
+                    modifier = Modifier.clearAndSetSemantics { })
+            }
+            Text(time.second, style = minutes, color = ink, maxLines = 1, modifier = Modifier.clearAndSetSemantics { })
+        }
     }
 }
 
@@ -167,7 +204,7 @@ fun <T> Segments(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> U
 @Composable
 fun RingToggle(checked: Boolean, modifier: Modifier = Modifier) {
     val ink = LocalInk.current
-    val fill by animateFloatAsState(if (checked) 1f else 0f, tween(motionMs(160)), label = "ring-toggle")
+    val fill by animateFloatAsState(if (checked) 1f else 0f, tween(motionMs(120)), label = "ring-toggle")
     Canvas(modifier.size(24.dp)) {
         val stroke = 1.5.dp.toPx()
         val r = size.minDimension / 2f - stroke
@@ -203,7 +240,7 @@ fun NavRow(label: String, value: String?, onClick: () -> Unit, modifier: Modifie
         verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f), style = InkText.body)
         if (value != null) Text(value, style = InkText.small.copy(fontSize = 14.sp), color = ink.muted, maxLines = 1)
-        Text("  →", style = InkText.body, color = ink.muted)
+        Text("  →", Modifier.clearAndSetSemantics { }, style = InkText.body, color = ink.muted)
     }
 }
 

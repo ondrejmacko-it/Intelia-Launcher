@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -12,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -84,19 +87,36 @@ fun AppOptionsSheet(
     onHide: () -> Unit,
     onDetails: () -> Unit,
     onDismiss: () -> Unit,
+    level: VeilLevel = VeilLevel.Dense,
 ) {
     val ink = LocalInk.current
+    val state = rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded))
+    // Over Home the sheet softens it through the shared Dense depth; over Search or the drawer, Home is already in Focus.
+    if (level == VeilLevel.Dense) {
+        val open by animateFloatAsState(if (state.targetValue == SheetValue.Expanded) 1f else 0f, tween(motionMs(300)), label = "depth")
+        VeilDepthSource(VeilLevel.Dense) { open }
+    }
+    val scrim = veilScrim()
+    // Over Search or the drawer the rows below are text, which showed through a 74 % sheet on the Phone (3):
+    // there the sheet takes the Matte preset of the same material. Legibility first.
+    val c = LocalCrystal.current
+    val tokens = if (level == VeilLevel.Focus) veilTokens(level, c.dark, c.acc, LocalVeil.current.copy(solid = true)) else veil(level)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded)),
+        sheetState = state,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = ink.paper,
+        containerColor = Color.Transparent,
         contentColor = ink.ink,
-        scrimColor = Color.Black.copy(alpha = .32f),
+        scrimColor = if (level == VeilLevel.Focus) scrim else scrim.copy(alpha = scrim.alpha * DENSE_SCRIM),
         tonalElevation = 0.dp,
-        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 6.dp).size(28.dp, 3.dp).clip(RoundedCornerShape(2.dp)).background(ink.line)) },
+        dragHandle = null,
+        contentWindowInsets = { WindowInsets(0) },
     ) {
-        Column(Modifier.navigationBarsPadding().padding(bottom = 12.dp)) {
+        // Veil Dense (§5.2; Focus over a layer): the sheet rises from the icon row at the bottom, so its edge is lit there.
+        Column(Modifier.fillMaxWidth().veilSurface(tokens, VeilOrigin(.5f, 1.15f),
+            RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).navigationBarsPadding().padding(bottom = 12.dp)) {
+            Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp, bottom = 6.dp).size(28.dp, 3.dp)
+                .clip(RoundedCornerShape(2.dp)).background(ink.line))
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(app, Modifier.size(40.dp))
                 Text(app.label, Modifier.padding(start = 16.dp), style = InkText.title.copy(fontSize = 26.sp, lineHeight = 30.sp),

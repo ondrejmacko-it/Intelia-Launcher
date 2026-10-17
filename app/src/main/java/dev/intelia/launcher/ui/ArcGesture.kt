@@ -33,6 +33,9 @@ class ArcRings(val slots: List<List<Boolean>>, left: Float, right: Float) {
 
     fun radius(ring: Int) = RADII[ring]
 
+    /** Radius of the outermost ring that shows anything (dp); 0 when ARC is empty. */
+    val reach: Float = angles.indices.filter { angles[it].isNotEmpty() }.maxOfOrNull { RADII[it] } ?: 0f
+
     /** Slot centre in dp relative to LENS. */
     fun position(ring: Int, index: Int): Pair<Float, Float> {
         val a = angles[ring][index] * PI.toFloat() / 180f
@@ -82,6 +85,16 @@ class ArcRings(val slots: List<List<Boolean>>, left: Float, right: Float) {
             return if (room >= 1f) 90f else if (room <= 0f) 0f else (asin(room) * 180.0 / PI).toFloat()
         }
     }
+}
+
+/** Slot indices of an [n]-slot ring from the centre outwards: centre first, then left and right alternately. */
+fun centreOut(n: Int): List<Int> = (0 until n).sortedWith(compareBy({ abs(it - (n - 1) / 2f) }, { it }))
+
+/** Places the i-th item into the i-th slot from the centre outwards; unused slots stay empty. */
+fun <T : Any> fillFromCentre(items: List<T?>, n: Int): List<T?> {
+    val slots = MutableList<T?>(n) { null }
+    centreOut(n).zip(items).forEach { (slot, item) -> slots[slot] = item }
+    return slots
 }
 
 /** Upward flick from LENS opens search; mostly vertical, tolerant of thumb arcs. */

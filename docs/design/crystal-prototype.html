@@ -1,0 +1,422 @@
+<title>Intelia Crystal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: phone at real dp scale (360 × 797) on the left, controls + spec notes on the right; stacks on narrow screens. */
+:root{
+  --page:#EEF0F2; --page-fg:#1B1E23; --page-dim:#5D6570; --page-line:#D3D8DE; --page-raise:#F8F9FA; --page-acc:#3F6E9C;
+  --f-ui:"Roboto Flex",Roboto,system-ui,sans-serif; --f-mono:"Roboto Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0F1114;--page-fg:#E6E9ED;--page-dim:#99A2AD;--page-line:#2A2F36;--page-raise:#171A1F;--page-acc:#9DB8D6;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0F1114;--page-fg:#E6E9ED;--page-dim:#99A2AD;--page-line:#2A2F36;--page-raise:#171A1F;--page-acc:#9DB8D6;color-scheme:dark}
+html,body{background:var(--page);color:var(--page-fg)}
+body{font-family:var(--f-ui);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:auto minmax(0,1fr);gap:32px;align-items:start}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}}
+header.top{max-width:1180px;margin:0 auto 18px;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline}
+header.top h1{font-size:22px;font-weight:600;font-variation-settings:"wdth" 112;margin:0;letter-spacing:.2px}
+header.top p{margin:0;color:var(--page-dim);font-size:14px;max-width:62ch}
+.stage{display:flex;justify-content:center}
+.side{display:flex;flex-direction:column;gap:18px;min-width:0}
+.group{display:flex;flex-direction:column;gap:8px}
+.group h2{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--page-dim);margin:0;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:inherit;font-size:13px;border:1px solid var(--page-line);background:var(--page-raise);color:var(--page-fg);border-radius:8px;padding:6px 10px;cursor:pointer}
+.chips button[aria-pressed="true"]{border-color:var(--page-acc);color:var(--page-acc);box-shadow:inset 0 0 0 1px var(--page-acc)}
+.chips button:focus-visible,.p button:focus-visible{outline:2px solid var(--page-acc);outline-offset:2px}
+.chips .n{font-family:var(--f-mono);font-size:11px;color:var(--page-dim);margin-right:5px}
+.note{background:var(--page-raise);border:1px solid var(--page-line);border-radius:10px;padding:14px 16px;font-size:14px;line-height:1.5}
+.note h3{margin:0 0 6px;font-size:15px}
+.note ul{margin:6px 0 0;padding-left:18px}
+.note code{font-family:var(--f-mono);font-size:12px}
+.log{font-family:var(--f-mono);font-size:12px;color:var(--page-dim);display:flex;flex-direction:column;gap:3px;min-height:90px}
+.log b{color:var(--page-fg);font-weight:500}
+
+/* ───────── Phone ───────── */
+.phone{--s:1;width:calc(360px*var(--s));height:calc(797px*var(--s));border-radius:calc(38px*var(--s));padding:0;background:#000;box-shadow:0 0 0 calc(7px*var(--s)) #1a1b1e,0 20px 50px rgba(0,0,0,.25);flex:none;position:relative;overflow:hidden}
+.scr{position:absolute;left:0;top:0;width:360px;height:797px;transform:scale(var(--s));transform-origin:0 0;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
+  /* Phone tokens — Quiet Crystal (default) */
+  --wall:radial-gradient(120% 70% at 30% 85%,#c9c4bd 0,#8c857e 30%,transparent 60%),radial-gradient(90% 60% at 70% 40%,#5d6476 0,transparent 70%),linear-gradient(180deg,#3b3431,#5b5452 55%,#a8a39d);
+  --fg:#F1F3F5; --fg2:rgba(241,243,245,.62); --fg3:rgba(241,243,245,.38);
+  --acc:#A9C4E0; --acc-ink:#0D1620;
+  --mat:rgba(17,19,23,.90); --mat-edge:rgba(255,255,255,.11); --mat-low:rgba(0,0,0,.35); --line:rgba(255,255,255,.08);
+  --r-sheet:22px; --r-ctl:12px; --arcline:rgba(255,255,255,.22);
+  --clock-w:220; --clock-wd:118;
+  font-family:var(--f-ui);color:var(--fg);background:var(--wall)}
+.scr[data-wall="light"]{--wall:radial-gradient(100% 60% at 20% 80%,#e9e6df 0,transparent 60%),linear-gradient(180deg,#b8c2c9,#dfe3e2 60%,#f1efe9)}
+.scr[data-dir="matte"]{--acc:#B9C7A8;--acc-ink:#141a0f;--mat:rgba(46,42,40,.94);--mat-edge:rgba(255,255,255,.05);--r-sheet:30px;--r-ctl:18px;--arcline:transparent;--clock-w:420;--clock-wd:100}
+.scr[data-dir="system"]{--acc:#A8C7FA;--acc-ink:#062E6F;--mat:#1E1F24;--mat-edge:transparent;--r-sheet:28px;--r-ctl:20px;--arcline:transparent;--clock-w:400;--clock-wd:100}
+.scr *{box-sizing:border-box}
+.ab{position:absolute}
+.status{left:0;right:0;top:0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;pointer-events:none;z-index:30}
+.scr[data-wall="light"] .status{color:#15181c}
+.cam{left:171.5px;top:14.3px;width:17px;height:17px;border-radius:50%;background:#050506;box-shadow:inset 0 0 0 2px #121316;z-index:40;pointer-events:none}
+.zone{left:146px;top:0;width:68px;height:48px;z-index:45;border-radius:0 0 24px 24px}
+.scr.showzones .zone{outline:1px dashed rgba(255,80,80,.8)}
+.scr.showzones .lenszone{outline:1px dashed rgba(255,80,80,.8)}
+/* Home */
+.clock{left:0;right:0;top:118px;text-align:center;pointer-events:none}
+.clock .t{font-size:84px;line-height:1;font-weight:var(--clock-w);font-variation-settings:"wdth" var(--clock-wd),"opsz" 144;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.clock .d{margin-top:10px;font-size:12px;letter-spacing:2.2px;text-transform:uppercase;color:var(--fg2);font-weight:450}
+.scr[data-wall="light"] .clock,.scr[data-wall="light"] .ess{color:#15181c}
+.scr[data-wall="light"] .clock .d{color:rgba(21,24,28,.6)}
+.lens{left:158px;top:709px;width:44px;height:44px;border-radius:50%;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.88),0 0 0 .5px rgba(0,0,0,.25);transition:transform .18s cubic-bezier(.2,.8,.2,1),background .18s;z-index:20}
+.scr[data-wall="light"] .lens{box-shadow:inset 0 0 0 1.5px rgba(20,22,26,.8)}
+.lens.on{transform:scale(.86);background:rgba(255,255,255,.12)}
+.scr[data-dir="system"] .lens{background:rgba(30,31,36,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.lenszone{left:130px;top:681px;width:100px;height:100px;border-radius:50%;z-index:21}
+.ico{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:16px;font-weight:600;color:#fff;font-variation-settings:"wdth" 100}
+.ess .ico{position:absolute}
+.navbar{left:126px;width:108px;bottom:8px;height:4px;border-radius:2px;background:rgba(255,255,255,.7);z-index:30}
+.scr[data-wall="light"] .navbar{background:rgba(0,0,0,.6)}
+/* ARC */
+.scrim{inset:0;pointer-events:none;opacity:0;transition:opacity .16s}
+.scrim.bot{background:linear-gradient(0deg,rgba(0,0,0,.55),rgba(0,0,0,.18) 45%,transparent 70%)}
+.scrim.top{background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,.2) 40%,transparent 62%)}
+.scrim.on{opacity:1}
+.arcsvg{left:0;top:0;width:360px;height:797px;pointer-events:none;z-index:24;overflow:visible}
+.slot{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;display:grid;place-items:center;transition:transform .14s cubic-bezier(.2,.9,.25,1.25),opacity .14s;z-index:25;pointer-events:none}
+.slot.sel{transform:scale(1.2) translateY(-3px)}
+.slot.missing{opacity:.35}
+.slot .flow{font-size:13px;font-weight:600;letter-spacing:.3px;color:var(--fg);text-shadow:0 1px 6px rgba(0,0,0,.5);font-variation-settings:"wdth" 108}
+.slot .empty{width:6px;height:6px;border-radius:50%;background:var(--fg3)}
+.slot .badge{position:absolute;right:2px;bottom:2px;width:14px;height:14px;border-radius:50%;background:#0f1114;display:grid;place-items:center;font-size:9px;color:var(--acc);box-shadow:0 0 0 1px var(--line)}
+.scr[data-dir="system"] .slot .ico,.scr[data-dir="system"] .slot .flowpod{box-shadow:0 0 0 6px #2A2C33}
+.scr[data-dir="system"] .slot .flow{background:#2A2C33;border-radius:14px;padding:6px 9px;text-shadow:none}
+.mark{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--acc);z-index:25;opacity:0;transition:opacity .12s}
+.label{position:absolute;left:0;right:0;text-align:center;z-index:26;pointer-events:none;transition:opacity .12s}
+.label .nm{font-size:17px;font-weight:550;font-variation-settings:"wdth" 110;text-shadow:0 1px 10px rgba(0,0,0,.45)}
+.label .st{margin-top:5px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg2);display:flex;gap:7px;justify-content:center;align-items:center}
+.dots{display:inline-flex;gap:4px}.dots i{width:4px;height:4px;border-radius:50%;background:var(--fg3)}.dots i.on{background:var(--fg)}
+.endh{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;z-index:25;display:grid;place-items:center;color:var(--fg3);font-size:13px;pointer-events:none;transition:color .12s,transform .12s}
+.endh.hot{color:var(--acc);transform:scale(1.25)}
+.band{position:absolute;z-index:23;pointer-events:none;border-radius:50%;opacity:0}
+.scr[data-dir="matte"] .band{opacity:1;border:30px solid rgba(46,42,40,.72)}
+/* Foreign app */
+.app{inset:0;background:#F4F6F8;color:#1c1f24}
+.app .bar{position:absolute;top:40px;left:0;right:0;height:56px;display:flex;align-items:center;padding:0 18px;font-size:20px;font-weight:500;gap:14px}
+.app .map{position:absolute;top:96px;left:0;right:0;bottom:0;background:
+  linear-gradient(90deg,transparent 47%,#fff 47%,#fff 53%,transparent 53%),linear-gradient(0deg,transparent 60%,#fff 60%,#fff 64%,transparent 64%),
+  linear-gradient(30deg,transparent 30%,#e5e9d8 30%,#e5e9d8 52%,transparent 52%),#E9EDF0}
+.app .status{color:#1c1f24}
+/* PULSE */
+.cap{left:180px;top:22.8px;height:30px;width:30px;margin:-15px 0 0 -15px;border-radius:15px;background:#000;z-index:39;transition:width .26s cubic-bezier(.2,.9,.3,1.1),margin .26s cubic-bezier(.2,.9,.3,1.1),opacity .2s;display:flex;align-items:center;justify-content:space-between;padding:0 7px;opacity:0;overflow:hidden;pointer-events:none}
+.cap.live{opacity:1;width:132px;margin-left:-66px}
+.cap .art{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#d9a46b,#7a4fa0)}
+.eq{display:flex;gap:2px;align-items:center;height:14px}
+.eq i{width:2.5px;border-radius:1px;background:var(--acc);height:5px;animation:eq 1s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:-.3s}.eq i:nth-child(3){animation-delay:-.6s}
+@keyframes eq{0%,100%{height:4px}50%{height:13px}}
+.exp{left:12px;right:12px;top:8px;border-radius:var(--r-sheet);background:var(--mat);box-shadow:inset 0 1px 0 var(--mat-edge),0 18px 40px rgba(0,0,0,.35);z-index:38;padding:44px 16px 14px;transform-origin:50% 15px;transform:scale(.12,.04);opacity:0;transition:transform .32s cubic-bezier(.2,.9,.25,1.04),opacity .14s;color:var(--fg);pointer-events:none}
+.exp.on{transform:none;opacity:1;pointer-events:auto}
+.ctx{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center}
+.ctx .art{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#d9a46b,#7a4fa0)}
+.ctx .tt{font-size:15px;font-weight:550}.ctx .ss{font-size:12px;color:var(--fg2);margin-top:2px}
+.seek{grid-column:1/-1;height:3px;border-radius:2px;background:var(--line);position:relative;margin-top:2px}
+.seek i{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:2px;background:var(--fg)}
+.mctl{display:flex;gap:6px}
+.p button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.ib{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:15px}
+.ib.pri{background:var(--fg);color:#0b0c0e}
+.row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.p .act{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--fg2)}
+.act .k{width:44px;height:44px;border-radius:var(--r-ctl);display:grid;place-items:center;font-size:16px;color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.act.on .k{background:var(--acc);color:var(--acc-ink);box-shadow:none}
+.quick{display:flex;gap:8px;margin-top:12px}
+.quick span{flex:1;text-align:center;font-size:12px;padding:8px 0;border-radius:var(--r-ctl);box-shadow:inset 0 0 0 1px var(--line);color:var(--fg)}
+.quick span b{color:var(--acc);font-weight:600}
+/* Search */
+.sheet{inset:0;background:rgba(10,11,13,.94);z-index:50}
+.scr[data-dir="matte"] .sheet{background:rgba(38,35,33,.97)}
+.scr[data-dir="system"] .sheet{background:#141518}
+.kb{left:0;right:0;bottom:0;height:262px;background:#1b1c1f;border-top:1px solid #26282c;display:grid;place-items:center;color:#5b6068;font-size:12px;letter-spacing:1.5px;text-transform:uppercase}
+.field{left:16px;right:16px;bottom:278px;height:48px;border-radius:24px;box-shadow:inset 0 0 0 1px var(--mat-edge),inset 0 0 0 100px rgba(255,255,255,.04);display:flex;align-items:center;gap:10px;padding:0 18px}
+.field input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--fg);font:inherit;font-size:16px}
+.field .o{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--fg2)}
+.res{left:16px;right:16px;bottom:338px;display:flex;flex-direction:column-reverse;gap:2px}
+.res .r{display:flex;align-items:center;gap:14px;padding:8px 6px;border-radius:12px;font-size:16px}
+.res .r.first{background:rgba(255,255,255,.05)}
+.res .r .ico{width:36px;height:36px;font-size:14px}
+.fl{padding:14px 14px 12px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);background:rgba(255,255,255,.03);margin-bottom:6px}
+.fl .h{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--acc)}
+.fl .nmr{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.fl .nm{font-size:24px;font-weight:500;font-variation-settings:"wdth" 112}
+.fl .run{background:var(--acc);color:var(--acc-ink);border-radius:20px;padding:9px 18px;font-weight:600;font-size:14px}
+.chain{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--fg2)}
+.chain span{display:flex;align-items:center;gap:5px}
+.chain i{font-style:normal;font-family:var(--f-mono);font-size:10px;color:var(--fg3)}
+/* Studio */
+.studio{inset:0;background:#0E0F12;z-index:50;padding:52px 0 0;overflow:auto}
+.scr[data-dir="matte"] .studio{background:#26221F}
+.scr[data-dir="system"] .studio{background:#131316}
+.sh{display:flex;align-items:center;gap:10px;padding:0 20px 18px}
+.sh .ttl{font-size:28px;font-weight:500;font-variation-settings:"wdth" 112}
+.sh .bk{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:18px;margin-left:-8px}
+.cat{display:flex;align-items:center;gap:14px;padding:14px 20px;width:100%;text-align:left}
+.cat .gl{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--line);color:var(--acc);font-size:15px;flex:none}
+.cat .tx{flex:1;min-width:0}.cat .a{font-size:16px;font-weight:500}.cat .b{font-size:13px;color:var(--fg2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat .chev{color:var(--fg3)}
+.sec{padding:16px 20px 6px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg3)}
+.it{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;font-size:15px;width:100%;text-align:left}
+.it .v{color:var(--fg2);font-size:13px;text-align:right}
+.it .ok{color:var(--acc)}
+.sw{width:36px;height:20px;border-radius:10px;background:rgba(255,255,255,.14);position:relative;flex:none}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--fg2);transition:left .15s}
+.sw.on{background:var(--acc)}.sw.on::after{left:19px;background:var(--acc-ink)}
+.mini{margin:6px 20px 4px;height:110px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);position:relative;overflow:hidden}
+.seg{display:flex;gap:6px;padding:4px 20px 8px}
+.seg span{flex:1;text-align:center;font-size:13px;padding:8px 0;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);color:var(--fg2)}
+.seg span.on{color:var(--acc-ink);background:var(--acc);box-shadow:none}
+.toast{left:50%;bottom:96px;transform:translate(-50%,10px);background:var(--mat);box-shadow:inset 0 1px 0 var(--mat-edge);padding:10px 16px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .18s,transform .18s;z-index:80;white-space:nowrap;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){.scr *{transition-duration:0s!important;animation:none!important}}
+</style>
+
+<header class="top">
+  <h1>Intelia Crystal · prototyp fáze A</h1>
+  <p>Klikací model redesignu Crystal Matte Minimalism. LENS dole: klepnutí = hledání, podržení a tah = ARC. Na obrazovce s cizí aplikací: klepnutí na kameru = PULSE, podržení a tah dolů = Global ARC. Měřítko 1 px = 1 dp (Nothing Phone 3, 360 × 797 dp).</p>
+</header>
+<div class="wrap">
+  <div class="stage"><div class="phone" id="phone"><div class="scr" id="scr" data-dir="crystal" data-wall="dusk"></div></div></div>
+  <div class="side">
+    <div class="group"><h2>Obrazovky</h2><div class="chips" id="screens"></div></div>
+    <div class="group"><h2>Vizuální směr</h2><div class="chips" id="dirs"></div></div>
+    <div class="group"><h2>Simulace</h2><div class="chips" id="sims"></div></div>
+    <div class="note" id="note"></div>
+    <div class="group"><h2>Události a haptika</h2><div class="log" id="log"></div></div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s), scr=$('#scr');
+const L={x:180,y:731}, C={x:180,y:22.8};
+const R=118, HUB=40, SEL=70, FAR=200, GR=104;
+const APP={Telefon:'#2F7D5B',Zprávy:'#3A6FD8',Fotoaparát:'#2A2C31',Chrome:'#D2463A',Mapy:'#3C9A6B',Spotify:'#1DB954',IDOS:'#B33A3A',Kalendář:'#3B72E0',Hodiny:'#5B5FC7',Poznámky:'#C99A2E','Lidl Plus':'#0050AA',Kalkulačka:'#3E7C74',Kontakty:'#4C6EF5',Nastavení:'#5C6168'};
+const ico=(n,sz)=>`<span class="ico" style="background:${APP[n]||'#555'}${sz?`;width:${sz}px;height:${sz}px`:''}">${n[0]}</span>`;
+const SETS=[
+ {name:'Aplikace',items:[{t:'app',n:'Telefon'},{t:'app',n:'Zprávy'},{t:'app',n:'Chrome'},{t:'app',n:'Mapy'},{t:'app',n:'Spotify'}]},
+ {name:'FLOW',items:[{t:'flow',n:'vlak'},{t:'flow',n:'ráno'},{t:'flow',n:'běh'},{t:'flow',n:'práce'},{t:'empty'}]},
+ {name:'Zkratky',items:[{t:'sc',n:'Kontakty',l:'Napsat: Máma'},{t:'sc',n:'Hodiny',l:'Časovač 10 min'},{t:'sc',n:'Kalendář',l:'Nová událost'},{t:'miss',n:'Lidl Plus',l:'Lidl Plus'},{t:'sc',n:'Poznámky',l:'Nová poznámka'}]}];
+const GSET=[{name:'Global ARC',items:[{t:'act',g:'☼',l:'Svítilna'},{t:'act',g:'⌗',l:'Snímek obrazovky'},{t:'flow',n:'vlak'},{t:'act',g:'⌕',l:'Hledat'},{t:'act',g:'▤',l:'Systémový panel'}]}];
+const ANG=[150,120,90,60,30];
+const S={screen:'home-pure',layout:'pure',dir:'crystal',wall:'dusk',music:false,pulse:'idle',zones:false,set:0,sel:-1,end:0,studio:'overview',q:''};
+const logEl=$('#log'); let logs=[];
+function log(a,b){const t=new Date().toTimeString().slice(0,8);logs.unshift(`<div>${t} <b>${a}</b>${b?' · '+b:''}</div>`);logs=logs.slice(0,8);logEl.innerHTML=logs.join('');}
+let toastT; function toast(m){const t=scr.querySelector('.toast');if(!t)return;t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1600);}
+const now=()=>{const d=new Date();return{t:d.toTimeString().slice(0,5),d:d.toLocaleDateString('cs-CZ',{weekday:'long',day:'numeric',month:'long'})}};
+const statusBar=dark=>`<div class="ab status"${dark?'':''}><span>${now().t}</span><span>5G ▮▮▮ 89 %</span></div>`;
+
+/* ───── geometry ───── */
+function polar(cx,cy,r,deg,down){const a=deg*Math.PI/180;return{x:cx+r*Math.cos(a),y:down?cy+r*Math.sin(a):cy-r*Math.sin(a)};}
+function hit(dx,dy,down){ // returns {slot,end}
+  const d=Math.hypot(dx,dy); if(d<HUB) return {slot:-1,end:0,hub:true};
+  let a=Math.atan2(down?dy:-dy,dx)*180/Math.PI; // 0..180 above (or below for down)
+  if(d>SEL && (a<14 && a>-35)) return {slot:-1,end:1};
+  if(d>SEL && (a>166 || a<-145)) return {slot:-1,end:-1};
+  if(d<SEL||d>FAR) return {slot:-1,end:0};
+  let best=-1,bd=99; ANG.forEach((g,i)=>{const e=Math.abs(g-a); if(e<bd){bd=e;best=i}});
+  return {slot:bd<=15?best:-1,end:0};
+}
+
+/* ───── renderers ───── */
+function arcLayer(down,setIdx,sets){
+  const o=down?C:L, set=sets[setIdx], r=down?GR:R;
+  const p0=polar(o.x,o.y,r,172,down),p1=polar(o.x,o.y,r,8,down);
+  const path=`M${p0.x} ${p0.y} A${r} ${r} 0 0 ${down?0:1} ${p1.x} ${p1.y}`;
+  let h=`<div class="ab scrim ${down?'top':'bot'}" id="scrim"></div>
+   <svg class="ab arcsvg" viewBox="0 0 360 797"><defs><linearGradient id="fade" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".25" stop-color="#fff" stop-opacity="1"/><stop offset=".75" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><mask id="m"><path d="${path}" stroke="url(#fade)" stroke-width="3" fill="none"/></mask></defs>
+   <path d="${path}" stroke="var(--arcline)" stroke-width="1" fill="none" mask="url(#m)"/></svg>
+   <div class="band" style="left:${o.x-r-30}px;top:${o.y-r-30}px;width:${2*r+60}px;height:${2*r+60}px;clip-path:${down?'inset(50% 0 0 0)':'inset(0 0 50% 0)'}"></div>`;
+  set.items.forEach((it,i)=>{const p=polar(o.x,o.y,r,ANG[i],down);
+    let inner= it.t==='app'||it.t==='sc'||it.t==='miss'?ico(it.n)+(it.t==='sc'?'<span class="badge">↗</span>':'')+(it.t==='miss'?'<span class="badge">!</span>':'')
+      : it.t==='flow'?`<span class="flow">${it.n}</span>` : it.t==='act'?`<span class="ico" style="background:transparent;box-shadow:inset 0 0 0 1px var(--mat-edge);color:var(--fg)">${it.g}</span>`:'<span class="empty"></span>';
+    h+=`<div class="slot${it.t==='miss'?' missing':''}" data-i="${i}" style="left:${p.x}px;top:${p.y}px">${inner}</div>`;
+    const m=polar(o.x,o.y,r+(down?-30:-30),ANG[i],down); h+=`<div class="mark" data-m="${i}" style="left:${m.x}px;top:${m.y}px"></div>`;});
+  if(sets.length>1){[1,-1].forEach(e=>{const p=polar(o.x,o.y,r,e>0?-2:182,down);h+=`<div class="endh" data-e="${e}" style="left:${p.x}px;top:${p.y}px">${e>0?'›':'‹'}</div>`;});}
+  const ly=down?o.y+r+52:o.y-r-78;
+  h+=`<div class="label" id="lbl" style="top:${ly}px"><div class="nm"></div><div class="st"></div></div>`;
+  return h;
+}
+function arcUpdate(down,sets){
+  const set=sets[S.set];
+  scr.querySelectorAll('.slot').forEach(e=>e.classList.toggle('sel',+e.dataset.i===S.sel));
+  scr.querySelectorAll('.mark').forEach(e=>e.style.opacity=+e.dataset.m===S.sel?1:0);
+  scr.querySelectorAll('.endh').forEach(e=>e.classList.toggle('hot',+e.dataset.e===S.end));
+  const lb=$('#lbl'); if(!lb)return; const it=S.sel>=0?set.items[S.sel]:null;
+  lb.querySelector('.nm').textContent= it? (it.t==='empty'?'Prázdné místo':it.t==='miss'?it.l+' · chybí':(it.l||it.n)) : '';
+  lb.querySelector('.st').innerHTML= sets.length>1?`${set.name} <span class="dots">${sets.map((_,i)=>`<i class="${i===S.set?'on':''}"></i>`).join('')}</span>`:set.name;
+}
+function home(){
+  const n=now(); const ess=S.layout==='essentials'?`<div class="ess">${[['Telefon',72],['Zprávy',118],['Chrome',242],['Fotoaparát',288]].map(([a,x])=>`<div class="ab" style="left:${x-20}px;top:711px">${ico(a)}</div>`).join('')}</div>`:'';
+  return statusBar()+`<div class="ab clock"><div class="t">${n.t}</div><div class="d">${n.d}</div></div>${ess}
+   <div class="ab lens" id="lens"></div><div class="ab lenszone" id="lz"></div><div class="ab navbar"></div><div id="arc"></div>`;
+}
+function foreign(){
+  const exp = S.pulse==='expanded';
+  const ctx = S.music?`<div class="ctx"><div class="art"></div><div><div class="tt">Přehrává se</div><div class="ss">Spotify</div></div>
+     <div class="mctl"><button class="ib" data-a="prev" aria-label="Předchozí">⏮</button><button class="ib pri" data-a="play" aria-label="Pauza">❚❚</button><button class="ib" data-a="next" aria-label="Další">⏭</button></div><div class="seek"><i></i></div></div>`
+     :`<div class="ctx" style="grid-template-columns:1fr auto"><div><div class="tt">Nic neběží</div><div class="ss">Rychlé akce</div></div><div class="ss" style="font-family:var(--f-mono)">${now().t}</div></div>`;
+  return `<div class="ab app"><div class="ab status"><span>${now().t}</span><span>5G ▮▮▮ 89 %</span></div><div class="bar">☰ <span>Mapy</span></div><div class="map"></div></div>
+   <div class="ab cap${S.pulse==='live'&&S.music?' live':''}" id="cap"><span class="art"></span><span class="eq"><i></i><i></i><i></i></span></div>
+   <div class="ab exp p${exp?' on':''}" id="exp">${ctx}
+     <div class="row">${[['☼','Svítilna'],['⌗','Snímek'],['≋','Vibrace',1],['▤','Panel']].map(([g,l,on])=>`<button class="act${on?' on':''}" data-a="${l}"><span class="k">${g}</span>${l}</button>`).join('')}</div>
+     <div class="quick"><span>FLOW <b>vlak</b></span><span>Hledat</span><span>Kalendář</span></div></div>
+   <div class="ab zone" id="zone"></div><div class="ab navbar" style="background:rgba(0,0,0,.55)"></div><div id="arc"></div>`;
+}
+const RES=['Kalkulačka','Kalendář','Kontakty','Chrome','Mapy','Spotify','Telefon','Zprávy','Poznámky','Hodiny','IDOS','Nastavení','Fotoaparát'];
+const FLOWS={vlak:['IDOS','Spotify','Mapy'],ráno:['Kalendář','Zprávy'],běh:['Spotify','Hodiny'],práce:['Kalendář','Poznámky','Chrome']};
+const fold=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+function search(){
+  return `<div class="ab sheet p" id="sheet">${statusBar()}<div class="ab res" id="res"></div>
+   <div class="ab field"><span class="o"></span><input id="q" placeholder="Hledat aplikace a FLOW" autocomplete="off" value="${S.q}" aria-label="Hledat"><button id="clr" aria-label="Vymazat" style="color:var(--fg2)">✕</button></div>
+   <div class="ab kb">systémová klávesnice</div></div>`;
+}
+function renderRes(){
+  const el=$('#res'); if(!el)return; const q=fold(S.q.trim());
+  if(!q){el.innerHTML='';return;}
+  let h=''; const f=Object.keys(FLOWS).find(k=>fold(k)===q);
+  const apps=RES.filter(a=>fold(a).startsWith(q)||fold(a).includes(' '+q)).concat(RES.filter(a=>!fold(a).startsWith(q)&&fold(a).includes(q))).slice(0,5);
+  apps.forEach((a,i)=>h+=`<div class="r${!f&&i===0?' first':''}">${ico(a,36)}<span>${a}</span></div>`);
+  if(f) h=`<div class="fl"><div class="h">FLOW · přesná shoda</div><div class="nmr"><span class="nm">${f}</span><button class="run" id="run">Spustit</button></div>
+    <div class="chain">${FLOWS[f].map((a,i)=>`<span><i>${i+1}</i>${a}</span>`).join('<span style="color:var(--fg3)">→</span>')}</div></div>`+h;
+  el.innerHTML=h;
+}
+function studio(){
+  const back=`<button class="bk" id="sback" aria-label="Zpět">‹</button>`;
+  if(S.studio==='overview'){
+    const cats=[['◐','Vzhled','Tmavý · akcent Mráz · Roboto Flex','look'],['⌂','Domovská plocha',(S.layout==='pure'?'Pure':'Essentials · 4 aplikace')+' · LENS uprostřed','home'],['◠','Gesta a ARC','3 sady · 14 akcí · haptika jemná','arc'],['◉','PULSE','Zapnuto · služba běží · 3 události','pulse'],['→','FLOW','4 příkazy · vlak, ráno, běh, práce','flow'],['⚙','Systém a pokročilé','Výchozí plocha · skryté · zálohy','sys']];
+    return `<div class="ab studio p">${statusBar()}<div class="sh">${back}<span class="ttl">Studio</span></div>${cats.map(c=>`<button class="cat" data-c="${c[3]}"><span class="gl">${c[0]}</span><span class="tx"><div class="a">${c[1]}</div><div class="b">${c[2]}</div></span><span class="chev">›</span></button>`).join('')}</div>`;
+  }
+  if(S.studio==='pulse') return `<div class="ab studio p">${statusBar()}<div class="sh">${back}<span class="ttl">PULSE</span></div>
+    <div class="it"><span>PULSE</span><span class="sw on"></span></div>
+    <div class="it"><span>Ve všech aplikacích</span><span class="v ok">Služba běží</span></div>
+    <div class="it"><span>Poloha kamery</span><span class="v">Automaticky · 205,5 / 26,0 / 8,0 dp</span></div>
+    <div class="sec">Gesta na kameře</div>
+    ${[['Klepnutí','Kontext, jinak rychlé akce'],['Dvojí klepnutí','Svítilna'],['Podržení','Global ARC'],['Tah vlevo','Předchozí skladba'],['Tah vpravo','Další skladba']].map(r=>`<button class="it"><span>${r[0]}</span><span class="v">${r[1]} ›</span></button>`).join('')}
+    <div class="sec">Živá kapsle</div>
+    ${[['Hudba',1],['Časovač',1],['Událost FLOW',1],['Nabíjení',0],['Vybraná oznámení',0,'potřebuje přístup k oznámením']].map(r=>`<div class="it"><span>${r[0]}${r[2]?`<div class="v" style="text-align:left">${r[2]}</div>`:''}</span><span class="sw${r[1]?' on':''}"></span></div>`).join('')}
+    <div class="it"><span>Návrat do klidu</span><span class="v">po 6 s</span></div></div>`;
+  if(S.studio==='arc'){
+    const mini=SETS[S.set].items.map((it,i)=>{const p=polar(160,100,70,ANG[i]);return `<div class="ab" style="left:${p.x-14}px;top:${p.y-14}px;width:28px;height:28px;display:grid;place-items:center">${it.t==='flow'?`<span style="font-size:11px;font-weight:600">${it.n}</span>`:it.t==='empty'?'<span class="slot"><span class="empty"></span></span>':ico(it.n,28)}</div>`}).join('');
+    return `<div class="ab studio p">${statusBar()}<div class="sh">${back}<span class="ttl">Gesta a ARC</span></div>
+    <div class="sec">Sady</div><div class="seg">${SETS.map((s,i)=>`<span class="${i===S.set?'on':''}" data-set="${i}">${s.name}</span>`).join('')}</div>
+    <div class="mini">${mini}<div class="ab" style="left:146px;top:86px;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--fg2)"></div></div>
+    <div class="it" style="font-size:13px;color:var(--fg2)">Klepni na místo v oblouku a vyber akci</div>
+    <div class="sec">Ovládání</div>
+    ${[['Přepnutí sady','Tah na konec oblouku'],['Výběr','Podržet a táhnout'],['Ruka','Pravá'],['Haptika','Jemná'],['Citlivost','Střední · 30° na místo']].map(r=>`<button class="it"><span>${r[0]}</span><span class="v">${r[1]} ›</span></button>`).join('')}</div>`;
+  }
+  return `<div class="ab studio p">${statusBar()}<div class="sh">${back}<span class="ttl">${{look:'Vzhled',home:'Domovská plocha',flow:'FLOW',sys:'Systém a pokročilé'}[S.studio]}</span></div><div class="it" style="color:var(--fg2)">Detail mimo rozsah prototypu fáze A (viz DESIGN_SYSTEM.md).</div></div>`;
+}
+
+/* ───── screen table ───── */
+const SCREENS=[
+ ['home-pure','Home Pure'],['home-ess','Home Essentials'],['lens','LENS aktivní'],['arc-sel','ARC výběr'],['arc-set','ARC přepnutí sady'],
+ ['pulse-idle','PULSE idle'],['pulse-music','PULSE hudba'],['pulse-exp','PULSE expanded'],['pulse-arc','PULSE Global ARC'],
+ ['studio','Studio přehled'],['studio-pulse','Studio PULSE'],['studio-arc','Studio ARC'],['search','Search'],['flow','FLOW']];
+const NOTES={
+ 'home-pure':['Home Pure','Jen hodiny, datum a LENS. Žádné podtržítko, žádný dock, žádná animace při návratu.<ul><li>Klepni na LENS = hledání.</li><li>Podrž LENS (260 ms) a táhni = ARC.</li></ul>'],
+ 'home-ess':['Home Essentials','Čtyři aplikace u palce bez podkladu, ve dvojicích po stranách LENS se širší mezerou uprostřed, aby to nečetlo jako dock.'],
+ 'lens':['LENS aktivní','Po 260 ms podržení: LENS se zmenší na 86 %, haptika <code>LONG_PRESS</code>, objeví se jeden nízký oblouk s 5 místy. Prst je v neutrální zóně (40 dp), nic není vybráno.'],
+ 'arc-sel':['ARC výběr','Vzdálenost 70–200 dp od středu LENS a úhel ±15° od místa = výběr. Vybrané místo se zvětší na 120 %, tečka ukazuje směrem k LENS, nad obloukem se ukáže název. Haptika <code>CLOCK_TICK</code> při změně místa. Puštění = spustit; návrat do neutrální zóny = zrušit.'],
+ 'arc-set':['ARC přepnutí sady','Oba konce oblouku (‹ ›) jsou přepínače sad. Tah vodorovně na konec přepne sadu o jednu (haptika <code>SEGMENT_TICK</code>), další přepnutí až po opuštění konce. Pozice v sadě jsou pevné. Prázdné místo = tečka, chybějící aplikace = 35 % a puštění nic nespustí (haptika <code>REJECT</code>).'],
+ 'pulse-idle':['PULSE idle','Nad cizí aplikací není vidět nic. Jediná věc je neviditelná dotyková oblast 68 × 48 dp kolem kamery (zapni „Dotykové zóny“).'],
+ 'pulse-music':['PULSE hudba','Živá kapsle 132 × 30 dp, černá jako výřez, roste z kamery do stran. Vlevo obal (jen s přístupem k oznámením, jinak ikona aplikace), vpravo ekvalizér. Pozastavení → po 6 s zpět do klidu.'],
+ 'pulse-exp':['PULSE expanded','Klepnutí rozbalí jeden blok z kamery: kontext (hudba), řada 4 akcí, řada 3 rychlých cílů. Žádný výpis systémových nastavení; zavře klepnutí mimo, tah nahoru nebo Zpět.'],
+ 'pulse-arc':['Global ARC','Podržení kamery: oblouk visí dolů, stejný model jako LENS (5 míst, ±15°, neutrální zóna 40 dp). Akce z Action Engine: svítilna, snímek, FLOW, hledání, systémový panel.'],
+ 'studio':['Studio přehled','Šest kategorií se souhrnem v jednom řádku. Žádný trvalý náhled. Živý náhled jen uvnitř Vzhledu.'],
+ 'studio-pulse':['Studio PULSE','Stav služby, kalibrace, gesta (tap, double tap, hold, swipe), živé události s vysvětlením chybějícího oprávnění.'],
+ 'studio-arc':['Studio ARC','Sady jako přepínač, malý náhled oblouku s pevnými místy; klepnutí na místo otevře výběr akce z Action Engine.'],
+ 'search':['Search','Pole u palce, výsledky rostou nahoru, první výsledek zvýrazněný (Enter ho otevře). Hledání bez diakritiky. Nic se nespouští při psaní.'],
+ 'flow':['FLOW','Přesná shoda názvu ukáže náhled pořadí aplikací a Spustit. FLOW běží jen po Spustit / Enter.']};
+function go(id){
+  S.sel=-1;S.end=0;S.set=0;
+  if(id==='home-pure'){S.screen='home';S.layout='pure'}
+  else if(id==='home-ess'){S.screen='home';S.layout='essentials'}
+  else if(id==='lens'||id==='arc-sel'||id==='arc-set'){S.screen='home';}
+  else if(id.startsWith('pulse')){S.screen='app';S.music=id!=='pulse-idle';S.pulse=id==='pulse-exp'?'expanded':id==='pulse-idle'?'idle':'live';if(id==='pulse-arc')S.music=false,S.pulse='idle';}
+  else if(id.startsWith('studio')){S.screen='studio';S.studio=id==='studio'?'overview':id.slice(7)}
+  else if(id==='search'){S.screen='search';S.q='kal'}
+  else if(id==='flow'){S.screen='search';S.q='vlak'}
+  S.view=id; render();
+  if(id==='lens'||id==='arc-sel'||id==='arc-set'){openArc(false,true); if(id==='arc-sel')S.sel=2; if(id==='arc-set'){S.set=1;S.sel=0;S.end=1;$('#arc').innerHTML=arcLayer(false,1,SETS);$('#scrim').classList.add('on');} arcUpdate(false,SETS);}
+  if(id==='pulse-arc'){openArc(true,true);S.sel=1;arcUpdate(true,GSET);}
+}
+function render(){
+  scr.dataset.dir=S.dir;scr.dataset.wall=S.wall;scr.classList.toggle('showzones',S.zones);
+  scr.innerHTML=(S.screen==='home'?home():S.screen==='app'?foreign():S.screen==='search'?home()+search():home()+studio())+'<div class="ab toast"></div>';
+  if(S.screen==='search'){renderRes();const q=$('#q');q.addEventListener('input',e=>{S.q=e.target.value;renderRes();});q.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=Object.keys(FLOWS).find(k=>fold(k)===fold(S.q.trim()));toast(f?`FLOW ${f}: ${FLOWS[f].join(' → ')}`:'Otevřeno: první výsledek');log(f?'FLOW spuštěn':'otevřeno','Enter');}});}
+  const n=NOTES[S.view]||NOTES['home-pure']; $('#note').innerHTML=`<h3>${n[0]}</h3>${n[1]}`;
+  document.querySelectorAll('#screens button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.id===S.view));
+  document.querySelectorAll('#dirs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===S.dir));
+  document.querySelectorAll('#sims button').forEach(b=>b.setAttribute('aria-pressed',!!S[b.dataset.k]&&(b.dataset.v?S[b.dataset.k]===b.dataset.v:true)));
+}
+function openArc(down,silent){const el=$('#arc');el.innerHTML=arcLayer(down,S.set,down?GSET:SETS);requestAnimationFrame(()=>{const s=$('#scrim');s&&s.classList.add('on')});if(!down)$('#lens').classList.add('on');arcUpdate(down,down?GSET:SETS);if(!silent)log('haptika',down?'LONG_PRESS · Global ARC':'LONG_PRESS · ARC');}
+function closeArc(){const el=$('#arc');if(el)el.innerHTML='';const l=$('#lens');l&&l.classList.remove('on');}
+
+/* ───── gestures ───── */
+let g=null;
+function pt(e){const r=scr.getBoundingClientRect(),s=r.width/360;return{x:(e.clientX-r.left)/s,y:(e.clientY-r.top)/s};}
+scr.addEventListener('pointerdown',e=>{
+  const p=pt(e);
+  if(S.screen==='home'&&Math.hypot(p.x-L.x,p.y-L.y)<50){g={k:'lens',o:L,down:false,sets:SETS,t0:Date.now(),p0:p,arc:false};g.timer=setTimeout(()=>{g&&(g.arc=true,S.set=0,S.sel=-1,S.end=0,S.view='lens',openArc(false));},260);try{scr.setPointerCapture(e.pointerId)}catch(_){}e.preventDefault();return;}
+  if(S.screen==='app'&&p.y<48&&Math.abs(p.x-C.x)<34){g={k:'cam',o:C,down:true,sets:GSET,t0:Date.now(),p0:p,arc:false};g.timer=setTimeout(()=>{g&&(g.arc=true,S.set=0,S.sel=-1,S.pulse='idle',$('#exp').classList.remove('on'),$('#cap').classList.remove('live'),S.view='pulse-arc',openArc(true));},320);try{scr.setPointerCapture(e.pointerId)}catch(_){}e.preventDefault();return;}
+});
+scr.addEventListener('pointermove',e=>{
+  if(!g)return; const p=pt(e);
+  if(!g.arc){ if(g.k==='lens'&&g.p0.y-p.y>40&&Date.now()-g.t0<260){clearTimeout(g.timer);g.swiped=true;} return;}
+  const h=hit(p.x-g.o.x,p.y-g.o.y,g.down);
+  if(h.end && h.end!==S.end && g.sets.length>1){S.set=(S.set+h.end+g.sets.length)%g.sets.length;$('#arc').innerHTML=arcLayer(g.down,S.set,g.sets);$('#scrim').classList.add('on');log('haptika','SEGMENT_TICK · sada '+g.sets[S.set].name);S.view='arc-set';}
+  S.end=h.end;
+  if(h.slot!==S.sel){S.sel=h.slot;if(h.slot>=0)log('haptika','CLOCK_TICK · místo '+(h.slot+1));}
+  arcUpdate(g.down,g.sets);
+});
+function endG(e,cancel){
+  if(!g)return; clearTimeout(g.timer); const k=g;g=null;
+  if(!k.arc){
+    if(k.k==='lens'){ if(k.swiped){toast('Šuplík aplikací (beze změny)');log('swipe nahoru','šuplík');} else {S.view='search';S.screen='search';S.q='';render();setTimeout(()=>$('#q')&&$('#q').focus({preventScroll:true}),50);log('klepnutí','LENS → hledání');} }
+    else { if(Date.now()-(window._lastTap||0)<300){S.pulse='idle';render();toast('Svítilna zapnuta (dvojí klepnutí)');log('haptika','CONFIRM · svítilna');window._lastTap=0;return;}
+      window._lastTap=Date.now(); S.pulse=S.pulse==='expanded'?(S.music?'live':'idle'):'expanded';S.view=S.pulse==='expanded'?'pulse-exp':S.music?'pulse-music':'pulse-idle';render();log('klepnutí','PULSE '+S.pulse);}
+    return;}
+  const set=k.sets[S.set], it=S.sel>=0&&!cancel?set.items[S.sel]:null;
+  closeArc(); if(k.k==='lens')S.view=S.layout==='pure'?'home-pure':'home-ess'; else S.view=S.music?'pulse-music':'pulse-idle';
+  const wasEnd=S.end; S.sel=-1;S.end=0; render();
+  if(!it){log('zrušeno',wasEnd?'konec oblouku':'mimo místo / zpět na střed');}
+  else if(it.t==='miss'){toast('Nic se nespustilo: aplikace chybí');log('haptika','REJECT · '+it.l);}
+  else if(it.t==='empty'){toast('Prázdné místo. Přiřaď akci ve Studiu');log('haptika','REJECT · prázdné');}
+  else {toast('Spuštěno: '+(it.t==='flow'?'FLOW '+it.n:(it.l||it.n)));log('haptika','CONFIRM · '+(it.l||it.n));}
+}
+scr.addEventListener('pointerup',e=>endG(e,false));
+scr.addEventListener('pointercancel',e=>endG(e,true));
+scr.addEventListener('click',e=>{
+  const t=e.target.closest('button,[data-set]'); if(!t){ if(S.screen==='app'&&S.pulse==='expanded'&&!e.target.closest('#exp')&&e.target.id!=='zone'){S.pulse=S.music?'live':'idle';S.view=S.music?'pulse-music':'pulse-idle';render();} return;}
+  if(t.id==='clr'){S.q='';$('#q').value='';renderRes();$('#q').focus();return;}
+  if(t.id==='run'){const f=Object.keys(FLOWS).find(k=>fold(k)===fold(S.q.trim()));toast(`FLOW ${f}: ${FLOWS[f].join(' → ')}`);log('FLOW spuštěn','tlačítko Spustit');return;}
+  if(t.id==='sback'){ if(S.studio==='overview'){go(S.layout==='pure'?'home-pure':'home-ess');} else {S.studio='overview';S.view='studio';render();} return;}
+  if(t.dataset.c){S.studio=t.dataset.c;S.view=['pulse','arc'].includes(t.dataset.c)?'studio-'+t.dataset.c:'studio';render();return;}
+  if(t.dataset.set){S.set=+t.dataset.set;render();return;}
+  if(t.dataset.a==='play'){S.music=false;t.textContent='▶';toast('Pozastaveno · kapsle zmizí po 6 s');log('média','pauza (dispatchMediaKeyEvent)');return;}
+  if(t.dataset.a){t.classList.toggle('on');log('akce',t.dataset.a);return;}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(S.screen==='search'||S.screen==='studio')go(S.layout==='pure'?'home-pure':'home-ess');else if(S.pulse==='expanded'){S.pulse=S.music?'live':'idle';render();}}});
+// long-press on home background opens Studio (as on the phone)
+let bgT=null; scr.addEventListener('pointerdown',e=>{if(S.screen!=='home'||g)return;bgT=setTimeout(()=>{bgT=null;go('studio');log('podržení plochy','Studio');},600);});
+['pointerup','pointercancel','pointermove'].forEach(ev=>scr.addEventListener(ev,e=>{if(bgT&&(ev!=='pointermove'||e.movementX||e.movementY)){clearTimeout(bgT);bgT=null;}}));
+
+/* ───── side controls ───── */
+$('#screens').innerHTML=SCREENS.map((s,i)=>`<button data-id="${s[0]}"><span class="n">${String(i+1).padStart(2,'0')}</span>${s[1]}</button>`).join('');
+$('#screens').addEventListener('click',e=>{const b=e.target.closest('button');b&&go(b.dataset.id);});
+$('#dirs').innerHTML=[['crystal','A · Quiet Crystal (doporučeno)'],['matte','B · Matte Ambient'],['system','C · Minimal System']].map(d=>`<button data-d="${d[0]}">${d[1]}</button>`).join('');
+$('#dirs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.dir=b.dataset.d;const v=S.view;go(v);});
+$('#sims').innerHTML=`<button data-k="music">Hraje hudba</button><button data-k="wall" data-v="light">Světlá tapeta</button><button data-k="zones">Dotykové zóny</button>`;
+$('#sims').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.k;
+  if(k==='wall')S.wall=S.wall==='light'?'dusk':'light'; else if(k==='zones')S.zones=!S.zones;
+  else {S.music=!S.music; if(S.screen==='app'){S.pulse=S.music?(S.pulse==='expanded'?'expanded':'live'):(S.pulse==='expanded'?'expanded':'idle');S.view=S.music?(S.pulse==='expanded'?'pulse-exp':'pulse-music'):'pulse-idle';} log('simulace',S.music?'hudba hraje → kapsle':'hudba stop → klid');}
+  const v=S.view; if(['lens','arc-sel','arc-set','pulse-arc'].includes(v))go(v); else render();});
+function fit(){const ph=$('#phone');const avail=Math.min(window.innerHeight-60,(document.documentElement.clientWidth-32)/360*797);const s=Math.max(.5,Math.min(1,avail/797));ph.style.setProperty('--s',s);}
+window.addEventListener('resize',fit);fit();
+go('home-pure');log('připraveno','klepni nebo podrž LENS');
+})();
+</script>

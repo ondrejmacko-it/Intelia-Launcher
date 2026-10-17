@@ -1,0 +1,1007 @@
+<title>Intelia Veil</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&family=Roboto+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..600&display=swap">
+<style>
+/* Layout: phone at real dp scale (360 × 797) on the left, scenes + controls + notes on the right; stacks under 900 px. */
+:root{
+  --page:#ECEEF1; --page-fg:#16191E; --page-dim:#59616C; --page-line:#D2D7DD; --page-raise:#F8F9FA; --page-acc:#3F6E9C;
+  --f-ui:"Roboto Flex",Roboto,system-ui,sans-serif; --f-mono:"Roboto Mono",ui-monospace,monospace; --f-ink:"Newsreader",Georgia,serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0E1013;--page-fg:#E6E9ED;--page-dim:#97A0AB;--page-line:#272C33;--page-raise:#16191D;--page-acc:#9DB8D6;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0E1013;--page-fg:#E6E9ED;--page-dim:#97A0AB;--page-line:#272C33;--page-raise:#16191D;--page-acc:#9DB8D6;color-scheme:dark}
+html,body{background:var(--page);color:var(--page-fg)}
+body{font-family:var(--f-ui);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px}
+header.top{max-width:1200px;margin:0 auto 18px;display:flex;flex-wrap:wrap;gap:6px 24px;align-items:baseline}
+header.top h1{font-size:22px;font-weight:560;font-variation-settings:"wdth" 116;margin:0;letter-spacing:.3px}
+header.top p{margin:0;color:var(--page-dim);font-size:14px;max-width:70ch;text-wrap:pretty}
+.wrap{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:auto minmax(0,1fr);gap:32px;align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;justify-content:center;position:sticky;top:12px}
+@media (max-width:900px){.stage{position:static}}
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.group{display:flex;flex-direction:column;gap:7px}
+.group h2{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--page-dim);margin:0;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:inherit;font-size:13px;border:1px solid var(--page-line);background:var(--page-raise);color:var(--page-fg);border-radius:8px;padding:6px 10px;cursor:pointer}
+.chips button[aria-pressed="true"]{border-color:var(--page-acc);color:var(--page-acc);box-shadow:inset 0 0 0 1px var(--page-acc)}
+.chips button:focus-visible{outline:2px solid var(--page-acc);outline-offset:2px}
+.chips .n{font-family:var(--f-mono);font-size:11px;color:var(--page-dim);margin-right:5px}
+.note{background:var(--page-raise);border:1px solid var(--page-line);border-radius:10px;padding:14px 16px;font-size:14px;line-height:1.55}
+.note h3{margin:0 0 6px;font-size:15px;font-weight:600}
+.note p{margin:6px 0 0}
+.note ul{margin:6px 0 0;padding-left:18px}
+.note code{font-family:var(--f-mono);font-size:12px}
+.log{font-family:var(--f-mono);font-size:12px;color:var(--page-dim);display:flex;flex-direction:column;gap:3px;min-height:72px}
+.log b{color:var(--page-fg);font-weight:500}
+
+/* ───────── Phone ───────── */
+.phone{--s:1;width:calc(360px*var(--s));height:calc(797px*var(--s));border-radius:calc(40px*var(--s));background:#000;box-shadow:0 0 0 calc(7px*var(--s)) #1a1b1e,0 20px 50px rgba(0,0,0,.28);flex:none;position:relative;overflow:hidden}
+.scr{position:absolute;left:0;top:0;width:360px;height:797px;transform:scale(var(--s));transform-origin:0 0;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
+  --k:1;
+  --fg:#F2F4F6; --fg2:rgba(242,244,246,.64); --fg3:rgba(242,244,246,.38); --tsh:0 1px 2px rgba(0,0,0,.38);
+  --acc:#A9C4E0; --acc-ink:#0D1620;
+  --m-fill:linear-gradient(180deg,color-mix(in srgb,var(--acc) 9%,rgba(22,24,29,.70)),rgba(14,16,20,.78));
+  --m-blur:none; --edge-hot:color-mix(in srgb,var(--acc) 78%,white); --edge-cold:rgba(255,255,255,.08);
+  --inner:color-mix(in srgb,var(--acc) 15%,transparent); --m-shadow:0 18px 40px rgba(0,0,0,.34);
+  --key:#24272c; --kb:#16181c; --line:rgba(255,255,255,.08); --home-blur:none;
+  font-family:var(--f-ui);color:var(--fg);background:#000}
+.scr[data-acc="sage"]{--acc:#B9CBA6;--acc-ink:#121a0c}
+.scr[data-acc="amber"]{--acc:#E8C48F;--acc-ink:#21160a}
+.scr[data-acc="lilac"]{--acc:#C6B8EC;--acc-ink:#191230}
+.scr[data-mat="frosted"]{--m-fill:linear-gradient(180deg,color-mix(in srgb,var(--acc) 8%,rgba(28,30,36,.40)),rgba(18,20,24,.48));--m-blur:blur(22px) saturate(1.4);--home-blur:blur(9px)}
+.scr[data-mat="solid"]{--m-fill:#16181C;--edge-hot:color-mix(in srgb,var(--acc) 60%,transparent);--edge-cold:rgba(255,255,255,.15);--inner:transparent}
+/* Phone (3) truth: no cross-window blur, so Frosted only blurs Intelia's own layers and the panel stays a denser veil. */
+.scr.p3[data-mat="frosted"]{--m-blur:none;--m-fill:linear-gradient(180deg,color-mix(in srgb,var(--acc) 9%,rgba(24,26,31,.66)),rgba(14,16,20,.74))}
+.scr[data-wall="light"]{--fg:#14171B;--fg2:rgba(20,23,27,.64);--fg3:rgba(20,23,27,.40);--tsh:0 0 1px rgba(255,255,255,.5);
+  --m-fill:linear-gradient(180deg,color-mix(in srgb,var(--acc) 9%,rgba(250,251,252,.74)),rgba(242,244,246,.82));
+  --edge-hot:color-mix(in srgb,var(--acc) 85%,transparent);--edge-cold:rgba(255,255,255,.8);--m-shadow:0 16px 36px rgba(30,40,50,.18);
+  --key:#ffffff;--kb:#dfe2e6;--line:rgba(0,0,0,.08)}
+.scr[data-wall="light"][data-acc="frost"]{--acc:#3F6E9C;--acc-ink:#fff}
+.scr[data-wall="light"][data-acc="sage"]{--acc:#4E6B39;--acc-ink:#fff}
+.scr[data-wall="light"][data-acc="amber"]{--acc:#8A5A17;--acc-ink:#fff}
+.scr[data-wall="light"][data-acc="lilac"]{--acc:#5E4D9A;--acc-ink:#fff}
+.scr[data-wall="light"][data-mat="frosted"]{--m-fill:linear-gradient(180deg,color-mix(in srgb,var(--acc) 8%,rgba(250,251,252,.46)),rgba(244,246,248,.54))}
+.scr.p3[data-wall="light"][data-mat="frosted"]{--m-fill:linear-gradient(180deg,color-mix(in srgb,var(--acc) 9%,rgba(250,251,252,.78)),rgba(242,244,246,.84))}
+.scr[data-wall="light"][data-mat="solid"]{--m-fill:#F6F7F8;--edge-cold:rgba(0,0,0,.09)}
+.scr.rm{--k:0}
+.scr *{box-sizing:border-box}
+.ab{position:absolute}
+
+.wall{position:absolute;inset:0;transform:scale(1.07);transition:transform calc(320ms*var(--k)) cubic-bezier(.2,.8,.2,1),filter calc(320ms*var(--k));
+  background:radial-gradient(80% 48% at 22% 28%,#3d4c66 0,transparent 70%),radial-gradient(70% 45% at 82% 74%,#5e4b3f 0,transparent 70%),radial-gradient(60% 40% at 58% 52%,#25313f 0,transparent 70%),#0f1115}
+.scr[data-wall="light"] .wall{background:radial-gradient(90% 60% at 20% 18%,#fdfcf8 0,transparent 62%),radial-gradient(80% 60% at 85% 82%,#c4d3de 0,transparent 70%),#e6e8e4}
+.scr[data-wall="color"] .wall{background:radial-gradient(70% 50% at 20% 25%,#d9765a 0,transparent 70%),radial-gradient(70% 50% at 86% 62%,#3c6bd6 0,transparent 70%),radial-gradient(60% 40% at 40% 92%,#2a9c84 0,transparent 70%),#1c1a28}
+.scr.editing .wall{transform:scale(1);filter:brightness(.8)}
+.scr[data-wall="light"].editing .wall{filter:brightness(.93)}
+
+.status{left:0;right:0;top:0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;pointer-events:none;z-index:60;text-shadow:var(--tsh)}
+.status .si{display:flex;gap:6px;align-items:center}
+.status .si i{display:block;width:14px;height:9px;border-radius:2px;border:1.4px solid currentColor;opacity:.9}
+.cam{left:171.5px;top:13.5px;width:17px;height:17px;border-radius:50%;background:#050506;box-shadow:inset 0 0 0 2px #121316;z-index:70;pointer-events:none}
+.pz{left:146px;top:0;width:68px;height:48px;z-index:65;border-radius:0 0 24px 24px}
+.scr.editing .pz::after{content:"";position:absolute;left:21px;top:2px;width:26px;height:26px;border-radius:50%;box-shadow:0 0 0 1px var(--fg3);transition:box-shadow .2s}
+.scr.editing .pz.sel::after{box-shadow:0 0 0 1.5px var(--acc)}
+.navbar{left:120px;width:120px;bottom:8px;height:4px;border-radius:2px;background:var(--fg2);z-index:60;pointer-events:none}
+.scr.zones .pz{outline:1px dashed rgba(255,90,90,.85)}
+
+/* Home layer */
+.home{position:absolute;inset:0;transition:opacity calc(200ms*var(--k)),filter calc(220ms*var(--k)),transform calc(220ms*var(--k)) cubic-bezier(.2,.8,.2,1)}
+.scr.searching .home{opacity:.22;filter:var(--home-blur);transform:scale(.985)}
+.scr.arcing .home .it:not([data-id="lens"]){opacity:.35;transition:opacity calc(60ms*var(--k))}
+.it{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:5px;transition:left calc(220ms*var(--k)) cubic-bezier(.2,.9,.25,1.04),top calc(220ms*var(--k)) cubic-bezier(.2,.9,.25,1.04),opacity .18s}
+.it.drag{transition:none;z-index:40}
+.it.drag .ico{transform:scale(1.1);box-shadow:0 12px 26px rgba(0,0,0,.35)}
+.it .lb{font-size:11.5px;font-weight:500;letter-spacing:.1px;color:var(--fg);text-shadow:var(--tsh);white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+.ico{display:grid;place-items:center;width:var(--sz);height:var(--sz);border-radius:50%;transition:transform .18s,box-shadow .18s;flex:none}
+.ico svg{width:50%;height:50%}
+.ico.sys{background:radial-gradient(120% 120% at 30% 18%,color-mix(in srgb,var(--c) 62%,white),var(--c) 58%);color:var(--gc)}
+.ico.mono{color:var(--fg);filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.35))}
+.ico.mono svg{width:64%;height:64%}
+.ico.veil{background:color-mix(in srgb,var(--fg) 9%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fg) 22%,transparent);color:var(--fg)}
+.scr[data-wall="light"] .ico.mono{filter:none}
+/* Edit marks: four hairline corner ticks, accent when selected */
+.it::after{content:"";position:absolute;inset:-7px;pointer-events:none;--c:var(--fg2);--l:7px;opacity:0;transition:opacity calc(180ms*var(--k));
+  background:linear-gradient(var(--c),var(--c)) top left/var(--l) 1px,linear-gradient(var(--c),var(--c)) top left/1px var(--l),linear-gradient(var(--c),var(--c)) top right/var(--l) 1px,linear-gradient(var(--c),var(--c)) top right/1px var(--l),linear-gradient(var(--c),var(--c)) bottom left/var(--l) 1px,linear-gradient(var(--c),var(--c)) bottom left/1px var(--l),linear-gradient(var(--c),var(--c)) bottom right/var(--l) 1px,linear-gradient(var(--c),var(--c)) bottom right/1px var(--l);background-repeat:no-repeat}
+.scr.editing .it::after{opacity:1}
+.scr.editing .it.sel::after{--c:var(--acc);--l:9px}
+.clock{display:block;text-align:center;pointer-events:auto;color:var(--fg);text-shadow:var(--tsh)}
+.clock .t{font-variant-numeric:tabular-nums;line-height:.95;white-space:nowrap;letter-spacing:-.5px}
+.clock .d{font-size:12px;letter-spacing:2.2px;text-transform:uppercase;font-weight:450;color:var(--fg2);margin-top:8px;white-space:nowrap}
+.clock.bgv{padding:14px 20px 16px;border-radius:26px}
+.rh{position:absolute;right:-16px;bottom:-16px;width:22px;height:22px;border-radius:50%;background:var(--acc);color:var(--acc-ink);display:none;place-items:center;font-size:11px;font-weight:700;cursor:nwse-resize;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.scr.editing .it.sel .rh{display:grid}
+.lens{width:var(--sz);height:var(--sz);border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--fg),0 0 6px rgba(0,0,0,.18);transition:transform calc(110ms*var(--k)) cubic-bezier(.3,.7,.3,1.4),opacity calc(90ms*var(--k))}
+.lens.dot{background:color-mix(in srgb,var(--fg) 26%,transparent);box-shadow:inset 0 0 0 1px var(--fg2)}
+.lens.bar{height:7px;width:calc(var(--sz)*1.1);border-radius:4px;background:var(--fg);box-shadow:none;opacity:.85}
+.lens.press{transform:scale(.9)}
+.lens.held{transform:scale(.86)}
+.lens.gone{opacity:0}
+.lzone{position:absolute;border-radius:20px;outline:1px dashed rgba(255,90,90,.85);pointer-events:none;display:none}
+.scr.zones .lzone{display:block}
+
+/* Guides / grid (only while dragging) */
+.guides{position:absolute;inset:0;pointer-events:none;z-index:35}
+.guides svg{position:absolute;inset:0;width:360px;height:797px}
+
+/* Material + origin edge */
+.mat{position:absolute;background:var(--m-fill);backdrop-filter:var(--m-blur);-webkit-backdrop-filter:var(--m-blur);box-shadow:var(--m-shadow);color:var(--fg)}
+.mat::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
+  background:radial-gradient(150px 110px at var(--ox,50%) var(--oy,0%),var(--edge-hot),var(--edge-cold) 72%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.mat::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(240px 150px at var(--ox,50%) var(--oy,0%),var(--inner),transparent 72%)}
+.mat>*{position:relative;z-index:1}
+.scr[data-mat="clear"] .mat.cl{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
+.scr[data-mat="clear"] .mat.cl::before,.scr[data-mat="clear"] .mat.cl::after{display:none}
+.scr[data-mat="clear"] .mat.cl .row{text-shadow:var(--tsh)}
+
+/* Edit controls */
+.etop{position:absolute;inset:0;pointer-events:none;z-index:55}
+.etop>*{pointer-events:auto;opacity:0;transform:translateY(-10px);transition:opacity calc(200ms*var(--k)),transform calc(240ms*var(--k)) cubic-bezier(.2,.9,.3,1.1)}
+.scr.editing .etop>*{opacity:1;transform:none}
+.scr:not(.editing) .etop>*{pointer-events:none}
+.pill{height:36px;border-radius:18px;padding:0 13px;display:flex;align-items:center;gap:6px;font:inherit;font-size:13px;font-weight:550;border:0;cursor:pointer}
+.etop .mini,.etop #bMode{position:relative}
+.pill{white-space:nowrap}
+.pill .dt{width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.pill .cv{opacity:.6;font-size:10px}
+.circ{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:0;cursor:pointer;padding:0}
+.circ svg{width:20px;height:20px}
+.circ.ok{background:var(--acc);color:var(--acc-ink);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.circ.ok::before,.circ.ok::after{display:none}
+.mini{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:0;cursor:pointer;padding:0}
+.mini svg{width:18px;height:18px}
+.mini[disabled]{opacity:.4;cursor:default}
+.scr button{color:inherit;font-family:inherit}
+.scr button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* Popover / inspector */
+.pop{width:312px;border-radius:22px;z-index:58;padding:14px 14px 12px;transform-origin:var(--ox,50%) var(--oy,0%);transition:opacity calc(160ms*var(--k)),transform calc(220ms*var(--k)) cubic-bezier(.2,.9,.3,1.06)}
+.pop.in{opacity:0;transform:scale(.86)}
+.pop .hd{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.pop .hd b{font-size:15px;font-weight:600;font-variation-settings:"wdth" 108;display:block}
+.pop .hd small{font-size:12px;color:var(--fg2)}
+.pop .hd .x{margin-left:auto}
+.scroll{max-height:330px;overflow:auto;margin:0 -4px;padding:0 4px;scrollbar-width:thin}
+.row{display:flex;align-items:center;gap:10px;min-height:42px;border-top:1px solid var(--line);font-size:13.5px}
+.row:first-child{border-top:0}
+.row>span:first-child{flex:none;width:86px;color:var(--fg2);font-size:12.5px}
+.row .grow{flex:1;min-width:0;display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.seg{display:flex;gap:2px;padding:2px;border-radius:12px;background:color-mix(in srgb,var(--fg) 8%,transparent)}
+.seg button{border:0;background:none;font-size:12px;padding:6px 8px;border-radius:10px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--acc);color:var(--acc-ink);font-weight:600}
+.lnk{border:0;background:color-mix(in srgb,var(--fg) 8%,transparent);font-size:12.5px;padding:7px 10px;border-radius:12px;cursor:pointer;white-space:nowrap}
+.lnk.acc{background:var(--acc);color:var(--acc-ink);font-weight:600}
+.lnk.warn{color:#ff9a8a}
+.scr[data-wall="light"] .lnk.warn{color:#b3261e}
+.lnk[disabled]{opacity:.45;cursor:default}
+input[type=range].sl{flex:1;min-width:0;accent-color:var(--acc);height:20px}
+output{font-family:var(--f-mono);font-size:11px;color:var(--fg2);width:40px;text-align:right}
+.txt{flex:1;min-width:0;font:inherit;font-size:13px;color:var(--fg);background:color-mix(in srgb,var(--fg) 8%,transparent);border:0;border-radius:10px;padding:7px 9px}
+.tg{width:38px;height:22px;border-radius:11px;border:0;background:color-mix(in srgb,var(--fg) 20%,transparent);position:relative;cursor:pointer;flex:none}
+.tg::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--fg);transition:left .15s}
+.tg[aria-pressed="true"]{background:var(--acc)}
+.tg[aria-pressed="true"]::after{left:19px;background:var(--acc-ink)}
+.applist{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 4px;padding:4px 0}
+.applist button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;cursor:pointer;padding:4px 0;border-radius:12px}
+.applist button[aria-pressed="true"]{background:color-mix(in srgb,var(--acc) 22%,transparent)}
+.hint{font-size:12px;color:var(--fg2);line-height:1.45;margin:6px 0 2px}
+.plus{position:absolute;width:40px;height:40px;border-radius:50%;transform:translate(-50%,-50%);box-shadow:inset 0 0 0 1.5px var(--acc);display:grid;place-items:center;color:var(--acc);font-size:22px;font-weight:300;z-index:36;pointer-events:none}
+
+/* Studio sheet */
+.studio{left:12px;right:12px;top:44px;border-radius:24px;z-index:59;padding:16px 16px 14px;max-height:640px;overflow:auto;transform-origin:94% 0;transition:opacity calc(170ms*var(--k)),transform calc(240ms*var(--k)) cubic-bezier(.2,.9,.3,1.05)}
+.studio.in{opacity:0;transform:scale(.9)}
+.studio h3{margin:0 0 2px;font-size:22px;font-weight:500;font-variation-settings:"wdth" 112}
+.studio .sub{font-size:12.5px;color:var(--fg2);margin-bottom:8px}
+.srow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:none;padding:10px 2px;border-top:1px solid var(--line);cursor:pointer}
+.srow:first-of-type{border-top:0}
+.srow .g{width:34px;height:34px;border-radius:11px;box-shadow:inset 0 0 0 1px var(--fg3);display:grid;place-items:center;flex:none;color:var(--fg2)}
+.srow .g svg{width:17px;height:17px}
+.srow b{display:block;font-size:15px;font-weight:550}
+.srow small{display:block;font-size:12.5px;color:var(--fg2);margin-top:1px}
+.srow .ch{margin-left:auto;color:var(--fg3)}
+
+/* Confirm */
+.conf{left:24px;right:24px;top:150px;border-radius:22px;z-index:62;padding:16px;--oy:0%}
+.conf b{font-size:15px;display:block;margin-bottom:4px}
+.conf p{margin:0 0 12px;font-size:13px;color:var(--fg2);line-height:1.45}
+.conf .btns{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+
+/* Search */
+.search{position:absolute;inset:0;pointer-events:none;z-index:50}
+.scr.searching .search{pointer-events:auto}
+.morph{position:absolute;border-radius:999px;display:flex;align-items:center;gap:10px;padding:0;overflow:hidden;opacity:0;
+  transition:left calc(170ms*var(--k)) cubic-bezier(.2,.9,.25,1),top calc(220ms*var(--k)) cubic-bezier(.2,.8,.2,1),width calc(170ms*var(--k)) cubic-bezier(.2,.9,.25,1),height calc(170ms*var(--k)) cubic-bezier(.2,.9,.25,1),box-shadow calc(140ms*var(--k)),background calc(140ms*var(--k))}
+.morph.ring{opacity:1;background:transparent;box-shadow:inset 0 0 0 1.5px var(--fg);backdrop-filter:none}
+.morph.ring::before,.morph.ring::after{opacity:0}
+.morph.field{opacity:1;padding:0 16px;--oy:100%}
+.morph svg{width:18px;height:18px;flex:none;opacity:0;transition:opacity calc(120ms*var(--k)) calc(90ms*var(--k))}
+.morph input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;color:var(--fg);outline:none;opacity:0;transition:opacity calc(120ms*var(--k)) calc(90ms*var(--k))}
+.morph input::placeholder{color:var(--fg3)}
+.morph.field svg,.morph.field input{opacity:1}
+.res{position:absolute;left:12px;right:12px;border-radius:22px;padding:6px;display:flex;flex-direction:column-reverse;gap:2px;--oy:100%;opacity:0;transform:translateY(8px);transition:opacity calc(150ms*var(--k)),transform calc(200ms*var(--k)) cubic-bezier(.2,.9,.3,1)}
+.res.on{opacity:1;transform:none}
+.res .r{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 10px;border-radius:16px;font-size:15px;cursor:pointer;opacity:0;transform:translateY(6px);transition:opacity calc(140ms*var(--k)),transform calc(180ms*var(--k))}
+.res.on .r{opacity:1;transform:none}
+.res .r.first{background:color-mix(in srgb,var(--acc) 16%,transparent)}
+.res .r small{margin-left:auto;font-size:11.5px;color:var(--fg2)}
+.res .cap{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--fg2);padding:8px 10px 4px}
+.flowc{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:16px;background:color-mix(in srgb,var(--acc) 14%,transparent)}
+.res .flowc{align-items:stretch;padding:10px}
+.flowc .nm{font-size:17px;font-weight:600;font-variation-settings:"wdth" 110}
+.chain{display:flex;align-items:center;gap:6px}
+.chain .st{display:flex;align-items:center;gap:6px}
+.chain .no{font-family:var(--f-mono);font-size:10px;color:var(--fg2)}
+.chain .ln{width:14px;height:1px;background:var(--fg3)}
+.kb{position:absolute;left:0;right:0;bottom:0;height:276px;background:var(--kb);padding:8px 4px 30px;display:flex;flex-direction:column;gap:9px;transform:translateY(100%);transition:transform calc(220ms*var(--k)) cubic-bezier(.2,.8,.2,1)}
+.kb.up{transform:none}
+.kb .kr{display:flex;gap:5px;justify-content:center}
+.kb button{flex:1;max-width:32px;height:44px;border:0;border-radius:6px;background:var(--key);font-size:17px;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.2)}
+.kb button.w{max-width:200px;flex:5;font-size:13px}
+.kb button.m{max-width:48px;font-size:13px}
+
+/* ARC */
+.arcL{position:absolute;inset:0;pointer-events:none;z-index:45;opacity:0;transition:opacity calc(60ms*var(--k))}
+.arcL.on{opacity:1}
+.arcL svg{position:absolute;inset:0;width:360px;height:797px;overflow:visible}
+.arcName{position:absolute;transform:translateX(-50%);font-size:17px;font-weight:550;font-variation-settings:"wdth" 110;white-space:nowrap;text-shadow:var(--tsh)}
+.slot{position:absolute;transform:translate(-50%,-50%);transition:transform calc(140ms*var(--k)) cubic-bezier(.3,.7,.3,1.3)}
+.slot.sel{transform:translate(-50%,-50%) scale(1.2)}
+.ghostarc{position:absolute;inset:0;pointer-events:none;z-index:34}
+
+.toast{left:50%;top:60px;transform:translateX(-50%) translateY(-8px);border-radius:18px;padding:9px 14px;font-size:13px;z-index:80;opacity:0;transition:opacity .18s,transform .22s;white-space:nowrap;--oy:0%;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%)}
+@media (prefers-reduced-motion:reduce){.scr{--k:0}}
+</style>
+
+<header class="top">
+  <h1>Intelia Veil</h1>
+  <p>Návrh vizuální identity a Home Editoru (etapa A). Telefon vlevo je ve skutečných dp (360 × 797). Podrž prázdnou plochu nebo ikonu, klepni na LENS, podrž LENS. Prototyp, ne Android kód.</p>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <div class="phone" id="phone">
+      <div class="scr p3" id="scr" data-mat="veil" data-acc="frost" data-wall="atmo">
+        <div class="wall" id="wall"></div>
+        <div class="home" id="home"></div>
+        <div class="ghostarc" id="ghostarc"></div>
+        <div class="guides" id="guides"></div>
+        <div class="arcL" id="arc"></div>
+        <div class="search" id="search">
+          <div class="res mat cl" id="res"></div>
+          <div class="morph mat" id="morph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+            <input id="q" inputmode="none" autocomplete="off" spellcheck="false" placeholder="Aplikace, FLOW, akce" aria-label="Hledat">
+          </div>
+          <div class="kb" id="kb"></div>
+        </div>
+        <div class="etop" id="etop">
+          <button class="pill mat ab" id="bPreset" style="left:12px;top:46px;--oy:0%;--ox:20%"></button>
+          <div class="ab" style="left:12px;top:90px;display:flex;gap:6px;align-items:center">
+            <button class="mini mat" id="bUndo" aria-label="Zpět o krok" style="--oy:0%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12"/></svg></button>
+            <button class="mini mat" id="bRedo" aria-label="Znovu" style="--oy:0%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12"/></svg></button>
+            <button class="pill mat" id="bMode" style="height:36px;--oy:0%"></button>
+          </div>
+          <button class="circ mat ab" id="bGear" aria-label="Intelia Studio" style="right:12px;top:44px;--oy:0%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg></button>
+          <button class="circ mat ok ab" id="bDone" aria-label="Uložit úpravy" style="right:12px;top:92px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+        </div>
+        <div class="mat pop ab" id="pop" hidden></div>
+        <div class="mat studio" id="studio" hidden></div>
+        <div class="mat conf ab" id="conf" hidden></div>
+        <div class="status ab"><span id="stime">14:24</span><span class="si"><span>5G</span><i></i></span></div>
+        <div class="cam ab"></div>
+        <div class="pz ab" id="pz" aria-label="PULSE"></div>
+        <div class="navbar ab"></div>
+        <div class="toast mat ab" id="toast"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="group"><h2>Scény</h2>
+      <div class="chips" id="scenes">
+        <button data-scene="home"><span class="n">01</span>Home a předlohy</button>
+        <button data-scene="edit"><span class="n">02</span>Upravit plochu</button>
+        <button data-scene="move"><span class="n">03</span>Přesun ikony ▶</button>
+        <button data-scene="clock"><span class="n">04</span>Detail hodin</button>
+        <button data-scene="icon"><span class="n">05</span>Detail ikony</button>
+        <button data-scene="add"><span class="n">06</span>Přidat prvek</button>
+        <button data-scene="presets"><span class="n">07</span>Předlohy</button>
+        <button data-scene="grid"><span class="n">08</span>Mřížka / volně</button>
+        <button data-scene="lens"><span class="n">09</span>LENS editor</button>
+        <button data-scene="search"><span class="n">10</span>LENS → Search ▶</button>
+        <button data-scene="arc"><span class="n">11</span>ARC ve Veil</button>
+        <button data-scene="pulse"><span class="n">12</span>PULSE návaznost</button>
+        <button data-scene="studio"><span class="n">13</span>Studio</button>
+      </div>
+    </div>
+    <div class="group"><h2>Materiál</h2>
+      <div class="chips" data-ctl="mat">
+        <button data-v="clear">Clear</button><button data-v="veil">Veil</button><button data-v="frosted">Frosted</button><button data-v="solid">Solid</button>
+      </div>
+      <div class="chips" data-ctl="p3">
+        <button data-v="on">Pravda Phone (3): bez blur za oknem</button><button data-v="off">Zařízení s blur za oknem</button>
+      </div>
+    </div>
+    <div class="group"><h2>Akcent · tapeta · ikony · pohyb</h2>
+      <div class="chips" data-ctl="acc"><button data-v="frost">Mráz</button><button data-v="sage">Šalvěj</button><button data-v="amber">Jantar</button><button data-v="lilac">Lila</button></div>
+      <div class="chips" data-ctl="wall"><button data-v="atmo">Atmosféra (tmavá)</button><button data-v="light">Světlá</button><button data-v="color">Barevná</button></div>
+      <div class="chips" data-ctl="iconStyle"><button data-v="system">Ikony: systém</button><button data-v="mono">Monochrom</button><button data-v="veil">Intelia Veil</button></div>
+      <div class="chips" data-ctl="rm"><button data-v="off">Plný pohyb</button><button data-v="on">Omezený pohyb</button></div>
+      <div class="chips"><button id="bBack">◁ Systémové Zpět</button><button id="bZones" aria-pressed="false">Dotykové zóny</button></div>
+    </div>
+    <div class="note" id="note"></div>
+    <div class="group"><h2>Události (haptika, akce)</h2><div class="log" id="log"></div></div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const scr=$('#scr'),home=$('#home'),guides=$('#guides'),pop=$('#pop'),studio=$('#studio'),conf=$('#conf'),morph=$('#morph'),kb=$('#kb'),res=$('#res'),q=$('#q'),arcEl=$('#arc'),ghostArc=$('#ghostarc'),toastEl=$('#toast'),logEl=$('#log'),noteEl=$('#note');
+const W=360,H=797, SAFE_T=52, SAFE_B=773, GRID_T=112, GRID_B=636;
+const BAND={'-2':-108,'-1':-62,'1':62,'2':108};
+const LZ={w:84,h:100}; // proposed LENS touch zone (was 100 × 100, overlapped the inner icons by 8 dp)
+
+const G={phone:'M7 4h3l1.6 4.2-2 1.2a10 10 0 0 0 5 5l1.2-2L20 14v3a2 2 0 0 1-2 2A15 15 0 0 1 5 6a2 2 0 0 1 2-2z',
+ msg:'M4 5.5h16v10.5H9.5L5 19.5V5.5z',cam:'M4 8h3.5L9.5 6h5l2 2H20v11H4z M12 10.2a3.2 3.2 0 1 0 0 6.4a3.2 3.2 0 1 0 0-6.4',
+ web:'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M3.5 12h17M12 3c3.2 3.2 3.2 14.8 0 18M12 3c-3.2 3.2-3.2 14.8 0 18',
+ music:'M9 17.5V6.5l10-2v11 M9 17.5a2.3 2.3 0 1 1-4.6 0a2.3 2.3 0 1 1 4.6 0 M19 15.5a2.3 2.3 0 1 1-4.6 0a2.3 2.3 0 1 1 4.6 0',
+ maps:'M12 20.5s-6-5.6-6-10.5a6 6 0 0 1 12 0c0 4.9-6 10.5-6 10.5z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4',
+ mail:'M3.5 6h17v12h-17z M3.5 7l8.5 6 8.5-6',cal:'M4.5 6h15v14h-15z M4.5 10h15 M8.5 3.5v4 M15.5 3.5v4',
+ calc:'M6.5 3.5h11v17h-11z M9 7h6 M9 11.5h1 M14 11.5h1 M9 15.5h1 M14 15.5h1',clock:'M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17 M12 7.5V12l3 2',
+ photos:'M4 5h16v14H4z M4 16l5-5 4 4 3-3 4 4',notes:'M6.5 3.5h8l3 3v14h-11z M9 10.5h6 M9 14.5h6',
+ flow:'M4.5 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M15.5 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M8.5 12h7 M13 9.5l2.5 2.5-2.5 2.5'};
+const APPS={phone:{n:'Telefon',c:'#2FA35E'},msg:{n:'Zprávy',c:'#3B82F0'},cam:{n:'Fotoaparát',c:'#4B5058'},web:{n:'Prohlížeč',c:'#4471D8'},
+ music:{n:'Hudba',c:'#E0484F'},maps:{n:'Mapy',c:'#24957A'},mail:{n:'Pošta',c:'#D2584B'},cal:{n:'Kalendář',c:'#F3F3F1',gc:'#2b2f36'},
+ calc:{n:'Kalkulačka',c:'#F08C2E'},clock:{n:'Hodiny',c:'#30343B'},photos:{n:'Fotky',c:'#8B6BD9'},notes:{n:'Poznámky',c:'#E8B931',gc:'#2b2f36'}};
+const FLOWS=[{name:'pocty',apps:['calc','clock']},{name:'vlak',apps:['maps','music','msg']}];
+const ARCSET=[{t:'app',a:'maps'},{t:'app',a:'music'},{t:'flow',f:'vlak'},{t:'app',a:'mail'},{t:'app',a:'cal'}];
+
+const S={mode:'home',mat:'veil',acc:'frost',wall:'atmo',iconStyle:'system',rm:false,p3:true,zones:false,
+ layout:null,saved:'',preset:'essentials',presetLabel:'Essentials',custom:[],hist:[],fut:[],sel:null,popKind:null,pulseSel:false};
+
+/* ───── templates ───── */
+function tpl(name){
+  const clock={id:'clock',k:'clock',x:180,y:150,size:84,wght:220,wdth:118,font:'crystal',align:'center',fmt:24,date:'bound',color:'auto',alpha:100,bg:'none',on:true};
+  const lens={id:'lens',k:'lens',x:180,y:731,size:44,style:'ring',tap:'search',hold:'arc',delay:260,haptic:'soft'};
+  const band=(id,app,b)=>({id,k:'app',app,band:b,size:40,label:false,labelText:'',icon:null,action:'open'});
+  const cell=(id,app,x,y)=>({id,k:'app',app,x,y,size:40,label:true,labelText:'',icon:null,action:'open'});
+  const ess=[band('e1','phone',-2),band('e2','msg',-1),band('e3','web',1),band('e4','cam',2)];
+  if(name==='pure') return {placement:'free',cols:4,rows:6,snap:true,items:[{...clock,y:176,size:100,wght:150,wdth:125},lens]};
+  if(name==='balanced') return {placement:'grid',cols:4,rows:6,snap:true,items:[{...clock,align:'left',x:28,y:146,size:76,wght:300,wdth:108},lens,...ess,
+    cell('b1','maps',57,531),cell('b2','music',139,531),cell('b3','mail',221,531),cell('b4','cal',303,531)]};
+  return {placement:'grid',cols:4,rows:6,snap:true,items:[clock,lens,...ess]};
+}
+const PRESETS=[['pure','Pure','LENS a hodiny'],['essentials','Essentials','4 aplikace kolem LENS'],['balanced','Balanced','hodiny vlevo, řada aplikací']];
+const cl=o=>JSON.parse(JSON.stringify(o));
+const item=id=>S.layout.items.find(i=>i.id===id);
+const L=()=>item('lens');
+const T=ms=>S.rm?0:ms;
+const wait=ms=>new Promise(r=>setTimeout(r,T(ms)));
+
+/* ───── geometry ───── */
+function pos(it){ if(it.band!=null){const l=L();return {x:clamp(l.x+BAND[it.band],24,336),y:l.y}} return {x:it.x,y:it.y}; }
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function cells(){const ly=S.layout,out=[];for(let r=0;r<ly.rows;r++)for(let c=0;c<ly.cols;c++)out.push({x:16+328/ly.cols*(c+.5),y:GRID_T+(GRID_B-GRID_T)/(ly.rows-1)*r});return out;}
+function itemRect(it,p){p=p||pos(it);const h=it.size+(it.label?18:0);return {l:p.x-it.size/2-4,r:p.x+it.size/2+4,t:p.y-it.size/2-4,b:p.y-it.size/2+h+4};}
+function clockRect(){const el=home.querySelector('[data-id="clock"]');if(!el||!item('clock').on)return null;return domRect(el);}
+function domRect(el){const r=el.getBoundingClientRect(),s=scr.getBoundingClientRect(),k=s.width/W;return {l:(r.left-s.left)/k,r:(r.right-s.left)/k,t:(r.top-s.top)/k,b:(r.bottom-s.top)/k};}
+const hit=(a,b)=>a.l<b.r&&a.r>b.l&&a.t<b.b&&a.b>b.t;
+function lensZone(){const l=L();return {l:l.x-LZ.w/2,r:l.x+LZ.w/2,t:l.y-LZ.h/2,b:l.y+LZ.h/2};}
+function forbidden(exceptId){const f=[lensZone()];const c=exceptId==='clock'?null:clockRect();if(c)f.push(c);const d=home.querySelector('[data-id="date"]');if(d&&exceptId!=='date')f.push(domRect(d));return f;}
+function validAt(it,p){const r=itemRect(it,p);if(r.t<SAFE_T||r.b>SAFE_B-40||r.l<8||r.r>352)return false;return !forbidden(it.id).some(f=>hit(f,r));}
+
+/* ───── render ───── */
+function iconHTML(appId,style,sz){
+  const a=appId==='flow'?{c:'var(--acc)',gc:'var(--acc-ink)'}:APPS[appId];const st=style||S.iconStyle;
+  const svg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${G[appId]}"/></svg>`;
+  const cls=st==='system'?'sys':st==='mono'?'mono':'veil';
+  return `<span class="ico ${cls}" style="--sz:${sz}px;--c:${a.c};--gc:${a.gc||'#fff'}">${svg}</span>`;
+}
+const DAYS=['neděle','pondělí','úterý','středa','čtvrtek','pátek','sobota'],MON=['ledna','února','března','dubna','května','června','července','srpna','září','října','listopadu','prosince'];
+function timeStr(fmt){const d=new Date();let h=d.getHours();if(fmt===12){h=h%12||12}return h+':'+String(d.getMinutes()).padStart(2,'0');}
+function dateStr(){const d=new Date();return DAYS[d.getDay()]+' '+d.getDate()+'. '+MON[d.getMonth()];}
+function clockFont(c){
+  if(c.font==='ink')return `font-family:var(--f-ink);font-style:italic;font-weight:${Math.round(c.wght/2+200)}`;
+  if(c.font==='grotesk')return `font-family:var(--f-ui);font-variation-settings:"wght" ${Math.max(c.wght,380)},"wdth" 100,"opsz" 144`;
+  if(c.font==='mono')return `font-family:var(--f-mono);font-weight:400;letter-spacing:-2px`;
+  return `font-family:var(--f-ui);font-variation-settings:"wght" ${c.wght},"wdth" ${c.wdth},"opsz" 144`;
+}
+function render(){
+  const ly=S.layout;let h='';
+  for(const it of ly.items){
+    const p=pos(it),sel=S.sel===it.id?' sel':'';
+    if(it.k==='app'||it.k==='flow'){
+      const nm=it.k==='flow'?it.name:(it.labelText||APPS[it.app].n);
+      h+=`<div class="it${sel}" data-id="${it.id}" style="left:${p.x}px;top:${p.y+(it.label?9:0)}px">${iconHTML(it.k==='flow'?'flow':it.app,it.icon,it.size)}${it.label?`<span class="lb">${esc(nm)}</span>`:''}</div>`;
+    }else if(it.k==='clock'&&it.on){
+      const tx=it.align==='left'?'0':it.align==='right'?'-100%':'-50%';
+      const col=it.color==='acc'?'var(--acc)':it.color==='white'?'#fff':'var(--fg)';
+      h+=`<div class="it${sel}" data-id="clock" style="left:${it.x}px;top:${it.y}px;transform:translate(${tx},-50%);align-items:${it.align==='left'?'flex-start':it.align==='right'?'flex-end':'center'}">
+        <div class="clock ${it.bg==='veil'?'mat bgv':''}" style="text-align:${it.align};color:${col};opacity:${it.alpha/100}">
+          <div class="t" style="font-size:${it.size}px;${clockFont(it)}">${timeStr(it.fmt)}</div>
+          ${it.date==='bound'?`<div class="d">${dateStr()}</div>`:''}
+        </div><span class="rh" aria-hidden="true">⤡</span></div>`;
+    }else if(it.k==='date'){
+      h+=`<div class="it${sel}" data-id="date" style="left:${it.x}px;top:${it.y}px"><div class="clock"><div class="d" style="margin:0;font-size:${it.size}px">${dateStr()}</div></div></div>`;
+    }else if(it.k==='lens'){
+      h+=`<div class="it${sel}" data-id="lens" style="left:${it.x}px;top:${it.y}px"><div class="lens ${it.style==='ring'?'':it.style}" id="lensEl" style="--sz:${it.size}px"></div></div>`;
+    }
+  }
+  const z=lensZone();h+=`<div class="lzone" style="left:${z.l}px;top:${z.t}px;width:${LZ.w}px;height:${LZ.h}px"></div>`;
+  home.innerHTML=h;
+  $('#bPreset').innerHTML=`${esc(S.presetLabel)}${dirty()?'<span class="dt" title="Neuloženo"></span>':''}<span class="cv">▾</span>`;
+  $('#bMode').innerHTML=modeLabel()+'<span class="cv">▾</span>';
+  $('#bUndo').disabled=!S.hist.length;$('#bRedo').disabled=!S.fut.length;
+  $('#pz').classList.toggle('sel',S.pulseSel);
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function modeLabel(){const ly=S.layout;const ic='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6">'+(ly.placement==='grid'?'<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>':ly.placement==='free'?'<path d="M5 19L19 5M14 5h5v5"/>':'<path d="M4 4h16v16H4z" stroke-dasharray="2 3"/><circle cx="12" cy="12" r="2.5"/>')+'</svg>';
+  return ic+(ly.placement==='grid'?`Mřížka ${ly.cols}×${ly.rows}`:ly.placement==='free'?'Volně':'Hybrid');}
+const dirty=()=>JSON.stringify(S.layout)!==S.saved;
+
+/* ───── history ───── */
+function pushHist(){S.hist.push(JSON.stringify(S.layout));if(S.hist.length>60)S.hist.shift();S.fut=[];}
+function undo(){if(!S.hist.length)return;S.fut.push(JSON.stringify(S.layout));S.layout=JSON.parse(S.hist.pop());afterHist('Zpět o krok');}
+function redo(){if(!S.fut.length)return;S.hist.push(JSON.stringify(S.layout));S.layout=JSON.parse(S.fut.pop());afterHist('Znovu');}
+function afterHist(m){if(S.sel&&!item(S.sel))S.sel=null;closePop();render();log(m);}
+
+/* ───── log / toast ───── */
+function log(m,hap){const d=document.createElement('div');d.innerHTML=(hap?`<b>${hap}</b> · `:'')+esc(m);logEl.prepend(d);while(logEl.children.length>7)logEl.lastChild.remove();}
+let tt;function toast(m){toastEl.textContent=m;toastEl.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>toastEl.classList.remove('on'),1600);}
+
+/* ───── pointer ───── */
+function pt(e){const r=scr.getBoundingClientRect(),k=r.width/W;return {x:(e.clientX-r.left)/k,y:(e.clientY-r.top)/k};}
+let P=null;
+scr.addEventListener('pointerdown',e=>{
+  if(e.target.closest('#pop,#studio,#conf,#etop,#kb,#res,#morph'))return;
+  if(S.mode==='search'){closeSearch();return;}
+  if(S.popKind||!studio.hidden){closePop();closeStudio();if(S.mode==='edit')return;}
+  const p=pt(e);
+  if(e.target.closest('#pz')){ if(S.mode==='edit')openPulse(); else {log('PULSE: klepnutí patří do fáze B4 (Quick View z kamery)');} return;}
+  const el=e.target.closest('[data-id]');const id=el?el.dataset.id:null;
+  scr.setPointerCapture(e.pointerId);
+  P={id,sx:p.x,sy:p.y,moved:false,resize:!!e.target.closest('.rh')};
+  if(S.mode==='home'){
+    if(id==='lens'){ const lens=$('#lensEl');lens&&lens.classList.add('press');
+      if(L().hold==='arc')P.timer=setTimeout(()=>{if(P&&!P.moved)openArc();},T(L().delay)||1); }
+    else P.timer=setTimeout(()=>{ if(!P||P.moved)return; enterEdit(); log('Dlouhý stisk → Upravit plochu','LONG_PRESS'); if(id&&id!=='clock'){ S.sel=id; render(); startDrag(p);} },450);
+  }else if(S.mode==='edit'&&P.resize){pushHist();P.size0=item('clock').size;}
+});
+scr.addEventListener('pointermove',e=>{
+  if(!P)return;const p=pt(e);const d=Math.hypot(p.x-P.sx,p.y-P.sy);
+  if(P.arc){arcMove(p);return;}
+  if(P.resize){const it=item('clock');it.size=clamp(Math.round(P.size0+(p.x-P.sx)*.7+(p.y-P.sy)*.7),40,140);render();return;}
+  if(!P.moved&&d>8){P.moved=true;clearTimeout(P.timer);
+    if(S.mode==='home'&&P.id==='lens'){const lens=$('#lensEl');lens&&lens.classList.remove('press');if(p.y<P.sy-20)log('Swipe nahoru z LENS → šuplík (beze změny)');}
+    if(S.mode==='edit'&&P.id&&!P.drag){S.sel=P.id;render();startDrag(p);}
+  }
+  if(P.drag)dragMove(p);
+});
+scr.addEventListener('pointerup',e=>{
+  if(!P)return;clearTimeout(P.timer);const p=pt(e);const cur=P;P=null;
+  const lens=$('#lensEl');lens&&lens.classList.remove('press');
+  if(cur.arc){arcRelease();return;}
+  if(cur.drag){dragEnd();return;}
+  if(cur.resize){render();openInspector('clock');return;}
+  if(cur.moved)return;
+  if(S.mode==='home'){
+    if(cur.id==='lens')lensTap();
+    else if(cur.id&&cur.id!=='clock'){const it=item(cur.id);log('Spustit: '+(it.k==='flow'?'FLOW '+it.name+' (náhled)':APPS[it.app].n),'CONFIRM');}
+  }else if(S.mode==='edit'){
+    if(cur.id)openInspector(cur.id);else openAdd(p);
+  }
+});
+scr.addEventListener('pointercancel',()=>{if(P&&P.arc)closeArc(true);P=null;});
+
+/* ───── edit mode ───── */
+function enterEdit(){ if(S.mode==='edit')return; closeSearch(true);S.mode='edit';scr.classList.add('editing');S.sel=null;render(); }
+function exitEdit(){S.mode='home';S.sel=null;S.pulseSel=false;closePop();closeStudio();conf.hidden=true;scr.classList.remove('editing');render();}
+function save(){S.saved=JSON.stringify(S.layout);if(S.preset!=='custom'&&JSON.stringify(tpl(S.preset))!==S.saved&&!/upraveno/.test(S.presetLabel))S.presetLabel+=' · upraveno';exitEdit();toast('Plocha uložena');log('Rozložení uloženo (deterministicky, jeden dokument)','CONFIRM');}
+function cancelEdit(){
+  if(!dirty()){exitEdit();return;}
+  showConf('Neuložené změny','Plocha se liší od posledního uloženého stavu.',[['Pokračovat',()=>{}],['Zahodit',()=>{S.layout=JSON.parse(S.saved);S.hist=[];S.fut=[];exitEdit();toast('Vráceno k uloženému stavu');},'warn'],['Uložit',save,'acc']]);
+}
+function showConf(title,text,btns){
+  conf.innerHTML=`<b>${title}</b><p>${text}</p><div class="btns">${btns.map((b,i)=>`<button class="lnk ${b[2]||''}" data-i="${i}">${b[0]}</button>`).join('')}</div>`;
+  conf.hidden=false;conf.onclick=e=>{const b=e.target.closest('[data-i]');if(!b)return;conf.hidden=true;btns[+b.dataset.i][1]();};
+}
+
+/* ───── drag ───── */
+let D=null;
+function startDrag(p){
+  const it=item(S.sel);if(!it)return;closePop();pushHist();
+  const ps=pos(it);D={it,ox:ps.x-p.x,oy:ps.y-p.y,from:{band:it.band,x:ps.x,y:ps.y},target:null};
+  P&&(P.drag=true,P.moved=true);
+  const el=home.querySelector(`[data-id="${it.id}"]`);el&&el.classList.add('drag');log('Přesun: '+label(it),'DRAG_START');
+}
+function label(it){return it.k==='app'?(it.labelText||APPS[it.app].n):it.k==='flow'?'FLOW '+it.name:it.k==='lens'?'LENS':it.k==='clock'?'Hodiny':'Datum';}
+function dragMove(p){
+  const it=D.it,raw={x:p.x+D.ox,y:p.y+D.oy};const el=home.querySelector(`[data-id="${it.id}"]`);
+  if(it.k==='lens'){const x=clamp(raw.x,60,300),y=clamp(raw.y,600,745);const sx=Math.abs(x-180)<6?180:x;D.target={x:sx,y};el.style.left=sx+'px';el.style.top=y+'px';drawGuides({guides:sx===180?[{x:180}]:[]});drawGhostArc({x:sx,y});return;}
+  if(it.k==='clock'||it.k==='date'){const t=resolveFree(it,raw);D.target=t;el.style.left=(it.k==='clock'?t.x+(clockAnchorDx(it)):t.x)+'px';el.style.top=t.y+'px';drawGuides(t);return;}
+  el.style.left=raw.x+'px';el.style.top=(raw.y+(it.label?9:0))+'px';
+  D.target=resolve(it,raw);drawGuides(D.target);
+}
+function clockAnchorDx(){return 0;}
+function resolveFree(it,raw){
+  const g=[];let x=clamp(raw.x,20,340),y=clamp(raw.y,SAFE_T+30,560);
+  for(const cx of [180,28,332]){if(Math.abs(x-cx)<6){x=cx;g.push({x:cx});}}
+  return {x,y,guides:g};
+}
+function resolve(it,raw){
+  const ly=S.layout,others=ly.items.filter(o=>o!==it&&(o.k==='app'||o.k==='flow'));let t;
+  if(raw.y>L().y-46){ // LENS row
+    const l=L();let best=null;for(const b of [-2,-1,1,2]){const x=clamp(l.x+BAND[b],24,336);const dd=Math.abs(raw.x-x);if(!best||dd<best.d)best={b,x,d:dd};}
+    t={band:best.b,x:best.x,y:l.y,guides:[],row:true};
+  }else if(ly.placement==='grid'){t=nearestCell(it,raw,others)||{x:raw.x,y:raw.y};t.grid=true;t.guides=[];}
+  else{
+    let x=raw.x,y=raw.y;const g=[];
+    if(ly.placement==='hybrid'){const c=cells().find(c=>Math.hypot(c.x-x,c.y-y)<12);if(c){x=c.x;y=c.y;}}
+    if(ly.snap){for(const o of others){const op=pos(o);if(Math.abs(op.x-x)<5){x=op.x;g.push({x});}if(Math.abs(op.y-y)<5){y=op.y;g.push({y});}}
+      if(Math.abs(x-180)<5){x=180;g.push({x:180});}}
+    x=clamp(x,8+it.size/2+4,352-it.size/2-4);y=clamp(y,SAFE_T+it.size/2+4,SAFE_B-60);
+    if(!validAt(it,{x,y})){const c=nearestCell(it,{x,y},others,true);if(c){x=c.x;y=c.y;}}
+    t={x,y,guides:g,grid:ly.placement==='hybrid'};
+  }
+  // collision with another icon → preview where it moves
+  const tr=itemRect(it,{x:t.x,y:t.y});const victim=others.find(o=>{if(t.band!=null&&o.band===t.band)return true;return o.band==null&&t.band==null&&hit(itemRect(o),tr);});
+  if(victim){
+    let to=null;
+    if(D.from.band!=null&&t.band!=null)to={band:D.from.band};
+    else if(D.from.band==null&&t.band==null&&D.from.x!=null)to={x:D.from.x,y:D.from.y};
+    else{const c=nearestCell(victim,pos(victim),others.filter(o=>o!==victim).concat([{...it,band:t.band,x:t.x,y:t.y}]),true);to=c?{x:c.x,y:c.y}:null;}
+    if(to&&to.band==null&&to.x!=null&&D.from.band!=null&&t.band==null)to={band:D.from.band};
+    t.victim=victim;t.to=to;
+  }
+  return t;
+}
+function nearestCell(it,p,others,skipOcc){
+  const occ=c=>others.some(o=>{const op=pos(o);return o.band==null&&Math.hypot(op.x-c.x,op.y-c.y)<20;});
+  let best=null;for(const c of cells()){if(!validAt(it,c))continue;if(skipOcc&&occ(c))continue;const d=Math.hypot(c.x-p.x,c.y-p.y);if(!best||d<best.d)best={...c,d};}
+  return best;
+}
+function drawGuides(t){
+  if(!t){guides.innerHTML='';return;}
+  let s='<svg viewBox="0 0 360 797">';
+  // safe bands
+  s+=`<rect x="0" y="0" width="360" height="${SAFE_T}" fill="var(--fg)" opacity=".05"/><rect x="0" y="${SAFE_B}" width="360" height="${H-SAFE_B}" fill="var(--fg)" opacity=".05"/>`;
+  if(D&&D.it.k!=='lens'){const z=lensZone();s+=`<rect x="${z.l}" y="${z.t}" width="${LZ.w}" height="${LZ.h}" rx="20" fill="none" stroke="var(--fg3)" stroke-dasharray="3 4"/>`;}
+  if(t.grid&&D&&D.it.k!=='lens'){for(const c of cells())if(validAt(D.it,c))s+=`<circle cx="${c.x}" cy="${c.y}" r="1.6" fill="var(--fg)" opacity=".45"/>`;}
+  if(t.row){const l=L();for(const b of [-2,-1,1,2])s+=`<circle cx="${clamp(l.x+BAND[b],24,336)}" cy="${l.y}" r="23" fill="none" stroke="var(--fg3)" stroke-dasharray="2 4"/>`;}
+  for(const g of (t.guides||[]))s+=g.x!=null?`<line x1="${g.x}" y1="40" x2="${g.x}" y2="780" stroke="var(--acc)" stroke-width="1" opacity=".7"/>`:`<line x1="0" y1="${g.y}" x2="360" y2="${g.y}" stroke="var(--acc)" stroke-width="1" opacity=".7"/>`;
+  if(D&&D.it.k!=='lens'&&D.it.k!=='clock'&&D.it.k!=='date'){s+=`<circle cx="${t.x}" cy="${t.y}" r="${D.it.size/2+3}" fill="none" stroke="var(--acc)" stroke-width="1.5"/>`;}
+  if(t.victim&&t.to){const vp=pos(t.victim);const tp=t.to.band!=null?{x:clamp(L().x+BAND[t.to.band],24,336),y:L().y}:t.to;
+    s+=`<circle cx="${tp.x}" cy="${tp.y}" r="${t.victim.size/2+3}" fill="none" stroke="var(--fg2)" stroke-dasharray="3 3"/><line x1="${vp.x}" y1="${vp.y}" x2="${tp.x}" y2="${tp.y}" stroke="var(--fg3)" stroke-dasharray="2 4"/>`;}
+  guides.innerHTML=s+'</svg>';
+}
+function dragEnd(){
+  const it=D.it,t=D.target;guides.innerHTML='';ghostArc.innerHTML='';
+  if(t){
+    if(it.k==='lens'||it.k==='clock'||it.k==='date'){it.x=Math.round(t.x);it.y=Math.round(t.y);if(it.k==='clock')it.align='center';}
+    else{ if(t.band!=null){it.band=t.band;delete it.x;delete it.y;it.label=false;} else {it.band=null;delete it.band;it.x=Math.round(t.x);it.y=Math.round(t.y);}
+      if(t.victim&&t.to){const v=t.victim;if(t.to.band!=null){v.band=t.to.band;delete v.x;delete v.y;v.label=false;}else{delete v.band;v.x=Math.round(t.to.x);v.y=Math.round(t.to.y);v.label=true;}log(label(v)+' uhnula na volné místo');}
+      if(t.band==null&&it.label===false&&D.from.band!=null)it.label=true;
+    }
+    log('Položeno: '+label(it)+(t.band!=null?' · řada LENS':t.grid?' · buňka mřížky':' · volně'),'CONFIRM');
+  }
+  D=null;render();
+}
+
+/* ───── popovers ───── */
+function placePop(anchor,w,hEst){
+  // anchor rect in dp → place above if room, else below; clamp inside screen; origin edge points to the anchor
+  pop.style.width=w+'px';
+  const cx=(anchor.l+anchor.r)/2;let left=clamp(cx-w/2,12,W-12-w);
+  const above=anchor.t-12-hEst>SAFE_T+44;let top=above?anchor.t-12-hEst:anchor.b+12;
+  top=clamp(top,SAFE_T+44,H-24-hEst);
+  pop.style.left=left+'px';pop.style.top=top+'px';
+  pop.style.setProperty('--ox',((cx-left)/w*100)+'%');pop.style.setProperty('--oy',above?'100%':'0%');
+}
+function showPop(html,anchor,w=312){
+  const fresh=pop.hidden;pop.innerHTML=html;pop.hidden=false;pop.style.top='-999px';
+  const h=pop.offsetHeight;placePop(anchor,w,h);
+  if(fresh){pop.classList.add('in');requestAnimationFrame(()=>requestAnimationFrame(()=>pop.classList.remove('in')));}
+}
+function closePop(){pop.hidden=true;S.popKind=null;ghostArc.innerHTML='';const pl=home.querySelector('.plus');pl&&pl.remove();if(S.pulseSel){S.pulseSel=false;render();}}
+const seg=(k,opts,cur)=>`<div class="seg">${opts.map(([v,t])=>`<button data-k="${k}" data-v="${v}" aria-pressed="${String(cur)===String(v)}">${t}</button>`).join('')}</div>`;
+const tog=(k,on)=>`<button class="tg" data-k="${k}" data-v="${!on}" aria-pressed="${on}" aria-label="${k}"></button>`;
+const sl=(k,min,max,step,v,unit='')=>`<input class="sl" type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${v}" aria-label="${k}"><output>${v}${unit}</output>`;
+const row=(lbl,ctl)=>`<div class="row"><span>${lbl}</span><div class="grow">${ctl}</div></div>`;
+const closeBtn='<button class="mini x" data-act="close" aria-label="Zavřít" style="width:30px;height:30px;background:none;border:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+
+function openInspector(id,sub){
+  S.sel=id;S.popKind='insp';S.pulseSel=false;render();
+  const it=item(id);const el=home.querySelector(`[data-id="${id}"]`);const a=el?domRect(el):{l:150,r:210,t:300,b:360};
+  let h='';
+  if(it.k==='app'&&sub==='pick'){
+    h=`<div class="hd"><button class="lnk" data-act="back">‹ Zpět</button><b style="margin-left:4px">Změnit aplikaci</b>${closeBtn}</div><div class="scroll"><div class="applist">${Object.keys(APPS).map(k=>`<button data-act="setapp" data-v="${k}" aria-pressed="${it.app===k}">${iconHTML(k,null,36)}<span>${APPS[k].n}</span></button>`).join('')}</div></div>`;
+  }else if(it.k==='app'||it.k==='flow'){
+    const nm=it.k==='flow'?'FLOW '+it.name:APPS[it.app].n;
+    h=`<div class="hd">${iconHTML(it.k==='flow'?'flow':it.app,it.icon,36)}<div><b>${esc(nm)}</b><small>${it.band!=null?'Řada LENS':S.layout.placement==='grid'?'Mřížka':'Volné umístění'}${it.label?' · s popiskem':''}</small></div>${closeBtn}</div><div class="scroll">`+
+      (it.k==='app'?row('Aplikace',`<button class="lnk" data-act="pick">${esc(APPS[it.app].n)} ›</button>`):row('FLOW',`<button class="lnk" data-act="flowedit">${esc(FLOWS.find(f=>f.name===it.name).apps.map(a=>APPS[a].n).join(' → '))} ›</button>`))+
+      row('Ikona',seg('icon',[['','Výchozí'],['system','Systém'],['mono','Mono'],['veil','Veil']],it.icon||''))+
+      row('Velikost',sl('size',32,64,2,it.size,''))+
+      row('Popisek',tog('label',it.label)+(it.label?`<input class="txt" data-k="labelText" value="${esc(it.labelText)}" placeholder="${esc(it.k==='flow'?it.name:APPS[it.app].n)}" aria-label="Popisek">`:''))+
+      (it.k==='app'?row('Při klepnutí',seg('action',[['open','Otevřít'],['flow','FLOW'],['shortcut','Zkratka']],it.action)):'')+
+      row('Pozice',`<button class="lnk" data-act="nudge" data-v="l" aria-label="Doleva">←</button><button class="lnk" data-act="nudge" data-v="u" aria-label="Nahoru">↑</button><button class="lnk" data-act="nudge" data-v="d" aria-label="Dolů">↓</button><button class="lnk" data-act="nudge" data-v="r" aria-label="Doprava">→</button>`)+
+      `</div><div class="row" style="border-top:1px solid var(--line);margin-top:4px"><button class="lnk warn" data-act="remove">Odebrat z plochy</button><span class="hint" style="margin:0 0 0 auto;width:auto;font-size:11.5px">aplikace zůstane nainstalovaná</span></div>`;
+  }else if(it.k==='clock'){
+    h=`<div class="hd"><div><b>Hodiny</b><small>táhni ⤡ pro velikost, celé hodiny pro pozici</small></div>${closeBtn}</div><div class="scroll">`+
+      row('Písmo',seg('font',[['crystal','Crystal'],['ink','Ink'],['grotesk','Grotesk'],['mono','Strojové']],it.font))+
+      row('Velikost',sl('size',40,140,2,it.size))+
+      (it.font==='crystal'||it.font==='grotesk'?row('Tloušťka',sl('wght',100,700,10,it.wght)):'')+
+      (it.font==='crystal'?row('Šířka',sl('wdth',25,151,1,it.wdth)):'')+
+      row('Barva',seg('color',[['auto','Auto'],['acc','Akcent'],['white','Bílá']],it.color))+
+      row('Krytí',sl('alpha',30,100,5,it.alpha,'%'))+
+      row('Formát',seg('fmt',[[24,'24 h'],[12,'12 h']],it.fmt))+
+      row('Datum',seg('date',[['bound','Pod hodinami'],['free','Samostatně'],['off','Skryté']],it.date))+
+      row('Zarovnání',seg('align',[['left','Vlevo'],['center','Střed'],['right','Vpravo']],it.align))+
+      row('Pozadí',seg('bg',[['none','Žádné'],['veil','Veil']],it.bg))+
+      `</div><div class="row" style="border-top:1px solid var(--line);margin-top:4px"><button class="lnk warn" data-act="hideclock">Skrýt hodiny</button></div>`;
+  }else if(it.k==='date'){
+    h=`<div class="hd"><div><b>Datum</b><small>samostatný prvek</small></div>${closeBtn}</div>`+row('Velikost',sl('size',10,20,1,it.size))+row('Svázat',`<button class="lnk" data-act="binddate">Vrátit pod hodiny</button>`);
+  }else if(it.k==='lens'){
+    h=`<div class="hd"><div><b>LENS</b><small>v editoru LENS nespouští ARC, jen se upravuje</small></div>${closeBtn}</div><div class="scroll">`+
+      row('Velikost',sl('size',36,56,2,it.size))+
+      row('Styl',seg('style',[['ring','Kroužek'],['dot','Bod'],['bar','Linka']],it.style))+
+      row('Klepnutí',seg('tap',[['search','Hledání'],['drawer','Šuplík'],['flow','FLOW']],it.tap))+
+      row('Podržení',seg('hold',[['arc','ARC'],['none','Nic']],it.hold))+
+      (it.hold==='arc'?row('Prodleva ARC',sl('delay',200,400,20,it.delay,' ms')):'')+
+      row('Haptika',seg('haptic',[['soft','Jemná'],['firm','Výrazná'],['off','Vyp']],it.haptic))+
+      row('Poloha',seg('lpos',[[60,'Vlevo'],[180,'Střed'],[300,'Vpravo']],it.x)+`<span class="hint" style="margin:0">nebo táhni</span>`)+
+      row('Sady ARC',`<button class="lnk" data-act="arcsets">1 sada · 5 míst ›</button>`)+
+      `</div><p class="hint">Oblouk se natočí podle polohy LENS, aby všech 5 míst zůstalo na displeji.</p>`;
+    drawGhostArc(it);
+  }
+  showPop(h,a,it.k==='app'&&sub==='pick'?312:312);
+}
+pop.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;const act=b.dataset.act,k=b.dataset.k;
+  if(act==='close'){closePop();S.sel=null;render();return;}
+  if(S.popKind==='presets'||S.popKind==='mode'||S.popKind==='add'||S.popKind==='pulse'){popAction(b);return;}
+  const it=item(S.sel);if(!it)return;
+  if(k){pushHist();let v=b.dataset.v;if(v==='true')v=true;else if(v==='false')v=false;else if(/^\d+$/.test(v))v=+v;else if(v==='')v=null;setProp(it,k,v);openInspector(it.id);return;}
+  if(act==='pick'){openInspector(it.id,'pick');return;}
+  if(act==='back'){openInspector(it.id);return;}
+  if(act==='setapp'){pushHist();it.app=b.dataset.v;render();openInspector(it.id);log('Aplikace změněna na '+APPS[it.app].n);return;}
+  if(act==='nudge'){pushHist();const d={l:[-4,0],r:[4,0],u:[0,-4],d:[0,4]}[b.dataset.v];if(it.band!=null){const p=pos(it);delete it.band;it.x=p.x;it.y=p.y-60;it.label=true;}it.x+=d[0];it.y+=d[1];render();openInspector(it.id);return;}
+  if(act==='remove'){pushHist();S.layout.items=S.layout.items.filter(o=>o!==it);closePop();S.sel=null;render();toast('Odebráno z plochy');log(label(it)+' odebrána z plochy (aplikace zůstává)');return;}
+  if(act==='hideclock'){pushHist();it.on=false;closePop();S.sel=null;render();toast('Hodiny skryté · přidáš je zpět přes +');return;}
+  if(act==='binddate'){pushHist();S.layout.items=S.layout.items.filter(o=>o.k!=='date');item('clock').date='bound';closePop();render();return;}
+  if(act==='flowedit'){log('Otevře jednotný editor FLOW (jedna implementace pro Home, ARC, LENS, PULSE)');toast('Editor FLOW');return;}
+  if(act==='arcsets'){log('Otevře Studio → Gesta a ARC → sady (kontextově z LENS)');toast('Studio → ARC');return;}
+});
+let sliding=false;
+pop.addEventListener('input',e=>{
+  const k=e.target.dataset.k;if(!k)return;const it=item(S.sel);if(!it)return;
+  if(!sliding){pushHist();sliding=true;}
+  if(e.target.type==='range'){const v=+e.target.value;setProp(it,k,v);const o=e.target.nextElementSibling;if(o)o.textContent=v+(k==='alpha'?'%':k==='delay'?' ms':'');}
+  else setProp(it,k,e.target.value);
+});
+pop.addEventListener('change',()=>{sliding=false;});
+function setProp(it,k,v){
+  if(k==='lpos'){it.x=v;render();drawGhostArc(it);return;}
+  if(k==='align'&&it.k==='clock'){it.x=v==='left'?28:v==='right'?332:180;}
+  if(k==='date'&&it.k==='clock'){S.layout.items=S.layout.items.filter(o=>o.k!=='date');if(v==='free')S.layout.items.push({id:'date',k:'date',x:180,y:it.y+it.size*.62+14,size:12});}
+  if(k==='label'&&!v)it.labelText='';
+  it[k]=v;render();if(it.k==='lens')drawGhostArc(it);
+}
+function popAction(b){
+  const act=b.dataset.act,v=b.dataset.v;
+  if(S.popKind==='mode'){
+    pushHist();const ly=S.layout;
+    if(act==='place')ly.placement=v;
+    if(act==='cols')ly.cols=clamp(ly.cols+(+v),3,6);
+    if(act==='rows')ly.rows=clamp(ly.rows+(+v),4,8);
+    if(act==='snap')ly.snap=!ly.snap;
+    if(ly.placement==='grid')snapAllToGrid();
+    render();openMode();flashGrid();return;
+  }
+  if(S.popKind==='add'){
+    const at=S.addAt;
+    if(act==='addapp'){openAddApps();return;}
+    if(act==='addappv'){pushHist();const id='n'+Date.now();S.layout.items.push({id,k:'app',app:v,x:at.x,y:at.y,size:40,label:true,labelText:'',icon:null,action:'open'});closePop();S.sel=id;render();toast(APPS[v].n+' přidána');log('Přidáno: '+APPS[v].n);return;}
+    if(act==='addflow'){pushHist();const id='f'+Date.now();S.layout.items.push({id,k:'flow',name:v||'pocty',x:at.x,y:at.y,size:40,label:true,labelText:'',icon:null});closePop();S.sel=id;render();log('Přidán FLOW '+(v||'pocty')+' jako prvek plochy');return;}
+    if(act==='addclock'){pushHist();const c=item('clock');c.on=true;closePop();render();return;}
+    if(act==='back'){openAdd(at,true);return;}
+  }
+  if(S.popKind==='presets'){
+    if(act==='apply'){switchPreset(v);return;}
+    if(act==='applyc'){switchPreset('custom',+v);return;}
+    if(act==='saveas'){const n='Moje '+(S.custom.length+1);S.custom.push({name:n,layout:cl(S.layout)});S.preset='custom';S.presetLabel=n;S.saved=JSON.stringify(S.layout);closePop();render();toast('Uloženo jako „'+n+'“');return;}
+    if(act==='revert'){pushHist();S.layout=JSON.parse(S.saved);closePop();render();toast('Vráceno k poslednímu uloženému');return;}
+    if(act==='reset'){closePop();showConf('Obnovit výchozí?','Předloha '+(PRESETS.find(p=>p[0]===S.preset)||['','Essentials'])[1]+' se vrátí do továrního stavu. Vlastní předlohy zůstanou.',[['Zpět',()=>{}],['Obnovit',()=>{pushHist();S.layout=tpl(S.preset==='custom'?'essentials':S.preset);render();toast('Obnoveno, potvrď ✓');},'acc']]);return;}
+  }
+  if(S.popKind==='pulse'){toast(b.textContent.trim());log('PULSE: '+b.textContent.trim()+' → Studio · PULSE (fáze B4)');}
+}
+function snapAllToGrid(){const others=[];for(const it of S.layout.items){if((it.k==='app'||it.k==='flow')&&it.band==null){const c=nearestCell(it,pos(it),others,true);if(c){it.x=c.x;it.y=c.y;}others.push(it);}}}
+function flashGrid(){if(S.layout.placement==='free'){guides.innerHTML='';return;}const fake={id:'_',k:'app',size:40};let s='<svg viewBox="0 0 360 797">';for(const c of cells())if(validAt(fake,c))s+=`<circle cx="${c.x}" cy="${c.y}" r="1.8" fill="var(--fg)" opacity=".5"/>`;guides.innerHTML=s+'</svg>';clearTimeout(flashGrid.t);flashGrid.t=setTimeout(()=>{if(!D)guides.innerHTML='';},1400);}
+
+function openAdd(p,keep){
+  S.sel=null;S.popKind='add';render();
+  const ly=S.layout,fake={id:'_',k:'app',size:40,band:undefined};
+  let at={x:p.x,y:p.y};
+  if(ly.placement!=='free'){const c=nearestCell(fake,p,ly.items.filter(o=>o.k==='app'||o.k==='flow'),true);if(c)at=c;}
+  else if(!validAt(fake,at)){const c=nearestCell(fake,p,ly.items.filter(o=>o.k==='app'||o.k==='flow'),true);if(c)at=c;}
+  S.addAt=at;
+  if(!keep){const pl=document.createElement('div');pl.className='plus';pl.style.left=at.x+'px';pl.style.top=at.y+'px';pl.textContent='+';home.appendChild(pl);}
+  else {const pl=document.createElement('div');pl.className='plus';pl.style.left=at.x+'px';pl.style.top=at.y+'px';pl.textContent='+';home.appendChild(pl);}
+  const c=item('clock');
+  const h=`<div class="hd"><div><b>Přidat sem</b><small>${ly.placement==='free'?'volná pozice':'buňka mřížky'}</small></div>${closeBtn}</div>`+
+    `<div class="row"><span>Aplikace</span><div class="grow"><button class="lnk acc" data-act="addapp">Vybrat ›</button></div></div>`+
+    `<div class="row"><span>FLOW</span><div class="grow">${FLOWS.map(f=>`<button class="lnk" data-act="addflow" data-v="${f.name}">${f.name}</button>`).join('')}</div></div>`+
+    (!c.on?`<div class="row"><span>Hodiny</span><div class="grow"><button class="lnk" data-act="addclock">Zobrazit</button></div></div>`:'')+
+    `<div class="row"><span>Widget</span><div class="grow"><button class="lnk" disabled>Připraveno v modelu · později</button></div></div>`;
+  showPop(h,{l:at.x-22,r:at.x+22,t:at.y-22,b:at.y+22},280);
+}
+function openAddApps(){
+  const at=S.addAt;
+  const h=`<div class="hd"><button class="lnk" data-act="back">‹ Zpět</button><b style="margin-left:4px">Aplikace</b>${closeBtn}</div><div class="scroll"><div class="applist">${Object.keys(APPS).map(k=>`<button data-act="addappv" data-v="${k}">${iconHTML(k,null,36)}<span>${APPS[k].n}</span></button>`).join('')}</div></div>`;
+  showPop(h,{l:at.x-22,r:at.x+22,t:at.y-22,b:at.y+22},312);
+}
+function openMode(){
+  S.popKind='mode';S.sel=null;render();const ly=S.layout;
+  const h=`<div class="hd"><div><b>Rozložení</b><small>platí pro aplikace a FLOW; LENS a řada kolem něj mají vlastní kotvu</small></div>${closeBtn}</div>`+
+    `<div class="row"><span>Režim</span><div class="grow"><div class="seg">${[['grid','Mřížka'],['free','Volně'],['hybrid','Hybrid']].map(([v,t])=>`<button data-act="place" data-v="${v}" aria-pressed="${ly.placement===v}">${t}</button>`).join('')}</div></div></div>`+
+    (ly.placement!=='free'?`<div class="row"><span>Sloupce</span><div class="grow"><button class="lnk" data-act="cols" data-v="-1" aria-label="Méně sloupců">−</button><output style="width:22px;text-align:center">${ly.cols}</output><button class="lnk" data-act="cols" data-v="1" aria-label="Více sloupců">+</button></div></div>`+
+      `<div class="row"><span>Řádky</span><div class="grow"><button class="lnk" data-act="rows" data-v="-1" aria-label="Méně řádků">−</button><output style="width:22px;text-align:center">${ly.rows}</output><button class="lnk" data-act="rows" data-v="1" aria-label="Více řádků">+</button></div></div>`:'')+
+    (ly.placement!=='grid'?`<div class="row"><span>Vodítka</span><div class="grow"><button class="tg" data-act="snap" aria-pressed="${ly.snap}" aria-label="Přichytávat k vodítkům"></button></div></div>`:'')+
+    `<p class="hint">${ly.placement==='grid'?'Přichytí se vždy do buňky. Body mřížky se ukážou jen při tažení.':ly.placement==='free'?'Pozice v dp vůči bezpečné oblasti. Vodítka se ukážou při zarovnání se středem nebo jiným prvkem.':'Volně, ale do 12 dp od buňky se prvek magneticky přichytí.'}</p>`;
+  const b=domRect($('#bMode'));showPop(h,b,300);
+}
+function openPresets(){
+  S.popKind='presets';S.sel=null;render();
+  const h=`<div class="hd"><div><b>Předlohy</b><small>konfigurace stejné plochy, ne jiné launchery</small></div>${closeBtn}</div>`+
+    PRESETS.map(([id,n,d])=>`<div class="row"><span style="width:auto;flex:1;color:var(--fg)"><b style="font-weight:550">${n}</b> <small style="color:var(--fg2)">· ${d}</small></span><div class="grow" style="flex:none"><button class="lnk ${S.preset===id?'acc':''}" data-act="apply" data-v="${id}">${S.preset===id?'Aktivní':'Použít'}</button></div></div>`).join('')+
+    S.custom.map((c,i)=>`<div class="row"><span style="width:auto;flex:1;color:var(--fg)"><b style="font-weight:550">${esc(c.name)}</b> <small style="color:var(--fg2)">· vlastní</small></span><div class="grow" style="flex:none"><button class="lnk ${S.presetLabel===c.name?'acc':''}" data-act="applyc" data-v="${i}">${S.presetLabel===c.name?'Aktivní':'Použít'}</button></div></div>`).join('')+
+    `<div class="row" style="flex-wrap:wrap;padding:8px 0;gap:6px"><button class="lnk" data-act="saveas">Uložit jako vlastní</button><button class="lnk" data-act="revert" ${dirty()?'':'disabled'}>Vrátit uložené</button><button class="lnk warn" data-act="reset">Obnovit výchozí…</button></div>`;
+  showPop(h,domRect($('#bPreset')),312);
+}
+function switchPreset(id,ci){
+  const go=()=>{pushHist();if(id==='custom'){S.layout=cl(S.custom[ci].layout);S.preset='custom';S.presetLabel=S.custom[ci].name;}else{S.layout=tpl(id);S.preset=id;S.presetLabel=PRESETS.find(p=>p[0]===id)[1];}
+    S.saved=JSON.stringify(S.layout);closePop();render();toast('Předloha: '+S.presetLabel);log('Předloha přepnuta, předchozí stav je v historii (Zpět o krok)');};
+  if(dirty()){closePop();showConf('Neuložené změny','Před přepnutím si úpravy ulož, jinak zůstanou jen v historii Zpět.',[['Zpět',()=>{}],['Uložit jako vlastní',()=>{const n='Moje '+(S.custom.length+1);S.custom.push({name:n,layout:cl(S.layout)});go();}],['Přepnout',go,'acc']]);}
+  else go();
+}
+function openPulse(){
+  S.popKind='pulse';S.sel=null;S.pulseSel=true;render();
+  const h=`<div class="hd"><div><b>PULSE</b><small>patří ke kameře, nejde přesunout mezi ikony</small></div>${closeBtn}</div>`+
+    `<div class="row"><span>Poloha</span><div class="grow"><button class="lnk">Auto · 205,5 / 26 / 8 dp ›</button></div></div>`+
+    `<div class="row"><span>Klid</span><div class="grow"><span class="hint" style="margin:0">nic nevykresluje</span></div></div>`+
+    `<div class="row"><span>Kapsle</span><div class="grow"><button class="lnk">Veil · 30 dp ›</button></div></div>`+
+    `<div class="row"><span>Gesta</span><div class="grow"><button class="lnk">Tap · 2× tap · podržení ›</button></div></div>`+
+    `<div class="row"><span>Události</span><div class="grow"><button class="lnk">Hudba, časovač, FLOW ›</button></div></div>`+
+    `<p class="hint">Stejný materiál a hrana jako zde: kapsle i Quick View vyrůstají z kamery (fáze B4).</p>`;
+  showPop(h,{l:160,r:200,t:4,b:40},300);
+}
+
+/* ───── studio ───── */
+function openStudio(page){
+  closePop();studio.hidden=false;studio.style.setProperty('--ox','94%');studio.style.setProperty('--oy','0%');
+  const sv=(g)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${g}"/></svg>`;
+  const rows=[['look','Vzhled a materiál',`${({clear:'Clear',veil:'Veil',frosted:'Frosted',solid:'Solid'})[S.mat]} · ${({frost:'Mráz',sage:'Šalvěj',amber:'Jantar',lilac:'Lila'})[S.acc]}`,'M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.3 1-1.9 2.2-1.9H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3z'],
+    ['icons','Ikony a text',({system:'Systémové',mono:'Monochrom',veil:'Intelia Veil'})[S.iconStyle]+' · popisky dle prvku','M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z'],
+    ['home','Plocha a předlohy',S.presetLabel+' · '+modeLabel().replace(/<[^>]+>/g,''),'M4 11l8-7 8 7v9H4z'],
+    ['arc','Gesta a ARC','podržení LENS '+L().delay+' ms · 1 sada','M4 17a8 8 0 0 1 16 0'],
+    ['pulse','PULSE','v klidu neviditelný · kalibrace auto','M12 4a3 3 0 1 0 0 6a3 3 0 1 0 0-6M6 20h12'],
+    ['flow','FLOW',FLOWS.length+' příkazy · spouští se jen potvrzením',G.flow],
+    ['sys','Systém a pokročilé','výchozí plocha · záloha · o aplikaci','M12 8v4l2 2M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18']];
+  let h;
+  if(!page){
+    h=`<div style="display:flex;align-items:start"><div><h3>Studio</h3><div class="sub">Pokročilé nastavení. Plochu upravuješ přímo na ní.</div></div>${closeBtn.replace('data-act="close"','data-st="close"')}</div>`+rows.map(r=>`<button class="srow" data-st="${r[0]}"><span class="g">${sv(r[3])}</span><span><b>${r[1]}</b><small>${esc(r[2])}</small></span><span class="ch">›</span></button>`).join('');
+  }else if(page==='look'){
+    h=`<div style="display:flex;align-items:center;gap:8px"><button class="lnk" data-st="root">‹</button><h3 style="font-size:19px">Vzhled a materiál</h3></div>`+
+      `<div class="row"><span>Materiál</span><div class="grow"><div class="seg">${[['clear','Clear'],['veil','Veil'],['frosted','Frosted'],['solid','Solid']].map(([v,t])=>`<button data-sm="${v}" aria-pressed="${S.mat===v}">${t}</button>`).join('')}</div></div></div>`+
+      `<p class="hint">${({clear:'Bez panelu. Výsledky a text přímo na tapetě se stínem 1 dp. Nástroje editoru zůstávají ve Veil kvůli čitelnosti.',veil:'Průsvitný tónovaný povrch, žádné rozostření. Funguje na každém zařízení a nic nestojí navíc.',frosted:S.p3?'Toto zařízení neumí rozostřit tapetu za oknem (supports_background_blur = 0). Rozostří se jen vrstvy Intelie (hodiny, ikony) a panel použije hustší Veil.':'Skutečné rozostření pod panelem přes systémový blur za oknem. Při úsporném režimu nebo vypnutém blur se přepne na Veil.',solid:'Neprůhledný kontrastní povrch pro přístupnost a slabá zařízení.'})[S.mat]}</p>`+
+      `<div class="row"><span>Akcent</span><div class="grow"><div class="seg">${[['frost','Mráz'],['sage','Šalvěj'],['amber','Jantar'],['lilac','Lila']].map(([v,t])=>`<button data-sa="${v}" aria-pressed="${S.acc===v}">${t}</button>`).join('')}</div></div></div>`+
+      `<div class="row"><span>Pohyb</span><div class="grow"><div class="seg"><button data-srm="0" aria-pressed="${!S.rm}">Plný</button><button data-srm="1" aria-pressed="${S.rm}">Omezený</button></div></div></div>`+
+      `<p class="hint">Hrana panelu svítí jen v části, odkud panel vzešel (LENS, ikona, kamera). Barva = akcent na 78 %, zbytek obrysu 8 % bílé.</p>`;
+  }else if(page==='icons'){
+    h=`<div style="display:flex;align-items:center;gap:8px"><button class="lnk" data-st="root">‹</button><h3 style="font-size:19px">Ikony a text</h3></div>`+
+      `<div class="row"><span>Styl</span><div class="grow"><div class="seg">${[['system','Systém'],['mono','Mono'],['veil','Veil']].map(([v,t])=>`<button data-si="${v}" aria-pressed="${S.iconStyle===v}">${t}</button>`).join('')}</div></div></div>`+
+      `<div class="row"><span>Icon pack</span><div class="grow"><span class="hint" style="margin:0">Žádný kompatibilní balíček není nainstalovaný</span></div></div>`+
+      `<p class="hint">Mono používá monochromatickou vrstvu adaptivní ikony (Android 13+), jinak siluetu. Nothing styl jen přes nainstalovaný icon pack, vzhled z jiného launcheru se nepřebírá.</p>`;
+  }else{
+    const r=rows.find(x=>x[0]===page);h=`<div style="display:flex;align-items:center;gap:8px"><button class="lnk" data-st="root">‹</button><h3 style="font-size:19px">${r[1]}</h3></div><p class="hint">${r[2]}. Obsah této sekce se v prototypu nekreslí; struktura je ve specifikaci (DESIGN_SYSTEM.md §5).</p>`;
+  }
+  const fresh=studio.classList.contains('in')||studio.dataset.open!=='1';studio.innerHTML=h;studio.dataset.open='1';
+  if(fresh){studio.classList.add('in');requestAnimationFrame(()=>requestAnimationFrame(()=>studio.classList.remove('in')));}
+}
+function closeStudio(){studio.hidden=true;studio.dataset.open='0';}
+studio.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+  if(d.st==='close'){closeStudio();return;} if(d.st==='root'){openStudio();return;} if(d.st){openStudio(d.st);return;}
+  if(d.sm){setCtl('mat',d.sm);openStudio('look');} if(d.sa){setCtl('acc',d.sa);openStudio('look');} if(d.srm!=null){setCtl('rm',d.srm==='1'?'on':'off');openStudio('look');}
+  if(d.si){setCtl('iconStyle',d.si);openStudio('icons');}
+});
+
+/* ───── ARC ───── */
+function arcGeom(l){
+  // base angles 150…30°, rotated so every slot stays ≥ 26 dp from the screen edge
+  const R=118;let best=0;
+  for(let s=0;s<=60;s+=5){for(const sg of [1,-1]){const sh=s*sg;const ok=[150,120,90,60,30].every(a=>{const x=l.x+R*Math.cos((a+sh)*Math.PI/180);return x>=26&&x<=334;});if(ok){best=sh;s=999;break;}}}
+  return {R,angles:[150,120,90,60,30].map(a=>a+best),shift:best};
+}
+function arcSVG(l,sel,ghost){
+  const g=arcGeom(l),R=g.R,a0=(172+g.shift)*Math.PI/180,a1=(8+g.shift)*Math.PI/180;
+  const P=a=>[l.x+R*Math.cos(a),l.y-R*Math.sin(a)];const [x0,y0]=P(a0),[x1,y1]=P(a1);
+  let s=`<svg viewBox="0 0 360 797"><defs><linearGradient id="af${ghost?'g':''}" x1="${x0}" y1="0" x2="${x1}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="var(--fg)" stop-opacity="0"/><stop offset=".18" stop-color="var(--fg)" stop-opacity=".26"/><stop offset=".82" stop-color="var(--fg)" stop-opacity=".26"/><stop offset="1" stop-color="var(--fg)" stop-opacity="0"/></linearGradient></defs>`;
+  s+=`<path d="M${x0} ${y0} A${R} ${R} 0 0 1 ${x1} ${y1}" fill="none" stroke="url(#af${ghost?'g':''})" stroke-width="1" ${ghost?'stroke-dasharray="3 4"':''}/>`;
+  if(sel!=null&&!ghost){const a=g.angles[sel]*Math.PI/180,da=.32;const [sx,sy]=P(a+da),[ex,ey]=P(a-da);s+=`<path d="M${sx} ${sy} A${R} ${R} 0 0 1 ${ex} ${ey}" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linecap="round" opacity=".9"/>`;
+    const [dx,dy]=[l.x+(R-30)*Math.cos(a),l.y-(R-30)*Math.sin(a)];s+=`<circle cx="${dx}" cy="${dy}" r="2.5" fill="var(--acc)"/>`;}
+  if(ghost)g.angles.forEach(a=>{const [x,y]=P(a*Math.PI/180);s+=`<circle cx="${x}" cy="${y}" r="5" fill="none" stroke="var(--fg2)"/>`;});
+  return s+'</svg>';
+}
+function drawGhostArc(l){ghostArc.innerHTML=arcSVG(l,null,true);}
+let A=null;
+function openArc(){
+  if(!P)return;P.arc=true;A={sel:null};S.mode='arc';scr.classList.add('arcing');const lens=$('#lensEl');lens&&(lens.classList.remove('press'),lens.classList.add('held'));
+  drawArc();arcEl.classList.add('on');log('ARC otevřen','LONG_PRESS');
+}
+function drawArc(){
+  const l=L(),g=arcGeom(l);let h=arcSVG(l,A.sel);
+  ARCSET.forEach((s,i)=>{const a=g.angles[i]*Math.PI/180,o=A.sel===i?3:0;const x=l.x+(g.R+o)*Math.cos(a),y=l.y-(g.R+o)*Math.sin(a);
+    h+=`<div class="slot ${A.sel===i?'sel':''}" style="left:${x}px;top:${y}px">${s.t==='app'?iconHTML(s.a,null,40):`<span class="ico veil" style="--sz:40px;font-size:11px;font-weight:600">${s.f}</span>`}</div>`;});
+  if(A.sel!=null){const s=ARCSET[A.sel];h+=`<div class="arcName" style="left:${clamp(l.x,70,290)}px;top:${l.y-g.R-64}px">${s.t==='app'?APPS[s.a].n:'FLOW '+s.f}</div>`;}
+  arcEl.innerHTML=h;
+}
+function arcMove(p){
+  const l=L(),dx=p.x-l.x,dy=l.y-p.y,d=Math.hypot(dx,dy),ang=Math.atan2(dy,dx)*180/Math.PI,g=arcGeom(l);let sel=null;
+  if(d>=70&&d<=200){g.angles.forEach((a,i)=>{if(Math.abs(ang-a)<=15)sel=i;});}
+  else if(d>=40&&A.sel!=null&&d<70)sel=A.sel;
+  if(sel!==A.sel){A.sel=sel;drawArc();if(sel!=null)log('Vybráno: '+(ARCSET[sel].t==='app'?APPS[ARCSET[sel].a].n:'FLOW '+ARCSET[sel].f),'CLOCK_TICK');}
+}
+function arcRelease(){const s=A&&A.sel!=null?ARCSET[A.sel]:null;closeArc();if(s){toast('Spuštěno: '+(s.t==='app'?APPS[s.a].n:'FLOW '+s.f));log('Puštěno na místě → Action engine','CONFIRM');}else log('Puštěno mimo místa → zrušeno, nic se nespustí');}
+function closeArc(){arcEl.classList.remove('on');scr.classList.remove('arcing');S.mode='home';A=null;const lens=$('#lensEl');lens&&lens.classList.remove('held');setTimeout(()=>{if(!A)arcEl.innerHTML='';},T(80)+20);}
+
+/* ───── LENS → Search ───── */
+const KB_H=276,FIELD_H=48;
+function lensTap(){const l=L();if(l.tap==='search')openSearch();else if(l.tap==='drawer'){log('Klepnutí na LENS → šuplík (nastaveno v LENS editoru)');toast('Šuplík');}else{log('Klepnutí na LENS → náhled FLOW pocty');toast('FLOW pocty · náhled');}}
+async function openSearch(){
+  if(S.mode!=='home')return;S.mode='search';const l=L(),d=l.style==='bar'?l.size*1.1:l.size,hgt=l.style==='bar'?7:l.size;
+  const lens=$('#lensEl');
+  morph.style.transition='none';morph.className='morph ring';
+  Object.assign(morph.style,{left:(l.x-d/2)+'px',top:(l.y-hgt/2)+'px',width:d+'px',height:hgt+'px'});
+  void morph.offsetWidth;morph.style.transition='';
+  lens&&lens.classList.add('press');log('LENS stisk 0 ms','VIRTUAL_KEY');
+  await wait(70);
+  lens&&lens.classList.add('gone');scr.classList.add('searching');
+  const fw=W-32;morph.className='morph mat field';morph.style.setProperty('--ox',((l.x-16)/fw*100)+'%');
+  Object.assign(morph.style,{left:'16px',width:fw+'px',height:FIELD_H+'px',top:(l.y-FIELD_H/2)+'px'});
+  log('Obrys se rozvine do pole · 170 ms');
+  await wait(110);
+  kb.classList.add('up');morph.style.top=(H-KB_H-8-FIELD_H)+'px';log('IME + pole jedou spolu (WindowInsets.ime) · 220 ms');
+  q.value='';q.focus({preventScroll:true});
+  await wait(200);
+  renderResults(true);
+}
+async function closeSearch(instant){
+  if(S.mode!=='search')return;const l=L(),d=l.style==='bar'?l.size*1.1:l.size,hgt=l.style==='bar'?7:l.size;
+  res.classList.remove('on');q.blur();
+  if(!instant)await wait(90);
+  kb.classList.remove('up');morph.style.top=(l.y-FIELD_H/2)+'px';
+  if(!instant)await wait(200);
+  morph.className='morph ring';Object.assign(morph.style,{left:(l.x-d/2)+'px',top:(l.y-hgt/2)+'px',width:d+'px',height:hgt+'px'});
+  scr.classList.remove('searching');
+  if(!instant)await wait(160);
+  const lens=$('#lensEl');lens&&lens.classList.remove('gone','press');morph.className='morph';res.innerHTML='';S.mode='home';
+  if(!instant)log('Zpět: výsledky → klávesnice → pole se stáhne do LENS');
+}
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+function renderResults(stagger){
+  const v=norm(q.value.trim());let h='';let first=null;
+  const fl=v&&FLOWS.find(f=>f.name===v);
+  let apps=Object.keys(APPS);
+  if(v)apps=apps.filter(k=>norm(APPS[k].n).includes(v)).sort((a,b)=>norm(APPS[a].n).startsWith(v)?-1:norm(APPS[b].n).startsWith(v)?1:0);
+  else apps=['maps','music','msg','web'];
+  apps=apps.slice(0,5);
+  let i=0;
+  if(fl){h+=`<div class="flowc r first" style="transition-delay:0ms"><div style="display:flex;align-items:center;gap:8px"><span class="nm">${fl.name}</span><small style="margin-left:auto;color:var(--fg2);font-size:11.5px">FLOW · ${fl.apps.length} aplikace</small></div><div style="display:flex;align-items:center;gap:8px"><div class="chain">${fl.apps.map((a,j)=>`${j?'<span class="ln"></span>':''}<span class="st"><span class="no">${j+1}</span>${iconHTML(a,null,28)}</span>`).join('')}</div><button class="lnk acc" style="margin-left:auto" data-run="1">Spustit</button></div></div>`;first='FLOW '+fl.name;i++;}
+  apps.forEach(k=>{h+=`<div class="r ${!first&&i===0?'first':''}" data-app="${k}" style="transition-delay:${stagger?i*18:0}ms">${iconHTML(k,null,36)}<span>${APPS[k].n}</span>${!first&&i===0?'<small>Enter</small>':''}</div>`;if(!first)first=APPS[k].n;i++;});
+  if(!v)h+=`<div class="cap">Nedávné</div>`;
+  if(!apps.length&&!fl)h=`<div class="r" style="opacity:1;transform:none;color:var(--fg2)">Nic nenalezeno pro „${esc(q.value)}“</div>`;
+  res.innerHTML=h;res.style.bottom=(KB_H+8+FIELD_H+8)+'px';res.dataset.first=first||'';
+  res.classList.remove('on');void res.offsetWidth;res.classList.add('on');
+}
+q.addEventListener('input',()=>renderResults(false));
+q.addEventListener('keydown',e=>{if(e.key==='Enter'){runFirst();e.preventDefault();}if(e.key==='Escape')closeSearch();});
+function runFirst(){const f=res.dataset.first;if(f){toast('Spuštěno: '+f);log('Enter → '+f,'CONFIRM');closeSearch();}}
+res.addEventListener('click',e=>{const r=e.target.closest('[data-app],[data-run]');if(!r)return;const n=r.dataset.app?APPS[r.dataset.app].n:res.dataset.first;toast('Spuštěno: '+n);log('Klepnutí → '+n,'CONFIRM');closeSearch();});
+(function buildKb(){const rows=['qwertzuiop','asdfghjkl','yxcvbnm'];let h='';rows.forEach((r,i)=>{h+='<div class="kr">'+(i===2?'<button class="m" data-key="shift" aria-label="Shift">⇧</button>':'')+[...r].map(c=>`<button data-key="${c}">${c}</button>`).join('')+(i===2?'<button class="m" data-key="bs" aria-label="Smazat">⌫</button>':'')+'</div>';});
+  h+='<div class="kr"><button class="m" data-key="num">?123</button><button class="w" data-key=" ">mezera</button><button class="m" data-key="enter" aria-label="Enter">↵</button></div>';kb.innerHTML=h;
+  kb.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-key]');if(!b)return;e.preventDefault();const k=b.dataset.key;if(k==='bs')q.value=q.value.slice(0,-1);else if(k==='enter'){runFirst();return;}else if(k.length===1)q.value+=k;renderResults(false);});})();
+
+/* ───── edit controls ───── */
+$('#bPreset').onclick=()=>openPresets();
+$('#bMode').onclick=()=>{openMode();flashGrid();};
+$('#bUndo').onclick=undo;$('#bRedo').onclick=redo;
+$('#bGear').onclick=()=>studio.hidden?openStudio():closeStudio();
+$('#bDone').onclick=save;
+$('#bBack').onclick=()=>{
+  if(S.mode==='search'){closeSearch();return;}
+  if(!conf.hidden){conf.hidden=true;return;}
+  if(!studio.hidden){closeStudio();return;}
+  if(S.popKind){closePop();S.sel=null;render();return;}
+  if(S.mode==='edit'){cancelEdit();return;}
+  log('Zpět na Home: nic se neděje');
+};
+$('#bZones').onclick=e=>{S.zones=!S.zones;scr.classList.toggle('zones',S.zones);e.currentTarget.setAttribute('aria-pressed',S.zones);};
+document.addEventListener('keydown',e=>{if(S.mode==='search'&&document.activeElement!==q&&e.key.length===1){q.value+=e.key;renderResults(false);}});
+
+/* ───── side controls ───── */
+function setCtl(k,v){
+  if(k==='mat'){S.mat=v;scr.dataset.mat=v;}
+  if(k==='acc'){S.acc=v;scr.dataset.acc=v;}
+  if(k==='wall'){S.wall=v;scr.dataset.wall=v;}
+  if(k==='iconStyle'){S.iconStyle=v;render();if(S.popKind==='insp'&&S.sel)openInspector(S.sel);}
+  if(k==='rm'){S.rm=v==='on';scr.classList.toggle('rm',S.rm);}
+  if(k==='p3'){S.p3=v==='on';scr.classList.toggle('p3',S.p3);}
+  document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));
+  if(k==='mat'||k==='p3')showNote(curScene);
+}
+document.querySelectorAll('[data-ctl] button').forEach(b=>b.onclick=()=>{setCtl(b.closest('[data-ctl]').dataset.ctl,b.dataset.v);if(!studio.hidden&&studio.innerHTML.includes('data-sm'))openStudio('look');});
+
+/* ───── scenes + notes ───── */
+const NOTES={
+ home:['Home a předlohy','<p>Home je jen tapeta, hodiny, LENS a volitelné aplikace. Předlohy <b>Pure</b>, <b>Essentials</b> a <b>Balanced</b> jsou konfigurace jednoho dokumentu, ne další launchery. Vyber je v editoru vlevo nahoře.</p><ul><li>Podrž prázdnou plochu (450 ms) → editor.</li><li>Podrž ikonu → editor a rovnou přesun.</li><li>LENS: klepnutí = hledání, podržení = ARC (v editoru vypnuté).</li></ul>'],
+ edit:['Upravit plochu','<p>Plocha se nemění v jinou obrazovku. Tapeta se o 7 % oddálí (<code>WallpaperManager.setWallpaperZoomOut</code>) a ztlumí, prvky zůstanou na místě a dostanou čtyři vlasové rohové značky. Shora sjedou jen čtyři malé ovladače: předloha, Zpět/Znovu, režim rozložení, Studio a ✓.</p><p>Klepnutí na prvek = inspektor u prvku. Klepnutí na prázdné místo = přidat sem. Systémové Zpět s neuloženými změnami se zeptá.</p>'],
+ move:['Přesun ikony','<p>Ikona jede pod prstem, cíl ukazuje akcentový kroužek. V mřížce se body ukážou jen při tažení. Když cíl zabírá jiná ikona, přerušovaný kroužek ukáže, kam uhne. LENS zóna (84 × 100 dp, čárkovaně) a hodiny jsou nedotknutelné.</p><p>Řada kolem LENS je kotvená k LENS (±62 / ±108 dp), takže se při posunu LENS posune s ním.</p>'],
+ clock:['Detail hodin','<p>Inspektor vyroste z hodin a hrana svítí na straně, kde jsou. Písmo, velikost, tloušťka a šířka (osy Roboto Flex), barva, krytí, formát, datum (pod hodinami / samostatně / skryté), zarovnání a volitelné pozadí Veil. Kolečko ⤡ mění velikost přímo na ploše.</p>'],
+ icon:['Detail ikony','<p>Jedna nabídka u prvku: změnit aplikaci, ikonu (výchozí / systém / mono / Veil), velikost, popisek, akci při klepnutí, jemný posun po 4 dp a odebrat z plochy (aplikace zůstává nainstalovaná). Mazání neexistuje.</p>'],
+ add:['Přidat prvek','<p>Klepnutí na prázdné místo v editoru ukáže „+“ přesně tam, kam prvek přijde (přichycené k buňce v mřížce). Aplikace, FLOW jako prvek plochy, skryté hodiny zpět. Widget je v datovém modelu připravený, UI zatím ne.</p>'],
+ presets:['Předlohy','<p>Použít, Uložit jako vlastní, Vrátit uložené, Obnovit výchozí (s potvrzením). Přepnutí s neuloženými změnami se zeptá a předchozí stav zůstane v historii Zpět, takže se práce neztratí.</p>'],
+ grid:['Mřížka / volně / hybrid','<p><b>Mřížka</b>: 3–6 sloupců × 4–8 řádků, vždy přichytí. <b>Volně</b>: pozice v dp od bezpečné oblasti, vodítka se středem a s ostatními prvky (lze vypnout). <b>Hybrid</b>: volně, ale do 12 dp magnet k buňce.</p><p>Pozice se ukládají jako zlomek bezpečné oblasti + kotva, takže dávají smysl i na jiném displeji.</p>'],
+ lens:['LENS editor','<p>Velikost, styl (kroužek / bod / linka), klepnutí, podržení a prodleva ARC, haptika, poloha. Čárkovaný oblouk ukazuje, kam ARC dosáhne; u kraje se oblouk natočí, aby všech 5 míst zůstalo na displeji.</p><p>Oprava známé chyby: dotyková zóna LENS 84 × 100 dp místo 100 × 100, vnitřní ikony už nepřekrývá (zapni „Dotykové zóny“).</p>'],
+ search:['LENS → Search','<p>0 ms stisk LENS (90 %, haptika) → 70 ms obrys se rozvine do pole na místě LENS (170 ms) → pole a klávesnice jedou nahoru spolu podle IME insets (220 ms) → výsledky vyrůstají nad polem po 18 ms. Zpět běží obráceně a pole se stáhne zpět do kroužku.</p><p>Akce se nikdy nezpožďuje: psaní funguje od prvního snímku. Zkus napsat „pocty“. Omezený pohyb = vše 0 ms.</p>'],
+ arc:['ARC ve Veil','<p>Podrž LENS (260 ms) a táhni nahoru. Oblouk je jedna vlasová linka; místo pod prstem rozsvítí krátký úsek oblouku akcentem, stejná „světelná hrana“ jako na panelech. Puštění mimo místa nic nespustí.</p>'],
+ pulse:['PULSE návaznost','<p>V editoru je kolem kamery jen tenký kroužek. Klepnutí otevře nabídku z kamery (kalibrace, kapsle, gesta, události). PULSE 2.0 použije stejný materiál, hranu a pohyb: v klidu nic, kapsle i Quick View rostou z kamery a vracejí se do ní.</p>'],
+ studio:['Studio','<p>První obrazovka: jen kategorie s aktuální hodnotou. Pokročilé volby až uvnitř. Vstup přes ozubené kolečko v editoru nebo z nastavení. Zkus Vzhled → Materiál.</p>']
+};
+let curScene='home';
+function showNote(id){curScene=id;const n=NOTES[id];let extra='';
+  if(S.mat==='frosted')extra=S.p3?'<p><b>Frosted na Phone (3):</b> <code>ro.surface_flinger.supports_background_blur = 0</code> a tapeta je živá (Nothing Atmosphere). Systém neumí rozostřit tapetu za oknem a launcher ji nemůže přečíst jako obrázek. Rozostří se jen vlastní vrstvy Intelie (při hledání hodiny a ikony), panel je hustší Veil.</p>':'<p><b>Frosted s blur za oknem</b> (zařízení, která ho mají): skutečné rozostření pod panelem. Fallback na Veil při úsporném režimu, přehřátí nebo vypnutém blur.</p>';
+  noteEl.innerHTML=`<h3>${n[0]}</h3>${n[1]}${extra}`;
+  document.querySelectorAll('#scenes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.scene===id));}
+async function scene(id){
+  showNote(id);closeStudio();conf.hidden=true;closePop();if(S.mode==='search')await closeSearch(true);if(A)closeArc();
+  if(id==='home'){exitEdit();return;}
+  if(id==='search'){exitEdit();await wait(60);openSearch();setTimeout(()=>{if(S.mode==='search'&&!q.value){typeDemo('pocty');}},T(900)+200);return;}
+  if(id==='arc'){exitEdit();demoArc();return;}
+  enterEdit();
+  if(id==='move')demoMove();
+  if(id==='clock'){if(!item('clock').on)item('clock').on=true;render();openInspector('clock');}
+  if(id==='icon'){const a=S.layout.items.find(i=>i.k==='app');if(a)openInspector(a.id);}
+  if(id==='add')openAdd({x:139,y:531});
+  if(id==='presets')openPresets();
+  if(id==='grid'){openMode();flashGrid();}
+  if(id==='lens')openInspector('lens');
+  if(id==='pulse')openPulse();
+  if(id==='studio')openStudio();
+}
+document.querySelectorAll('#scenes button').forEach(b=>b.onclick=()=>scene(b.dataset.scene));
+function typeDemo(w){let i=0;const t=setInterval(()=>{if(S.mode!=='search'){clearInterval(t);return;}q.value=w.slice(0,++i);renderResults(false);if(i>=w.length)clearInterval(t);},S.rm?1:120);}
+async function demoMove(){
+  let it=S.layout.items.find(i=>i.k==='app'&&i.band===2)||S.layout.items.find(i=>i.k==='app');if(!it)return;
+  S.sel=it.id;render();const a=pos(it),b={x:303,y:426};
+  P={id:it.id,sx:a.x,sy:a.y,moved:true};startDrag(a);
+  const n=S.rm?1:36;for(let i=1;i<=n;i++){const t=i/n,e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;dragMove({x:a.x+(b.x-a.x)*e,y:a.y+(b.y-a.y)*e-Math.sin(t*Math.PI)*30});await new Promise(r=>setTimeout(r,S.rm?0:22));}
+  await wait(350);P=null;dragEnd();
+}
+async function demoArc(){
+  const l=L();P={id:'lens',sx:l.x,sy:l.y,moved:false};openArc();
+  const pts=[[l.x,l.y-30],[l.x-60,l.y-90],[l.x-20,l.y-110],[l.x+10,l.y-120]];for(const p of pts){await wait(260);if(!A)return;arcMove({x:p[0],y:p[1]});}
+  await wait(700);if(A){P=null;arcRelease();}
+}
+
+/* ───── boot ───── */
+S.layout=tpl('essentials');S.saved=JSON.stringify(S.layout);
+['mat','acc','wall','iconStyle'].forEach(k=>setCtl(k,S[k]));setCtl('rm','off');setCtl('p3','on');
+render();showNote('home');
+function tick(){const d=new Date();$('#stime').textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');if(!D&&!P&&S.mode!=='search'){const c=home.querySelector('[data-id="clock"] .t');const it=item('clock');if(c&&it)c.textContent=timeStr(it.fmt);}}
+tick();setInterval(tick,15000);
+function fit(){const st=document.querySelector('.stage');const s=Math.max(.55,Math.min(1,(window.innerHeight-40)/H,(st.clientWidth-16)/W));$('#phone').style.setProperty('--s',s);}
+fit();addEventListener('resize',fit);
+})();
+</script>

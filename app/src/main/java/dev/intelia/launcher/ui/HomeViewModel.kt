@@ -49,18 +49,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         List(LauncherSettings.ARC_SLOTS) { i -> s.arc.getOrNull(i)?.let(byKey::get) }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherSettings.ARC_SLOTS) { null })
 
+    /** Ring 2 fills from the centre outwards, so the first FLOW sits straight above LENS (D6). */
     val arcFlows: StateFlow<List<FlowAlias?>> = settings.map { s ->
         val byId = s.aliases.associateBy { it.id }
-        List(LauncherSettings.ARC_FLOW_SLOTS) { i -> s.arcFlows.getOrNull(i)?.let(byId::get) }
+        fillFromCentre(s.arcFlows.map(byId::get), LauncherSettings.ARC_FLOW_SLOTS)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherSettings.ARC_FLOW_SLOTS) { null })
 
     private val _shortcuts = MutableStateFlow<List<ShortcutEntry>>(emptyList())
     /** Shortcuts the system exposes to us; empty unless Intelia is the default home app. */
     val shortcuts: StateFlow<List<ShortcutEntry>> = _shortcuts.asStateFlow()
 
+    /** Ring 3 fills from the centre outwards like ring 2, so the first shortcut sits straight above LENS. */
     val arcShortcuts: StateFlow<List<ShortcutEntry?>> = combine(shortcuts, settings) { list, s ->
         val byKey = list.associateBy { it.key }
-        List(LauncherSettings.ARC_SHORTCUT_SLOTS) { i -> s.arcShortcuts.getOrNull(i)?.let(byKey::get) }
+        fillFromCentre(s.arcShortcuts.map(byKey::get), LauncherSettings.ARC_SHORTCUT_SLOTS)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherSettings.ARC_SHORTCUT_SLOTS) { null })
 
     val favoriteApps: StateFlow<List<AppEntry>> = combine(visibleApps, settings) { apps, s ->

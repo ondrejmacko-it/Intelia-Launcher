@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -76,13 +77,20 @@ class AppRepository(private val context: Context) {
 
     private fun changed(packageName: String) {
         _changed.tryEmit(packageName)
-        refresh()
+        refresh(PACKAGE_SETTLE_MS)
     }
 
-    /** Also called when Home starts, which covers profile lock/unlock without extra receivers. */
-    fun refresh() {
+    /**
+     * Also called when Home starts, which covers profile lock/unlock without extra receivers. After a reboot or
+     * an app update the system reports dozens of packages within a second; [settleMs] folds them into one load
+     * instead of re-reading every label once per package while the phone is still starting.
+     */
+    fun refresh(settleMs: Long = 0) {
         loading?.cancel()
-        loading = scope.launch { _apps.value = load() }
+        loading = scope.launch {
+            if (settleMs > 0) delay(settleMs)
+            _apps.value = load()
+        }
     }
 
     private fun load(): List<AppEntry> {
@@ -202,5 +210,9 @@ class AppRepository(private val context: Context) {
         false
     } catch (_: ActivityNotFoundException) {
         false
+    }
+
+    private companion object {
+        const val PACKAGE_SETTLE_MS = 400L
     }
 }

@@ -30,19 +30,25 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import dev.intelia.launcher.data.Accent
+import dev.intelia.launcher.data.AccentColors
 import dev.intelia.launcher.data.Haptics
+import dev.intelia.launcher.data.IconShape
 import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
+import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.ThemeMode
+import dev.intelia.launcher.data.Wallpapers
 
 /**
  * Ink: paper, ink and one accent. No cards and no elevation; structure comes from hairlines,
@@ -107,6 +113,7 @@ val LocalInk = staticCompositionLocalOf { inkPalette(false, Color(0xFFA84B29)) }
 val LocalHomeInk = staticCompositionLocalOf { Color.White }
 val LocalMotion = staticCompositionLocalOf { Motion.Calm }
 val LocalIconStyle = staticCompositionLocalOf { IconStyle.System }
+val LocalIconShape = staticCompositionLocalOf { IconShape.Circle }
 val LocalInkHaptics = staticCompositionLocalOf { Haptics.Soft }
 
 /** Duration scaled by the Motion setting; 0 disables the animation. */
@@ -138,10 +145,13 @@ fun rememberInkHaptics(): InkHaptics {
     return remember(haptic, mode) { InkHaptics(haptic, mode) }
 }
 
-/** Soft halo that keeps Home type legible on any wallpaper without a full-screen scrim. */
+/**
+ * Text on the wallpaper gets at most a 0–1 dp shadow (4.1); legibility comes from [LocalHomeInk]
+ * switching to dark ink on light wallpapers, not from a halo or scrim. Radius in px (≈1 dp at 3×).
+ */
 fun homeShadow(ink: Color) = Shadow(
-    color = if (ink.luminance() > .5f) Color.Black.copy(alpha = .38f) else Color.White.copy(alpha = .3f),
-    blurRadius = 18f,
+    color = if (ink.luminance() > .5f) Color.Black.copy(alpha = .35f) else Color.White.copy(alpha = .25f),
+    blurRadius = 3f,
 )
 
 @Composable
@@ -152,17 +162,46 @@ fun isDark(settings: LauncherSettings): Boolean = when (settings.theme) {
 }
 
 @Composable
-private fun accentColor(accent: Accent, dark: Boolean): Color = when (accent) {
-    Accent.Terracotta -> if (dark) Color(0xFFE39A78) else Color(0xFFA84B29)
-    Accent.Sage -> if (dark) Color(0xFFA9C9B6) else Color(0xFF3F6B57)
-    Accent.Slate -> if (dark) Color(0xFFAFC3E6) else Color(0xFF3C5A86)
-    Accent.Mono -> if (dark) InkDark else InkLight
-    Accent.Dynamic -> if (Build.VERSION.SDK_INT >= 31) {
+internal fun accentColor(accent: Accent, dark: Boolean): Color =
+    if (accent == Accent.Dynamic && Build.VERSION.SDK_INT >= 31) {
         val context = LocalContext.current
         if (dark) dynamicDarkColorScheme(context).primary else dynamicLightColorScheme(context).primary
-    } else {
-        if (dark) Color(0xFFE39A78) else Color(0xFFA84B29)
+    } else Color(AccentColors.argb(accent, dark))
+
+/** Resolved colours of the palette's places (§5.12); all equal to the main accent while it is unified. */
+@Immutable
+class PlaceColors(private val colors: Map<PaletteTarget, Color>, val main: Color) {
+    operator fun get(target: PaletteTarget): Color = colors[target] ?: main
+}
+
+val LocalPlaces = staticCompositionLocalOf { PlaceColors(emptyMap(), Color(0xFFA84B29)) }
+
+/**
+ * The palette resolved for text drawn straight on the wallpaper (clock and date without a plate): the accent's
+ * variant follows the wallpaper like [LocalHomeInk], not the theme, so a Light theme over a dark wallpaper does
+ * not paint a dark clock on it.
+ */
+val LocalWallPlaces = staticCompositionLocalOf { PlaceColors(emptyMap(), Color(0xFFA84B29)) }
+
+/**
+ * Re-provides the theme (Ink, Crystal and Material primary) with [target]'s colour, so everything inside —
+ * texts, switches, sliders — follows that place of the palette. A no-op while it equals the current accent.
+ */
+@Composable
+fun AccentScope(target: PaletteTarget, content: @Composable () -> Unit) {
+    val acc = LocalPlaces.current[target]
+    val ink = LocalInk.current
+    if (acc == ink.accent) return content()
+    val scoped = inkPalette(ink.dark, acc)
+    MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = acc, onPrimary = scoped.onAccent)) {
+        CompositionLocalProvider(LocalInk provides scoped, LocalCrystal provides crystalPalette(ink.dark, acc), content = content)
     }
+}
+
+/** [AccentScope] with the Veil choices of an overlay (e.g. the lighter blurred column while the system blurs the wallpaper). */
+@Composable
+fun AccentScope(target: PaletteTarget, veil: VeilPrefs, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalVeil provides veil) { AccentScope(target, content) }
 }
 
 /** True when the system wallpaper wants dark text; follows wallpaper changes while composed. */
@@ -210,7 +249,15 @@ fun SystemBarIcons(darkIcons: Boolean) {
 fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
     val dark = isDark(settings)
     val ink = inkPalette(dark, accentColor(settings.accent, dark))
-    val homeInk = if (rememberWallpaperWantsDarkText()) InkLight else Color(0xFFF7F3EC)
+    val places = PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), dark) }, ink.accent)
+    // Home type follows the wallpaper, not the theme: Crystal fg light on light wallpapers (4.1).
+    // Intelia's own wallpaper is known exactly; on the system one only its hint, and a strong dim makes it dark.
+    val systemLight = rememberWallpaperWantsDarkText()
+    val wallLight = Wallpapers.byId(settings.wallpaper)?.let { Wallpapers.wantsDarkText(it, settings.wallDim) }
+        ?: (systemLight && settings.wallDim < Wallpapers.SYSTEM_LIGHT_TEXT_DIM)
+    val homeInk = if (wallLight) CrystalColors.FgLight else CrystalColors.FgDark
+    val wallPlaces = if (wallLight == !dark) places
+        else PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), !wallLight) }, accentColor(settings.accent, !wallLight))
     val base = if (dark) darkColorScheme() else lightColorScheme()
     val scheme = base.copy(
         primary = ink.accent, onPrimary = ink.onAccent, background = ink.paper, surface = ink.paper,
@@ -222,13 +269,17 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme) {
         CompositionLocalProvider(
             LocalInk provides ink,
+            LocalPlaces provides places,
             LocalHomeInk provides homeInk,
+            LocalWallPlaces provides wallPlaces,
             LocalMotion provides settings.motion,
+            LocalDensity provides LocalDensity.current.let { Density(it.density, it.fontScale * settings.textScale) },
             LocalIconStyle provides settings.iconStyle,
+            LocalIconShape provides settings.iconShape,
+            LocalVeil provides VeilPrefs(settings.veilSolid, settings.veilShift, settings.veilEdge, settings.glass),
             LocalInkHaptics provides settings.haptics,
             LocalContentColor provides ink.ink,
             LocalTextStyle provides InkText.body.copy(color = ink.ink),
-            content = content,
-        )
+        ) { CrystalTheme(dark, ink.accent, content) }
     }
 }

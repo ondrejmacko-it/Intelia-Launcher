@@ -1,0 +1,835 @@
+<title>Intelia Veil 3.0</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&family=Inter:wght@300..700&family=Space+Grotesk:wght@300..700&family=DM+Serif+Display&family=JetBrains+Mono:wght@300..600&family=Bodoni+Moda:opsz,wght@6..96,400..800&family=Unbounded:wght@300..700&display=swap">
+<style>
+/* Layout: the phone at real dp scale (411 × 911 dp = Nothing Phone (3)) on the left, scene + option chips and notes on the right; inventory and principles below. Stacks under 960 px. */
+:root{
+  --page:#EDEFF2; --page-fg:#171A1F; --page-dim:#5A626D; --page-line:#D3D8DE; --page-raise:#F9FAFB; --page-acc:#3F6E9C;
+  --ok:#2F7A4E; --part:#94660F; --miss:#A3403A;
+  --f-ui:"Roboto Flex",Roboto,system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0D0F12;--page-fg:#E5E8EC;--page-dim:#98A1AC;--page-line:#262B32;--page-raise:#15181C;--page-acc:#A9C4E0;--ok:#7BC79A;--part:#E3B866;--miss:#E8908A;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0D0F12;--page-fg:#E5E8EC;--page-dim:#98A1AC;--page-line:#262B32;--page-raise:#15181C;--page-acc:#A9C4E0;--ok:#7BC79A;--part:#E3B866;--miss:#E8908A;color-scheme:dark}
+html,body{background:var(--page);color:var(--page-fg)}
+body{font-family:var(--f-ui);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px}
+header.top{max-width:1240px;margin:0 auto 18px;display:flex;flex-wrap:wrap;gap:6px 24px;align-items:baseline}
+header.top h1{font-size:23px;font-weight:540;font-variation-settings:"wdth" 118;margin:0;letter-spacing:.2px}
+header.top p{margin:0;color:var(--page-dim);font-size:14px;max-width:76ch;text-wrap:pretty}
+.wrap{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:auto minmax(0,1fr);gap:32px;align-items:start}
+@media (max-width:960px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;justify-content:center;position:sticky;top:12px}
+@media (max-width:960px){.stage{position:static}}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.group{display:flex;flex-direction:column;gap:6px}
+.group h2,.sec h2{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--page-dim);margin:0;font-weight:620}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:inherit;font-size:13px;border:1px solid var(--page-line);background:var(--page-raise);color:var(--page-fg);border-radius:9px;padding:6px 10px;cursor:pointer}
+.chips button[aria-pressed="true"]{border-color:var(--page-acc);color:var(--page-acc);box-shadow:inset 0 0 0 1px var(--page-acc)}
+.chips button:focus-visible,.pbtn:focus-visible{outline:2px solid var(--page-acc);outline-offset:2px}
+.note{background:var(--page-raise);border:1px solid var(--page-line);border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55}
+.note h3{margin:0 0 4px;font-size:15px;font-weight:620}
+.note p{margin:6px 0 0}.note ul{margin:6px 0 0;padding-left:18px}
+.note .how{color:var(--page-dim);font-size:13px}
+.below{max-width:1240px;margin:36px auto 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:20px}
+.sec{background:var(--page-raise);border:1px solid var(--page-line);border-radius:12px;padding:16px 18px;font-size:14px;line-height:1.55;min-width:0}
+.sec h3{margin:12px 0 4px;font-size:14px}
+.sec ul{margin:4px 0 0;padding-left:18px}
+.tag{font-size:11px;font-weight:650;letter-spacing:.8px;text-transform:uppercase}
+.t-ok{color:var(--ok)}.t-part{color:var(--part)}.t-miss{color:var(--miss)}
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+.chain span{border:1px solid var(--page-line);border-radius:999px;padding:3px 10px;font-size:13px}
+.chain i{color:var(--page-dim);font-style:normal}
+table.m{border-collapse:collapse;width:100%;font-size:13px}
+table.m td,table.m th{border-top:1px solid var(--page-line);padding:6px 6px 6px 0;text-align:left;vertical-align:top}
+table.m th{font-weight:620;color:var(--page-dim)}
+.tw{overflow-x:auto}
+
+/* ───────── Phone ───────── */
+.phone{--s:1;width:calc(411px*var(--s));height:calc(911px*var(--s));border-radius:calc(44px*var(--s));background:#000;box-shadow:0 0 0 calc(6px*var(--s)) #1b1c1f,0 22px 54px rgba(0,0,0,.3);flex:none;position:relative;overflow:hidden}
+.scr{position:absolute;left:0;top:0;width:411px;height:911px;transform:scale(var(--s));transform-origin:0 0;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;
+  --fg:#F2F4F7;--fg2:rgba(242,244,247,.68);--fg3:rgba(242,244,247,.42);--line:rgba(255,255,255,.09);--base:17 19 23;--hi:255 255 255;
+  --wf:#F4F6F8;--wf2:rgba(244,246,248,.72);--wsh:0 1px 2px rgba(0,0,0,.35);
+  --aL:.64;--aD:.82;--aF:.93;--eT:.16;--eB:.035;--eA:.24;--ease:cubic-bezier(.2,.9,.25,1.04);--d:1;
+  font-family:var(--f-ui);color:var(--fg)}
+.scr[data-ui="light"]{--fg:#14171B;--fg2:rgba(20,23,27,.66);--fg3:rgba(20,23,27,.42);--line:rgba(0,0,0,.08);--base:247 248 250}
+.scr *{box-sizing:border-box}
+.wall{position:absolute;inset:0;transition:background calc(400ms*var(--d))}
+.wall::after{content:"";position:absolute;inset:0;background:#000;opacity:var(--dim,0)}
+.home{position:absolute;inset:0;transform-origin:50% 52%;transition:transform calc(320ms*var(--d)) var(--ease),filter calc(300ms*var(--d)) var(--ease)}
+.home.editing{transform:scale(.86)}
+/* Depth: one backdrop rule for every overlay. Home is Intelia's own layer, so its blur is real on API 31+ (RenderEffect), Phone (3) included. */
+.scr[data-depth="dense"] .home{filter:blur(5px) saturate(.8)}
+.scr[data-depth="focus"] .home{filter:blur(18px) saturate(.7);transform:scale(.97)}
+.scr[data-depth="focus"] .home.editing{transform:scale(.84)}
+.wall{transition:filter calc(300ms*var(--d)) var(--ease),transform calc(300ms*var(--d)) var(--ease)}
+.scr.blur[data-depth="focus"] .wall{filter:blur(26px);transform:scale(1.06)}
+.scrim{position:absolute;inset:0;z-index:24;opacity:0;pointer-events:none;background:linear-gradient(rgb(var(--acc-rgb)/.08),rgb(var(--acc-rgb)/.08)),rgb(var(--base)/.52);transition:opacity calc(300ms*var(--d)) var(--ease)}
+.scr[data-depth="dense"] .scrim{opacity:.6;pointer-events:auto}
+.scr[data-depth="focus"] .scrim{opacity:1;pointer-events:auto}
+.scr[data-depth] .status{transition:opacity calc(300ms*var(--d))}
+.scr[data-depth="focus"] .status{opacity:.55}
+.status{position:absolute;left:0;right:0;top:0;height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:560;color:var(--wf);z-index:30;pointer-events:none}
+.cam{position:absolute;left:192.5px;top:9px;width:26px;height:26px;border-radius:50%;background:#000;box-shadow:0 0 0 1.5px rgba(255,255,255,.06);z-index:31}
+.nav{position:absolute;left:0;right:0;bottom:0;height:24px;display:flex;justify-content:center;align-items:center;z-index:40;cursor:pointer}
+.nav i{width:108px;height:4px;border-radius:2px;background:var(--wf);opacity:.8}
+
+/* Veil — one material, three densities */
+.v{position:relative;background:linear-gradient(rgb(var(--acc-rgb)/var(--tint)),rgb(var(--acc-rgb)/var(--tint))),rgb(var(--base)/var(--a));color:var(--fg)}
+.v::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
+  background:linear-gradient(180deg,rgb(var(--hi)/var(--eT)),rgb(var(--hi)/var(--eB)) 45%,rgb(var(--acc-rgb)/var(--eA)));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.vl{--a:var(--aL);--tint:.05}.vd{--a:var(--aD);--tint:.045}.vf{--a:var(--aF);--tint:.035}
+.scr.blur .v{backdrop-filter:blur(22px) saturate(1.25);-webkit-backdrop-filter:blur(22px) saturate(1.25)}
+.scr[data-glass="crystal"] .v::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(118deg,transparent 28%,rgb(var(--hi)/.07) 36%,transparent 44%,transparent 62%,rgb(var(--hi)/.04) 68%,transparent 74%)}
+.scr[data-glass="frost"] .v{background:linear-gradient(rgb(var(--hi)/.05),rgb(var(--hi)/.02)),linear-gradient(rgb(var(--acc-rgb)/var(--tint)),rgb(var(--acc-rgb)/var(--tint))),rgb(var(--base)/calc(var(--a) + .05))}
+.scr[data-glass="liquid"] .v{box-shadow:inset 0 0 14px rgb(var(--hi)/.06)}
+.abs{position:absolute}
+
+/* Home content */
+.it{position:absolute;display:flex;flex-direction:column;align-items:center;gap:5px;transform:translate(-50%,-50%);cursor:default}
+.ic{display:grid;place-items:center;flex:none}
+.lbl{font-size:11.5px;font-weight:520;color:var(--wf);text-shadow:var(--wsh);white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
+.clk{position:absolute;color:var(--wf);text-shadow:var(--wsh)}
+.clk .date{font-size:13px;font-weight:560;letter-spacing:2.2px;text-transform:uppercase;font-variation-settings:"wdth" 112;color:var(--wf2);margin-left:3px}
+.clk .time{line-height:.9;letter-spacing:-1px;font-variant-numeric:tabular-nums;margin-top:6px}
+.clk.plate{padding:16px 22px 18px;border-radius:26px;text-shadow:none;color:var(--fg)}
+.clk.plate .date{color:var(--fg2)}
+.glance{position:absolute;left:31px;font-size:13px;color:var(--wf2);text-shadow:var(--wsh);font-weight:500}
+.lens{position:absolute;width:48px;height:48px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--wf);opacity:.92;cursor:pointer;transform:translate(-50%,-50%)}
+.lens.fill{background:rgb(var(--hi)/.16);box-shadow:inset 0 0 0 1px rgb(var(--hi)/.25)}
+.home.editing .sel-able{outline:1px dashed rgb(var(--hi)/.38);outline-offset:6px;border-radius:14px;cursor:grab}
+.home.editing .sel{outline:2px solid var(--acc);outline-offset:6px}
+.gridpts{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity calc(200ms*var(--d))}
+.home.editing .gridpts{opacity:1}
+
+/* Editor chrome */
+.ebar{position:absolute;left:12px;right:12px;top:40px;height:48px;display:flex;gap:6px;align-items:center;z-index:20;transition:opacity calc(200ms*var(--d)),transform calc(260ms*var(--d)) var(--ease)}
+.etray{position:absolute;left:16px;right:16px;bottom:34px;height:56px;border-radius:28px;display:flex;align-items:stretch;padding:4px;gap:2px;z-index:20;transition:opacity calc(200ms*var(--d)),transform calc(260ms*var(--d)) var(--ease)}
+.off{opacity:0;pointer-events:none;transform:translateY(-8px)}
+.etray.off{transform:translateY(10px)}
+.pbtn{font:inherit;color:var(--fg);border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;min-width:48px;border-radius:24px;font-size:14px;font-weight:540}
+.pbtn:not(.v){background:none}
+.pbtn.pill{height:40px;min-height:40px;padding:0 14px}
+.pbtn.round{width:44px;height:44px;min-height:44px;min-width:44px;padding:0}
+.pbtn.acc{background:var(--acc);color:var(--acc-ink)}
+.pbtn[disabled]{opacity:.35;cursor:default}
+.etray .pbtn{flex:1;flex-direction:column;gap:2px;font-size:11.5px;border-radius:22px;min-height:0}
+.etray .pbtn:hover,.pbtn.ghost:hover{background:rgb(var(--hi)/.06)}
+.ename{flex:1;text-align:center;font-size:13px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Popover inspector + sheets */
+.pop{position:absolute;width:330px;border-radius:24px;padding:14px;z-index:25;max-height:520px;overflow:auto;transition:opacity calc(180ms*var(--d)),transform calc(260ms*var(--d)) var(--ease);scrollbar-width:none}
+.pop.hide{opacity:0;transform:scale(.94);pointer-events:none}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;border-radius:30px;padding:10px 18px 20px;z-index:26;transition:transform calc(300ms*var(--d)) var(--ease),opacity calc(200ms*var(--d))}
+.sheet.hide{transform:translateY(105%);opacity:.4;pointer-events:none}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--fg3);margin:0 auto 12px}
+.ph{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ph .t{font-size:16px;font-weight:600}.ph .s{font-size:12px;color:var(--fg2)}
+.row{display:flex;align-items:center;gap:10px;min-height:48px}
+.row .k{flex:1;font-size:14px}
+.row .val{font-size:13px;color:var(--fg2);font-variant-numeric:tabular-nums}
+.seg{display:flex;padding:3px;border-radius:14px;background:rgb(var(--hi)/.06);gap:2px}
+.seg button{flex:1;font:inherit;font-size:13px;border:0;background:none;color:var(--fg2);border-radius:11px;min-height:38px;cursor:pointer;padding:0 8px}
+.seg button[aria-pressed="true"]{background:rgb(var(--hi)/.13);color:var(--fg);font-weight:600;box-shadow:inset 0 0 0 1px rgb(var(--acc-rgb)/.45)}
+.scr[data-ui="light"] .seg button[aria-pressed="true"]{background:#fff}
+.qa{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:4px 0 8px}
+.qa .pbtn{flex-direction:column;gap:3px;font-size:12px;background:rgb(var(--hi)/.06);border-radius:16px;min-height:60px}
+.inh{font-size:11px;border-radius:999px;padding:3px 8px;border:1px solid var(--line);color:var(--fg2);cursor:pointer;background:none;font-family:inherit;min-height:28px}
+.inh.own{color:var(--acc);border-color:rgb(var(--acc-rgb)/.5)}
+.more{width:100%;justify-content:space-between;padding:0 4px;color:var(--fg2);font-size:13px;border-top:1px solid var(--line);border-radius:0;margin-top:4px}
+.fold{overflow:hidden;transition:max-height calc(280ms*var(--d)) var(--ease)}
+input[type=range].r{flex:1;accent-color:var(--acc);height:28px}
+.specs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.spec{flex:none;min-width:62px;height:62px;border-radius:16px;border:1px solid var(--line);background:rgb(var(--hi)/.04);display:grid;place-items:center;cursor:pointer;color:var(--fg);font:inherit;padding:0 8px}
+.spec[aria-pressed="true"]{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+.spec b{font-size:24px;font-weight:400;line-height:1}
+.spec small{font-size:10px;color:var(--fg2);display:block;margin-top:3px}
+.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.thumb{font:inherit;color:var(--fg);background:none;border:0;padding:0;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:center;font-size:12px}
+.thumb .tb{width:100%;aspect-ratio:411/911;border-radius:12px;overflow:hidden;position:relative;box-shadow:0 0 0 1px var(--line)}
+.thumb[aria-pressed="true"] .tb{box-shadow:0 0 0 2px var(--acc)}
+.mini{position:absolute;left:0;top:0;width:411px;height:911px;transform-origin:0 0;pointer-events:none}
+.dots{display:flex;gap:8px;flex-wrap:wrap}
+.dot{width:34px;height:34px;border-radius:50%;border:0;cursor:pointer;box-shadow:inset 0 0 0 1px rgb(0 0 0/.15)}
+.dot[aria-pressed="true"]{box-shadow:0 0 0 2px rgb(var(--base)),0 0 0 4px var(--acc)}
+.info{font-size:12px;color:var(--fg2);line-height:1.45;padding:2px 2px 6px}
+
+/* Studio */
+.studio{position:absolute;inset:0;z-index:28;border-radius:0;transition:transform calc(320ms*var(--d)) var(--ease),opacity calc(220ms*var(--d))}
+.studio.hide{transform:translateY(22px) scale(.985);opacity:0;pointer-events:none}
+.studio{transform-origin:50% 100%}
+.track{position:absolute;inset:0;display:flex;width:200%;transition:transform calc(300ms*var(--d)) var(--ease)}
+.track.deep{transform:translateX(-50%)}
+.page{width:50%;height:100%;overflow:auto;padding:44px 18px 40px;scrollbar-width:none}
+.stitle{font-size:28px;font-weight:520;font-variation-settings:"wdth" 114;margin:8px 4px 14px}
+.sfield{display:flex;align-items:center;gap:10px;height:52px;border-radius:26px;padding:0 16px;background:rgb(var(--hi)/.07);margin-bottom:12px;color:var(--fg2)}
+.sfield input{flex:1;background:none;border:0;outline:0;font:inherit;font-size:15px;color:var(--fg);min-width:0}
+.srow{display:flex;align-items:center;gap:14px;min-height:68px;padding:0 6px;border-radius:18px;cursor:pointer;width:100%;border:0;background:none;color:var(--fg);font:inherit;text-align:left}
+.srow:hover{background:rgb(var(--hi)/.05)}
+.srow .gl{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:rgb(var(--acc-rgb)/.13);color:var(--acc);flex:none}
+.srow .tt{font-size:16px;font-weight:540}.srow .ss{font-size:13px;color:var(--fg2);margin-top:2px}
+.srow .grow{flex:1;min-width:0}
+.shead{display:flex;align-items:center;gap:6px;margin:0 -6px 6px}
+.shead .t{font-size:20px;font-weight:560}
+.grp{margin:18px 0 6px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--fg2);font-weight:640}
+.card{border-radius:20px;padding:6px 14px;background:rgb(var(--hi)/.045)}
+.card + .card{margin-top:8px}
+.flash{animation:fl 1.4s}
+@keyframes fl{0%,40%{box-shadow:inset 0 0 0 2px var(--acc)}100%{box-shadow:inset 0 0 0 0 transparent}}
+.prev{display:flex;gap:14px;align-items:center}
+.prev .tb{width:92px;aspect-ratio:411/911;border-radius:12px;overflow:hidden;position:relative;flex:none;box-shadow:0 0 0 1px var(--line)}
+
+/* Search */
+.sfld{position:absolute;z-index:29;display:flex;align-items:center;gap:10px;overflow:hidden;border-radius:26px;transition:left calc(300ms*var(--d)) var(--ease),top calc(300ms*var(--d)) var(--ease),width calc(300ms*var(--d)) var(--ease),height calc(300ms*var(--d)) var(--ease),opacity calc(150ms*var(--d))}
+.sfld input{flex:1;min-width:0;background:none;border:0;outline:0;font:inherit;font-size:16px;color:var(--fg);opacity:0;transition:opacity calc(160ms*var(--d))}
+.sfld input::placeholder{color:var(--fg2)}
+.sfld.open input{opacity:1}
+.sfld .lensdot{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--fg2);flex:none;margin-left:15px}
+.kbd{position:absolute;left:0;right:0;bottom:0;height:300px;z-index:29;padding:10px 4px 30px;border-radius:26px 26px 0 0;display:flex;flex-direction:column;gap:9px;transform:translateY(100%);transition:transform calc(280ms*var(--d)) var(--ease)}
+.kbd.on{transform:none}
+.kr{display:flex;gap:5px;justify-content:center}
+.kr button{flex:0 0 35px;height:48px;border-radius:9px;border:0;background:rgb(var(--hi)/.1);color:var(--fg);font:inherit;font-size:18px;cursor:pointer}
+.kr button.w{flex:0 0 190px;font-size:13px;color:var(--fg2)}.kr button.e{flex:0 0 74px;background:var(--acc);color:var(--acc-ink);font-size:14px}
+.res{position:absolute;left:16px;right:16px;z-index:29;display:flex;flex-direction:column-reverse;gap:2px;transition:opacity calc(200ms*var(--d))}
+.rrow{display:flex;align-items:center;gap:14px;height:56px;padding:0 12px;border-radius:18px;color:var(--fg);font-size:15px;cursor:pointer;border:0;background:none;font:inherit;text-align:left;width:100%}
+.rrow.first{background:rgb(var(--acc-rgb)/.14)}
+.rrow .hint{margin-left:auto;font-size:11px;color:var(--fg2)}
+.flowc{border-radius:20px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.toast{position:absolute;left:50%;top:96px;transform:translate(-50%,-6px);padding:10px 16px;border-radius:22px;font-size:13px;z-index:45;opacity:0;transition:opacity calc(180ms*var(--d)),transform calc(220ms*var(--d)) var(--ease);pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.speclab{position:absolute;left:24px;font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--wf);text-shadow:var(--wsh);font-weight:640}
+@media (prefers-reduced-motion:reduce){.scr{--d:0}}
+</style>
+
+<header class="top">
+  <h1>Intelia Veil 3.0</h1>
+  <p>Návrh ke schválení (fáze A). Telefon vlevo je ve skutečném měřítku Nothing Phone (3) (411 × 911 dp) a dá se ovládat: klepnutí na LENS otevře Search, dvojklik nebo podržení plochy otevře úpravy, v úpravách klepněte na ikonu, hodiny nebo LENS. Proužek dole = Zpět.</p>
+</header>
+
+<div class="wrap">
+  <div class="stage"><div class="phone" id="phone"><div class="scr" id="scr" data-ui="dark" data-glass="veil">
+    <div class="wall" id="wall"></div>
+    <div class="home" id="home"></div>
+    <div class="status"><span>14:07</span><span>5G ▪ 78 %</span></div>
+    <div class="cam"></div>
+    <div class="ebar off" id="ebar"></div>
+    <div class="scrim" id="scrim"></div>
+    <div class="etray v vl off" id="etray"></div>
+    <div class="pop v vd hide" id="pop" role="dialog" aria-label="Inspektor"></div>
+    <div class="sheet v vd hide" id="sheet" role="dialog"></div>
+    <div class="res" id="res"></div>
+    <div class="sfld v vd" id="sfld" hidden><span class="lensdot"></span><input id="sq" aria-label="Hledat" placeholder="Hledat aplikace a FLOW" autocomplete="off"></div>
+    <div class="kbd v vf" id="kbd"></div>
+    <div class="studio v vf hide" id="studio"><div class="track" id="track"><div class="page" id="st1"></div><div class="page" id="st2"></div></div></div>
+    <div class="toast v vl" id="toast"></div>
+    <div class="nav" id="nav" title="Zpět"><i></i></div>
+  </div></div></div>
+
+  <div class="side">
+    <div class="group"><h2>Scéna</h2><div class="chips" id="c-scene"></div></div>
+    <div class="group"><h2>Tapeta (zástupce skutečné systémové)</h2><div class="chips" id="c-wall"></div></div>
+    <div class="group"><h2>Předloha plochy</h2><div class="chips" id="c-preset"></div></div>
+    <div class="group"><h2>Hodiny</h2><div class="chips" id="c-clock"></div></div>
+    <div class="group"><h2>Motiv · materiál · rozostření</h2><div class="chips" id="c-ui"></div></div>
+    <div class="note" id="note"></div>
+  </div>
+</div>
+
+<div class="below">
+  <section class="sec">
+    <h2>Inventura: co už Intelia má</h2>
+    <p class="how">Podle kódu větve <code>claude/crystal-redesign</code> (<code>aaa7da9</code>) a ověřených záznamů v STATUS. Nic se znovu nestaví, sjednocuje se.</p>
+    <h3 class="tag t-ok">Hotovo — jen sjednotit vzhled</h3>
+    <ul>
+      <li>Home Editor přímo na ploše, Grid / Free / Hybrid, předlohy Pure / Essentials / Balanced + vlastní, Undo / Redo, uložení ✓</li>
+      <li>Inspektory prvků (aplikace, hodiny, datum, LENS, PULSE) se skládanými sekcemi, vždy jedna otevřená</li>
+      <li>Materiály Veil / Krystal / Mráz / Kapka / Matné, hustota, tokeny Veil Light / Dense / Focus</li>
+      <li>16 akcentů + Dynamic, akcent pro jednotlivá místa; 7 písem hodin a data, formáty data, desky</li>
+      <li>Styly ikon Barevné / Mono / Veil / Tónované, 4 tvary, jedna globální velikost; řada LENS na libovolné hraně</li>
+      <li>LENS → Search s rozvinutím a jízdou na klávesnici (změřeno v §5.10)</li>
+    </ul>
+    <h3 class="tag t-part">Částečně</h3>
+    <ul>
+      <li>Studio: 7 řádků, vzhled žije zvlášť v panelu „Vzhled“ editoru → přejde na 5 sekcí a jednu sdílenou definici voleb</li>
+      <li>Výchozí hodiny = sloupec na tmavé desce; nově Čisté přímo na tapetě, sloupec a deska zůstávají jako styly</li>
+      <li>Lišta editoru: tlačítka 32 dp (pod 48 dp), při hodinách úplně nahoře je překrývá</li>
+      <li>Popisky v řadě LENS se překrývají („FotoaparátChrome“ na snímku 01)</li>
+      <li>Světlý motiv a barevná tapeta neověřeny na telefonu; TalkBack ve skládaných sekcích neověřen</li>
+    </ul>
+    <h3 class="tag t-miss">Chybí</h3>
+    <ul>
+      <li>Vyhledávání v nastavení; viditelná dědičnost (Globální / Vlastní + návrat)</li>
+      <li>Vlastní ikona jedné aplikace; externí icon packy (vyžaduje záznam v DECISIONS); vlastní fonty</li>
+      <li>Tapety (D13 ④), ztmavení tapety; jednotný přechod Studio → detail</li>
+    </ul>
+  </section>
+
+  <section class="sec">
+    <h2>Principy Veil 3.0</h2>
+    <h3>Jeden materiál, tři hustoty</h3>
+    <div class="tw"><table class="m">
+      <tr><th>úroveň</th><th>krytí bez blur / s blur</th><th>kde</th></tr>
+      <tr><td>Veil Light</td><td>64 % / 48 %</td><td>lišta a podnos editoru, toast, deska hodin; Home beze změny</td></tr>
+      <tr><td>Veil Dense</td><td>80 % / 66 %</td><td>inspektory, předlohy, dialogy; listy rozostří Home o 5 dp a ztlumí ho</td></tr>
+      <tr><td>Veil Focus</td><td>74 % / 60 %</td><td>Studio, Search; Home rozostřené o 18 dp, zmenšené na 97 %, ztmavené a tónované akcentem</td></tr>
+    </table></div>
+    <p>Hloubku dělá jedna sdílená vrstva pod panelem (rozostření Home + tónované ztmavení), ne každý panel zvlášť. Home je vlastní vrstva Intelie, proto se na API 31+ rozostří skutečně i na Phone (3) (<code>RenderEffect</code>). Na Phone (3) se nerozostří jen tapeta pod oknem; Atmosphere je ale sama měkká.</p>
+    <p>Krystalická hrana: 1 dp, nahoře světlá, uprostřed mizí, dole lehce do akcentu. Žádný neon, žádný lesk. Krystal / Mráz / Kapka / Matné jsou presety téže plochy (mění hranu a mléčnost), ne další systémy. Phone (3): rozostření za okny není dostupné (<code>supports_background_blur=0</code>), proto platí sloupec „bez blur“ a Studio to říká.</p>
+    <h3>Dědičnost nastavení</h3>
+    <div class="chain"><span>Systém</span><i>→</i><span>Globální motiv</span><i>→</i><span>Předloha / rozložení</span><i>→</i><span>Prvek</span></div>
+    <p>Každá vlastnost prvku ukazuje štítek <b>Globální</b> nebo <b>Vlastní</b>; klepnutí na Vlastní vrátí zděděnou hodnotu. Studio i inspektor kreslí tutéž definici volby (jeden <code>Setting</code> s klíčem, rozsahem a úrovní), takže nevznikají duplicity.</p>
+    <h3>Pohyb</h3>
+    <div class="tw"><table class="m">
+      <tr><th>přechod</th><th>čas</th><th>princip</th></tr>
+      <tr><td>Plocha → Editor</td><td>320 ms</td><td>tatáž plocha se zmenší na 86 %, lišty vyjedou do uvolněných okrajů</td></tr>
+      <tr><td>Prvek → inspektor</td><td>260 ms</td><td>vyroste z prvku, nikdy ho nezakryje</td></tr>
+      <tr><td>LENS → Search</td><td>300 ms</td><td>kroužek se rozvine do pole, klávesnice jede současně</td></tr>
+      <tr><td>Studio → detail</td><td>300 ms</td><td>posun stránky, zpět vrací stejný řádek</td></tr>
+      <tr><td>Motiv</td><td>0 ms</td><td>barvy se přepnou v jednom snímku, žádné blikání</td></tr>
+    </table></div>
+    <p>Vše je přerušitelné; Omezit pohyb (systém i Studio) nastaví časy na 0.</p>
+  </section>
+
+  <section class="sec">
+    <h2>Studio — nová informační architektura</h2>
+    <ol>
+      <li><b>Vzhled</b> — motiv, barvy, písmo, ikony, materiál, tapeta</li>
+      <li><b>Plocha</b> — vstup do editoru, předlohy, rozložení (editor je hlavní místo)</li>
+      <li><b>Ovládání</b> — LENS, ARC, PULSE, gesta</li>
+      <li><b>Akce a FLOW</b> — příkazy, zkratky aplikací</li>
+      <li><b>Systém</b> — oprávnění, přístupnost, skryté aplikace, záloha, o aplikaci</li>
+    </ol>
+    <p>Nahoře vyhledávání, které vede přímo na konkrétní řádek. Podnos editoru „Vzhled“ otevírá stejnou stránku Studia a Zpět vrací do editoru.</p>
+    <h3>Pořadí implementace po schválení</h3>
+    <ol>
+      <li>Tokeny Veil 3.0 (hrana, hustoty, presety jako varianty)</li>
+      <li>Home: Čisté hodiny jako výchozí pro nové instalace, popisky bez překryvu</li>
+      <li>Editor: 48 dp lišta + podnos, plocha 86 %</li>
+      <li>Studio 5 sekcí + hledání; sdílené definice voleb</li>
+      <li>Dědičnost Globální / Vlastní v inspektorech</li>
+      <li>Ikony / písma / barvy / tapety dle D13</li>
+      <li>Pohyb, měření <code>gfxinfo</code>, regrese na telefonu</li>
+    </ol>
+    <p class="how">Stávající uživatelská data se nemigrují destruktivně: existující plocha si nechá své hodiny i materiál.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+const W = 411, H = 911, DY = 827, LX = 205.5, GX = 24, CW = (W - 48) / 4, GY = 110, RH = 100;
+const $ = (id) => document.getElementById(id);
+const scr = $('scr'), home = $('home');
+
+const G = {
+  phone:'M6.6 3.5h2.6l1.4 4-2 1.3a11 11 0 0 0 6.6 6.6l1.3-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z',
+  msg:'M4 5h16v11H9l-5 4z', cam:'M4 8h3.5L9 6h6l1.5 2H20v11H4z M12 16.5a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z',
+  web:'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z M3.5 12h17 M12 3.5c3 3 3 14 0 17 M12 3.5c-3 3-3 14 0 17',
+  music:'M9 18V6l10-2v12 M9 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z M19 16a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z',
+  maps:'M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z M12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  cal:'M4.5 6h15v14h-15z M4.5 10h15 M8.5 3.5v4 M15.5 3.5v4', photos:'M4 5h16v14H4z M4 16l5-5 4 4 2-2 5 5',
+  mail:'M3.5 6h17v12h-17z M3.5 6.5l8.5 6.5 8.5-6.5', calc:'M6 3.5h12v17H6z M8.5 6.5h7v3h-7z M9 13h.01 M12 13h.01 M15 13h.01 M9 16.5h.01 M12 16.5h.01 M15 16.5h.01',
+  clockg:'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z M12 7.5V12l3 2', notes:'M6 3.5h12v17H6z M9 8h6 M9 12h6 M9 16h4',
+  undo:'M9 6L4 11l5 5 M4 11h10a5 5 0 0 1 0 10h-3', redo:'M15 6l5 5-5 5 M20 11H10a5 5 0 0 0 0 10h3', x:'M6 6l12 12 M18 6L6 18', ok:'M5 12.5l4.5 4.5L19 7.5',
+  plus:'M12 5v14 M5 12h14', layers:'M12 4l8 4-8 4-8-4z M4 12l8 4 8-4 M4 16l8 4 8-4', grid:'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z',
+  look:'M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.5-1 1-2s0-2.5 1.5-2.5H17a3.5 3.5 0 0 0 3.5-3.5c0-5-3.8-9-8.5-9z M8 10h.01 M12 7.5h.01 M16 10h.01',
+  back:'M15 5l-7 7 7 7', chev:'M9 5l7 7-7 7', search:'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M16 16l4.5 4.5', swap:'M7 7h12l-3-3 M17 17H5l3 3',
+  minus:'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z M8 12h8', image:'M4 5h16v14H4z M4 16l5-5 4 4 2-2 5 5',
+  ring:'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
+  flow:'M5 6h4v4H5z M15 14h4v4h-4z M9 8h3a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2', sys:'M4 6h16 M4 12h16 M4 18h16 M8 4v4 M16 10v4 M10 16v4', home:'M4 11l8-6.5 8 6.5V20H4z'
+};
+const svg = (g, s = 24, w = 1.7) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${G[g]}"/></svg>`;
+
+const APPS = { phone:['Telefon','#34B36A'], msg:['Zprávy','#3B7FE8'], cam:['Fotoaparát','#59626F'], web:['Prohlížeč','#E07B34'], music:['Hudba','#DB4677'],
+  maps:['Mapy','#2B9E93'], cal:['Kalendář','#4C78E8'], photos:['Fotky','#E5A72F'], mail:['Pošta','#CF4E47'], calc:['Kalkulačka','#6B7280'], clockg:['Hodiny','#7766E8'], notes:['Poznámky','#D9A90B'] };
+const WALLS = {
+  dark:  { n:'Tmavá', bg:'radial-gradient(110% 70% at 18% 12%,#3B4352 0%,transparent 62%),radial-gradient(90% 60% at 88% 78%,#33282A 0%,transparent 66%),linear-gradient(#16181D,#0A0B0E)', ink:'dark', acc:['#B6C7DB','#46617F'] },
+  light: { n:'Světlá', bg:'radial-gradient(100% 70% at 22% 14%,#FFFFFF 0%,transparent 60%),radial-gradient(90% 60% at 84% 82%,#F1D9C9 0%,transparent 66%),linear-gradient(#E6EAEF,#D7DCE3)', ink:'light', acc:['#C9B8A4','#6D5A44'] },
+  color: { n:'Barevná', bg:'radial-gradient(120% 80% at 15% 10%,#2F8D84 0%,transparent 58%),radial-gradient(100% 70% at 92% 86%,#D2683C 0%,transparent 64%),linear-gradient(160deg,#1E5E66,#6A3A4E)', ink:'dark', acc:['#9FDCD2','#1C6A63'] }
+};
+const ACCS = { sys:['Systém', null], frost:['Mráz',['#A9C4E0','#3F6E9C']], sage:['Šalvěj',['#B5CFAE','#4C6E47']], amber:['Jantar',['#E9C47F','#85590F']], orchid:['Orchidej',['#D7B4E6','#7A4790']], silver:['Stříbrná',['#D5D8DD','#545A62']] };
+const FONTS = [['Roboto Flex','Flex',1,1],['Inter','Inter',1,0],['Space Grotesk','Grotesk',1,0],['DM Serif Display','Serif',0,0],['JetBrains Mono','Mono',1,0],['Bodoni Moda','Bodoni',1,0],['Unbounded','Unbounded',1,0]];
+const GLASS = { veil:['Veil',.16,.035,.24], crystal:['Krystal',.30,.05,.16], frost:['Mráz',.12,.06,.10], liquid:['Kapka',.24,.16,.14], matte:['Matné',.08,.04,.06] };
+
+function presetItems(p) {
+  const dock = [['phone',77.5],['msg',141.5],['cam',269.5],['web',333.5]].map(([a,x]) => ({ id:a, app:a, x, y:DY, dock:true }));
+  if (p === 'pure') return [];
+  if (p === 'essentials') return dock;
+  return dock.concat(['music','maps','cal','photos'].map((a,i) => ({ id:a, app:a, x:GX + CW*(i+.5), y:GY + RH*5.5 })));
+}
+const S = {
+  scene:'home', wall:'dark', ui:'sys', acc:'sys', tint:5, glass:'veil', blur:false, dim:0, reduce:false,
+  preset:'essentials', mode:'grid', items:presetItems('essentials'),
+  clock:{ style:'pure', font:'Roboto Flex', size:96, wght:230, wdth:122, date:true, color:'inherit' },
+  icon:{ style:'orig', shape:'squircle', size:52, labels:false }, lens:{ fill:false, size:48 },
+  editing:false, sel:null, pop:null, more:false, sheet:null, studio:null, section:null, search:false, q:'', saved:[]
+};
+let hist = [], fut = [], entry = null;
+const snap = () => JSON.stringify({ preset:S.preset, mode:S.mode, items:S.items, clock:S.clock, icon:S.icon, lens:S.lens });
+const restore = (j) => Object.assign(S, JSON.parse(j));
+function commit() { hist.push(cur); if (hist.length > 50) hist.shift(); fut = []; cur = snap(); }
+let cur = snap();
+
+/* ---------- colour ---------- */
+const hex2rgb = (h) => { const n = parseInt(h.slice(1),16); return `${n>>16} ${(n>>8)&255} ${n&255}`; };
+const uiMode = () => S.ui === 'sys' ? 'dark' : S.ui;
+function accent() { const pair = S.acc === 'sys' ? WALLS[S.wall].acc : ACCS[S.acc][1]; return uiMode() === 'dark' ? pair[0] : pair[1]; }
+function applyVars() {
+  const m = uiMode(), a = accent(), wl = WALLS[S.wall], gl = GLASS[S.glass];
+  scr.dataset.ui = m; scr.dataset.glass = S.glass; scr.classList.toggle('blur', S.blur);
+  const st = scr.style;
+  st.setProperty('--acc', a); st.setProperty('--acc-rgb', hex2rgb(a)); st.setProperty('--acc-ink', m === 'dark' ? '#0E141B' : '#FFFFFF');
+  st.setProperty('--d', S.reduce ? 0 : 1);
+  st.setProperty('--tint-k', S.tint);
+  const k = S.tint / 5;
+  scr.querySelectorAll('.v').forEach(() => {});
+  st.setProperty('--hi', m === 'dark' ? '255 255 255' : '255 255 255');
+  st.setProperty('--eT', m === 'dark' ? gl[1] : Math.min(.9, gl[1] * 3));
+  st.setProperty('--eB', gl[2]); st.setProperty('--eA', gl[3] * k);
+  const solid = S.glass === 'matte';
+  const A = S.blur ? [.48,.66,.6] : [.64,.80,.74];
+  st.setProperty('--aL', solid ? .97 : A[0] + (m === 'light' ? .06 : 0)); st.setProperty('--aD', solid ? .99 : A[1]); st.setProperty('--aF', solid ? 1 : A[2]);
+  if (m === 'light') st.setProperty('--hi', '20 23 27');
+  const darkInk = wl.ink === 'light';
+  st.setProperty('--wf', darkInk ? '#15181D' : '#F4F6F8'); st.setProperty('--wf2', darkInk ? 'rgba(21,24,29,.66)' : 'rgba(244,246,248,.74)');
+  st.setProperty('--wsh', darkInk ? 'none' : '0 1px 2px rgba(0,0,0,.35)');
+  $('wall').style.background = wl.bg; $('wall').style.setProperty('--dim', S.dim / 100);
+  document.querySelectorAll('.v').forEach(el => el.style.setProperty('--tintk', k));
+  scr.style.setProperty('--tintmul', k);
+}
+
+/* ---------- home ---------- */
+function iconHTML(app, size, style, shape) {
+  const [, c] = APPS[app]; const r = shape === 'circle' ? '50%' : shape === 'rounded' ? '26%' : '34%';
+  const g = Math.round(size * .5);
+  if (style === 'mono') return `<div class="ic" style="width:${size}px;height:${size}px;color:var(--wf);filter:drop-shadow(var(--wsh))">${svg(app, Math.round(size*.62), 1.6)}</div>`;
+  if (style === 'tint') return `<div class="ic" style="width:${size}px;height:${size}px;border-radius:${r};background:linear-gradient(rgb(var(--acc-rgb)/.2),rgb(var(--acc-rgb)/.2)),rgb(var(--base)/.6);box-shadow:inset 0 0 0 1px rgb(var(--acc-rgb)/.4);color:var(--acc)">${svg(app, g, 1.7)}</div>`;
+  if (style === 'veil') return `<div class="ic" style="width:${size}px;height:${size}px;border-radius:${r};background:rgb(var(--hi)/.10);box-shadow:inset 0 0 0 1px rgb(var(--hi)/.22);color:var(--fg)">${svg(app, g, 1.7)}</div>`;
+  return `<div class="ic" style="width:${size}px;height:${size}px;border-radius:${r};background:linear-gradient(160deg,${c},color-mix(in srgb,${c} 78%,#000));color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.18)">${svg(app, g, 1.8)}</div>`;
+}
+function clockHTML(c, edit) {
+  const fam = `'${c.font}',var(--f-ui)`, f = FONTS.find(x => x[0] === c.font);
+  const vs = `font-family:${fam};font-weight:${f[2] ? c.wght : 400};font-variation-settings:${f[3] ? `'wdth' ${c.wdth}` : 'normal'}`;
+  const col = c.color === 'acc' ? 'color:var(--acc);' : '';
+  const date = c.date ? `<div class="date">So 17. října</div>` : '';
+  const sel = edit ? ` sel-able${S.sel === 'clock' ? ' sel' : ''}` : '';
+  if (c.style === 'stack') return `<div class="clk${sel}" data-item="clock" style="left:28px;top:56px">${date}<div class="time" style="${vs};${col}font-size:${c.size*1.55}px;line-height:.84">14<br>07</div></div>`;
+  const plate = c.style === 'plate';
+  return `<div class="clk${sel}${plate ? ' plate v vl' : ''}" data-item="clock" style="left:${plate ? 20 : 28}px;top:${plate ? 54 : 62}px">${date}<div class="time" style="${vs};${col}font-size:${c.size}px">14:07</div></div>`;
+}
+function homeHTML(st, edit) {
+  const sz = (it) => it.size || st.icon.size;
+  let h = '';
+  if (edit) { let d = ''; for (let j = 0; j < 7; j++) for (let i = 0; i < 4; i++) d += `<circle cx="${GX + CW*(i+.5)}" cy="${GY + RH*(j+.5)}" r="2" fill="rgb(255 255 255/.28)"/>`;
+    h += `<svg class="gridpts" width="${W}" height="${H}" style="opacity:${st.mode === 'free' ? 0 : ''}">${d}</svg>`; }
+  h += clockHTML(st.clock, edit);
+  if (st.preset === 'balanced') h += `<div class="glance" style="top:${st.clock.style === 'stack' ? 400 : 196}px">Budík 6:30 · Kalendář: 2 události</div>`;
+  for (const it of st.items) {
+    const lab = (it.label ?? st.icon.labels) ? `<div class="lbl">${APPS[it.app][0]}</div>` : '';
+    h += `<div class="it${edit ? ' sel-able' : ''}${S.sel === it.id && edit ? ' sel' : ''}" data-item="${it.id}" style="left:${it.x}px;top:${it.y}px">${iconHTML(it.app, sz(it), it.style || st.icon.style, st.icon.shape)}${lab}</div>`;
+  }
+  h += `<div class="lens${st.lens.fill ? ' fill' : ''}${edit ? ' sel-able' : ''}${S.sel === 'lens' && edit ? ' sel' : ''}" data-item="lens" role="button" aria-label="LENS — hledat" style="left:${LX}px;top:${DY}px;width:${st.lens.size}px;height:${st.lens.size}px"></div>`;
+  return h;
+}
+function miniHTML(st, w) { const k = w / W; return `<div class="wall" style="background:${WALLS[S.wall].bg}"></div><div class="mini" style="transform:scale(${k})">${homeHTML(st, false)}</div>`; }
+function renderHome() { home.innerHTML = homeHTML(S, S.editing); home.classList.toggle('editing', S.editing); }
+
+/* ---------- editor chrome ---------- */
+const selName = () => S.sel === 'clock' ? 'Hodiny' : S.sel === 'lens' ? 'LENS' : S.sel ? APPS[S.items.find(i => i.id === S.sel)?.app]?.[0] || '' : 'Úpravy plochy';
+function renderEditor() {
+  const eb = $('ebar'), tr = $('etray');
+  eb.classList.toggle('off', !S.editing || !!S.studio); tr.classList.toggle('off', !S.editing || !!S.studio || !!S.sheet);
+  eb.innerHTML = `<button class="pbtn round v vl" data-act="cancel" aria-label="Zrušit úpravy">${svg('x',20)}</button>
+    <div class="v vl" style="display:flex;border-radius:22px"><button class="pbtn round" data-act="undo" aria-label="Zpět o krok" ${hist.length ? '' : 'disabled'}>${svg('undo',20)}</button><button class="pbtn round" data-act="redo" aria-label="Znovu" ${fut.length ? '' : 'disabled'}>${svg('redo',20)}</button></div>
+    <div class="ename" style="color:var(--wf2);text-shadow:var(--wsh)">${selName()}</div>
+    <button class="pbtn pill acc" data-act="save">${svg('ok',18,2)} Hotovo</button>`;
+  const mode = { grid:'Mřížka', free:'Volně', hybrid:'Hybrid' }[S.mode];
+  tr.innerHTML = `<button class="pbtn" data-act="sheet" data-v="add">${svg('plus',20)}Přidat</button><button class="pbtn" data-act="sheet" data-v="presets">${svg('layers',20)}Předlohy</button><button class="pbtn" data-act="sheet" data-v="mode">${svg('grid',20)}${mode}</button><button class="pbtn" data-act="studio" data-v="look">${svg('look',20)}Vzhled</button>`;
+}
+const inh = (own, key) => `<button class="inh${own ? ' own' : ''}" data-act="reset" data-v="${key}" title="${own ? 'Vrátit globální hodnotu' : 'Zděděno z motivu'}">${own ? 'Vlastní ↺' : 'Globální'}</button>`;
+function popHTML() {
+  if (S.pop === 'leave') return `<div class="ph"><div><div class="t">Zahodit změny?</div><div class="s">Plocha se vrátí do stavu před úpravami.</div></div></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="pbtn pill" data-act="popclose">Pokračovat</button><button class="pbtn pill acc" data-act="discard">Zahodit</button></div>`;
+  if (S.sel === 'clock') {
+    const c = S.clock, f = FONTS.find(x => x[0] === c.font);
+    return `<div class="ph">${svg('clockg',22)}<div style="flex:1"><div class="t">Hodiny</div><div class="s">Klepněte jinam na ploše pro jiný prvek</div></div></div>
+    <div class="seg" role="group" aria-label="Styl hodin">${[['pure','Čisté'],['stack','Sloupec'],['plate','Deska']].map(([k,n]) => `<button data-act="clock" data-k="style" data-v="${k}" aria-pressed="${c.style===k}">${n}</button>`).join('')}</div>
+    <div class="row"><span class="k">Velikost</span><input class="r" type="range" id="r-csize" min="56" max="132" value="${c.size}" data-rng="clock.size"><span class="val" id="v-clock.size">${c.size}</span></div>
+    <div class="specs" role="group" aria-label="Písmo hodin">${FONTS.map(([fam,n]) => `<button class="spec" data-act="clock" data-k="font" data-v="${fam}" aria-pressed="${c.font===fam}"><span><b style="font-family:'${fam}'">14</b><small>${n}</small></span></button>`).join('')}</div>
+    <div class="row"><span class="k">Datum nad časem</span><div class="seg" style="width:120px"><button data-act="clock" data-k="date" data-v="1" aria-pressed="${c.date}">Ano</button><button data-act="clock" data-k="date" data-v="0" aria-pressed="${!c.date}">Ne</button></div></div>
+    <button class="pbtn more" data-act="more"><span>Další možnosti</span>${svg(S.more ? 'x' : 'chev',16)}</button>
+    <div class="fold" style="max-height:${S.more ? 400 : 0}px">
+      ${f[2] ? `<div class="row"><span class="k">Tloušťka</span><input class="r" type="range" id="r-cw" min="100" max="800" step="10" value="${c.wght}" data-rng="clock.wght"><span class="val" id="v-clock.wght">${c.wght}</span></div>` : '<div class="info">Toto písmo má jen jednu tloušťku, volba se proto nezobrazuje.</div>'}
+      ${f[3] ? `<div class="row"><span class="k">Šířka</span><input class="r" type="range" id="r-cd" min="25" max="151" value="${c.wdth}" data-rng="clock.wdth"><span class="val" id="v-clock.wdth">${c.wdth}</span></div>` : ''}
+      <div class="row"><span class="k">Barva</span>${inh(c.color !== 'inherit','clock.color')}<div class="seg" style="width:130px"><button data-act="clock" data-k="color" data-v="inherit" aria-pressed="${c.color==='inherit'}">Text</button><button data-act="clock" data-k="color" data-v="acc" aria-pressed="${c.color==='acc'}">Akcent</button></div></div>
+      <div class="info">Formát data, oddělovač, 12/24 h a odsazení zůstávají ve stávajících sekcích (DESIGN_SYSTEM §5.12.1).</div>
+    </div>`;
+  }
+  if (S.sel === 'lens') return `<div class="ph">${svg('ring',22)}<div style="flex:1"><div class="t">LENS</div><div class="s">Klepnutí = hledat · tah nahoru = aplikace · podržení = ARC</div></div></div>
+    <div class="seg"><button data-act="lens" data-v="0" aria-pressed="${!S.lens.fill}">Kroužek</button><button data-act="lens" data-v="1" aria-pressed="${S.lens.fill}">Plný</button></div>
+    <div class="row"><span class="k">Velikost</span><input class="r" type="range" id="r-ls" min="40" max="64" value="${S.lens.size}" data-rng="lens.size"><span class="val" id="v-lens.size">${S.lens.size}</span></div>
+    <button class="pbtn more" data-act="studio" data-v="ctl"><span>ARC, gesta a řada LENS ve Studiu</span>${svg('chev',16)}</button>`;
+  const it = S.items.find(i => i.id === S.sel); if (!it) return '';
+  const size = it.size || S.icon.size, lab = it.label ?? S.icon.labels;
+  return `<div class="ph">${iconHTML(it.app, 40, it.style || S.icon.style, S.icon.shape)}<div style="flex:1"><div class="t">${APPS[it.app][0]}</div><div class="s">${it.dock ? 'Řada LENS' : { grid:'Mřížka', free:'Volně', hybrid:'Hybrid' }[S.mode]}</div></div></div>
+    <div class="qa"><button class="pbtn" data-act="swap">${svg('swap',20)}Vyměnit</button><button class="pbtn" data-act="istyle">${svg('image',20)}Ikona</button><button class="pbtn" data-act="remove">${svg('minus',20)}Odebrat</button></div>
+    <div class="row"><span class="k">Velikost</span>${inh(!!it.size,'item.size')}<input class="r" type="range" id="r-is" min="36" max="72" step="2" value="${size}" data-rng="item.size" style="max-width:110px"><span class="val" id="v-item.size">${size}</span></div>
+    <button class="pbtn more" data-act="more"><span>Další možnosti</span>${svg(S.more ? 'x' : 'chev',16)}</button>
+    <div class="fold" style="max-height:${S.more ? 300 : 0}px">
+      <div class="row"><span class="k">Popisek</span>${inh(it.label !== undefined,'item.label')}<div class="seg" style="width:120px"><button data-act="ilabel" data-v="1" aria-pressed="${lab}">Ano</button><button data-act="ilabel" data-v="0" aria-pressed="${!lab}">Ne</button></div></div>
+      <div class="row"><span class="k">Styl ikony</span>${inh(!!it.style,'item.style')}<span class="val">${{orig:'Barevné',mono:'Mono',tint:'Tónované',veil:'Veil'}[it.style || S.icon.style]}</span></div>
+      <div class="info">Vlastní obrázek ikony a ikona z balíčku budou tady (chybí, viz inventura). Podržení ikony mimo úpravy ukáže zkratky aplikace.</div>
+    </div>`;
+}
+function placePop() {
+  const p = $('pop');
+  if (!S.pop) { p.classList.add('hide'); return; }
+  p.innerHTML = popHTML(); p.classList.remove('hide');
+  positionPop();
+}
+// Where the item will sit once Home has settled: undo Home's current (maybe mid-transition) scale, apply the target one.
+function settledRect(el) {
+  const sr = scr.getBoundingClientRect(), s = sr.width / W, hr = home.getBoundingClientRect(), k = hr.width / sr.width, r = el.getBoundingClientRect();
+  const lx = (r.left - hr.left) / (s * k), ly = (r.top - hr.top) / (s * k), lw = r.width / (s * k), lh = r.height / (s * k);
+  const t = S.editing ? .86 : 1, ox = W * .5, oy = H * .52;
+  return { x: ox + (lx - ox) * t, y: oy + (ly - oy) * t, w: lw * t, h: lh * t };
+}
+// Inspector grows from the item on the side with more room, so the edited item stays visible.
+const POP_TOP = 96, POP_BOTTOM = H - 100;
+function positionPop() {
+  const p = $('pop');
+  if (S.pop === 'leave') { Object.assign(p.style, { left:'40px', top:'330px', bottom:'', maxHeight:'' }); p.style.transformOrigin = '50% 50%'; return; }
+  const el = home.querySelector(`[data-item="${S.sel}"]`); if (!el) return;
+  const { x, y, w, h } = settledRect(el);
+  const left = Math.max(12, Math.min(W - 342, x + w/2 - 165)), ax = Math.max(24, Math.min(306, x + w/2 - left));
+  const above = y - 12 - POP_TOP, below = POP_BOTTOM - (y + h + 12);
+  p.style.left = left + 'px';
+  if (above > below) { p.style.bottom = (H - y + 12) + 'px'; p.style.top = ''; p.style.maxHeight = above + 'px'; p.style.transformOrigin = `${ax}px 100%`; }
+  else { p.style.bottom = ''; p.style.top = (y + h + 12) + 'px'; p.style.maxHeight = below + 'px'; p.style.transformOrigin = `${ax}px 0`; }
+}
+function sheetHTML() {
+  if (S.sheet === 'presets') {
+    const ps = [['pure','Pure'],['essentials','Essentials'],['balanced','Balanced']].map(([k,n]) => {
+      const st = { ...S, preset:k, items:presetItems(k) };
+      return `<button class="thumb" data-act="preset" data-v="${k}" aria-pressed="${S.preset===k && !S.customized}"><div class="tb">${miniHTML(st, 82)}</div>${n}</button>`; }).join('');
+    const mine = S.saved.length ? `<button class="thumb" data-act="mine" aria-pressed="false"><div class="tb">${miniHTML(JSON.parse(S.saved[0]), 82)}</div>Moje</button>`
+      : `<button class="thumb" data-act="savep"><div class="tb" style="display:grid;place-items:center;color:var(--fg2)">${svg('plus',22)}</div>Uložit</button>`;
+    return `<div class="grab"></div><div class="ph"><div style="flex:1"><div class="t">Předlohy</div><div class="s">Náhled = skutečný výsledek s vaším motivem</div></div><button class="pbtn round" data-act="sheetclose" aria-label="Zavřít">${svg('x',20)}</button></div>
+      <div class="thumbs">${ps}${mine}</div>
+      <div class="info" style="margin-top:10px">Přepnutí předlohy jde vrátit tlačítkem Zpět o krok. Vlastní uložené předlohy se nikdy nepřepisují.</div>`;
+  }
+  if (S.sheet === 'mode') return `<div class="grab"></div><div class="ph"><div style="flex:1"><div class="t">Rozložení</div><div class="s">Jak se prvky usazují při přesunu</div></div><button class="pbtn round" data-act="sheetclose" aria-label="Zavřít">${svg('x',20)}</button></div>
+      <div class="seg">${[['grid','Mřížka'],['free','Volně'],['hybrid','Hybrid']].map(([k,n]) => `<button data-act="mode" data-v="${k}" aria-pressed="${S.mode===k}">${n}</button>`).join('')}</div>
+      <div class="info" style="margin-top:8px">${{ grid:'Prvky skočí do nejbližší buňky 4 × 7.', free:'Prvky zůstanou přesně tam, kde je pustíte.', hybrid:'Blízko buňky se přichytí, jinde zůstanou volně.' }[S.mode]} Zkuste přetáhnout ikonu na ploše.</div>`;
+  if (S.sheet === 'add') { const have = new Set(S.items.map(i => i.app));
+    return `<div class="grab"></div><div class="ph"><div style="flex:1"><div class="t">Přidat na plochu</div><div class="s">Aplikace se objeví na volném místě</div></div><button class="pbtn round" data-act="sheetclose" aria-label="Zavřít">${svg('x',20)}</button></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px 4px">${Object.keys(APPS).filter(a => !have.has(a)).slice(0,8).map(a => `<button class="thumb" data-act="add" data-v="${a}">${iconHTML(a, 44, S.icon.style === 'mono' ? 'veil' : S.icon.style, S.icon.shape)}${APPS[a][0]}</button>`).join('')}</div>
+      <div class="row" style="margin-top:6px"><span class="k">${S.clock.hidden ? 'Hodiny' : 'Widgety'}</span><span class="val">${S.clock.hidden ? '<button class="pbtn pill" data-act="clockback">Vrátit</button>' : 'Vyhrazeno — příští etapa'}</span></div>`; }
+  return '';
+}
+function renderSheet() { const sh = $('sheet'); if (!S.sheet) { sh.classList.add('hide'); return; } sh.innerHTML = sheetHTML(); sh.classList.remove('hide'); }
+
+/* ---------- studio ---------- */
+const SECTIONS = [
+  ['look','look','Vzhled','motiv, barvy, písmo, ikony, materiál, tapeta'],
+  ['home','home','Plocha','předlohy a rozložení — upravuje se přímo na ploše'],
+  ['ctl','ring','Ovládání','LENS · ARC 3 kruhy · PULSE jen na ploše · gesta'],
+  ['flow','flow','Akce a FLOW','4 příkazy · zkratky aplikací'],
+  ['sys','sys','Systém','oprávnění, přístupnost, skryté aplikace, záloha, o aplikaci']
+];
+const INDEX = [['Tvar ikon','Vzhled › Ikony','ic'],['Styl ikon: barevné, mono, tónované','Vzhled › Ikony','ic'],['Velikost všech ikon','Vzhled › Ikony','ic'],['Balíček ikon','Vzhled › Ikony','ic'],
+  ['Akcent a barevné předlohy','Vzhled › Barvy','col'],['Material You (barvy z tapety)','Vzhled › Barvy','col'],['Intenzita tónování','Vzhled › Barvy','col'],['Tmavý a světlý motiv','Vzhled › Motiv','theme'],
+  ['Materiál panelů: Veil, Krystal, Mráz, Kapka','Vzhled › Materiál','mat'],['Rozostření','Vzhled › Materiál','mat'],['Písmo hodin a data','Vzhled › Písmo','font'],['Písmo rozhraní','Vzhled › Písmo','font'],
+  ['Tapeta a ztmavení','Vzhled › Tapeta','wall'],['Předlohy plochy','Plocha','@home'],['Mřížka, volně, hybrid','Plocha › Rozložení','@home'],['ARC kruhy a sady','Ovládání','@ctl'],['PULSE','Ovládání','@ctl'],
+  ['Gesta LENS','Ovládání','@ctl'],['FLOW příkazy','Akce a FLOW','@flow'],['Skryté aplikace','Systém','@sys'],['Záloha nastavení','Systém','@sys'],['Omezit pohyb','Systém › Přístupnost','@sys']];
+const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+function studioMain() {
+  const q = norm(S.sq || '');
+  const list = q ? INDEX.filter(([n,p]) => norm(n + ' ' + p).includes(q)).map(([n,p,t]) => `<button class="srow" data-act="goto" data-v="${t}" style="min-height:56px"><span class="grow"><span class="tt" style="font-size:15px">${n}</span><span class="ss" style="display:block">${p}</span></span>${svg('chev',18)}</button>`).join('') || `<div class="info" style="padding:12px 6px">Nic nenalezeno. Zkuste „ikony“, „písmo“ nebo „ARC“.</div>`
+    : SECTIONS.map(([k,g,n,s]) => `<button class="srow" data-act="section" data-v="${k}"><span class="gl">${svg(g,22)}</span><span class="grow"><span class="tt">${n}</span><span class="ss" style="display:block">${s}</span></span>${svg('chev',18)}</button>`).join('');
+  return `<div class="shead"><button class="pbtn round" data-act="studioclose" aria-label="Zavřít Studio">${svg('x',22)}</button></div>
+    <div class="stitle">Studio</div>
+    <label class="sfield">${svg('search',20)}<input id="stq" placeholder="Hledat v nastavení" value="${S.sq || ''}" autocomplete="off"></label>
+    ${q ? '' : `<button class="srow card" data-act="edit" style="margin-bottom:10px"><span class="gl">${svg('grid',22)}</span><span class="grow"><span class="tt">Upravit plochu</span><span class="ss" style="display:block">Totéž co podržení plochy</span></span>${svg('chev',18)}</button>`}
+    ${list}`;
+}
+function lookPage() {
+  const sw = Object.entries(ACCS).map(([k,[n,p]]) => { const c = p ? (uiMode()==='dark' ? p[0] : p[1]) : accentFor('sys');
+    return `<button class="dot" data-act="acc" data-v="${k}" aria-pressed="${S.acc===k}" aria-label="${n}" title="${n}" style="background:${k==='sys' ? `conic-gradient(${c},${WALLS[S.wall].acc[1]},${c})` : c}"></button>`; }).join('');
+  const st = (k,n) => `<button class="spec" data-act="istyle-g" data-v="${k}" aria-pressed="${S.icon.style===k}" style="height:76px"><span>${iconHTML('music', 36, k, S.icon.shape)}<small>${n}</small></span></button>`;
+  return `<div class="shead"><button class="pbtn round" data-act="sback" aria-label="Zpět">${svg('back',22)}</button><span class="t">Vzhled</span></div>
+    <div class="prev card" style="padding:12px 14px"><div class="tb" id="lookprev">${miniHTML(S, 92)}</div><div style="flex:1"><div style="font-size:14px;font-weight:560">Živý náhled</div><div class="info">Každá změna se hned projeví na ploše. Prvky s vlastní hodnotou si ji nechají.</div><div class="info">${S.items.filter(i => i.size || i.style).length + (S.clock.color !== 'inherit' ? 1 : 0)} prvků s vlastní hodnotou</div></div></div>
+    <div class="grp" id="row-theme">Motiv</div>
+    <div class="seg">${[['sys','Systém'],['dark','Tmavý'],['light','Světlý']].map(([k,n]) => `<button data-act="ui" data-v="${k}" aria-pressed="${S.ui===k}">${n}</button>`).join('')}</div>
+    <div class="grp" id="row-col">Barvy</div>
+    <div class="card"><div class="dots" style="padding:10px 0">${sw}</div>
+      <div class="info">${S.acc==='sys' ? 'Systém = Material You z aktuální tapety (Android 12+).' : `Barevná předloha ${ACCS[S.acc][0]}, světlá a tmavá varianta s kontrastem ≥ 4,5:1.`}</div>
+      <div class="row"><span class="k">Tónování ploch</span><input class="r" type="range" id="r-tint" min="0" max="12" value="${S.tint}" data-rng="tint" style="max-width:150px"><span class="val" id="v-tint">${S.tint}</span></div>
+      <div class="row"><span class="k">Výjimky prvků</span><span class="val">Hodiny, Text, Ikony, LENS, Search</span></div></div>
+    <div class="grp" id="row-mat">Materiál</div>
+    <div class="card"><div class="seg" style="margin:8px 0">${Object.entries(GLASS).map(([k,[n]]) => `<button data-act="glass" data-v="${k}" aria-pressed="${S.glass===k}">${n}</button>`).join('')}</div>
+      <div class="info">${S.blur ? 'Toto zařízení umí rozostření za oknem: použije se jen u otevřeného panelu.' : 'Rozostření tapety toto zařízení nepodporuje. Panely proto používají hustší Veil, aby text zůstal čitelný.'}</div></div>
+    <div class="grp" id="row-font">Písmo</div>
+    <div class="card"><div class="row"><span class="k">Rozhraní</span><span class="val">Roboto Flex</span></div>
+      <div class="info" style="padding:0 0 6px">Hodiny a datum (sdíleno s inspektorem hodin):</div>
+      <div class="specs" style="padding-bottom:10px">${FONTS.map(([fam,n]) => `<button class="spec" data-act="clock" data-k="font" data-v="${fam}" aria-pressed="${S.clock.font===fam}"><span><b style="font-family:'${fam}'">14</b><small>${n}</small></span></button>`).join('')}</div></div>
+    <div class="grp" id="row-ic">Ikony</div>
+    <div class="card"><div class="specs" style="padding:10px 0">${st('orig','Barevné')}${st('mono','Mono')}${st('tint','Tónované')}${st('veil','Veil')}</div>
+      ${S.icon.style === 'mono' ? '' : `<div class="seg">${[['circle','Kruh'],['squircle','Squircle'],['rounded','Zaoblený']].map(([k,n]) => `<button data-act="shape" data-v="${k}" aria-pressed="${S.icon.shape===k}">${n}</button>`).join('')}</div>`}
+      <div class="row"><span class="k">Velikost všech</span><input class="r" type="range" id="r-gis" min="40" max="64" step="2" value="${S.icon.size}" data-rng="icon.size" style="max-width:150px"><span class="val" id="v-icon.size">${S.icon.size}</span></div>
+      <div class="row"><span class="k">Popisky</span><div class="seg" style="width:120px"><button data-act="glabels" data-v="1" aria-pressed="${S.icon.labels}">Ano</button><button data-act="glabels" data-v="0" aria-pressed="${!S.icon.labels}">Ne</button></div></div>
+      <div class="row"><span class="k">Balíček ikon</span><span class="val">Nenalezen žádný</span></div></div>
+    <div class="grp" id="row-wall">Tapeta</div>
+    <div class="card"><div class="row"><span class="k">Zdroj</span><span class="val">Systémová tapeta</span></div>
+      <div class="row"><span class="k">Ztmavení</span><input class="r" type="range" id="r-dim" min="0" max="40" value="${S.dim}" data-rng="dim" style="max-width:150px"><span class="val" id="v-dim">${S.dim} %</span></div>
+      <div class="info">Vlastní obrázek a minimalistické tapety Intelie přijdou s D13 ④; živé tapety zůstávají systémové.</div></div>`;
+}
+function accentFor(k) { const p = k === 'sys' ? WALLS[S.wall].acc : ACCS[k][1]; return uiMode()==='dark' ? p[0] : p[1]; }
+function otherPage(k) {
+  const rows = { ctl:[['LENS','Klepnutí hledá, tah nahoru aplikace, podržení ARC'],['ARC','3 kruhy: aplikace, FLOW, zkratky'],['PULSE','Jen na ploše · kalibrace kamery'],['Gesta','Dvojité klepnutí: zamknout (návrh)'],['Haptika','Jemná']],
+    flow:[['Příkazy FLOW','Ráno · Práce · Běh · Večer'],['Zkratky aplikací','Jen když je Intelia výchozí plocha'],['Spouštění','Jen tlačítkem, Enterem nebo puštěním na ARC']],
+    sys:[['Oprávnění','Žádná nová; PULSE jen s vaším souhlasem'],['Přístupnost','Omezit pohyb · velké popisky'],['Skryté aplikace','3'],['Záloha','Export a import nastavení'],['O aplikaci','Verze, licence (OFL písma)']],
+    home:[['Upravit plochu','Otevře editor přímo na ploše'],['Předlohy','Pure · Essentials · Balanced · vlastní'],['Rozložení','Mřížka · Volně · Hybrid']] }[k];
+  const n = SECTIONS.find(s => s[0] === k)[2];
+  return `<div class="shead"><button class="pbtn round" data-act="sback" aria-label="Zpět">${svg('back',22)}</button><span class="t">${n}</span></div>
+    <div class="card">${rows.map(([a,b]) => `<div class="row" style="min-height:60px"><span class="k">${a}<span class="ss" style="display:block;font-size:12.5px;color:var(--fg2)">${b}</span></span>${svg('chev',16)}</div>`).join('')}</div>
+    <div class="info" style="margin-top:10px">${k === 'ctl' || k === 'flow' ? 'Obsah zůstává ze současné verze; vizuálně přejde na Veil 3.0 v etapě ARC / PULSE.' : 'Jen struktura — obsah zůstává ze současné verze.'}</div>`;
+}
+function renderStudio(keepScroll = true) {
+  const st = $('studio'), p1 = $('st1'), p2 = $('st2'), s1 = p1.scrollTop, s2 = p2.scrollTop;
+  if (!S.studio) { st.classList.add('hide'); return; }
+  st.classList.remove('hide');
+  const focused = document.activeElement && document.activeElement.id === 'stq';
+  p1.innerHTML = studioMain();
+  if (S.section) p2.innerHTML = S.section === 'look' ? lookPage() : otherPage(S.section);
+  $('track').classList.toggle('deep', !!S.section && S.studio === 'deep');
+  if (keepScroll) { p1.scrollTop = s1; p2.scrollTop = s2; }
+  if (focused) { const i = $('stq'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+}
+
+/* ---------- search ---------- */
+const KEYS = ['qwertzuiop','asdfghjkl','yxcvbnm'];
+const FLOWS = [['Ráno',['clockg','music','cal']],['Práce',['mail','cal','notes']]];
+function renderKbd() { $('kbd').innerHTML = KEYS.map((r,i) => `<div class="kr">${[...r].map(k => `<button data-act="key" data-v="${k}">${k}</button>`).join('')}${i===2 ? '<button data-act="key" data-v="⌫" style="flex:0 0 50px" aria-label="Smazat">⌫</button>' : ''}</div>`).join('') + `<div class="kr"><button class="w" data-act="key" data-v=" ">mezera</button><button class="e" data-act="key" data-v="⏎">Otevřít</button></div>`; }
+function results() {
+  const q = norm(S.q.trim());
+  if (!q) return { apps:['phone','msg','music','maps'], flow:null };
+  const apps = Object.keys(APPS).filter(a => norm(APPS[a][0]).split(' ').some(w => w.startsWith(q)) || norm(APPS[a][0]).includes(q)).slice(0,5);
+  const flow = FLOWS.find(([n]) => norm(n) === q);
+  return { apps, flow };
+}
+function renderResults() {
+  const r = $('res'); if (!S.search) { r.innerHTML = ''; return; }
+  const { apps, flow } = results();
+  const rows = apps.map((a,i) => `<button class="rrow${i===0 && !flow ? ' first' : ''}" data-act="open" data-v="${a}">${iconHTML(a, 36, S.icon.style, S.icon.shape)}<span>${APPS[a][0]}</span>${i===0 && !flow ? '<span class="hint">Enter</span>' : ''}</button>`);
+  if (!S.q) rows.push(`<div class="info" style="padding:0 12px 4px">Nedávné · zkuste „ráno“ (FLOW) nebo „kalendar“ bez háčků</div>`);
+  if (flow) rows.unshift(`<div class="flowc v vd"><span style="flex:1"><span style="font-size:15px;font-weight:600">FLOW · ${flow[0]}</span><span style="display:flex;gap:6px;margin-top:6px;align-items:center;color:var(--fg2);font-size:12px">${flow[1].map((a,i) => `${i+1} ${iconHTML(a, 26, 'veil', 'circle')}`).join('')}</span></span><button class="pbtn pill acc" data-act="runflow">Spustit</button></div>`);
+  if (!apps.length && !flow) rows.push(`<div class="info" style="padding:8px 12px">Žádná aplikace ani příkaz „${S.q}“.</div>`);
+  r.innerHTML = rows.join('');
+}
+function openSearch(on) {
+  const f = $('sfld'), k = $('kbd'), r = $('res');
+  const closed = { left:LX - S.lens.size/2, top:DY - S.lens.size/2, width:S.lens.size, height:S.lens.size };
+  const open = { left:16, top:H - 300 - 64, width:W - 32, height:52 };
+  const set = (o) => { for (const p in o) f.style[p] = o[p] + 'px'; };
+  if (on) {
+    S.search = true; S.q = ''; $('sq').value = ''; f.hidden = false; set(closed); f.style.borderRadius = '50%';
+    f.getBoundingClientRect();
+    requestAnimationFrame(() => { set(open); f.style.borderRadius = '26px'; f.classList.add('open'); k.classList.add('on'); depth(); });
+    r.style.bottom = (300 + 64 + 12) + 'px'; r.style.opacity = 1; renderResults();
+    // Ready to type at once: focus runs alongside the unfold, never after it.
+    try { $('sq').focus({ preventScroll:true }); } catch (e) {}
+  } else {
+    S.search = false; f.classList.remove('open'); set(closed); f.style.borderRadius = '50%'; k.classList.remove('on'); depth(); r.style.opacity = 0;
+    setTimeout(() => { if (!S.search) { f.hidden = true; renderResults(); } }, 300 * (S.reduce ? 0 : 1));
+  }
+}
+
+/* ---------- toast ---------- */
+let tt;
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('on'), 1600); }
+
+/* ---------- render all ---------- */
+function depth() { scr.dataset.depth = (S.studio || S.search) ? 'focus' : (S.sheet || S.pop === 'leave') ? 'dense' : ''; }
+function render() {
+  applyVars(); depth(); renderHome(); renderEditor(); placePop(); renderSheet(); renderStudio(); renderPanel();
+}
+function renderLight() { applyVars(); renderHome(); const lp = $('lookprev'); if (lp) lp.innerHTML = miniHTML(S, 92); if (S.pop) { const p = $('pop'); const keep = p.scrollTop; placePopPosOnly(); p.scrollTop = keep; } }
+// While a slider is dragged the inspector stays put (the thumb must not move under the finger); it moves only if the item would grow under it.
+function placePopPosOnly() {
+  const el = S.pop !== 'leave' && home.querySelector(`[data-item="${S.sel}"]`); if (!el) return;
+  const sr = scr.getBoundingClientRect(), s = sr.width / W, pr = $('pop').getBoundingClientRect(), r = settledRect(el);
+  const py = (pr.top - sr.top) / s, ph = pr.height / s;
+  if (r.y < py + ph + 4 && r.y + r.h > py - 4) positionPop();
+}
+
+/* ---------- actions ---------- */
+function enterEdit() { closeAll(); S.editing = true; entry = snap(); hist = []; fut = []; cur = entry; S.sel = null; render(); }
+function closeAll() { if (S.search) openSearch(false); S.pop = null; S.sheet = null; S.studio = null; S.section = null; S.more = false; }
+const ACT = {
+  cancel() { if (snap() !== entry) { S.pop = 'leave'; render(); } else { S.editing = false; S.sel = null; S.pop = null; render(); } },
+  discard() { restore(entry); S.editing = false; S.sel = null; S.pop = null; S.sheet = null; render(); toast('Změny zahozeny'); },
+  popclose() { S.pop = null; render(); },
+  save() { S.editing = false; S.sel = null; S.pop = null; S.sheet = null; render(); toast('Plocha uložena'); },
+  undo() { if (!hist.length) return; fut.push(cur); cur = hist.pop(); restore(cur); S.pop = S.sel ? 'item' : null; render(); },
+  redo() { if (!fut.length) return; hist.push(cur); cur = fut.pop(); restore(cur); render(); },
+  sheet(v) { S.pop = null; S.sel = null; S.sheet = S.sheet === v ? null : v; render(); },
+  sheetclose() { S.sheet = null; render(); },
+  preset(v) { S.preset = v; S.items = presetItems(v); S.customized = false; commit(); render(); },
+  mine() { const o = JSON.parse(S.saved[0]); S.items = o.items; S.preset = o.preset; commit(); render(); },
+  savep() { S.saved = [snap()]; render(); toast('Uloženo jako „Moje“'); },
+  mode(v) { S.mode = v; commit(); render(); },
+  add(v) { const used = new Set(S.items.map(i => `${Math.round(i.x)},${Math.round(i.y)}`));
+    let spot = null; for (let j = 2; j < 7 && !spot; j++) for (let i = 0; i < 4 && !spot; i++) { const x = GX + CW*(i+.5), y = GY + RH*(j+.5); if (!used.has(`${Math.round(x)},${Math.round(y)}`)) spot = [x,y]; }
+    if (!spot) { toast('Plocha je plná'); return; }
+    S.items = S.items.concat({ id:v + Date.now(), app:v, x:spot[0], y:spot[1] }); S.preset = S.preset === 'pure' ? 'essentials' : S.preset; commit(); S.sheet = null; render(); toast(`${APPS[v][0]} přidána`); },
+  remove() { const n = APPS[S.items.find(i => i.id === S.sel).app][0]; S.items = S.items.filter(i => i.id !== S.sel); S.sel = null; S.pop = null; commit(); render(); toast(`${n} odebrána z plochy (aplikace zůstává)`); },
+  swap() { const it = S.items.find(i => i.id === S.sel); const keys = Object.keys(APPS); const have = new Set(S.items.map(i => i.app)); const next = keys.find((a,i) => i > keys.indexOf(it.app) && !have.has(a)) || keys.find(a => !have.has(a)); if (next) { it.app = next; commit(); render(); } },
+  istyle() { const it = S.items.find(i => i.id === S.sel); const order = ['orig','mono','tint','veil']; it.style = order[(order.indexOf(it.style || S.icon.style) + 1) % 4]; commit(); render(); },
+  ilabel(v) { const it = S.items.find(i => i.id === S.sel); it.label = v === '1'; commit(); render(); },
+  reset(v) { if (v === 'clock.color') S.clock.color = 'inherit'; else { const it = S.items.find(i => i.id === S.sel); if (it) delete it[v.split('.')[1]]; } commit(); render(); },
+  more() { S.more = !S.more; render(); },
+  clock(v, el) { const k = el.dataset.k; S.clock[k] = k === 'date' ? v === '1' : v; if (S.editing) commit(); render(); },
+  lens(v) { S.lens.fill = v === '1'; commit(); render(); },
+  studio(v) { S.pop = null; S.sheet = null; S.studio = 'main'; S.section = null; S.sq = '';
+    renderStudio(false); if (v === 'look' || v === 'ctl') { S.section = v; renderStudio(false); requestAnimationFrame(() => { S.studio = 'deep'; render(); }); } else render(); },
+  studioclose() { S.studio = null; S.section = null; render(); },
+  section(v) { if (v === 'home') { enterEdit(); return; } S.section = v; renderStudio(false); $('st2').scrollTop = 0; requestAnimationFrame(() => { S.studio = 'deep'; render(); }); },
+  sback() { if (S.editing && S.studio) { S.studio = null; S.section = null; render(); return; } S.studio = 'main'; render(); },
+  edit() { enterEdit(); },
+  goto(v) { if (v[0] === '@') { if (v === '@home') { enterEdit(); S.sheet = 'presets'; render(); return; } ACT.section(v.slice(1)); return; }
+    S.section = 'look'; renderStudio(false); requestAnimationFrame(() => { S.studio = 'deep'; render(); const row = $('row-' + v); if (row) { $('st2').scrollTop = row.offsetTop - 60; const c = row.nextElementSibling; c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 1500); } }); },
+  ui(v) { S.ui = v; render(); }, acc(v) { S.acc = v; render(); }, glass(v) { S.glass = v; render(); },
+  'istyle-g'(v) { S.icon.style = v; render(); }, shape(v) { S.icon.shape = v; render(); }, glabels(v) { S.icon.labels = v === '1'; render(); },
+  key(v) { const i = $('sq'); if (v === '⌫') i.value = i.value.slice(0,-1); else if (v === '⏎') { const { apps, flow } = results(); if (flow) { ACT.runflow(); return; } if (apps[0]) ACT.open(apps[0]); return; } else i.value += v; S.q = i.value; renderResults(); },
+  open(v) { openSearch(false); toast(`Otevírá se ${APPS[v][0]}`); },
+  runflow() { const { flow } = results(); openSearch(false); toast(`FLOW ${flow[0]}: otevírá ${flow[1].length} aplikace po sobě`); },
+  scene(v) { setScene(v); }, wall(v) { S.wall = v; render(); }, panel(v, el) { const [k, val] = v.split(':'); if (k === 'preset') { S.preset = val; S.items = presetItems(val); }
+    else if (k === 'clock') S.clock.style = val; else if (k === 'ui') S.ui = val; else if (k === 'glass') S.glass = val; else if (k === 'blur') S.blur = val === '1'; else if (k === 'reduce') S.reduce = val === '1'; else if (k === 'icon') S.icon.style = val;
+    cur = snap(); render(); }
+};
+function back() {
+  if (S.search) { openSearch(false); return; }
+  if (S.studio === 'deep') { if (S.editing) { S.studio = null; S.section = null; } else S.studio = 'main'; render(); return; }
+  if (S.studio) { S.studio = null; render(); return; }
+  if (S.sheet) { S.sheet = null; render(); return; }
+  if (S.pop) { S.pop = null; S.sel = null; S.more = false; render(); return; }
+  if (S.editing) ACT.cancel();
+}
+
+/* ---------- pointer on home ---------- */
+let drag = null, lpT = null;
+scr.addEventListener('pointerdown', (e) => {
+  const t = e.target; if (t.closest('.pop,.sheet,.ebar,.etray,.studio,.sfld,.kbd,.res,.nav,.scrim')) return;
+  const itEl = t.closest('[data-item]');
+  if (!S.editing) {
+    if (itEl && itEl.dataset.item === 'lens' && !S.search) return;
+    lpT = setTimeout(() => { lpT = null; enterEdit(); }, 480); return;
+  }
+  if (!itEl) return;
+  const id = itEl.dataset.item; if (id === 'clock' || id === 'lens') return;
+  const it = S.items.find(i => i.id === id); if (!it) return;
+  drag = { it, sx:e.clientX, sy:e.clientY, ox:it.x, oy:it.y, moved:false, el:itEl };
+  itEl.setPointerCapture(e.pointerId);
+});
+scr.addEventListener('pointermove', (e) => {
+  if (lpT && (Math.abs(e.movementX) + Math.abs(e.movementY) > 6)) { clearTimeout(lpT); lpT = null; }
+  if (!drag) return;
+  const k = scr.getBoundingClientRect().width / W * .86, dx = (e.clientX - drag.sx) / k, dy = (e.clientY - drag.sy) / k;
+  if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+  if (!drag.moved) { drag.moved = true; S.pop = null; placePop(); }
+  drag.it.x = Math.max(30, Math.min(W - 30, drag.ox + dx)); drag.it.y = Math.max(110, Math.min(DY, drag.oy + dy));
+  drag.el.style.left = drag.it.x + 'px'; drag.el.style.top = drag.it.y + 'px';
+});
+scr.addEventListener('pointerup', () => {
+  if (lpT) { clearTimeout(lpT); lpT = null; }
+  if (!drag) return; const d = drag; drag = null;
+  if (!d.moved) return;
+  const it = d.it; it.dock = false;
+  const ci = Math.max(0, Math.min(3, Math.round((it.x - GX) / CW - .5))), cj = Math.max(0, Math.min(6, Math.round((it.y - GY) / RH - .5)));
+  const cx = GX + CW*(ci+.5), cy = GY + RH*(cj+.5);
+  if (Math.abs(it.y - DY) < 30) { it.y = DY; it.dock = true; }
+  else if (S.mode === 'grid' || (S.mode === 'hybrid' && Math.hypot(it.x - cx, it.y - cy) < 26)) { it.x = cx; it.y = cy; }
+  S.customized = true; commit(); render(); d.moved = 'done'; window.__justDragged = true; setTimeout(() => window.__justDragged = false, 50);
+});
+scr.addEventListener('dblclick', (e) => { if (!S.editing && !e.target.closest('[data-item="lens"],.studio,.sheet,.pop')) enterEdit(); });
+
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-act]');
+  if (a && !a.disabled) { ACT[a.dataset.act](a.dataset.v, a); return; }
+  if (e.target.closest('#nav')) { back(); return; }
+  if (!scr.contains(e.target) || window.__justDragged) return;
+  if (e.target.closest('.pop,.sheet,.ebar,.etray,.studio,.sfld,.kbd,.res')) return;
+  if (e.target.closest('#scrim')) { back(); return; }
+  const itEl = e.target.closest('[data-item]');
+  if (!S.editing) { if (itEl && itEl.dataset.item === 'lens') openSearch(true); else if (itEl && itEl.dataset.item !== 'clock') toast(`Otevírá se ${APPS[S.items.find(i => i.id === itEl.dataset.item).app][0]}`); return; }
+  S.sheet = null;
+  if (itEl) { S.sel = itEl.dataset.item; S.pop = 'item'; S.more = false; } else { S.sel = null; S.pop = null; }
+  render();
+});
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.id === 'sq') { S.q = t.value; renderResults(); return; }
+  if (t.id === 'stq') { S.sq = t.value; renderStudio(); return; }
+  const path = t.dataset.rng; if (!path) return;
+  const v = +t.value, [o, k] = path.split('.');
+  if (o === 'item') { const it = S.items.find(i => i.id === S.sel); it.size = v; }
+  else if (k) S[o][k] = v; else S[o] = v;
+  const lab = document.getElementById('v-' + path); if (lab) lab.textContent = path === 'dim' ? v + ' %' : v;
+  renderLight();
+});
+document.addEventListener('change', (e) => { if (e.target.dataset.rng) { if (S.editing) commit(); render(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') back(); if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'sq') ACT.key('⏎'); });
+
+/* ---------- side panel ---------- */
+const SCENES = [['home','Home'],['materials','Veil Light / Dense / Focus'],['edit','Úpravy plochy'],['edit-icon','Úprava ikony'],['edit-clock','Úprava hodin'],['presets','Předlohy'],['studio','Studio'],['studio-look','Studio › Vzhled'],['search','LENS → Search']];
+const NOTES = {
+  home:['Home','Výchozí plocha: hodiny čistým písmem přímo na tapetě, LENS a volitelně čtyři Essentials. Nic dalšího trvale nesvítí; prostor nad LENS je volný pro budoucí gesta.',['Tmavý text na světlé tapetě se volí podle jasu tapety (<code>WallpaperColors</code>), nezávisle na motivu panelů.','Sloupec a Deska jsou volitelné styly hodin, stávající plochy si je nechají.','Popisky jsou výchozí vypnuté; když se zapnou, mají max. šířku buňky a nepřekrývají se.']],
+  materials:['Tři hustoty jednoho materiálu','Veil Light pro drobné ovládání, Dense pro kontextové editory, Focus pro Studio a Search. Liší se jen krytím; hrana, tónování a radius jsou stejné.',['Přepínač „Blur“ vpravo ukazuje zařízení, které rozostření za oknem umí. Phone (3) ho nemá, proto je výchozí stav bez blur.','Krystal / Mráz / Kapka / Matné jsou presety téže plochy.']],
+  edit:['Úpravy plochy','Tatáž plocha se zmenší na 86 % a do uvolněných okrajů vyjede kompaktní lišta (48 dp) a podnos nástrojů. Lišta tak nikdy nepřekryje hodiny ani u horního okraje.',['Přetáhněte ikonu: Mřížka ji usadí do buňky, Volně ji nechá, Hybrid se přichytí jen poblíž buňky.','Puštění u LENS vrátí ikonu do řady LENS.','Zrušit se změnami se zeptá; Zpět o krok funguje i pro předlohy.']],
+  'edit-icon':['Úprava jedné ikony','Klepnutí na ikonu otevře malý inspektor jen pro ni. Vyroste z ikony a staví se na opačnou stranu, takže ji nezakryje.',['Běžné akce nahoře, zbytek pod „Další možnosti“.','Velikost ukazuje dědičnost: Globální, nebo Vlastní ↺ (klepnutím zpět na globální).']],
+  'edit-clock':['Úprava hodin','Styl, velikost a písmo hned; tloušťka, šířka a barva pod „Další možnosti“. Volba bez účinku se nezobrazí (DM Serif nemá váhy, šířku má jen Roboto Flex).',['Písma jsou ta, která už máme v APK (D11, D14).','Totéž písmo jde zvolit i ve Studiu › Vzhled › Písmo: jedna definice volby.']],
+  presets:['Předlohy se skutečnými miniaturami','Miniatury kreslí tatáž funkce jako plochu, s vaší tapetou, ikonami a hodinami. Uložená vlastní plocha se objeví jako „Moje“.',['Rozložení (Mřížka / Volně / Hybrid) má vlastní tlačítko v podnosu.']],
+  studio:['Studio','Pět srozumitelných sekcí s aktuálním stavem v podtitulu a vyhledávání nahoře. Zkuste napsat „ikony“ nebo „pismo“ — výsledek vede rovnou na řádek.',['Plocha vede do editoru; Studio nemá vlastní kopii nastavení plochy.','Ovládání a FLOW jen zobrazují strukturu, jejich přestavba je další etapa.']],
+  'studio-look':['Studio › Vzhled','Vše o vzhledu na jedné stránce se živým náhledem: motiv, barvy, materiál, písmo, ikony, tapeta.',['Barevné předlohy mají světlou i tmavou variantu; Systém = Material You.','Ztmavení tapety je jediná úprava tapety, která nepotřebuje oprávnění.','Materiál ukazuje pravdu o rozostření na daném zařízení.']],
+  search:['LENS → Search','Kroužek LENS se rozvine do pole a pole jede s klávesnicí; výsledky rostou nahoru k palci. Hledání ignoruje diakritiku.',['Napište „ráno“: FLOW se jen ukáže s pořadím aplikací, spustí se teprve tlačítkem nebo Enterem.','Zpět (proužek dole nebo Esc) složí pole zpět do LENS.']]
+};
+function setScene(v) {
+  closeAll(); S.editing = false; S.sel = null; S.scene = v; render();
+  const later = (f) => requestAnimationFrame(() => requestAnimationFrame(f));
+  if (v === 'edit') enterEdit();
+  if (v === 'edit-icon') { enterEdit(); if (!S.items.length) { S.preset = 'essentials'; S.items = presetItems('essentials'); } later(() => { S.sel = S.items[0].id; S.pop = 'item'; render(); }); }
+  if (v === 'edit-clock') { enterEdit(); later(() => { S.sel = 'clock'; S.pop = 'item'; render(); }); }
+  if (v === 'presets') { enterEdit(); S.sheet = 'presets'; render(); }
+  if (v === 'studio') ACT.studio('main');
+  if (v === 'studio-look') ACT.studio('look');
+  if (v === 'search') later(() => openSearch(true));
+  if (v === 'materials') showMaterials();
+  renderPanel();
+}
+function showMaterials() {
+  home.insertAdjacentHTML('beforeend', `<div class="speclab" style="top:300px">Veil Light</div><div class="abs v vl" style="left:24px;top:320px;height:48px;border-radius:24px;padding:0 18px;display:flex;align-items:center;gap:10px;font-size:14px">${svg('undo',18)} ${svg('redo',18)}<span style="color:var(--fg2)">ovládací prvky</span></div>
+  <div class="speclab" style="top:398px">Veil Dense</div><div class="abs v vd" style="left:24px;right:24px;top:418px;border-radius:24px;padding:14px 16px"><div style="font-size:15px;font-weight:600">Hodiny</div><div style="font-size:13px;color:var(--fg2);margin-top:4px">Kontextový editor: klidnější podklad pod textem, ikony pod ním se nepletou.</div></div>
+  <div class="speclab" style="top:536px">Veil Focus</div><div class="abs v vf" style="left:8px;right:8px;top:556px;bottom:8px;border-radius:30px;padding:18px 20px"><div style="font-size:22px;font-weight:520;font-variation-settings:'wdth' 114">Studio</div><div style="font-size:13px;color:var(--fg2);margin-top:6px;max-width:30ch">Rozsáhlejší konfigurace a Search. Maximální čitelnost na jakékoli tapetě.</div></div>`);
+}
+function chip(act, v, label, on) { return `<button data-act="${act}" data-v="${v}" aria-pressed="${on}">${label}</button>`; }
+function renderPanel() {
+  $('c-scene').innerHTML = SCENES.map(([k,n]) => chip('scene', k, n, S.scene === k)).join('');
+  $('c-wall').innerHTML = Object.entries(WALLS).map(([k,w]) => chip('wall', k, w.n, S.wall === k)).join('');
+  $('c-preset').innerHTML = [['pure','Pure'],['essentials','Essentials'],['balanced','Balanced']].map(([k,n]) => chip('panel', 'preset:' + k, n, S.preset === k)).join('');
+  $('c-clock').innerHTML = [['pure','Čisté (výchozí)'],['stack','Sloupec'],['plate','Deska']].map(([k,n]) => chip('panel', 'clock:' + k, n, S.clock.style === k)).join('');
+  $('c-ui').innerHTML = [['sys','Systém'],['dark','Tmavý'],['light','Světlý']].map(([k,n]) => chip('panel', 'ui:' + k, n, S.ui === k)).join('')
+    + Object.entries(GLASS).map(([k,[n]]) => chip('panel', 'glass:' + k, n, S.glass === k)).join('')
+    + chip('panel', 'blur:' + (S.blur ? 0 : 1), S.blur ? 'Rozostření tapety: zařízení s blur' : 'Rozostření tapety: Phone (3) — ne', S.blur)
+    + chip('panel', 'reduce:' + (S.reduce ? 0 : 1), 'Omezit pohyb', S.reduce);
+  const n = NOTES[S.scene]; $('note').innerHTML = `<h3>${n[0]}</h3><p>${n[1]}</p><ul>${n[2].map(x => `<li>${x}</li>`).join('')}</ul>`;
+}
+
+/* ---------- fit ---------- */
+function fit() { const ph = $('phone'); const narrow = innerWidth < 960; const avail = narrow ? Math.min(innerWidth - 40, 411) : 411;
+  const s = Math.min(1, avail / 411, (innerHeight - 40) / 911, narrow ? 1 : 1); ph.style.setProperty('--s', Math.max(.5, s)); }
+addEventListener('resize', () => { fit(); });
+renderKbd(); fit(); render();
+document.fonts && document.fonts.ready.then(() => render());
+})();
+</script>

@@ -198,7 +198,7 @@ private fun StepFilter(value: String, onChange: (String) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(start = 56.dp, end = 24.dp, top = 6.dp, bottom = 6.dp).heightIn(min = 48.dp)
         .drawBehind { drawLine(ink.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) },
         verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.size(14.dp)) { drawCircle(ink.muted, size.minDimension / 2f - .75.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
+        HomeGlyph(Glyph.Search, null, tint = ink.muted, size = 18.dp)
         BasicTextField(value, onChange, Modifier.weight(1f).padding(start = 12.dp).semantics { contentDescription = label }, singleLine = true,
             cursorBrush = SolidColor(ink.accent), textStyle = InkText.body.copy(color = ink.ink),
             decorationBox = { inner ->

@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -21,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -55,7 +58,9 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.onClick
@@ -72,20 +77,26 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.intelia.launcher.R
+import dev.intelia.launcher.data.DockEdge
 import dev.intelia.launcher.data.AppEntry
-import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.FlowAlias
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 
-/** LENS sits this far above the navigation inset; Home layouts align to the same centre. */
+/** LENS centre sits this far above the navigation inset (4.3); Home layouts align to the same centre. */
 val LensLift = 52.dp
 
-fun lensShift(reach: Reach): Dp = when (reach) {
-    Reach.Left -> (-56).dp
-    Reach.Right -> 56.dp
-    Reach.Center -> 0.dp
+/** LENS centre minus the screen centre: the stored [dx] (§5.5), kept at least [LENS_EDGE] from either edge of [width]. */
+fun lensShift(dx: Float, width: Dp): Dp {
+    val room = (width.value / 2 - LENS_EDGE).coerceAtLeast(0f)
+    return dx.coerceIn(-room, room).dp
 }
+
+/** Closest the LENS centre gets to a screen edge, dp (x 60–300 on a 360 dp screen). */
+const val LENS_EDGE = 60f
 
 /** Everything ARC can hold, ring by ring, in fixed slots. */
 class ArcContent(
@@ -120,7 +131,9 @@ internal fun Modifier.centerAt(x: Dp, y: Dp) = layout { measurable, constraints 
 @Composable
 fun LensArc(
     content: ArcContent,
-    reach: Reach,
+    /** LENS centre in dp and the edge its row sits on; ARC opens away from that edge (§5.5). */
+    lens: Pt,
+    edge: DockEdge,
     flowSteps: (FlowAlias) -> List<String?>,
     onSearch: () -> Unit,
     onDrawer: () -> Unit,
@@ -129,8 +142,14 @@ fun LensArc(
     onShortcut: (ShortcutEntry) -> Unit,
     onOpenChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    lensRing: Dp = CrystalDims.lensRing,
+    lensFilled: Boolean = false,
+    editActions: List<CustomAccessibilityAction> = emptyList(),
+    /** In the Home Editor: a click (TalkBack double tap, Enter) selects LENS instead of opening Search; no ARC. */
+    onEditSelect: (() -> Unit)? = null,
 ) {
     val homeInk = LocalHomeInk.current
+    val selectLabel = stringResource(R.string.a11y_select)
     val ink = LocalInk.current
     val accent = ink.accent
     val haptics = rememberInkHaptics()
@@ -159,7 +178,7 @@ fun LensArc(
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { close() }
     BackHandler(enabled = open) { close() }
 
-    val reveal by animateFloatAsState(if (open) 1f else 0f, tween(motionMs(180)), label = "arc-reveal")
+    val reveal by animateFloatAsState(if (open) 1f else 0f, tween(motionMs(130)), label = "arc-reveal")
     val searchLabel = stringResource(R.string.search)
     val lensDescription = stringResource(R.string.lens_description)
     val arcAction = stringResource(R.string.arc_action)
@@ -169,10 +188,11 @@ fun LensArc(
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
-        val topInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
-        val cx = maxWidth / 2 + lensShift(reach)
-        val cy = maxHeight - bottomInset - LensLift
-        val rings = remember(content.slots, cx, maxWidth) { ArcRings(content.slots, left = cx.value, right = (maxWidth - cx).value) }
+        val topInset = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp() }
+        val cx = lens.x.dp
+        val cy = lens.y.dp
+        val rings = remember(content.slots, lens, edge, maxWidth, maxHeight) { Dock.rings(content.slots, edge, lens, maxWidth.value, maxHeight.value) }
+        fun screen(x: Float, y: Float) = Dock.toScreen(edge, x, y)
 
         if (reveal > 0f) {
             // Veil only while ARC is open: it is a transient layer, never part of resting Home.
@@ -199,15 +219,16 @@ fun LensArc(
                     if (a == 0f) return@forEach
                     val r = rings.radius(ring).dp.toPx()
                     val angles = rings.angles[ring]
-                    val start = (angles.first() - 9f) - 90f
+                    val start = (angles.first() - 9f) - 90f + Dock.degrees(edge)
                     val sweep = (angles.last() - angles.first()) + 18f
                     drawArc(homeInk.copy(alpha = (if (pick?.ring == ring) .42f else .2f) * a), start, sweep, false,
                         topLeft = Offset(center.x - r, center.y - r), size = Size(2 * r, 2 * r),
                         style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 5.dp.toPx()))))
                 }
                 pick?.let { p ->
-                    val (x, y) = rings.position(p.ring, p.index)
-                    val end = Offset(center.x + x.dp.toPx(), center.y + y.dp.toPx())
+                    val (lx, ly) = rings.position(p.ring, p.index)
+                    val e = screen(lx, ly)
+                    val end = Offset(center.x + e.x.dp.toPx(), center.y + e.y.dp.toPx())
                     val length = hypot(end.x - center.x, end.y - center.y)
                     val ux = (end.x - center.x) / length
                     val uy = (end.y - center.y) / length
@@ -219,7 +240,15 @@ fun LensArc(
             }
             rings.slots.indices.forEach { ring ->
                 val a = ringAlpha(ring)
-                if (a > 0f) Kicker(kinds[ring], Modifier.centerAt(cx, cy - rings.radius(ring).dp - 44.dp).graphicsLayer { alpha = a * reveal },
+                // Above the ring's middle; on a side row, where the text would lie across the slots, past its first end.
+                val label = if (!edge.vertical || rings.angles[ring].isEmpty()) screen(0f, -rings.radius(ring) - 44f) else {
+                    val a = (rings.angles[ring].first() - 30f) * PI.toFloat() / 180f
+                    val r = rings.radius(ring)
+                    screen(r * sin(a), -r * cos(a)).let { p ->
+                        Pt((lens.x + p.x).coerceIn(48f, maxWidth.value - 48f) - lens.x, (lens.y + p.y).coerceIn(topInset.value + 16f, maxHeight.value - 16f) - lens.y)
+                    }
+                }
+                if (a > 0f) Kicker(kinds[ring], Modifier.centerAt(cx + label.x.dp, cy + label.y.dp).graphicsLayer { alpha = a * reveal },
                     color = homeInk.copy(alpha = .7f))
             }
 
@@ -228,13 +257,16 @@ fun LensArc(
                 val a = ringAlpha(ring)
                 ringSlots.forEachIndexed { index, filled ->
                     if (!filled) return@forEachIndexed
-                    val (x, y) = rings.position(ring, index)
+                    val (lx, ly) = rings.position(ring, index)
+                    val (x, y) = screen(lx, ly).let { it.x to it.y }
                     val chosen = pick == ArcPick(ring, index)
-                    val scale by animateFloatAsState(if (chosen) 1.22f else 1f, tween(motionMs(110)), label = "arc-slot")
+                    val scale by animateFloatAsState(if (chosen) 1.22f else 1f, tween(motionMs(80)), label = "arc-slot")
                     val itemModifier = Modifier.centerAt(cx + x.dp, cy + y.dp).graphicsLayer {
                         alpha = (if (a == 0f) 0f else a) * reveal
                         scaleX = scale; scaleY = scale
-                        translationY = (1f - reveal) * 18.dp.toPx()
+                        // Slots rise out of LENS, away from its edge.
+                        val rise = screen(0f, (1f - reveal) * 18f)
+                        translationX = rise.x.dp.toPx(); translationY = rise.y.dp.toPx()
                     }
                     val clickModifier = if (assisted) Modifier.clip(CircleShape).clickable(role = Role.Button) { commit(ArcPick(ring, index)) }
                     else Modifier.semantics { hideFromAccessibility() }
@@ -266,7 +298,10 @@ fun LensArc(
 
             // What releasing will do, said once and large.
             val chosen = pick
-            Column(Modifier.fillMaxWidth().padding(top = topInset + 72.dp, start = 28.dp, end = 28.dp).graphicsLayer { alpha = reveal },
+            // With the LENS row on top, ARC opens downwards and the words go to the bottom instead.
+            val place = if (edge == DockEdge.Top) Modifier.align(Alignment.BottomCenter).padding(bottom = bottomInset + 72.dp)
+                else Modifier.padding(top = topInset + 72.dp)
+            Column(Modifier.then(place).fillMaxWidth().padding(start = 28.dp, end = 28.dp).graphicsLayer { alpha = reveal },
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val title: String
                 val kicker: String
@@ -298,25 +333,29 @@ fun LensArc(
 
         // LENS itself.
         Box(
-            Modifier.centerAt(cx, cy).size(72.dp)
+            Modifier.centerAt(cx, cy).size(CrystalDims.lensTouchW, CrystalDims.lensTouch)
                 .semantics {
                     role = Role.Button
                     contentDescription = "$lensDescription (LENS)"
                     if (open) stateDescription = arcOpen
-                    onClick(label = searchLabel) { close(); onSearch(); true }
-                    onLongClick(label = arcAction) { open = true; assisted = true; true }
+                    if (editActions.isNotEmpty()) customActions = editActions
+                    if (onEditSelect != null) onClick(label = selectLabel) { onEditSelect(); true }
+                    else {
+                        onClick(label = searchLabel) { close(); onSearch(); true }
+                        onLongClick(label = arcAction) { open = true; assisted = true; true }
+                    }
                 }
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyUp) return@onKeyEvent false
                     when (event.key) {
-                        Key.Enter, Key.NumPadEnter, Key.Spacebar -> { close(); onSearch(); true }
+                        Key.Enter, Key.NumPadEnter, Key.Spacebar -> { if (onEditSelect != null) onEditSelect() else { close(); onSearch() }; true }
                         Key.DirectionUp -> { open = true; assisted = true; true }
                         Key.Escape -> { close(); true }
                         else -> false
                     }
                 }
                 .focusable()
-                .pointerInput(content.slots, cx, reach) {
+                .pointerInput(content.slots, lens, edge) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = true)
                         // LENS owns this touch: Home's own tap, hold (Studio) and swipe must not see it.
@@ -348,8 +387,10 @@ fun LensArc(
                                 val event = awaitPointerEvent()
                                 val change = event.changes.find { it.id == down.id }
                                 if (change == null || event.changes.size != 1 || change.isConsumed) { close(); break }
-                                val x = with(density) { (change.position.x - size.width / 2f).toDp().value }
-                                val y = with(density) { (change.position.y - size.height / 2f).toDp().value }
+                                val local = Dock.toLocal(edge, with(density) { (change.position.x - size.width / 2f).toDp().value },
+                                    with(density) { (change.position.y - size.height / 2f).toDp().value })
+                                val x = local.x
+                                val y = local.y
                                 hoverRing = rings.ringAt(x, y) ?: if (hypot(x, y) < ArcRings.DEAD) 0 else hoverRing
                                 val next = rings.select(x, y, pick)
                                 if (next != null && next != pick) haptics.tick()
@@ -364,7 +405,7 @@ fun LensArc(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            LensMark(if (open) accent else homeInk, accent, active = open)
+            LensMark(homeInk, active = open, ring = lensRing, filled = lensFilled)
         }
     }
 }
