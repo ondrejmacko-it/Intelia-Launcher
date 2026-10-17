@@ -504,13 +504,25 @@ decode to defaults.
   never runs away under the finger. Always kept whole between the editor bar (+40 dp name label) and the top of the
   navigation bar.
 - Header: grip bar + the element's name (Hodiny, Datum, PULSE, LENS, app/FLOW label); the same name sits in a Light
-  Veil pill under the editor bar. Drag the header to move the card; arrows ↙ ↘ ↕ ↔ at its corners and sides size it
-  (width 240 dp … screen − 24 dp, body 140 dp … room); ⟲ in the header puts it back. Position and size hold for the
-  editing session (`InspectorFrame`), not saved.
+  Veil pill under the editor bar. Drag the header to move the card; faint rim marks size it — quarter arcs at the
+  lower corners, short bars at the sides and the bottom, all inside the card's own margin so they never lie over a
+  control (width 240 dp … screen − 24 dp, body 140 dp … room); ⟲ in the header puts it back. TalkBack: every mark is
+  named (Šířka / Výška / Velikost editoru) with Větší / Menší actions; ⟲ is named.
+- **Remembered** (owner, 2026-10-17): the moved/sized card is saved with the layout (`LauncherSettings.editorCard`,
+  sanitized) and opens there next time; ⟲ + save forgets it.
+- **One card for everything:** Vzhled and Předlohy open as the same card (header, handles, shared position); by
+  default just above the LENS row.
+- Element grips are small and neutral, never accent buttons: a 9 dp dot at the clock's lower end corner, just off an
+  icon's or LENS's corner (so their move drag stays free), drag right/down = bigger; plate grips are 4 × 18 dp bars
+  inside the plate rim (right edge ↔, bottom edge ↕). All with Větší / Menší for TalkBack.
 - Chips wrap (FlowRow), never scroll sideways; font chips are set in their own face.
 - Clock and free date are positioned by their **centre** at `fx` across the editor area (the point the editor
   drags), kept whole 28 dp (8 dp with a plate) inside the screen.
-- Home is locked to the natural orientation (`screenOrientation="nosensor"`).
+- Home is locked to the natural orientation (`screenOrientation="nosensor"`); verified: forced rotation 1 leaves it at ROTATION_0.
+- A one-line date never wraps: too wide for its room (JetBrains Mono, long weekday + month), it steps down in size
+  until whole. Every bundled face covers Czech (ěščřžýáíéůúťďňó, upper case too; JVM test).
+- Plates (§5.12) use `plateGlass()`: the panel glass made bolder — brighter facets, rim and highlight, coarser grain,
+  a fine light outline — with the fill denser in step, so text keeps ≥ 4.5:1 (JVM test).
 
 ### 5.5.1 PULSE in the editor
 Tapping the PULSE capsule at the camera (±96 dp around it, down to 40 dp below) opens the PULSE inspector. The editor

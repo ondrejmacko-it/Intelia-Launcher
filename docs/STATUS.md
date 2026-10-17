@@ -2,6 +2,29 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Remembered editor card, faint grips, bolder plate glass, Look/Presets as cards, size dots (`claude/crystal-redesign`, `5ac8c7f`, `a6b507b`, `780911a`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 101 JVM tests, 0 failures (new: editor card
+  clamped + round trip, plate glass bolder and ≥ 4.5:1, every bundled font has Czech glyphs).
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up and restored at the end,
+  byte-identical; forced `user_rotation` restored to the owner's values):
+  - Rotation: with `user_rotation 1` forced, Home stays ROTATION_0 (portrait).
+  - Czech: „sobota 17. října“ drawn whole in Flex, Inter, Space Grotesk, DM Serif, Bodoni, Unbounded; in JetBrains
+    Mono the last word was missing (wrapped onto a hidden second line) — fixed, now drawn whole, smaller.
+  - Studio with unsaved changes asks Pokračovat / Zahodit / Uložit; Zahodit opens Studio and Home is unchanged;
+    Uložit opens Studio and the change is kept.
+  - Editor card moved by its header, saved with ✓, `am force-stop`, editor reopened: the card opens at the saved
+    spot (`editorCard` x 83.5 / y 479.5 dp in the prefs).
+  - Vzhled and Předlohy open as the same card (header, ⟲, shared position).
+  - Size dots: icon 48 → 64 dp and LENS 44 → 56 dp by dragging the dot; the LENS dot lies outside the ring.
+  - Crystal and Liquid plates: facets / outline clearly visible in the dark theme.
+  - Accessibility tree (uiautomator): header „Přetažením posuneš editor“, „Vrátit editor na místo“, card marks
+    „Šířka / Výška / Velikost editoru“, plate „Šířka / Výška pozadí“, „Změnit velikost hodin / ikony / LENS“.
+Not verified: real TalkBack (custom actions Větší / Menší not exercised); light theme; new screenshot set (old
+`docs/screens/v0.1.0-2026-10-17/` predates this entry).
+Open: D13 ③ dock/LENS anywhere + icon shapes; new screenshot set.
+
 ## 2026-10-17 — Editor card that stays put, moves and sizes; 1:1 text drag; glass plates; screenshots (`claude/crystal-redesign`, `b856da0` + follow-up)
 
 Verified:
