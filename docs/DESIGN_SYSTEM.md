@@ -266,6 +266,20 @@ for PULSE, the button for a menu), fading to white @ 8 % within ~150 dp. Plus an
 ~240 × 150 dp at the same origin. Static (no animation), one `Brush` per surface, recomputed only when the
 surface moves. ARC uses the same idea: the arc segment under the selected slot lights in `acc`.
 
+### 5.2.1 Glass styles (owner request 2026-10-17)
+
+One `Glass` setting restyles every Veil surface (panels, sheets, Studio, Search field, clock plate). `Veil` keeps the
+lit origin edge; the other three have **no outline at all** and set a panel apart by light:
+- **Crystal** — clear neutral fill, white sheen falling from the top edge (to 45 % of the height), faint accent glow.
+- **Frost** — milky base (dark `#1C1F25`, light `#FAFBFC`), +8 points density, a tiled 64 px grain @ 4–5 %.
+- **Liquid** — a bright, short sheen (22 %) at the top and the accent pooling at the bottom (bloom @ 10–12 %).
+In the dark theme the edgeless fills are 6–9 points denser than Veil, since light added on top lowers the contrast
+of white text; `VeilTest` checks ≥ 4.5:1 over a white wallpaper with sheen, glow, bloom and grain included
+(density shift 0 and +5). Solid (Matné) still wins over every glass. Older documents decode as `Veil`.
+
+Text drawn straight on the wallpaper (clock, date without a plate) takes the palette's variant for the wallpaper
+(`LocalWallPlaces`), not for the theme; on a Veil plate the theme's variant is used.
+
 ## 5.3 Blur feasibility (measured on Nothing Phone (3), Android 16, SDK 36)
 - `ro.surface_flinger.supports_background_blur = 0`, `WindowManagerService mBlurEnabled=false`, battery saver
   off: **cross-window blur is not available**. `Window.setBackgroundBlurRadius` / `FLAG_BLUR_BEHIND` do nothing.

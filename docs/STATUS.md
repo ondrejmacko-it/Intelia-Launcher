@@ -2,6 +2,22 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Glass styles, clock accent on the wallpaper (`claude/crystal-redesign`, `31bd339`, `0a316ce`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 95 JVM tests, 0 failures (new: edgeless
+  glasses keep text ≥ 4.5:1 over a white wallpaper with their light included, Veil keeps its edge, `glass` decodes
+  and an unknown or absent value stays Veil).
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up, restored, `cmp` identical):
+  - Editor → Vzhled: chips Veil / Krystal / Mráz / Kapka switch the Look panel at once; "Světelná hrana" shows
+    only for Veil. Studio → Barvy shows the glass and icon chips with their own headings.
+  - Bug found and fixed: Light theme over the owner's dark wallpaper painted the clock in the dark accent (hard to
+    read) while the date stayed light; after the fix the clock is light terracotta.
+  - Light theme + Matné: editor panel, Search (Moje list, field) and drawer legible.
+
+Not verified: how far the three glasses differ by eye at the owner's +10 % density (they look close; the owner to
+judge); Frost grain and Liquid bloom only seen in the Look panel; TalkBack; release frame measurement.
+
 ## 2026-10-17 — Palette, Tinted icons, Veil clock, Clean Veil, TalkBack LENS in the editor (`claude/crystal-redesign`, `27c5a9b`, `f9d328c`, `d52226c`, `763891d`, `1554151`)
 
 Verified:

@@ -152,3 +152,18 @@ Phase A of the owner's "Intelia Veil & Home Studio V2" brief. Spec: `docs/DESIGN
 Rejected: a blur imitation presented as blur; a separate full-screen editor page; storing absolute px positions.
 Open: does the Atmosphere wallpaper honour `setWallpaperZoomOut`; icon-pack support needs its own entry.
 **Approved by the owner 2026-10-16** with changes: calmer matte panels in three densities (Veil Light / Dense ~75–85 % / Focus ~88–95 %), progressive-disclosure inspectors that never cover the edited element, preset thumbnails, LENS 84 × 100 dp only after a phone test; ARC, PULSE 2.0 and FLOW untouched now, widgets reserved only.
+
+## D13 — 2026-10-17 — Customisation programme: glass styles, wallpapers, fonts (APPROVED by the owner 2026-10-17)
+Owner asked for the widest customisation: glass styles that drive every surface, edgeless panels, clock/date
+typography and orientation, icon shapes (squircle / rounded square), a movable dock that can sit on a side, and
+10+ minimal blurred wallpapers.
+Decided by the owner:
+- **Wallpapers: both** — drawn by the launcher (procedural, no permission, no assets) and optionally saved as the
+  system wallpaper, which needs `android.permission.SET_WALLPAPER` (normal permission, changes the lock screen too
+  when chosen). The permission lands only with that feature, in its own commit.
+- **Fonts: bundle 4–6 SIL OFL 1.1 families** for clock and date (≈ 1 MB), each with its licence file in the APK
+  assets and listed here before it lands (same rule as D11).
+- **Order:** glass styles + settings audit first (done 2026-10-17), then clock/date, dock/LENS anywhere + icon
+  shapes, wallpapers.
+Open: how ARC opens from a side dock (proposal: rings open towards the screen centre).
+
