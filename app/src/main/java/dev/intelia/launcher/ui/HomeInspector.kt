@@ -653,8 +653,8 @@ fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: Home
     onPick: (PresetChoice) -> Unit,
     onApply: () -> Unit, onCancel: () -> Unit, onReset: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
-    Column(modifier.padding(horizontal = 12.dp).fillMaxWidth().veilSurface(veil(VeilLevel.Dense), VeilOrigin(.5f, 1f))
-        .pointerInput(Unit) { detectTapGestures() }.padding(12.dp)) {
+    // The body of the editor card (InspectorCard), like the Look panel.
+    Column(modifier.fillMaxWidth().padding(bottom = 4.dp)) {
         Row(Modifier.horizontalScroll(rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             choices.forEach { choice ->
                 val on = choice.key == previewing

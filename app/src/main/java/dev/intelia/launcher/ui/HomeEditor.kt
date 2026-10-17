@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -111,21 +112,31 @@ fun placementLabel(layout: LayoutSpec): String {
     return if (layout.placement == Placement.Free) name else "$name ${layout.grid.cols}×${layout.grid.rows}"
 }
 
-/** The clock's size handle at its lower end corner; dragging right or down grows it. */
+/**
+ * A faint size dot at an element's lower end corner ([x], [y] in dp; the clock, an icon, LENS): dragging right or
+ * down grows it by whole dp. TalkBack gets Bigger / Smaller.
+ */
 @Composable
-fun ClockHandle(zone: Zone, onResize: (Float) -> Unit) {
-    val label = stringResource(R.string.clock_resize)
+fun SizeHandle(x: Float, y: Float, label: String, onResize: (Float) -> Unit) {
     val c = LocalCrystal.current
     val density = LocalDensity.current
-    Box(Modifier.offset { IntOffset(((zone.right - 28f) * density.density).roundToInt(), ((zone.bottom - 28f) * density.density).roundToInt()) }
-        .size(44.dp).semantics { contentDescription = label }
+    val bigger = stringResource(R.string.size_bigger)
+    val smaller = stringResource(R.string.size_smaller)
+    // The drag outlives recompositions: always call the latest lambda, which sees the current size.
+    val resize by androidx.compose.runtime.rememberUpdatedState(onResize)
+    Box(Modifier.offset { IntOffset(((x - 22f) * density.density).roundToInt(), ((y - 22f) * density.density).roundToInt()) }
+        .size(44.dp).semantics {
+            contentDescription = label
+            customActions = listOf(androidx.compose.ui.semantics.CustomAccessibilityAction(bigger) { onResize(4f); true },
+                androidx.compose.ui.semantics.CustomAccessibilityAction(smaller) { onResize(-4f); true })
+        }
         .pointerInput(Unit) {
             var acc = 0f
             detectDragGestures(onDragStart = { acc = 0f }) { change, amount ->
                 change.consume()
                 acc += (amount.x + amount.y) / 2f / density.density * .5f
                 val step = acc.toInt()
-                if (step != 0) { acc -= step; onResize(step.toFloat()) }
+                if (step != 0) { acc -= step; resize(step.toFloat()) }
             }
         }, contentAlignment = Alignment.Center) {
         Box(Modifier.size(9.dp).clip(CircleShape).background(c.fg.copy(alpha = .6f)).border(.5.dp, (if (c.dark) Color.Black else Color.White).copy(alpha = .35f), CircleShape))

@@ -49,10 +49,8 @@ fun GlassChips(settings: LauncherSettings, set: SettingsEdit) {
 fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsEdit, onChange: () -> Unit,
     modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
-    Column(modifier.padding(horizontal = 12.dp).fillMaxWidth().heightIn(max = 380.dp)
-        .veilSurface(veil(VeilLevel.Dense), VeilOrigin(.5f, -0.1f))
-        .pointerInput(Unit) { detectTapGestures() }
-        .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp)) {
+    // The body of the editor card (InspectorCard): it brings the glass, the header, the scroll and the handles.
+    Column(modifier.fillMaxWidth()) {
         Kick(stringResource(R.string.look_material))
         GlassChips(settings, set)
         Chips(listOf(false to stringResource(R.string.look_glass_clear), true to stringResource(R.string.look_solid)), settings.veilSolid) { v ->

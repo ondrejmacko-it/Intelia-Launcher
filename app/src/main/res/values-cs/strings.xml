@@ -343,6 +343,8 @@
     <string name="card_size_height">Výška editoru</string>
     <string name="card_size_both">Velikost editoru</string>
     <string name="size_bigger">Větší</string>
+    <string name="lens_resize">Změnit velikost LENS</string>
+    <string name="icon_resize">Změnit velikost ikony</string>
     <string name="size_smaller">Menší</string>
     <string name="plate_wider">Šířka pozadí</string>
     <string name="plate_taller">Výška pozadí</string>

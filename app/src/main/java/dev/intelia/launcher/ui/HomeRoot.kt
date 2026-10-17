@@ -743,6 +743,8 @@ private fun Home(
                 }, onStudio = { leave(onStudio) }, onDone = { save() },
                 modifier = Modifier.align(Alignment.TopCenter))
 
+            /** The LENS row as a target: the Look and Presets cards open just above it. */
+            val lensRowZone = Zone(0f, geometry.lensY - 40f, maxWidth.value, geometry.lensY + 40f)
             if (presetsOpen) {
                 val start = ed.previewOf ?: ed.layout
                 val favs = settings.favorites
@@ -751,18 +753,21 @@ private fun Home(
                     PresetChoice(b.name, stringResource(name), HomeTemplates.preview(b, favs, start))
                 } + listOfNotNull(settings.home.layouts.firstOrNull { it.id == HomeLayouts.USER_ID }
                     ?.let { PresetChoice(OWN_KEY, stringResource(R.string.preset_own), it) })
-                PresetStrip(choices, previewKey, geometry, placementLabel(ed.layout),
-                    onPlacement = { ed.setPlacement(Placement.entries[(ed.layout.placement.ordinal + 1) % Placement.entries.size]); refresh() },
-                    onPick = { ed.preview(it.spec); previewKey = it.key; refresh() },
-                    onApply = { if (ed.canUndo) ask = EditorAsk.Replace else { applyPreset(); refresh() } },
-                    onCancel = { ed.cancelPreview(); presetsOpen = false; previewKey = null; refresh() },
-                    onReset = { ask = EditorAsk.Reset },
-                    // Above the LENS row, so the clock and the top of the previewed layout stay visible.
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (maxHeight.value - geometry.lensY + 64f).dp))
+                // The same editor card as an element's: placed above the LENS row, so the clock and the top of the
+                // previewed layout stay visible, or where the owner moved it.
+                key("presets") { InspectorCard(lensRowZone, maxWidth.value, barBottom + EDIT_LABEL, null,
+                    stringResource(R.string.presets), inspectorFrame) {
+                    PresetStrip(choices, previewKey, geometry, placementLabel(ed.layout),
+                        onPlacement = { ed.setPlacement(Placement.entries[(ed.layout.placement.ordinal + 1) % Placement.entries.size]); refresh() },
+                        onPick = { ed.preview(it.spec); previewKey = it.key; refresh() },
+                        onApply = { if (ed.canUndo) ask = EditorAsk.Replace else { applyPreset(); refresh() } },
+                        onCancel = { ed.cancelPreview(); presetsOpen = false; previewKey = null; refresh() },
+                        onReset = { ask = EditorAsk.Reset })
+                } }
             }
 
-            if (lookOpen) LookPanel(settings, ed, set, ::refresh,
-                Modifier.align(Alignment.BottomCenter).padding(bottom = (maxHeight.value - geometry.lensY + 64f).dp))
+            if (lookOpen) key("look") { InspectorCard(lensRowZone, maxWidth.value, barBottom + EDIT_LABEL, null,
+                stringResource(R.string.look), inspectorFrame) { LookPanel(settings, ed, set, ::refresh) } }
             if (selected == PULSE_ID && drag == null) {
                 val r = hole.radius / density.density + 10f
                 // Below the editor bar: the camera sits under the status bar, the card hangs from the bar.
@@ -788,9 +793,19 @@ private fun Home(
                     }
                 }
                 
-                if (sel.kind == ItemKind.Clock && zone != null) ClockHandle(zone) { dx ->
-                    val now = if (sel.sizeDp == 0) ItemSizes.CLOCK else sel.sizeDp
-                    ed.edit(sel.id, "size") { it.copy(sizeDp = (now + dx.roundToInt()).coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)) }
+                // A faint size dot at the lower end corner of the clock, or just off an icon or LENS, so their own drag (move) stays free.
+                val corner = when (sel.kind) {
+                    ItemKind.Clock -> zone?.let { Pt(it.right - 6f, it.bottom - 6f) }
+                    ItemKind.Date -> null
+                    ItemKind.Lens -> (sel.lensDp() / 2f).let { r -> Pt(lensPt.x + r + 16f, lensPt.y + r * .6f) }
+                    else -> ed.pointOf(sel)?.let { p -> (sel.iconDp(iconDefault) / 2f).let { r -> Pt(p.x + r + 10f, p.y + r) } }
+                }
+                if (corner != null) SizeHandle(corner.x, corner.y, stringResource(when (sel.kind) {
+                    ItemKind.Clock -> R.string.clock_resize
+                    ItemKind.Lens -> R.string.lens_resize
+                    else -> R.string.icon_resize
+                })) { dx ->
+                    ed.edit(sel.id, "size") { it.copy(sizeDp = (it.currentSize(iconDefault) + dx.roundToInt()).coerceIn(it.sizeRange())) }
                     refresh()
                 }
                 // A plate stretches by its own handles: right edge sideways, bottom edge down.

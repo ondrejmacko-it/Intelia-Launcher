@@ -344,6 +344,8 @@
     <string name="card_size_height">Editor height</string>
     <string name="card_size_both">Editor size</string>
     <string name="size_bigger">Bigger</string>
+    <string name="lens_resize">Change LENS size</string>
+    <string name="icon_resize">Change icon size</string>
     <string name="size_smaller">Smaller</string>
     <string name="plate_wider">Background wider</string>
     <string name="plate_taller">Background taller</string>
