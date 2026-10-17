@@ -2,6 +2,25 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Control System V1: wide ARC, set arrows, set by taps (`feat/control-system-v1`)
+
+- ARC is one flat arc just above LENS (middle slot 80/96/116 dp above the LENS centre for S/M/L; the circle's
+  centre lies below LENS), spread across the room beside LENS, up to 8 slots (≥ 50 dp apart, ≤ 76 dp so 3 slots
+  stay close). "Oblouk" (úzký/střední/široký) now sets how round it is. Set arrows `‹ name` / `name ›` sit beside
+  LENS: sliding onto one shows the previous/next set (once per visit, re-arms when the finger leaves it); the old
+  "slide past an end" switch is gone, the dots stay.
+- Set by taps (`ArcLook.tapSets`, default on, toggle in Studio › Ovládání › ARC): hold = set 1, tap + hold = set 2,
+  two taps + hold = set 3. A tap waits up to 280 ms for a next one only while there is more than one set, so
+  Search then opens that much later. Three taps = Search.
+- `Segments` targets are ≥ 48 dp wide (digits used to be ~10 dp); ARC "Sloty" row is stacked.
+- `./gradlew -q :app:testDebugUnitTest :app:assembleLab` PASS (ArcBowTest rewritten for the new geometry).
+- Phone (Nothing Phone (3), Lab, `install -r`, 411 dp wide): hold shows Hlavní with arrows "‹ Zkratky" / "FLOW ›";
+  tap + hold opened FLOW; tap, tap + hold opened Zkratky (3/3 runs; one earlier combined run showed nothing, not
+  reproduced); slide right arrow → FLOW, then left arrow → Hlavní; single tap opened Search; 8 slots span the width;
+  release on the Instagram slot launched Instagram.
+- Not verified: TalkBack on the arrows, LENS on a side/top edge with the new arc, 130 % text on the arrow labels,
+  how 280 ms feels by hand (adb `input` taps are ~80 ms apart), gfxinfo.
+
 ## 2026-10-18 — Control System V1: M2 ARC V2 (`feat/control-system-v1`, `50edba3`, `558234f` + follow-up)
 
 Verified (`./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r` on Nothing Phone (3)):

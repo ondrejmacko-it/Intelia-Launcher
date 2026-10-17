@@ -53,7 +53,7 @@ class ControlsTest {
     }
 
     @Test fun lookIsClamped() {
-        assertEquals(ArcLook(7, ArcLook.RADIUS_S, ArcLook.SPAN_L, false), ArcLook(99, 1, 999, false).sanitized())
+        assertEquals(ArcLook(8, ArcLook.RADIUS_S, ArcLook.SPAN_L, false), ArcLook(99, 1, 999, false).sanitized())
         assertEquals(ArcLook(3), Controls(arc = ArcLook(0)).sanitized(emptySet()).arc)
     }
 

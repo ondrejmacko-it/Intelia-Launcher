@@ -511,7 +511,9 @@
     <string name="arc_set_n">Set %1$d</string>
     <string name="req_default_home">Needs Intelia as the default home app</string>
     <string name="req_pulse">Needs the PULSE service (Accessibility)</string>
-    <string name="arc_explain_sets">Hold LENS, slide onto a slot, release. Slot 1 sits in the middle of the arc, the next ones left and right in turn; positions never move. Slide past an end of the arc or onto a dot for the next set.</string>
+    <string name="arc_explain_sets">Hold LENS, slide onto a slot, release. Slot 1 sits in the middle of the arc, the next ones left and right in turn; positions never move. Slide onto an arrow beside LENS or onto a dot for another set.</string>
+    <string name="arc_tap_sets">Set by taps</string>
+    <string name="arc_tap_sets_detail">Hold = set 1, tap + hold = set 2, two taps + hold = set 3. Search then opens about a quarter of a second later.</string>
     <string name="arc_slots">Slots</string>
     <string name="arc_size">Size</string>
     <string name="arc_angle">Arc</string>

@@ -431,7 +431,7 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
     fun look(transform: (ArcLook) -> ArcLook) = model.editControls { it.withLook(transform(it.arc)) }
 
     Hint(stringResource(R.string.arc_explain_sets))
-    ChoiceRow(stringResource(R.string.arc_slots)) {
+    Stacked(stringResource(R.string.arc_slots)) {
         Segments((ArcLook.MIN_SLOTS..ArcLook.MAX_VISIBLE).map { it to it.toString() }, look.slots, { v -> look { it.copy(slots = v) } })
     }
     ChoiceRow(stringResource(R.string.arc_size)) {
@@ -441,6 +441,8 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
         Segments(listOf(ArcLook.SPAN_S to stringResource(R.string.arc_angle_narrow), ArcLook.SPAN_M to stringResource(R.string.arc_angle_mid),
             ArcLook.SPAN_L to stringResource(R.string.arc_angle_wide)), look.span, { v -> look { it.copy(span = v) } })
     }
+    ToggleRow(stringResource(R.string.arc_tap_sets), look.tapSets, { on -> look { it.copy(tapSets = on) } },
+        detail = stringResource(R.string.arc_tap_sets_detail))
     ToggleRow(stringResource(R.string.arc_haptics), look.haptics, { on -> look { it.copy(haptics = on) } },
         detail = stringResource(R.string.arc_haptics_detail))
 

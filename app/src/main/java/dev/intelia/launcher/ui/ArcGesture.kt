@@ -88,38 +88,49 @@ class ArcRings(val slots: List<List<Boolean>>, left: Float, right: Float) {
 }
 
 /**
- * The shallow ARC (Control System M2): one arc of [count] slots around LENS, plus a row of set dots above it.
+ * The wide ARC (Control System M2): one flat arc of [count] slots just above LENS, spread across the room beside it,
+ * plus set dots above it and two set arrows beside LENS. The arc is a segment of a large circle whose centre lies
+ * [drop] dp below LENS, so its middle sits [lift] dp above LENS and its ends come down towards the LENS row.
  * Slots are addressed in priority order (0 = middle of the arc, then left and right alternately, [centreOut]);
  * an empty slot stays empty so positions become muscle memory. Coordinates are dp in ARC's local frame
  * (relative to the LENS centre, negative y away from the LENS edge). Pure, no Android dependencies.
  *
- * The arc keeps every slot centre [EDGE] dp inside the screen ([left]/[right] = room beside LENS). When [count]
- * slots would sit closer than [MIN_CHORD], it first opens wider, then grows its radius, so targets stay ≥ 48 dp.
+ * [radius] sets how high the middle sits (S/M/L), [span] how round the arc is. Every slot centre stays [EDGE] dp
+ * inside the screen ([left]/[right] = room beside LENS); when slots would sit closer than [MIN_CHORD] the arc
+ * first opens rounder, then grows, so targets stay ≥ 48 dp.
  */
-class ArcBow(val count: Int, radius: Float, span: Float, left: Float, right: Float, val sets: Int = 1) {
-    val radius: Float
-    /** Slot angles by position on screen, left to right, degrees from "up". */
+class ArcBow(val count: Int, radius: Float, span: Float, val left: Float, val right: Float, val sets: Int = 1) {
+    /** Height of the middle of the arc above LENS. */
+    val lift: Float = radius - LIFT_OFFSET
+    /** Radius of the circle the arc lies on. */
+    val curve: Float
+    /** How far below LENS that circle's centre lies. */
+    val drop: Float get() = curve - lift
+    /** Slot angles by position on screen, left to right, degrees from "up" around the circle's centre. */
     val angles: List<Float>
 
     init {
-        var r = radius
+        val room = maxOf(left, right) - EDGE
+        val half = if (count > 1) min(MAX_STEP * (count - 1) / 2f, room).coerceAtLeast(MIN_CHORD / 2f) else MIN_CHORD
+        var theta = (span / 3f).coerceIn(20f, 60f)
+        var r = maxOf(lift + 40f, half / sin(theta * PI.toFloat() / 180f))
         var a: List<Float>
+        var guard = 0
         while (true) {
             val need = if (count > 1) (count - 1) * stepFor(r) else 0f
-            val half = maxOf(span / 2f, need / 2f).coerceAtMost(MAX_HALF)
             val eL = min(MAX_HALF, edgeAngle(left, r))
             val eR = min(MAX_HALF, edgeAngle(right, r))
-            var aL = min(half, eL)
-            var aR = min(half, eR)
+            var aL = min(theta, eL)
+            var aR = min(theta, eR)
             // Clipped by one edge: the free side opens further so the slots keep their spacing.
             aR = min(maxOf(aR, need - aL), eR)
             aL = min(maxOf(aL, need - aR), eL)
             a = if (count <= 1) listOf((aR - aL) / 2f) else List(count) { i -> -aL + i * (aL + aR) / (count - 1) }
             val step = if (count > 1) (aL + aR) / (count - 1) else 360f
-            if (chord(step, r) >= MIN_CHORD || r >= MAX_RADIUS) break
-            r += 8f
+            if (chord(step, r) >= MIN_CHORD || ++guard > 60) break
+            if (theta < MAX_HALF) theta += 4f else r += 12f
         }
-        this.radius = r
+        curve = r
         angles = a
     }
 
@@ -130,27 +141,42 @@ class ArcBow(val count: Int, radius: Float, span: Float, left: Float, right: Flo
     fun angle(slot: Int): Float = angles[order[slot]]
 
     /** Centre of priority slot [slot], dp relative to LENS. */
-    fun position(slot: Int): Pair<Float, Float> = polar(radius, angle(slot))
+    fun position(slot: Int): Pair<Float, Float> = onArc(angle(slot))
+
+    private fun onArc(degrees: Float): Pair<Float, Float> = polar(curve, degrees).let { (x, y) -> x to y + drop }
 
     /** Middle of the arc, where the dots and the label sit. */
     val middle: Float = if (angles.isEmpty()) 0f else (angles.first() + angles.last()) / 2f
 
     /** Centre of set dot [k]; the dots sit side by side above the middle of the arc, [gap] dp apart. */
     fun dot(k: Int, gap: Float = DOT_GAP): Pair<Float, Float> {
-        val r = radius + DOTS
-        val spacing = (gap / r) * 180f / PI.toFloat()
-        return polar(r, middle + (k - (sets - 1) / 2f) * spacing)
+        val (mx, my) = onArc(middle)
+        return mx + (k - (sets - 1) / 2f) * gap to my - DOTS
     }
 
-    /** How far out the arc reaches (dp from LENS), including the dots when there is more than one set. */
-    val reach: Float get() = radius + if (sets > 1) DOTS + 16f else OUTER
+    /** How far up the arc reaches (dp above LENS), including the dots when there is more than one set. */
+    val reach: Float get() = lift + if (sets > 1) DOTS + 16f else OUTER
 
-    private fun angleOf(x: Float, y: Float) = (atan2(x, -y) * 180.0 / PI).toFloat()
+    /** How far sideways the arc reaches (dp from LENS). */
+    val width: Float get() = angles.maxOfOrNull { abs(curve * sin(it * PI.toFloat() / 180f)) } ?: 0f
+
+    /** Centre of the set arrow on side [side] (-1 left, +1 right) beside LENS, or null (one set, or no room there). */
+    fun arrow(side: Int): Pair<Float, Float>? {
+        if (sets <= 1) return null
+        val room = if (side < 0) left else right
+        return if (room >= ARROW_X + ARROW_HIT) side * ARROW_X to ARROW_Y else null
+    }
+
+    /** -1 / +1 while the finger is on the left / right set arrow, otherwise 0. */
+    fun arrowAt(x: Float, y: Float): Int =
+        listOf(-1, 1).firstOrNull { side -> arrow(side)?.let { (ax, ay) -> hypot(x - ax, y - ay) <= ARROW_HIT } == true } ?: 0
+
+    private fun angleOf(x: Float, y: Float) = (atan2(x, -(y - drop)) * 180.0 / PI).toFloat()
 
     private fun inBand(x: Float, y: Float): Boolean {
-        if (y > BELOW) return false
-        val d = hypot(x, y)
-        return d >= DEAD && d < radius + OUTER
+        if (y > BELOW || hypot(x, y) < DEAD) return false
+        val d = hypot(x, y - drop)
+        return d >= curve - INNER && d < curve + OUTER
     }
 
     /** Nearest filled slot under the finger ([filled] in priority order); keeps [previous] while the finger stays near it. */
@@ -162,19 +188,6 @@ class ArcBow(val count: Int, radius: Float, span: Float, left: Float, right: Flo
         return if (abs(angle(best) - a) <= step * HIT) best else null
     }
 
-    /** -1 / +1 when the finger slid past the left / right end of the arc (switches the set), otherwise 0. */
-    fun overflow(x: Float, y: Float): Int {
-        if (angles.isEmpty()) return 0
-        val d = hypot(x, y)
-        if (d < DEAD || d >= radius + OUTER || y > BELOW + radius) return 0
-        val a = angleOf(x, y)
-        return when {
-            a < angles.first() - step * PAST -> -1
-            a > angles.last() + step * PAST -> 1
-            else -> 0
-        }
-    }
-
     /** The set dot under the finger, or null. */
     fun dotAt(x: Float, y: Float): Int? {
         if (sets <= 1) return null
@@ -182,13 +195,13 @@ class ArcBow(val count: Int, radius: Float, span: Float, left: Float, right: Flo
     }
 
     /**
-     * One finger move while ARC is held: a set dot or a slide past an end switches the set (an end only once per
-     * visit, it re-arms back on the arc); otherwise the slot under the finger. Back on LENS nothing is picked.
+     * One finger move while ARC is held: a set dot or a set arrow switches the set (an arrow only once per visit,
+     * it re-arms when the finger leaves it); otherwise the slot under the finger. Back on LENS nothing is picked.
      */
     fun track(state: BowTrack, x: Float, y: Float, filled: (Int) -> List<Boolean>): BowTrack {
         dotAt(x, y)?.let { k -> return if (k == state.set) state.copy(pick = null) else BowTrack(k, null, armed = false) }
-        val past = overflow(x, y)
-        if (past != 0) return if (state.armed && sets > 1) BowTrack((state.set + past).mod(sets), null, armed = false) else state.copy(pick = null)
+        val side = arrowAt(x, y)
+        if (side != 0) return if (state.armed) BowTrack((state.set + side).mod(sets), null, armed = false) else state.copy(pick = null)
         return BowTrack(state.set, select(x, y, filled(state.set), state.pick), armed = true)
     }
 
@@ -196,18 +209,23 @@ class ArcBow(val count: Int, radius: Float, span: Float, left: Float, right: Flo
         const val DEAD = 54f
         const val BELOW = 28f
         const val OUTER = 40f
-        const val DOTS = 62f
+        private const val INNER = 36f
+        const val DOTS = 50f
         const val MIN_CHORD = 50f
-        private const val MAX_RADIUS = 220f
+        /** Widest spacing between neighbouring slots, so a short arc does not send the thumb across the screen. */
+        private const val MAX_STEP = 76f
+        private const val LIFT_OFFSET = 24f
         private const val MAX_HALF = 85f
         private const val DOT_GAP = 30f
         /** Dot spacing when they are buttons (TalkBack, keyboard): 48 dp targets that do not overlap. */
         const val DOT_GAP_ASSISTED = 52f
         private const val DOT_HIT = 18f
-        private const val EDGE = 34f
+        const val ARROW_X = 94f
+        const val ARROW_Y = 2f
+        const val ARROW_HIT = 30f
+        private const val EDGE = 30f
         private const val HIT = .6f
         private const val KEEP = .85f
-        private const val PAST = .9f
         private const val SINGLE = 40f
 
         private fun polar(r: Float, degrees: Float): Pair<Float, Float> {

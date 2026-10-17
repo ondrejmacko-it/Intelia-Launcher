@@ -53,6 +53,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
@@ -114,11 +115,14 @@ internal fun Modifier.centerAt(x: Dp, y: Dp) = layout { measurable, constraints 
 }
 
 /**
- * LENS and its ARC. Tap = search, swipe up = apps, hold = ARC: one shallow arc of slots opens away from LENS's edge
+ * LENS and its ARC. Tap = search, swipe up = apps, hold = ARC: one wide arc of slots opens just beyond LENS's edge
  * (M2). Slide onto a slot and release to run it; slide past an end of the arc or onto a dot to switch the set;
  * slide back onto LENS (or below it) to cancel. The composable fills the screen so the arc can grow over Home;
  * only LENS takes touches.
  */
+/** Longest pause between taps that still counts towards the set a following hold opens (tap + hold). */
+private const val TAP_GAP_MS = 280L
+
 @Composable
 fun LensArc(
     content: ArcContent,
@@ -154,7 +158,7 @@ fun LensArc(
     val sets = content.sets.size.coerceAtLeast(1)
     val set = track.set.coerceIn(0, sets - 1)
 
-    // Every open starts on the first set, so the hand always knows where it lands.
+    // A plain hold opens on the first set (taps before it pick another), so the hand always knows where it lands.
     fun close() { open = false; assisted = false; track = BowTrack() }
     fun commit(setIndex: Int, slot: Int?) {
         val chosen = slot?.let { latestContent.sets.getOrNull(setIndex)?.slots?.getOrNull(it) }
@@ -186,7 +190,7 @@ fun LensArc(
         if (reveal > 0f) {
             // Veil only while ARC is open: it is a transient layer, never part of resting Home.
             val veil = if (homeInk.luminance() > .5f) Color.Black.copy(alpha = .58f) else ink.paper.copy(alpha = .78f)
-            val veilRadius = (bow.reach + 140f).dp
+            val veilRadius = (maxOf(bow.reach, bow.width) + 140f).dp
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = reveal }.drawBehind {
                 drawRect(Brush.radialGradient(0f to veil, .6f to veil.copy(alpha = veil.alpha * .7f), 1f to Color.Transparent,
                     center = Offset(cx.toPx(), cy.toPx()), radius = veilRadius.toPx()))
@@ -199,12 +203,13 @@ fun LensArc(
             // The arc, and the thread to the chosen slot.
             Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = reveal }) {
                 val center = Offset(cx.toPx(), cy.toPx())
-                val r = bow.radius.dp.toPx()
+                val r = bow.curve.dp.toPx()
                 if (bow.angles.isNotEmpty()) {
-                    val start = (bow.angles.first() - 10f) - 90f + Dock.degrees(edge)
-                    val sweep = (bow.angles.last() - bow.angles.first()) + 20f
+                    val start = (bow.angles.first() - 4f) - 90f + Dock.degrees(edge)
+                    val sweep = (bow.angles.last() - bow.angles.first()) + 8f
+                    val c0 = screen(0f, bow.drop).let { Offset(center.x + it.x.dp.toPx(), center.y + it.y.dp.toPx()) }
                     drawArc(homeInk.copy(alpha = if (pick != null) .4f else .22f), start, sweep, false,
-                        topLeft = Offset(center.x - r, center.y - r), size = Size(2 * r, 2 * r),
+                        topLeft = Offset(c0.x - r, c0.y - r), size = Size(2 * r, 2 * r),
                         style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 5.dp.toPx()))))
                 }
                 pick?.let { p ->
@@ -257,9 +262,34 @@ fun LensArc(
                 }
             }
 
+            // Set arrows beside LENS: sliding onto one shows the previous / next set; each names the set it leads to.
+            if (sets > 1) listOf(-1, 1).forEach { side ->
+                val (ax, ay) = bow.arrow(side) ?: return@forEach
+                val p = screen(ax, ay)
+                val target = (set + side).mod(sets)
+                val name = setNames.getOrElse(target) { "" }
+                Column(Modifier.centerAt(cx + p.x.dp, cy + p.y.dp).graphicsLayer { alpha = reveal }
+                    .then(if (assisted) Modifier.clip(CircleShape).clickable(role = Role.Tab) { track = BowTrack(target) }
+                        .semantics { contentDescription = name } else Modifier.semantics { hideFromAccessibility() })
+                    .size(width = 72.dp, height = 56.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center) {
+                    Canvas(Modifier.size(18.dp)) {
+                        val w = size.width
+                        val h = size.height
+                        val tip = if (side < 0) w * .25f else w * .75f
+                        val back = if (side < 0) w * .7f else w * .3f
+                        val stroke = 2.dp.toPx()
+                        drawLine(homeInk.copy(alpha = .8f), Offset(back, h * .15f), Offset(tip, h * .5f), stroke, StrokeCap.Round)
+                        drawLine(homeInk.copy(alpha = .8f), Offset(tip, h * .5f), Offset(back, h * .85f), stroke, StrokeCap.Round)
+                    }
+                    Text(name, style = InkText.small.copy(fontSize = 11.sp, shadow = homeShadow(homeInk)), color = homeInk.copy(alpha = .8f),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+
             // What releasing will do, said small just beyond the arc; a FLOW is always previewed step by step.
             val chosenSlot = pick?.let { view?.slots?.getOrNull(it) }
-            val beyond = screen(0f, -(bow.radius + if (sets > 1) ArcBow.DOTS + 40f else 60f))
+            val beyond = screen(0f, -(bow.lift + if (sets > 1) ArcBow.DOTS + 40f else 60f))
             // Kept on screen: with LENS on a side edge the label would otherwise hang past it.
             val lx = (lens.x + beyond.x).coerceIn(110f, maxWidth.value - 110f)
             val ly = (lens.y + beyond.y).coerceIn(topInset.value + 40f, maxHeight.value - bottomInset.value - 40f)
@@ -311,32 +341,45 @@ fun LensArc(
                     }
                 }
                 .focusable()
-                .pointerInput(bow, edge) {
+                .pointerInput(bow, edge, look.tapSets, sets) {
                     awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = true)
+                        var down = awaitFirstDown(requireUnconsumed = true)
                         // LENS owns this touch: Home's own tap, hold (Studio) and swipe must not see it.
                         down.consume()
                         focus.clearFocus()
-                        val hold = awaitLongPressOrCancellation(down.id)
-                        if (hold == null) {
+                        // Taps before the hold pick the set (tap + hold = set 2, two taps + hold = set 3). A tap waits
+                        // for a next one only while that can still matter; otherwise Search opens at once.
+                        val counting = look.tapSets && sets > 1 && onEditSelect == null
+                        var taps = 0
+                        var hold: PointerInputChange?
+                        while (true) {
+                            hold = awaitLongPressOrCancellation(down.id)
+                            if (hold != null) break
                             // Tap or flick: decide on release.
                             var event = currentEvent
+                            var tapped = false
                             while (event.changes.size == 1) {
                                 val change = event.changes.first()
                                 if (change.id != down.id || change.isConsumed) break
                                 val delta = change.position - down.position
                                 val swipe = with(density) { lensSwipeSearch(delta.x.toDp().value, delta.y.toDp().value) }
                                 if (!change.pressed) {
-                                    if (swipe) onDrawer() else if (delta.getDistance() < viewConfiguration.touchSlop) { close(); onSearch() }
+                                    if (swipe) { onDrawer(); return@awaitEachGesture }
+                                    tapped = delta.getDistance() < viewConfiguration.touchSlop
                                     break
                                 }
                                 if (swipe) change.consume()
                                 event = awaitPointerEvent()
                             }
-                            return@awaitEachGesture
+                            if (!tapped) return@awaitEachGesture
+                            taps++
+                            val next = if (counting && taps < sets) withTimeoutOrNull(TAP_GAP_MS) { awaitFirstDown(requireUnconsumed = true) } else null
+                            if (next == null) { close(); onSearch(); return@awaitEachGesture }
+                            next.consume()
+                            down = next
                         }
-                        if (hold.id != down.id || currentEvent.changes.size != 1) return@awaitEachGesture
-                        open = true; assisted = false; track = BowTrack()
+                        if (hold?.id != down.id || currentEvent.changes.size != 1) return@awaitEachGesture
+                        open = true; assisted = false; track = BowTrack(set = taps.coerceAtMost(sets - 1))
                         haptics.confirm()
                         try {
                             while (true) {

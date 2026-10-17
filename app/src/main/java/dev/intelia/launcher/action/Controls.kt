@@ -35,12 +35,19 @@ sealed interface Trigger {
 
 /** How the shallow ARC looks and feels (M2): visible slots, radius (dp), opening angle (degrees), haptic tick per slot. */
 @Serializable
-data class ArcLook(val slots: Int = 5, val radius: Int = RADIUS_M, val span: Int = SPAN_M, val haptics: Boolean = true) {
-    fun sanitized() = ArcLook(slots.coerceIn(MIN_SLOTS, MAX_VISIBLE), radius.coerceIn(RADIUS_S, RADIUS_L), span.coerceIn(SPAN_S, SPAN_L), haptics)
+data class ArcLook(
+    val slots: Int = 5,
+    val radius: Int = RADIUS_M,
+    val span: Int = SPAN_M,
+    val haptics: Boolean = true,
+    /** Taps before the hold pick the set ARC opens on: hold = set 1, tap + hold = set 2, two taps + hold = set 3. */
+    val tapSets: Boolean = true,
+) {
+    fun sanitized() = ArcLook(slots.coerceIn(MIN_SLOTS, MAX_VISIBLE), radius.coerceIn(RADIUS_S, RADIUS_L), span.coerceIn(SPAN_S, SPAN_L), haptics, tapSets)
 
     companion object {
         const val MIN_SLOTS = 3
-        const val MAX_VISIBLE = 7
+        const val MAX_VISIBLE = 8
         const val RADIUS_S = 104
         const val RADIUS_M = 120
         const val RADIUS_L = 140

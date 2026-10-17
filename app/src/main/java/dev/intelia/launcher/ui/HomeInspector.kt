@@ -913,7 +913,7 @@ fun ConfirmDialog(title: String, action: String, onConfirm: () -> Unit, onDismis
     }
 }
 
-/** The faint shallow ARC around LENS while its inspector is open: the arc and slots ARC would really open with LENS here. */
+/** The faint wide ARC above LENS while its inspector is open: the arc and slots ARC would really open with LENS here. */
 @Composable
 fun GhostArc(lens: Pt, bow: ArcBow, modifier: Modifier = Modifier, edge: DockEdge = DockEdge.Bottom) {
     val c = LocalCrystal.current
@@ -921,10 +921,11 @@ fun GhostArc(lens: Pt, bow: ArcBow, modifier: Modifier = Modifier, edge: DockEdg
         val o = Offset(lens.x * density, lens.y * density)
         val ink = c.fg.copy(alpha = .22f)
         if (bow.angles.isEmpty()) return@Canvas
-        val r = bow.radius * density
+        val r = bow.curve * density
         val from = bow.angles.first()
         val to = bow.angles.last()
-        drawArc(ink, -90f + Dock.degrees(edge) + from - 6f, to - from + 12f, false, Offset(o.x - r, o.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
+        val c0 = Dock.toScreen(edge, 0f, bow.drop).let { Offset(o.x + it.x * density, o.y + it.y * density) }
+        drawArc(ink, -90f + Dock.degrees(edge) + from - 3f, to - from + 6f, false, Offset(c0.x - r, c0.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
         (0 until bow.count).forEach { i ->
             val (lx, ly) = bow.position(i)
             val p = Dock.toScreen(edge, lx, ly)

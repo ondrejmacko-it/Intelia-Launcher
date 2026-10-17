@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -186,10 +187,10 @@ fun Quiet(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, colo
 @Composable
 fun <T> Segments(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
     val ink = LocalInk.current
-    Row(modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         options.forEach { (value, label) ->
             val on = value == selected
-            Column(Modifier.heightIn(min = 48.dp).selectable(on, role = Role.RadioButton, onClick = { onSelect(value) }),
+            Column(Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp).selectable(on, role = Role.RadioButton, onClick = { onSelect(value) }),
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(label, style = InkText.body.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
                     color = if (on) ink.ink else ink.muted, maxLines = 1)

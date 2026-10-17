@@ -510,7 +510,9 @@
     <string name="arc_set_n">Sada %1$d</string>
     <string name="req_default_home">Vyžaduje Intelii jako výchozí plochu</string>
     <string name="req_pulse">Vyžaduje službu PULSE (Přístupnost)</string>
-    <string name="arc_explain_sets">Podrž LENS, sjeď na slot a pusť. Slot 1 je uprostřed oblouku, další střídavě vlevo a vpravo; pozice se nemění. Tahem přes konec oblouku nebo na tečku přepneš sadu.</string>
+    <string name="arc_explain_sets">Podrž LENS, sjeď na slot a pusť. Slot 1 je uprostřed oblouku, další střídavě vlevo a vpravo; pozice se nemění. Sadu přepneš tahem na šipku vedle LENS nebo na tečku.</string>
+    <string name="arc_tap_sets">Sada podle klepnutí</string>
+    <string name="arc_tap_sets_detail">Podržení = 1. sada, klepnutí + podržení = 2., dvě klepnutí + podržení = 3. Hledání se pak otevře asi o čtvrt sekundy později.</string>
     <string name="arc_slots">Sloty</string>
     <string name="arc_size">Velikost</string>
     <string name="arc_angle">Oblouk</string>
