@@ -910,8 +910,12 @@ private fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent:
     val plate = item.anchor.type != AnchorType.Bound && item.background.isNotEmpty()
     val ink = if (plate) LocalCrystal.current.fg else homeInk
     val family = faceFamily(look.face, if (item.weight == 0) 450 else item.weight) ?: CrystalType.date.fontFamily
-    val style = CrystalType.date.copy(fontFamily = family, fontSize = size.sp,
-        letterSpacing = (2.2f * size / ItemSizes.DATE + look.tracking / 100f * size).sp, shadow = if (plate) null else homeShadow(homeInk),
+    // One line never wraps: a wide face (Mono, Unbounded) would push the last word onto a hidden second line.
+    // Too wide for the room, the line steps down in size until it fits whole.
+    var fit by remember(text, size, look, family) { androidx.compose.runtime.mutableFloatStateOf(1f) }
+    val s = size * fit
+    val style = CrystalType.date.copy(fontFamily = family, fontSize = s.sp,
+        letterSpacing = (2.2f * s / ItemSizes.DATE + look.tracking / 100f * s).sp, shadow = if (plate) null else homeShadow(homeInk),
         // Vertical: one letter per line, centred, a little air between lines.
         lineHeight = if (look.vertical) (size * 1.2f).sp else TextUnit.Unspecified,
         textAlign = if (look.vertical) TextAlign.Center else TextAlign.Unspecified)
@@ -919,7 +923,8 @@ private fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent:
         modifier.graphicsLayer { alpha = item.alpha }
             .then(if (plate) Modifier.veilSurface(plateTokens(item.background), VeilOrigin.Top, RoundedCornerShape(18.dp))
                 .padding(horizontal = (16f + look.padX).dp, vertical = (10f + look.padY).dp) else Modifier),
-        style = style, color = item.tintColor(accent) ?: ink.copy(alpha = if (plate) .8f else .62f), maxLines = if (look.vertical) 40 else 1)
+        style = style, color = item.tintColor(accent) ?: ink.copy(alpha = if (plate) .8f else .62f), maxLines = if (look.vertical) 40 else 1,
+        softWrap = look.vertical, onTextLayout = { if (!look.vertical && it.didOverflowWidth && fit > .5f) fit *= .92f })
 }
 
 /** A faint dashed ring around the camera in the editor: tap it to edit PULSE. */

@@ -52,6 +52,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -253,9 +254,10 @@ private fun CardHeader(title: String, frame: InspectorFrame?, onDrag: (Offset) -
         Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 16.sp), color = c.fg, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
-            if (frame?.moved == true) Box(Modifier.size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = reset) { frame.reset() },
+            if (frame?.moved == true) Box(Modifier.size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = reset) { frame.reset() }
+                .semantics(mergeDescendants = true) { contentDescription = reset },
                 contentAlignment = Alignment.Center) {
-                Text("⟲", style = CrystalType.body.copy(fontSize = 18.sp), color = c.fg2)
+                Text("⟲", Modifier.clearAndSetSemantics { }, style = CrystalType.body.copy(fontSize = 18.sp), color = c.fg2)
             }
         }
     }
