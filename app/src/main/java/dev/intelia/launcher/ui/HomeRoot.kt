@@ -19,6 +19,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -245,7 +248,6 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     flowSteps = steps,
                     onSearch = { openSearch(true) },
                     onDrawer = ::openDrawer,
-                    onStudio = { page = Page.Studio },
                     onPulseLens = { studioLens = true; page = Page.Studio },
                     startEditing = editOnHome,
                     onEditingStarted = { editOnHome = false },
@@ -355,7 +357,6 @@ private fun Home(
     flowSteps: (FlowAlias) -> List<String?>,
     onSearch: () -> Unit,
     onDrawer: () -> Unit,
-    onStudio: () -> Unit,
     onPulseLens: () -> Unit,
     startEditing: Boolean,
     onEditingStarted: () -> Unit,
@@ -384,6 +385,8 @@ private fun Home(
     /** The time and the date apart, for hit testing; [clockZone] is the whole block (never covered). */
     var timeZone by remember { mutableStateOf<Zone?>(null) }
     var dateZone by remember { mutableStateOf<Zone?>(null) }
+    /** The editor's scaled Home layer, which zones are measured in (not state: read only in callbacks). */
+    val homeCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     var lookOpen by remember { mutableStateOf(false) }
     if (startEditing) { onEditingStarted(); openRequested = true }
     /** Editor: the item whose inspector is open, the empty spot of the Add menu, its picker, the preset strip. */
@@ -478,8 +481,9 @@ private fun Home(
         val textTop = (if (compact) 24.dp else TEXT_TOP.dp) + dockTop
         val freeDate = date?.takeIf { it.anchor.type == AnchorType.Free }
         val iconDefault = settings.iconSize
+        // Zones are kept in Home coordinates, inside the editor's scaled layer ([EditView]).
         fun zoneOf(c: androidx.compose.ui.layout.LayoutCoordinates, pad: Float): Zone {
-            val r = c.boundsInRoot()
+            val r = homeCoords[0]?.takeIf { it.isAttached }?.localBoundingBoxOf(c, clipBounds = false) ?: c.boundsInRoot()
             val d = density.density
             return Zone(r.left / d - pad, r.top / d - pad, r.right / d + pad, r.bottom / d + pad)
         }
@@ -487,11 +491,37 @@ private fun Home(
         val lensItem = layout.items.firstOrNull { it.kind == ItemKind.Lens }
         val lensPt = Pt(geometry.lensX, geometry.lensY)
         val barBottom = statusTop.value + BAR_HEIGHT
+        // D15: the editor shows the same Home at 86 %; cards are placed from the settled scale, not the animated one.
+        val view = EditView(maxWidth.value, maxHeight.value, if (ed != null) EditView.EDIT_SCALE else 1f)
+        val homeScale by animateFloatAsState(view.scale, tween(motionMs(320)), label = "edit-scale")
+        val homeLayer = Modifier.graphicsLayer { scaleX = homeScale; scaleY = homeScale; transformOrigin = TransformOrigin(.5f, EditView.ORIGIN_Y) }
 
+        val hole = rememberLens(settings.pulseLens)
+        val camera = Pt(hole.x / density.density, hole.y / density.density)
+        if (ed != null) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
+        // PULSE stays at the camera, outside the editor's scaled Home.
+        if (settings.pulse && ed == null) Pulse(settings)
         if (ed != null) {
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
-            EditorMarks(ed, layout)
+            if (settings.pulse) Pulse(settings, preview = true)
+            CameraMark(camera, selected == PULSE_ID)
+            // The status bar would take every tap near the camera, so the editor hides it (swipe brings it back)
+            // and PULSE everywhere's lens lets taps through: tapping the capsule opens its inspector.
+            val rootView = androidx.compose.ui.platform.LocalView.current
+            DisposableEffect(rootView) {
+                val window = (rootView.context as? android.app.Activity)?.window
+                val bars = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, rootView) }
+                bars?.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                bars?.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                PulseAccessibilityService.setEditing(true)
+                onDispose {
+                    bars?.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                    PulseAccessibilityService.setEditing(false)
+                }
+            }
         }
+
+        Box(Modifier.fillMaxSize().then(homeLayer).onPlaced { homeCoords[0] = it }) {
+        if (ed != null) EditorMarks(ed, layout)
 
         if (clock == null) timeZone = null
         if (date == null) dateZone = null
@@ -640,28 +670,6 @@ private fun Home(
                 CustomAccessibilityAction(lensCentre) { ed.setLensDx(0f).also { refresh() } },
             ),
             onEditSelect = if (ed == null) null else { { selected = ed.lensId(); refresh() } }) }
-        if (settings.pulse && ed == null) Pulse(settings)
-        val hole = rememberLens(settings.pulseLens)
-        val camera = Pt(hole.x / density.density, hole.y / density.density)
-        if (ed != null) {
-            if (settings.pulse) Pulse(settings, preview = true)
-            CameraMark(camera, selected == PULSE_ID)
-            // The status bar would take every tap near the camera, so the editor hides it (swipe brings it back)
-            // and PULSE everywhere's lens lets taps through: tapping the capsule opens its inspector.
-            val view = androidx.compose.ui.platform.LocalView.current
-            DisposableEffect(view) {
-                val window = (view.context as? android.app.Activity)?.window
-                val bars = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
-                bars?.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                bars?.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-                PulseAccessibilityService.setEditing(true)
-                onDispose {
-                    bars?.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-                    PulseAccessibilityService.setEditing(false)
-                }
-            }
-        }
-
         if (ed != null) {
             // Editor layer above LENS: a hold on LENS never opens ARC here; drags move elements.
             Box(Modifier.fillMaxSize()
@@ -670,14 +678,14 @@ private fun Home(
                         val p = Pt(o.x / density.density, o.y / density.density)
                         val onLens = hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) <= 34f
                         // The whole capsule around the camera, not just the lens: PULSE is edited by tapping it (§5.5).
-                        val onCamera = abs(p.x - camera.x) <= 96f && p.y <= camera.y + 40f
+                        val onCamera = view.toScreen(p).let { q -> abs(q.x - camera.x) <= 96f && q.y <= camera.y + 40f }
                         val hit = hitItem(ed, p, timeZone, dateZone) ?: ed.lensId()?.takeIf { onLens } ?: PULSE_ID.takeIf { onCamera }
                         when {
                             lookOpen && hit == null -> lookOpen = false
                             hit != null -> { selected = hit.takeIf { it != selected }; addPoint = null }
                             selected != null || addPoint != null -> { selected = null; addPoint = null }
                             presetsOpen -> { ed.cancelPreview(); presetsOpen = false; previewKey = null }
-                            p.y > barBottom && hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) > 50f -> addPoint = p
+                            view.toScreen(p).y > barBottom && hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) > 50f -> addPoint = p
                         }
                         refresh()
                     })
@@ -737,6 +745,9 @@ private fun Home(
                         onDragCancel = { ed.cancelDrag(); ed.cancelLensDrag(); refresh() },
                     )
                 })
+        }
+        }
+        if (ed != null) {
             // What is edited now, named in the bar (and in the card's header).
             val editingTitle = when (val id = selected) {
                 null -> null
@@ -752,17 +763,27 @@ private fun Home(
                     }
                 }
             }
-            EditorBar(ed.canUndo, ed.canRedo, editing = editingTitle, onUndo = { ed.undo(); refresh() }, onRedo = { ed.redo(); refresh() }, presetsOpen = presetsOpen, onPresets = {
-                    if (presetsOpen) { ed.cancelPreview(); previewKey = null }
-                    presetsOpen = !presetsOpen; lookOpen = false; selected = null; addPoint = null; refresh()
-                }, lookOpen = lookOpen, onLook = {
-                    if (presetsOpen) { ed.cancelPreview(); previewKey = null; presetsOpen = false }
-                    lookOpen = !lookOpen; selected = null; addPoint = null; refresh()
-                }, onStudio = { leave(onStudio) }, onDone = { save() },
-                modifier = Modifier.align(Alignment.TopCenter))
+            EditorBar(ed.canUndo, ed.canRedo, editing = editingTitle, onCancel = { leave {} }, onUndo = { ed.undo(); refresh() },
+                onRedo = { ed.redo(); refresh() }, onDone = { save() }, modifier = Modifier.align(Alignment.TopCenter))
+            // The tray steps aside while a card is open: cards may reach down to the navigation bar.
+            val cardOpen = presetsOpen || lookOpen || addPoint != null || (selected != null && drag == null && ed.lensDrag == null)
+            androidx.compose.animation.AnimatedVisibility(!cardOpen && drag == null && ed.lensDrag == null, Modifier.align(Alignment.BottomCenter),
+                enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+                EditorTray(placementLabel(ed.layout), presetsOpen, lookOpen,
+                    onAdd = { selected = null; addPoint = Pt(geometry.lensX, geometry.areaTop + geometry.areaH / 2f); refresh() },
+                    onPresets = {
+                        if (presetsOpen) { ed.cancelPreview(); previewKey = null }
+                        presetsOpen = !presetsOpen; lookOpen = false; selected = null; addPoint = null; refresh()
+                    },
+                    onPlacement = { ed.setPlacement(Placement.entries[(ed.layout.placement.ordinal + 1) % Placement.entries.size]); refresh() },
+                    onLook = {
+                        if (presetsOpen) { ed.cancelPreview(); previewKey = null; presetsOpen = false }
+                        lookOpen = !lookOpen; selected = null; addPoint = null; refresh()
+                    })
+            }
 
             /** The LENS row as a target: the Look and Presets cards open just above it. */
-            val lensRowZone = geometry.rowZone
+            val lensRowZone = view.toScreen(geometry.rowZone)
             if (presetsOpen) {
                 val start = ed.previewOf ?: ed.layout
                 val favs = settings.favorites
@@ -796,7 +817,7 @@ private fun Home(
             }
             val sel = selected?.let(ed::item)
             val rings = remember(arc.slots, lensPt, dock.edge, maxWidth, maxHeight) { Dock.rings(arc.slots, dock.edge, lensPt, maxWidth.value, maxHeight.value) }
-            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, rings, Modifier.fillMaxSize(), dock.edge)
+            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, rings, Modifier.fillMaxSize().then(homeLayer), dock.edge)
             if (sel != null && drag == null && ed.lensDrag == null) {
                 val zone = when (sel.kind) {
                     ItemKind.Clock -> timeZone ?: clockZone
@@ -819,14 +840,15 @@ private fun Home(
                     ItemKind.Lens -> (sel.lensDp() / 2f).let { r -> Dock.toScreen(dock.edge, r + 16f, r * .6f).let { Pt(lensPt.x + it.x, lensPt.y + it.y) } }
                     else -> ed.pointOf(sel)?.let { p -> (sel.iconDp(iconDefault) / 2f).let { r -> Pt(p.x + r + 10f, p.y + r) } }
                 }
-                if (corner != null) SizeHandle(corner.x, corner.y, stringResource(when (sel.kind) {
+                // Handles live in Home coordinates, in a layer scaled like Home.
+                if (corner != null) Box(Modifier.fillMaxSize().then(homeLayer)) { SizeHandle(corner.x, corner.y, stringResource(when (sel.kind) {
                     ItemKind.Clock -> R.string.clock_resize
                     ItemKind.Lens -> R.string.lens_resize
                     else -> R.string.icon_resize
                 })) { dx ->
                     ed.edit(sel.id, "size") { it.copy(sizeDp = (it.currentSize(iconDefault) + dx.roundToInt()).coerceIn(it.sizeRange())) }
                     refresh()
-                }
+                } }
                 // A plate stretches by its own handles: right edge sideways, bottom edge down.
                 val plateZone = when {
                     sel.background.isEmpty() -> null
@@ -834,14 +856,14 @@ private fun Home(
                     sel.kind == ItemKind.Date && sel.anchor.type != AnchorType.Bound -> dateZone
                     else -> null
                 }
-                if (plateZone != null) PlateHandles(plateZone) { dx, dy ->
+                if (plateZone != null) Box(Modifier.fillMaxSize().then(homeLayer)) { PlateHandles(plateZone) { dx, dy ->
                     ed.edit(sel.id, "pad") { it.copy(look = it.look.copy(
                         padX = (it.look.padX + dx / 2f).coerceIn(0f, TextLook.MAX_PAD), padY = (it.look.padY + dy / 2f).coerceIn(0f, TextLook.MAX_PAD))) }
                     refresh()
-                }
-                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom + EDIT_LABEL,
+                } }
+                if (zone != null) key(sel.id) { InspectorCard(view.toScreen(zone), maxWidth.value, barBottom + EDIT_LABEL,
                     // Above the ghost ARC the LENS card may cover the clock: the arcs matter more while LENS is edited.
-                    clockZone.takeIf { !sel.kind.isText() && sel.kind != ItemKind.Lens }, editingTitle, inspectorFrame) {
+                    clockZone?.takeIf { !sel.kind.isText() && sel.kind != ItemKind.Lens }?.let(view::toScreen), editingTitle, inspectorFrame) {
                     when (sel.kind) {
                         ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, onRemoved = { selected = null }, onChange = ::refresh)
                         ItemKind.Date -> DateInspector(ed, sel, zone.let { z ->
@@ -857,7 +879,7 @@ private fun Home(
             }
             addPoint?.let { at ->
                 fun addText(kind: ItemKind) { ed.addText(kind, at); addPoint = null; refresh() }
-                AddMenu(at, maxWidth.value, barBottom, clockZone, onApp = { picker = ItemKind.App }, onFlow = { picker = ItemKind.Flow },
+                AddMenu(view.toScreen(at), maxWidth.value, barBottom, clockZone?.let(view::toScreen), onApp = { picker = ItemKind.App }, onFlow = { picker = ItemKind.Flow },
                     onClock = { addText(ItemKind.Clock) }.takeIf { clock == null }, onDate = { addText(ItemKind.Date) }.takeIf { date == null })
             }
         }

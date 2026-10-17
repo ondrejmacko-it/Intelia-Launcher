@@ -312,5 +312,31 @@ class HomeEditorStateTest {
         val xs = (0 until 4).map { geo.cellCentre(it, 5, 4, 6).x }
         for (i in 0 until 3) assertTrue(xs[i] + g.getValue("c$i") / 2 <= xs[i + 1] - g.getValue("c${i + 1}") / 2)
     }
+
+    @Test fun editViewKeepsTheTopClockClearOfTheBar() {
+        val view = EditView(411f, 911f)
+        // The clock's earliest top (status bar + 24 dp) lands below a 48 dp bar under the status bar.
+        assertTrue(view.toScreen(Pt(205.5f, 40f + 24f)).y > 40f + BAR_HEIGHT)
+        // LENS stays above the tray (56 dp, 34 dp above the bottom).
+        assertTrue(view.toScreen(Pt(205.5f, 829f + 30f)).y < 911f - 34f - 56f)
+        val p = Pt(37f, 600f)
+        val back = view.toHome(view.toScreen(p))
+        assertEquals(p.x, back.x, 1e-3f)
+        assertEquals(p.y, back.y, 1e-3f)
+        assertEquals(Pt(205.5f, 911f * .52f), view.toScreen(Pt(205.5f, 911f * .52f)))
+    }
+
+    @Test fun inspectorOpensOnTheRoomierSide() {
+        // High element: room below only.
+        assertFalse(inspectorAbove(Zone(100f, 150f, 160f, 210f), 300f, topLimit = 100f, screenH = 880f))
+        // Low element: room above only.
+        assertTrue(inspectorAbove(Zone(100f, 760f, 160f, 820f), 300f, topLimit = 100f, screenH = 880f))
+        // Fits on both sides: the roomier one, unless above would cover the clock.
+        assertFalse(inspectorAbove(Zone(100f, 420f, 160f, 480f), 200f, topLimit = 100f, screenH = 880f))
+        assertTrue(inspectorAbove(Zone(100f, 520f, 160f, 580f), 200f, topLimit = 100f, screenH = 880f))
+        assertFalse(inspectorAbove(Zone(100f, 520f, 160f, 580f), 200f, 100f, 880f, avoid = Zone(0f, 100f, 411f, 400f), left = 0f, width = 312f))
+        // Fits nowhere whole: the roomier side.
+        assertTrue(inspectorAbove(Zone(100f, 500f, 160f, 560f), 600f, topLimit = 100f, screenH = 880f))
+    }
 }
 

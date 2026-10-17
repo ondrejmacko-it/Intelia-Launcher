@@ -585,3 +585,45 @@ const val LABEL_MIN = 48f
 private const val LABEL_LINE = 24f
 private const val LABEL_GAP = 2f
 private const val LENS_HALF = 28f
+
+/**
+ * The editor's view of Home (D15): the same Home drawn at [scale] around 50 % / [ORIGIN_Y] of the screen, so the
+ * bar and the tray take the freed margins. Home keeps its own coordinates; cards, the bar and the tray are placed
+ * on the screen, from an element's settled position ([toScreen]).
+ */
+data class EditView(val width: Float, val height: Float, val scale: Float = EDIT_SCALE) {
+    private val ox get() = width / 2f
+    private val oy get() = height * ORIGIN_Y
+    fun toScreen(p: Pt) = Pt(ox + (p.x - ox) * scale, oy + (p.y - oy) * scale)
+    fun toScreen(z: Zone): Zone {
+        val a = toScreen(Pt(z.left, z.top))
+        val b = toScreen(Pt(z.right, z.bottom))
+        return Zone(a.x, a.y, b.x, b.y)
+    }
+    fun toHome(p: Pt) = Pt(ox + (p.x - ox) / scale, oy + (p.y - oy) / scale)
+
+    companion object {
+        const val EDIT_SCALE = .86f
+        const val ORIGIN_Y = .52f
+    }
+}
+
+/**
+ * Whether an inspector of height [h] opens above its element ([target], screen dp) rather than below (D15):
+ * the side where it fits whole, the roomier one when it fits on both or on neither. Above never covers [avoid]
+ * (the clock) when the card fits below instead.
+ */
+fun inspectorAbove(target: Zone, h: Float, topLimit: Float, screenH: Float, avoid: Zone? = null, left: Float = 0f, width: Float = 0f): Boolean {
+    val aboveRoom = target.top - 12f - topLimit
+    val belowRoom = screenH - 12f - target.bottom - 12f
+    val aboveTop = target.top - 12f - h
+    val clear = avoid == null || avoid.bottom <= aboveTop || avoid.top >= target.top || avoid.right <= left || avoid.left >= left + width
+    val fitsAbove = h <= aboveRoom
+    val fitsBelow = h <= belowRoom
+    return when {
+        fitsAbove && fitsBelow -> if (clear) aboveRoom >= belowRoom else false
+        fitsAbove -> true
+        fitsBelow -> false
+        else -> aboveRoom > belowRoom
+    }
+}

@@ -214,6 +214,9 @@
     <string name="edit_undo">Zpět</string>
     <string name="edit_redo">Znovu</string>
     <string name="edit_done">Uložit rozložení</string>
+    <string name="edit_finish">Hotovo</string>
+    <string name="edit_cancel">Zrušit úpravy</string>
+    <string name="edit_add">Přidat</string>
     <string name="placement_grid">Mřížka</string>
     <string name="placement_free">Volně</string>
     <string name="placement_hybrid">Hybrid</string>

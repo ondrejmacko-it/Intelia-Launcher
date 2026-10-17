@@ -25,6 +25,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -53,9 +57,8 @@ import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.Placement
 
 /**
- * Home Editor chrome (§5.5): left = presets, look and history, middle = what is edited, right = Studio and ✓.
- * One compact row of 32 dp Veil Light pills right below the status bar, [BAR_HEIGHT] in all, so the clock can
- * start just under it.
+ * Home Editor top bar (D15): cancel, undo and redo, what is edited, and Hotovo, 48 dp Veil Light controls in the
+ * margin freed by the editor's 86 % Home ([EditView]), so it never covers a clock at the very top.
  */
 @Composable
 fun EditorBar(
@@ -64,23 +67,18 @@ fun EditorBar(
     canRedo: Boolean,
     /** The element being edited, named in the middle of the bar; null = nothing selected. */
     editing: String?,
+    onCancel: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
-    presetsOpen: Boolean,
-    onPresets: () -> Unit,
-    lookOpen: Boolean,
-    onLook: () -> Unit,
-    onStudio: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ink = LocalInk.current
     val c = LocalCrystal.current
     val veil = veil(VeilLevel.Light)
-    Row(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        BarPill(stringResource(R.string.presets), presetsOpen, onPresets)
-        BarPill(stringResource(R.string.look), lookOpen, onLook, Modifier.padding(start = 6.dp))
+    Row(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(horizontal = 12.dp).padding(top = 4.dp)
+        .height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape)) { BarIcon(Glyph.Close, stringResource(R.string.edit_cancel), true, onCancel) }
         Row(Modifier.padding(start = 6.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Glyph.Undo, stringResource(R.string.edit_undo), canUndo, onUndo)
             BarIcon(Glyph.Redo, stringResource(R.string.edit_redo), canRedo, onRedo)
@@ -88,22 +86,54 @@ fun EditorBar(
         // What is edited now, in the free middle of the bar.
         Box(Modifier.weight(1f).padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
             androidx.compose.animation.AnimatedVisibility(editing != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
-                Text(editing.orEmpty(), Modifier.veilSurface(veil, VeilOrigin.Top, CircleShape).padding(horizontal = 10.dp, vertical = 6.dp),
-                    style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(editing.orEmpty(), Modifier.veilSurface(veil, VeilOrigin.Top, CircleShape).padding(horizontal = 12.dp, vertical = 8.dp),
+                    style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
         }
-        Box(Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape)) {
-            BarIcon(Glyph.Studio, stringResource(R.string.studio), true, onStudio)
-        }
-        Box(Modifier.padding(start = 6.dp).size(32.dp).clip(CircleShape).background(ink.accent)
-            .clickable(role = Role.Button, onClick = onDone), contentAlignment = Alignment.Center) {
-            HomeGlyph(Glyph.Check, stringResource(R.string.edit_done), tint = c.accInk, size = 16.dp)
+        Row(Modifier.height(44.dp).clip(CircleShape).background(ink.accent).clickable(role = Role.Button, onClick = onDone)
+            .padding(start = 12.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            HomeGlyph(Glyph.Check, null, tint = c.accInk, size = 18.dp)
+            Text(stringResource(R.string.edit_finish), Modifier.padding(start = 6.dp), style = CrystalType.body.copy(fontSize = 14.sp), color = c.accInk)
         }
     }
 }
 
 /** Height of [EditorBar] below the status bar, dp. */
-const val BAR_HEIGHT = 40f
+const val BAR_HEIGHT = 52f
+
+/** Height of [EditorTray] and its distance from the bottom edge, dp. */
+const val TRAY_HEIGHT = 56f
+const val TRAY_BOTTOM = 34f
+
+/**
+ * The editor's tool tray (D15) in the bottom margin: Přidat, Předlohy, the placement (Mřížka / Volně / Hybrid,
+ * a tap cycles it) and Vzhled, one Veil Light capsule.
+ */
+@Composable
+fun EditorTray(placement: String, presetsOpen: Boolean, lookOpen: Boolean, onAdd: () -> Unit, onPresets: () -> Unit,
+               onPlacement: () -> Unit, onLook: () -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.padding(horizontal = 16.dp).padding(bottom = TRAY_BOTTOM.dp).fillMaxWidth().height(TRAY_HEIGHT.dp)
+        .veilSurface(veil(VeilLevel.Light), VeilOrigin.Bottom, RoundedCornerShape(28.dp)).padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        TrayButton(Glyph.Plus, stringResource(R.string.edit_add), false, onAdd)
+        TrayButton(Glyph.Layers, stringResource(R.string.presets), presetsOpen, onPresets)
+        TrayButton(Glyph.Grid, placement, false, onPlacement)
+        TrayButton(Glyph.Studio, stringResource(R.string.look), lookOpen, onLook)
+    }
+}
+
+@Composable
+private fun RowScope.TrayButton(glyph: Glyph, label: String, open: Boolean, onClick: () -> Unit) {
+    val c = LocalCrystal.current
+    Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(22.dp))
+        .then(if (open) Modifier.background(c.acc.copy(alpha = .16f)) else Modifier)
+        .toggleable(open, role = Role.Button) { onClick() }, horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center) {
+        HomeGlyph(glyph, null, tint = if (open) c.acc else c.fg, size = 20.dp)
+        Text(label, style = CrystalType.body.copy(fontSize = 11.5.sp, lineHeight = 13.sp), color = c.fg, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    }
+}
 
 @Composable
 fun placementLabel(layout: LayoutSpec): String {
@@ -179,16 +209,6 @@ fun PlateHandles(zone: Zone, onStretch: (Float, Float) -> Unit) {
     handle((zone.left + zone.right) / 2f, zone.bottom - 7f, stringResource(R.string.plate_taller), false)
 }
 
-@Composable
-private fun BarPill(label: String, open: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val c = LocalCrystal.current
-    Text(label, modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Bottom, CircleShape).heightIn(min = 32.dp)
-        .then(if (open) Modifier.border(1.dp, c.acc, CircleShape) else Modifier)
-        .toggleable(open, role = Role.Button) { onClick() }
-        .padding(horizontal = 11.dp, vertical = 7.dp),
-        style = CrystalType.date.copy(fontSize = 12.sp, letterSpacing = .2.sp), color = c.fg)
-}
-
 /**
  * Two-finger pinch in the editor: [target] picks the element at the first two fingers' centre (null = ignore),
  * the size follows the finger distance from where it started. Consumes the pointers, so a running drag cancels.
@@ -228,8 +248,8 @@ suspend fun androidx.compose.ui.input.pointer.PointerInputScope.pinchToResize(
 @Composable
 private fun BarIcon(glyph: Glyph, label: String, enabled: Boolean, onClick: () -> Unit) {
     val c = LocalCrystal.current
-    Box(Modifier.size(32.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-        HomeGlyph(glyph, label, tint = if (enabled) c.fg else c.fg3, size = 16.dp)
+    Box(Modifier.size(44.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+        HomeGlyph(glyph, label, tint = if (enabled) c.fg else c.fg3, size = 20.dp)
     }
 }
 

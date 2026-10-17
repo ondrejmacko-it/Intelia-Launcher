@@ -155,8 +155,8 @@ class InspectorFrame(saved: dev.intelia.launcher.data.CardFrame? = null) {
 }
 
 /**
- * Contextual editor on Veil Dense (§5.5): 312 dp, above [target] when it fits, else below;
- * the edge lights from the element's side. [target] and [topLimit] are dp in Home coordinates.
+ * Contextual editor on Veil Dense (§5.5): 312 dp, on the side of [target] with more room ([inspectorAbove]);
+ * the edge lights from the element's side. [target] and [topLimit] are screen dp (the editor's [EditView]).
  * The spot is chosen once, when the card opens: it then stays put while its element moves or grows (a slider
  * never runs away under the finger) and is always kept whole on the screen. With a [frame] the card has a
  * header naming what is edited: drag it to move the card, drag the arrows at its corners and sides to size it.
@@ -182,17 +182,11 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
     var anchorBottom by remember { mutableFloatStateOf(0f) }
     if (auto == null && h > 0) {
         val ax = ((target.left + target.right) / 2f - width / 2f).coerceIn(12f, screenW - 12f - width)
-        // Above when it fits and leaves [avoid] (the clock) visible; otherwise below.
-        val aboveTop = target.top - 12f - hDp
-        above = aboveTop >= topLimit && (avoid == null || avoid.bottom <= aboveTop || avoid.top >= target.top ||
-            avoid.right <= ax || avoid.left >= ax + width)
+        // D15: the side where it fits whole, the roomier one otherwise; above never hides [avoid] (the clock) needlessly.
+        above = inspectorAbove(target, hDp, topLimit, screenH, avoid, ax, width)
         val belowRoom = screenH - 12f - target.bottom - 12f
-        if (!above && hDp > belowRoom) {
-            val aboveRoom = target.top - 12f - topLimit
-            // Neither side takes it whole: the roomier side, the body capped to it (the header and margins ≈ 72 dp).
-            if (aboveRoom > belowRoom && aboveRoom >= 200f) { above = true; autoCap = aboveRoom - 72f }
-            else if (belowRoom >= 200f) autoCap = belowRoom - 72f
-        }
+        // Below without room for all of it: the body is capped to that side (the header and margins ≈ 72 dp).
+        if (!above && hDp > belowRoom) autoCap = (belowRoom - 72f).coerceAtLeast(InspectorFrame.MIN_H)
         // Above, the card never reaches down over its element: its body is capped to the room up there.
         if (above) autoCap = minOf(autoCap, target.top - 12f - topLimit - 72f).coerceAtLeast(InspectorFrame.MIN_H)
         auto = Offset(ax, if (above) target.top - 12f - minOf(hDp, autoCap + 72f) else target.bottom + 12f)
