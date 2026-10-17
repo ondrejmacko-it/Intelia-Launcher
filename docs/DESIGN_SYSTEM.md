@@ -426,6 +426,10 @@ A Nothing look only through an installed compatible pack, never copied. Missing 
 **Tinted** (part 13): the monochrome glyph in the palette's Icons colour (§5.12) on a disc of the theme's Veil
 base @ 62 % washed with that colour @ 16 %, ring @ 40 %; apps without a monochrome layer keep the grey
 silhouette on the same disc. Chosen in the Look panel, Studio and the icon inspector (with its colour).
+**Disc shape** (D13 ③, `LauncherSettings.iconShape`): Kruh (circle, default and the look of older documents),
+Squircle (superellipse |x|⁴ + |y|⁴ = 1), Zaoblený čtverec (26 % corners), Slza (50 % corners with a 16 % top-start
+corner). Applies to the Veil and Tinted disc and its ring; the chips appear under the icon styles only for those
+two styles. System and Mono icons keep the app's own outline. (Czech "Slza", because "Kapka" is the Liquid glass.)
 
 ## 5.9 PULSE continuity (B4)
 Same Veil material and origin edge (origin = camera), same type and motion: idle draws nothing, the live
@@ -497,6 +501,26 @@ decode to defaults.
   Pozadí.
 - Inspector: Písmo, Čas, Posun od hodin and Pokročilé fold open in place with a spring; the card scrolls past 58 %
   of the screen height.
+
+### 5.5.3 LENS row on any edge (D13 ③, 2026-10-17)
+- **Model:** `LayoutSpec.dock = DockSpec(edge = Bottom | Top | Left | Right, lensAt = Middle | Start | End)`; each
+  layout has its own. Absent or unknown names decode to Bottom / Middle (the earlier look). LENS's own offset
+  (`Anchor.dx`, ±120 dp) runs along the edge.
+- **Where:** LENS centre 52 dp above the navigation bar (bottom), 96 dp below the status bar (top, clear of PULSE
+  and the editor bar), 52 dp from a side edge, centred on the space between the bars (sides). LENS first / last
+  moves LENS back by half the row (100 dp) so the whole row stays centred; the four slots follow it at 62 + k × 46 dp
+  in order. On a side the row runs down the edge and slots show no names (46 dp apart).
+- **Content area:** the band of the row (56 dp top/bottom, 44 dp beside a side row) is kept out of it; away from
+  the bottom, the area stops 40 dp above the navigation bar. A top row pushes all text (clock, date) down by its band.
+- **ARC:** laid out in a local frame whose "up" points away from the edge and turned on screen (`Dock.toScreen`,
+  0° / 90° / 180° / −90°); finger positions are turned back (`Dock.toLocal`), so the rings always open towards the
+  centre and the gesture reads the same. Ring room comes from the screen along the edge. Ring names: above each ring
+  (bottom, top); on a side past the ring's first end, kept on screen. With the row on top, the words of ARC
+  ("Táhni dál pro víc", the target) sit at the bottom. The ghost ARC in the editor turns the same way.
+- **Editor:** LENS inspector → „Řada LENS“: Dole / Nahoře / Vlevo / Vpravo and LENS první / uprostřed / poslední,
+  each one undo step. Dragging LENS moves it along its edge; keyboard nudges on the row move along it and off it
+  into the nearest grid cell; the editor card keeps clear of the row on any edge.
+- Search still opens at the bottom whatever the edge.
 
 ### 5.5.2 Editor card: placement, header, moving and sizing (2026-10-17)
 - Placed once when it opens (above the element when it fits whole, else below; when neither side takes it, the

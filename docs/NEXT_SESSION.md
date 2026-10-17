@@ -2,36 +2,38 @@ Pokračujeme na Intelia Launcheru (`AGENTS.md` platí). Odpovídej česky, stru�
 cíl ~180k. Žádní agenti, soubory nečti celé opakovaně, výstupy příkazů filtruj. Když se blížíš ke 200k, zastav se,
 commitni hotové a napiš prompt na pokračování.
 
-Podklady: horní záznam docs/STATUS.md; docs/DECISIONS.md D13; docs/DESIGN_SYSTEM.md §5.5.2; docs/screens/README.md;
-kód `ui/HomeRoot.kt` (geometrie LENS řádku `geometry.lensY`, `lensPt`, `ArcRings`, `LensRow` sloty, `SizeHandle`),
-`data/HomeModel.kt` (`AnchorType.LensRow`, `HomeItem`), `data/LauncherSettings.kt` (`IconStyle`, `editorCard`),
-`ui/HomeEditor.kt` (`SizeHandle`, `PlateHandles`), `ui/Veil.kt` (`plateGlass`).
+Podklady: horní záznam docs/STATUS.md; docs/DECISIONS.md D13 (tapety: kreslené launcherem bez oprávnění + volitelně
+jako systémová tapeta s `SET_WALLPAPER` ve vlastním commitu); docs/DESIGN_SYSTEM.md §5.2, §5.5.3, §5.12;
+docs/screens/README.md; kód `ui/Dock.kt` (řada LENS na libovolné hraně, otočení ARC), `ui/HomeRoot.kt` (pozadí Home,
+`homeInk`, `wallPlaces`), `ui/Veil.kt`, `data/LauncherSettings.kt` (`sanitized()`, `Glass`, `IconShape`).
 
-Hotovo minule (`5ac8c7f`, `a6b507b`, `780911a`): karta editoru se pamatuje s rozložením (`editorCard`); úchyty
-karty jsou nenápadné značky v jejím okraji, úchyty desek a tečky velikosti malé a neutrální (majitel: „menší, méně
-výrazné, nepřekážet“); výraznější sklo desek (`plateGlass`); Vzhled a Předlohy jsou stejná přesouvatelná karta;
-tečka velikosti i u ikon a LENS (mimo prvek); oprava data v JetBrains Mono (poslední slovo mizelo); test českých
-glyfů ve všech písmech. Ověřeno: otočení, čeština, Studio (Zahodit/Uložit), popisky přístupnosti.
+Hotovo minule (`7da1855`, `f78f659`, `db5d450`): tvary disku ikon (Kruh / Squircle / Zaoblený čtverec / Slza) pro
+Veil a Tónované; řada LENS dole / nahoře / vlevo / vpravo + LENS první / uprostřed / poslední v inspektoru LENS
+(`LayoutSpec.dock`), ARC se z boku i shora otevírá ke středu, na boku sloty bez popisků; TalkBack: Větší / Menší na
+tečce velikosti ověřil majitel; nová sada snímků `docs/screens/v0.1.0-2026-10-17b/` (i světlý motiv).
 
-Na začátku se zeptej majitele, jak mu sedí nové nenápadné úchyty a výraznější desky.
+Na začátku se zeptej majitele, jak mu sedí řada LENS na boku / nahoře (rozestupy 46 dp, žádné popisky na boku,
+vyhledávání se otevírá vždy dole) a tvary ikon.
 Tato session (každý bod: testy → build → telefon → commit + push):
-1. Bod ③ programu D13: dok/LENS kdekoli + tvary ikon (squircle, zaoblený čtverec, kapka), pořadí 4 slotů,
-   ukotvení dole/nahoře/vlevo/vpravo (na boku svisle, ARC do středu). Nejdřív navrhni model (pole v `LayoutSpec`
-   nebo `LauncherSettings` + `sanitized()`), krátce ho ukaž majiteli, pak implementuj.
-2. Skutečný TalkBack (akce Větší/Menší na úchytech) — jen pokud majitel TalkBack zapne sám; jinak nech neověřené.
-3. Nová sada snímků do `docs/screens/<verze>-<datum>/`, starou `v0.1.0-2026-10-17` smazat (zůstane v historii),
-   aktualizovat docs/screens/README.md; zahrnout i světlý motiv.
+1. Bod ④ programu D13: 10+ minimalistických rozmazaných tapet kreslených launcherem (procedurálně, bez assetů a
+   oprávnění), výběr ve Vzhledu a ve Studiu, světlý i tmavý motiv, kontrast textu (≥ 4.5:1 pro hodiny/datum).
+   Nejdřív navrhni model (`LauncherSettings.wallpaper` + `sanitized()`) a náhled majiteli, pak implementuj.
+   Měř cenu kreslení (čas snímku) na telefonu, žádná tvrzení bez měření.
+2. Volitelně „Nastavit jako systémovou tapetu“ — jen pokud majitel potvrdí; `SET_WALLPAPER` v samostatném commitu
+   a záznam v DECISIONS.
+3. Snímky nových tapet do `docs/screens/` (nová složka, starou smazat), README.
 
 Git: větev `claude/crystal-redesign`, na začátku `git fetch` a `git status`, malé commity + push, žádný merge do `main`.
 V telefonu je debug Lab (run-as funguje), HOME role = Lab. Zálohuj shared_prefs/intelia.xml (`adb exec-out run-as
-dev.intelia.launcher.lab cat …`), po testu vrať (push do /data/local/tmp, `am force-stop`, `run-as … cp`, ověř shodu
-bajtů). Build: `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` (JAVA_HOME =
-`C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1`; výstup přesměruj do souboru a filtruj, daemon občas
-spadne — stačí spustit znovu), adb C:\Users\Ondra\AppData\Local\lesnik-toolchain\sdk\platform-tools\adb.exe.
-Telefon Nothing Phone (3), 1080×2392, LENS (540, 2193) px; editor = dlouhý stisk na prázdné ploše (540, 1300)
-(v otevřeném editoru otevře menu Přidat); hodiny vlevo nahoře (~(230, 700)), datum (318, 414); ✓ = „Uložit
-rozložení“ (995, 200). Před KAŽDÝM `input` ověř `topResumedActivity`. Python ovladač ve scratchpadu (adb přes
-subprocess s MSYS_NO_PATHCONV, `uiautomator dump /dev/tty`, hledání podle textu i content-desc, klepnutí na střed
-bounds, snímek → JPEG 50 % + náhled 40 %); uiautomator vrací i bounds mimo viditelnou část karty — klepnout jen
-uvnitř. Uložená poloha karty z testu se po obnově prefs vrátí na majitelovu. Na konci STATUS jen ověřená fakta,
+dev.intelia.launcher.lab cat …`), po testu vrať (push do /data/local/tmp — cesta pro adb.exe ve tvaru `C:/…`, ne
+`/c/…` —, `am force-stop`, `run-as … cp`, ověř shodu bajtů). Build: `.\gradlew.bat :app:testDebugUnitTest
+:app:assembleDebug` (JAVA_HOME = `C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1`; výstup přesměruj do
+souboru a filtruj; při „Test process encountered an unexpected problem“ nebo `commit_memory` spusť `gradlew --stop`
+a build znovu), adb C:\Users\Ondra\AppData\Local\lesnik-toolchain\sdk\platform-tools\adb.exe.
+Telefon Nothing Phone (3), 1080×2392, LENS (540, 2193) px; editor = dlouhý stisk na prázdné ploše (540, 1600)
+(v otevřeném editoru otevře menu Přidat); hodiny ~(230, 700), datum (318, 414); ✓ = „Uložit rozložení“ (995, 200).
+Před KAŽDÝM `input` ověř `topResumedActivity`. Python ovladač napiš do scratchpadu (adb přes subprocess s
+MSYS_NO_PATHCONV, `uiautomator dump /dev/tty`, hledání podle textu i content-desc, klepnutí na střed bounds; čipy se
+stejným textem — např. „Veil“ (sklo i ikony) — rozliš posledním výskytem; ARC držením přes `input motionevent
+DOWN/MOVE/UP`; snímek → JPEG 50 %, kontrolní arch více snímků najednou). Na konci STATUS jen ověřená fakta,
 DESIGN_SYSTEM §5, nový prompt v docs/NEXT_SESSION.md, krátký report.

@@ -2,6 +2,28 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — LENS row on any edge, icon disc shapes, screenshot sweep b (`claude/crystal-redesign`, `7da1855`, `f78f659`, `db5d450`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 108 JVM tests, 0 failures (new: `DockTest` ×6 —
+  bottom row unchanged, side row runs down the edge and keeps the content clear, top row pushes the area down,
+  LENS first/last order, ARC faces the centre and input maps back, old/unknown dock names fall back; icon shape
+  default/unknown/round trip).
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up and restored after each test
+  run, byte-identical):
+  - LENS inspector → Řada LENS: Vlevo / Nahoře / Vpravo move LENS and its four slots to that edge; LENS první puts
+    all four after it; the ghost ARC turns with the edge.
+  - Saved, real ARC from the left, top and right rows: rings open towards the centre, slide-to-select picks the
+    slot under the finger (Claude, Instagram), ring names readable; on top the ARC words sit at the bottom.
+  - Veil icons drawn as Kruh, Squircle, Zaoblený čtverec, Slza.
+  - TalkBack (switched on by the owner): double-tap-and-hold opens the editor, activating LENS selects it; the size dot's
+    custom actions Větší / Menší were exercised by the owner on the phone — they work (not driven through adb).
+  - Light and dark theme × Veil / Krystal / Mráz / Kapka on Home (screenshots 61-*).
+- Screenshots: `docs/screens/v0.1.0-2026-10-17b/` (35 shots), old `v0.1.0-2026-10-17/` removed (in history).
+Not verified: Search opening from a side or top row (it stays at the bottom by design, not checked for overlap);
+a side row in landscape-sized windows; slot drag-and-drop between a side row and the grid by finger.
+Open: D13 ④ wallpapers.
+
 ## 2026-10-17 — Remembered editor card, faint grips, bolder plate glass, Look/Presets as cards, size dots (`claude/crystal-redesign`, `5ac8c7f`, `a6b507b`, `780911a`)
 
 Verified:

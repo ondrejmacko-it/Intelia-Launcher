@@ -165,7 +165,9 @@ Decided by the owner:
   assets and listed here before it lands (same rule as D11).
 - **Order:** glass styles + settings audit first (done 2026-10-17), then clock/date, dock/LENS anywhere + icon
   shapes, wallpapers.
-Open: how ARC opens from a side dock (proposal: rings open towards the screen centre).
+Settled 2026-10-17 (owner): ARC from a side or top row opens towards the screen centre; the row is part of each
+layout (`LayoutSpec.dock`), icon disc shape is global (`LauncherSettings.iconShape`); "order of the four slots" =
+LENS first / between / last (swapping slots was already a drag). Done: ③ (DESIGN_SYSTEM §5.5.3, §5.8).
 
 
 ## D14 — 2026-10-17 — Bundle six OFL font families for the clock and the date (follows D13)
