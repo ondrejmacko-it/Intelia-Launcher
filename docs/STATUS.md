@@ -15,9 +15,15 @@ Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 - Phone (Nothing Phone (3)): Studio row shows "Podržení · Svítilna" after picking via the picker; on Home a hold
   under the camera turned the torch on and a second hold off (`dumpsys media.camera`); an unbound tap opened
   the panel. ARC at font scale 1.3: arrow labels fit, no overlap.
-- Not verified: the service path (PULSE everywhere was off on the phone and is the owner's switch), double tap on
-  the phone, TalkBack for the new gestures (double tap has no TalkBack action), ARC with LENS on a side edge on
-  the phone (geometry only covered by `ArcBowTest`). The phone keeps Hold → torch bound from this test.
+- Follow-up, service path with PULSE everywhere on (owner switched it on): in Android Settings a hold toggled the
+  torch on and off; a double tap bound to Allegro showed "Tahle akce se z PULSE spouští jen na Home." and launched
+  nothing; on Home the same double tap launched Allegro through Home. Android suppressed Lab's Toast ("Suppressing
+  toast … by user request", notifications off), so the service now shows its own note under the camera instead.
+- ARC set arrows moved out of the thumb's way: (±72, +30) dp, below LENS centre, hit 22 dp (was ±94, +2, 30),
+  smaller chevron and label; `ArcBowTest` checks the straight path from LENS to every slot never touches an arrow.
+  Phone: the left arrow switched to "Zkratky"; a slide to the outermost left slot launched its app.
+- Not verified: TalkBack for the new gestures (double tap has no TalkBack action), ARC with LENS on a side edge on
+  the phone (geometry only covered by `ArcBowTest`). The phone keeps Hold → torch and Double tap → Allegro bound.
 
 ## 2026-10-18 — Control System V1: wide ARC, set arrows, set by taps (`feat/control-system-v1`)
 

@@ -271,18 +271,18 @@ fun LensArc(
                 Column(Modifier.centerAt(cx + p.x.dp, cy + p.y.dp).graphicsLayer { alpha = reveal }
                     .then(if (assisted) Modifier.clip(CircleShape).clickable(role = Role.Tab) { track = BowTrack(target) }
                         .semantics { contentDescription = name } else Modifier.semantics { hideFromAccessibility() })
-                    .size(width = 72.dp, height = 56.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                    .size(width = 56.dp, height = 48.dp), horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center) {
-                    Canvas(Modifier.size(18.dp)) {
+                    Canvas(Modifier.size(12.dp)) {
                         val w = size.width
                         val h = size.height
                         val tip = if (side < 0) w * .25f else w * .75f
                         val back = if (side < 0) w * .7f else w * .3f
-                        val stroke = 2.dp.toPx()
-                        drawLine(homeInk.copy(alpha = .8f), Offset(back, h * .15f), Offset(tip, h * .5f), stroke, StrokeCap.Round)
-                        drawLine(homeInk.copy(alpha = .8f), Offset(tip, h * .5f), Offset(back, h * .85f), stroke, StrokeCap.Round)
+                        val stroke = 1.6.dp.toPx()
+                        drawLine(homeInk.copy(alpha = .65f), Offset(back, h * .15f), Offset(tip, h * .5f), stroke, StrokeCap.Round)
+                        drawLine(homeInk.copy(alpha = .65f), Offset(tip, h * .5f), Offset(back, h * .85f), stroke, StrokeCap.Round)
                     }
-                    Text(name, style = InkText.small.copy(fontSize = 11.sp, shadow = homeShadow(homeInk)), color = homeInk.copy(alpha = .8f),
+                    Text(name, style = InkText.small.copy(fontSize = 10.sp, shadow = homeShadow(homeInk)), color = homeInk.copy(alpha = .65f),
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }

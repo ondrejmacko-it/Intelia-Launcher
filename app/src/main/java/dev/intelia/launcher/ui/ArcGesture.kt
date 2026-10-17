@@ -160,7 +160,7 @@ class ArcBow(val count: Int, radius: Float, span: Float, val left: Float, val ri
     /** How far sideways the arc reaches (dp from LENS). */
     val width: Float get() = angles.maxOfOrNull { abs(curve * sin(it * PI.toFloat() / 180f)) } ?: 0f
 
-    /** Centre of the set arrow on side [side] (-1 left, +1 right) beside LENS, or null (one set, or no room there). */
+    /** Centre of the set arrow on side [side] (-1 left, +1 right), low beside LENS, or null (one set, or no room there). */
     fun arrow(side: Int): Pair<Float, Float>? {
         if (sets <= 1) return null
         val room = if (side < 0) left else right
@@ -220,9 +220,13 @@ class ArcBow(val count: Int, radius: Float, span: Float, val left: Float, val ri
         /** Dot spacing when they are buttons (TalkBack, keyboard): 48 dp targets that do not overlap. */
         const val DOT_GAP_ASSISTED = 52f
         private const val DOT_HIT = 18f
-        const val ARROW_X = 94f
-        const val ARROW_Y = 2f
-        const val ARROW_HIT = 30f
+        /**
+         * Set arrows sit low beside LENS, below its centre: the thumb travels up to the slots and never crosses
+         * them on the way; reaching one takes a deliberate slide down and sideways.
+         */
+        const val ARROW_X = 72f
+        const val ARROW_Y = 30f
+        const val ARROW_HIT = 22f
         private const val EDGE = 30f
         private const val HIT = .6f
         private const val KEEP = .85f

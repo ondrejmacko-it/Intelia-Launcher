@@ -67,6 +67,19 @@ class ArcBowTest {
         assertEquals(2, bow.track(BowTrack(0), lx, ly) { full }.set)
     }
 
+    @Test fun theThumbsPathToAnySlotNeverCrossesAnArrow() {
+        listOf(ArcBow(8, 104f, 90f, 205f, 205f, sets = 3), ArcBow(8, 140f, 150f, 205f, 205f, sets = 3),
+            ArcBow(5, 120f, 120f, 205f, 205f, sets = 2), ArcBow(8, 120f, 150f, 120f, 290f, sets = 3)).forEach { b ->
+            (0 until b.count).forEach { slot ->
+                val (sx, sy) = b.position(slot)
+                (0..40).forEach { i ->
+                    val t = i / 40f
+                    assertEquals("slot $slot at $t", 0, b.arrowAt(sx * t, sy * t))
+                }
+            }
+        }
+    }
+
     @Test fun dotsPickTheirSet() {
         val (dx, dy) = bow.dot(2)
         assertEquals(BowTrack(2, null, armed = false), bow.track(BowTrack(0, 1), dx, dy) { full })

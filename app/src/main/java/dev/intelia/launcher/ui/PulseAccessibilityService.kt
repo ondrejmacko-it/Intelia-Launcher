@@ -7,8 +7,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.RectF
+import android.graphics.drawable.GradientDrawable
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
@@ -24,7 +26,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
-import android.widget.Toast
+import android.widget.TextView
 import android.view.accessibility.AccessibilityEvent
 import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedVisibility
@@ -119,6 +121,7 @@ class PulseAccessibilityService : AccessibilityService() {
     /** System actions only: without Home's model, apps and FLOWs report missing and stay on Home (M3). */
     private var host: AndroidActionHost? = null
     private var pendingTap: Runnable? = null
+    private var note: View? = null
 
     override fun onServiceConnected() {
         windows = getSystemService(WindowManager::class.java)
@@ -152,6 +155,7 @@ class PulseAccessibilityService : AccessibilityService() {
 
     private fun tearDown() {
         closeMenu()
+        hideNote()
         lens?.let { runCatching { windows.removeView(it) } }
         lens = null
         pendingTap?.let(main::removeCallbacks)
@@ -260,7 +264,35 @@ class PulseAccessibilityService : AccessibilityService() {
         if (result is ActionResult.Unavailable) toast(if (result.reason == Reason.Unsupported) R.string.action_unsupported else R.string.launch_failed)
     }
 
-    private fun toast(text: Int) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+    /**
+     * A short note under the camera in the service's own overlay. A Toast is not used: Android drops toasts from an
+     * app whose notifications are off, and then the owner would get no answer at all.
+     */
+    private fun toast(text: Int) {
+        hideNote()
+        val view = TextView(this).apply {
+            setText(text)
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            val pad = (12 * dp).toInt()
+            setPadding(pad + pad / 2, pad, pad + pad / 2, pad)
+            background = GradientDrawable().apply { cornerRadius = 20 * dp; setColor(Color.argb(235, 16, 16, 24)) }
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        val params = overlay(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT, focusable = false).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = (statusBarPx() + 12 * dp).toInt()
+            flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+        windows.addView(view, params)
+        note = view
+        main.postDelayed({ if (note === view) hideNote() }, NOTE_MS)
+    }
+
+    private fun hideNote() {
+        note?.let { runCatching { windows.removeView(it) } }
+        note = null
+    }
 
     private fun openMenu() {
         if (menu != null) return
@@ -324,6 +356,7 @@ class PulseAccessibilityService : AccessibilityService() {
         /** True while the service is bound in this process; Lab then hides its own lens target. */
         val running: StateFlow<Boolean> = _running.asStateFlow()
 
+        private const val NOTE_MS = 2200L
         @Volatile private var editing = false
 
         /** Set by Home while it is resumed: bound PULSE gestures then run through Home's Action Engine entry. */
