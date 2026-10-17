@@ -521,11 +521,19 @@ decode to defaults.
   each one undo step. Dragging LENS moves it along its edge; keyboard nudges on the row move along it and off it
   into the nearest grid cell; the editor card keeps clear of the row on any edge.
 - Search still opens at the bottom whatever the edge.
+- **Spacing (2026-10-17):** `DockSpec.gap` (LENS to the nearest slot, 52–140 dp, default 62) and `pitch` (slot to
+  slot, 46–140 dp, default 46), clamped by `sanitized()`; a row longer than the edge (less 24 dp at each end) shrinks
+  both by one factor. `spread = true` ignores them: with LENS in the middle each side's two slots stand evenly in
+  that side's room (the outer one at the 24 dp limit); with LENS first / last, LENS goes to its end and LENS + four
+  slots share the rest evenly (≥ 46 dp). Inspector: „Rozprostřít po hraně“, „Odstup od LENS“, „Rozestup aplikací“;
+  one slider run = one undo step.
+- **Editor bar (2026-10-17):** one 40 dp row below the status bar, 32 dp Veil Light pills; the edited element's name
+  sits in the middle of the bar. Clock and free text start 44 dp below the status bar (was 92 dp).
 
 ### 5.5.2 Editor card: placement, header, moving and sizing (2026-10-17)
 - Placed once when it opens (above the element when it fits whole, else below; when neither side takes it, the
   roomier side with the body capped to it) and then **stays put** while its element moves or grows, so a slider
-  never runs away under the finger. Always kept whole between the editor bar (+40 dp name label) and the top of the
+  never runs away under the finger. Always kept whole between the editor bar (+8 dp) and the top of the
   navigation bar.
 - Header: grip bar + the element's name (Hodiny, Datum, PULSE, LENS, app/FLOW label); the same name sits in a Light
   Veil pill under the editor bar. Drag the header to move the card; faint rim marks size it — quarter arcs at the

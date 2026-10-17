@@ -2,6 +2,23 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — LENS row spacing, compact editor bar, text higher (`claude/crystal-redesign`, `6e60c45`, `11f3f1d`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 111 JVM tests, 0 failures (new in `DockTest`:
+  wider row keeps its steps and a too-wide one shrinks to fit, spread fills the edge, spacing clamped on restore).
+  The Gradle daemon crashed twice (JVM crash / "Test process encountered an unexpected problem"); `gradlew --stop`
+  and a rerun passed.
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up and restored, byte-identical):
+  - LENS inspector shows „Rozprostřít po hraně“, „Odstup od LENS“ (62 dp) and „Rozestup aplikací“ (46 dp).
+  - Rozprostřít on: the four bottom apps spread over the edge. Off, Rozestup 46 → 70 dp by twelve taps on +: the
+    apps move apart and the names Fotoaparát / Chrome no longer overlap.
+  - Editor bar: one row of 32 dp pills (Předlohy, Vzhled, undo/redo, the edited element's name, Studio, ✓) right
+    below the status bar; the clock and date sit 48 dp higher on Home than before.
+Not verified: undo of a slider run as one step on the phone (covered by the same code path as item sliders); spacing
+on side and top rows; LENS první / poslední with spread on the phone; TalkBack on the smaller bar (32 dp targets).
+Open: D13 ④ wallpapers (not started this session); free placement of single row apps beyond spacing.
+
 ## 2026-10-17 — LENS row on any edge, icon disc shapes, screenshot sweep b (`claude/crystal-redesign`, `7da1855`, `f78f659`, `db5d450`)
 
 Verified:
