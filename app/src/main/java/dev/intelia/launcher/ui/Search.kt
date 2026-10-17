@@ -228,7 +228,11 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
             val box = Size(right - left, bottom - top)
             drawRoundRect(Brush.verticalGradient(listOf(tokens.top, tokens.bottom), top, bottom), at, box, corner, alpha = m)
             clipRect(left, top, right, bottom) { this@drawWithContent.drawContent() }
-            drawRoundRect(lerp(homeInk.copy(alpha = .88f), tokens.edgeHot, m), at, box, corner, style = Stroke(if (m < 1f) 1.5.dp.toPx() else 1.dp.toPx()))
+            if (tokens.sheen.alpha > 0f) drawRoundRect(Brush.verticalGradient(listOf(tokens.sheen, Color.Transparent), top, top + (bottom - top) * tokens.sheenReach),
+                at, box, corner, alpha = m)
+            // An edgeless glass keeps the LENS ring only while it morphs; the open field has no outline.
+            val ring = if (tokens.edge) lerp(homeInk.copy(alpha = .88f), tokens.edgeHot, m) else homeInk.copy(alpha = .88f * (1f - m))
+            drawRoundRect(ring, at, box, corner, style = Stroke(if (m < 1f) 1.5.dp.toPx() else 1.dp.toPx()))
         }
         .padding(start = 18.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).graphicsLayer { alpha = ((morph() - .5f) * 2f).coerceIn(0f, 1f) }, verticalAlignment = Alignment.CenterVertically) {

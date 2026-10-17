@@ -317,4 +317,8 @@
     <string name="icons_tinted">Tónované</string>
     <string name="clock_bg_none">Bez pozadí</string>
     <string name="a11y_select">Vybrat</string>
+    <string name="glass_crystal">Krystal</string>
+    <string name="glass_frost">Mráz</string>
+    <string name="glass_liquid">Kapka</string>
+    <string name="look_glass_clear">Průsvitné</string>
 </resources>

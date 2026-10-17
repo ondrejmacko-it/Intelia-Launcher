@@ -318,4 +318,8 @@
     <string name="icons_tinted">Tinted</string>
     <string name="clock_bg_none">No background</string>
     <string name="a11y_select">Select</string>
+    <string name="glass_crystal">Crystal</string>
+    <string name="glass_frost">Frost</string>
+    <string name="glass_liquid">Liquid</string>
+    <string name="look_glass_clear">Translucent</string>
 </resources>

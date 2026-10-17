@@ -61,6 +61,13 @@ data class Palette(
  */
 @Serializable enum class IconStyle { System, Ink, Veil, Tinted }
 
+/**
+ * Glass material of every panel (§5.2). [Veil] is the lit-edge Veil; the others have no edge at all and set the
+ * panel apart by light alone: [Crystal] clear with a top sheen, [Frost] milky with a fine grain, [Liquid] a bright
+ * rim of light at the top and the accent pooling at the bottom.
+ */
+@Serializable enum class Glass { Veil, Crystal, Frost, Liquid }
+
 /** Manual camera position for PULSE, in dp from the top-left of the portrait screen; [r] is the lens radius. */
 @Serializable data class PulseLens(val x: Float, val y: Float, val r: Float)
 
@@ -111,6 +118,8 @@ data class LauncherSettings(
     val veilShift: Int = 0,
     /** The accent-lit origin edge; off = a plain neutral hairline. */
     val veilEdge: Boolean = true,
+    /** Panel material; absent in older documents = [Glass.Veil], the look they had. */
+    val glass: Glass = Glass.Veil,
     /** Default size of Home icons in dp; an item's own size wins. */
     val iconSize: Int = 40,
     /** Home layouts (schema 2, §5.4); built from the legacy fields above by [sanitized] on migration. */

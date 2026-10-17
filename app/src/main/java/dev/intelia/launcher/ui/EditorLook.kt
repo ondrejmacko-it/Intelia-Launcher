@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.intelia.launcher.R
+import dev.intelia.launcher.data.Glass
 import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.LauncherSettings
@@ -31,6 +32,14 @@ fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
         settings.iconStyle) { v -> set { it.copy(iconStyle = v) } }
 }
 
+/** The panel glass (§5.2) for every surface; in the Look panel and Studio. */
+@Composable
+fun GlassChips(settings: LauncherSettings, set: SettingsEdit) {
+    Chips(listOf(Glass.Veil to stringResource(R.string.look_veil), Glass.Crystal to stringResource(R.string.glass_crystal),
+        Glass.Frost to stringResource(R.string.glass_frost), Glass.Liquid to stringResource(R.string.glass_liquid)),
+        settings.glass) { v -> set { it.copy(glass = v) } }
+}
+
 /**
  * The editor's Look panel (Vzhled): everything that styles the whole Home and every panel — Veil material,
  * theme, accent, icons, labels. Opened from the bar; sits above the LENS row so the clock stays visible.
@@ -45,7 +54,8 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
         .pointerInput(Unit) { detectTapGestures() }
         .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp)) {
         Kick(stringResource(R.string.look_material))
-        Chips(listOf(false to stringResource(R.string.look_veil), true to stringResource(R.string.look_solid)), settings.veilSolid) { v ->
+        GlassChips(settings, set)
+        Chips(listOf(false to stringResource(R.string.look_glass_clear), true to stringResource(R.string.look_solid)), settings.veilSolid) { v ->
             set { it.copy(veilSolid = v) }
         }
         if (!settings.veilSolid) {
@@ -55,7 +65,7 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
                 set { it.copy(veilShift = v.toInt()) }
             }
         }
-        Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v -> set { it.copy(veilEdge = v) } }
+        if (settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v -> set { it.copy(veilEdge = v) } }
 
         Kick(stringResource(R.string.theme))
         Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),

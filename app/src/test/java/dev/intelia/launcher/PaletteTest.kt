@@ -53,4 +53,10 @@ class PaletteTest {
         assertEquals(listOf("System", "Ink", "Veil", "Tinted"), IconStyle.entries.map { it.name })
         assertEquals(IconStyle.Tinted, SettingsCodec.decode("""{"iconStyle":"Tinted","schema":2}""").iconStyle)
     }
+
+    @Test fun glassDecodesAndOlderDocumentsKeepTheVeil() {
+        assertEquals(dev.intelia.launcher.data.Glass.Veil, SettingsCodec.decode("""{"schema":2}""").glass)
+        assertEquals(dev.intelia.launcher.data.Glass.Frost, SettingsCodec.decode("""{"glass":"Frost","schema":2}""").glass)
+        assertEquals(dev.intelia.launcher.data.Glass.Veil, SettingsCodec.decode("""{"glass":"Plasma","schema":2}""").glass)
+    }
 }

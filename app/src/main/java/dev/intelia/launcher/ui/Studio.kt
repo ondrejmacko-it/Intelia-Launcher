@@ -111,7 +111,7 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
         Column(Modifier.fillMaxSize()) {
             // Live preview on the real wallpaper: nothing is drawn behind it.
             Box(Modifier.fillMaxWidth().height(300.dp)) {
-                HomePreview(settings, favorites, now, homeInk, LocalPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize().statusBarsPadding(), scale = .78f, onWallpaper = true)
+                HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize().statusBarsPadding(), scale = .78f, onWallpaper = true)
                 Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconAction(Glyph.Back, stringResource(R.string.home), onBack, tint = homeInk)
                     Text(stringResource(R.string.studio_live).uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
@@ -127,6 +127,9 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
 
                 Section(R.string.palette_section)
                 PaletteEditor(settings, ::set, Modifier.padding(horizontal = 24.dp))
+                Kicker(stringResource(R.string.look_material), Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
+                Column(Modifier.padding(horizontal = 24.dp)) { GlassChips(settings, ::set) }
+                Kicker(stringResource(R.string.icons), Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
                 Column(Modifier.padding(horizontal = 24.dp)) { IconStyleChips(settings, ::set) }
 
                 Section(R.string.arc_section)
