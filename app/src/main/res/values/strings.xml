@@ -290,10 +290,9 @@
     <string name="look_edge">Lit edge</string>
     <string name="look_icons_same">Same size for all icons</string>
     <string name="look_labels">Labels under icons</string>
-    <string name="look_hint">Pinch any element to resize it. Tap the camera ring for PULSE.</string>
+    <string name="look_hint">Pinch any element to resize it. Tap PULSE at the camera to set it up.</string>
     <string name="studio_look_moved">Look, icons, clock, date and PULSE are edited right on Home.</string>
     <string name="studio_pulse_moved">Capsule look and events: tap the camera ring in the Home editor.</string>
-    <string name="look_pulse">Capsule look and events</string>
     <string name="accent_rose">Rose</string>
     <string name="accent_coral">Coral</string>
     <string name="accent_amber">Amber</string>

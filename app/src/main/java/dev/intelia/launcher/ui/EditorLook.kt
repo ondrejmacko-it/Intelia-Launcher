@@ -46,7 +46,7 @@ fun GlassChips(settings: LauncherSettings, set: SettingsEdit) {
  * Settings apply immediately; labels and icon sizes are layout edits and go through undo.
  */
 @Composable
-fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsEdit, onChange: () -> Unit, onPulse: () -> Unit,
+fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsEdit, onChange: () -> Unit,
     modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
     Column(modifier.padding(horizontal = 12.dp).fillMaxWidth().heightIn(max = 380.dp)
@@ -79,9 +79,6 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
         val icons = state.layout.items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
         if (icons.any { it.sizeDp != 0 }) Action(stringResource(R.string.look_icons_same), c.acc) { state.resetIconSizes(); onChange() }
         Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on -> state.setLabels(on); onChange() }
-        Kick(stringResource(R.string.pulse))
-        // The camera ring opens the same inspector, unless PULSE everywhere's overlay takes that tap first.
-        Action(stringResource(R.string.look_pulse), c.acc, onPulse)
         Text(stringResource(R.string.look_hint), Modifier.padding(vertical = 8.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
     }
 }

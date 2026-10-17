@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -21,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -179,7 +182,7 @@ fun LensArc(
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
-        val topInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+        val topInset = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp() }
         val cx = maxWidth / 2 + lensShift(lensDx, maxWidth)
         val cy = maxHeight - bottomInset - LensLift
         val rings = remember(content.slots, cx, maxWidth) { ArcRings(content.slots, left = cx.value, right = (maxWidth - cx).value) }

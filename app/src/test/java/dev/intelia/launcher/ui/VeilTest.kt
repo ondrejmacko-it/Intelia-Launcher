@@ -50,7 +50,7 @@ class VeilTest {
             val wall = if (dark) Color.White else Color.Black
             val fg = if (dark) CrystalColors.FgDark else CrystalColors.FgLight
             // Worst point of each fill: the sheen at the top, the bloom and the grain's white specks at the bottom.
-            val top = t.sheen.compositeOver(t.glow.compositeOver(t.top.compositeOver(wall)))
+            val top = t.spot.compositeOver(t.streak.compositeOver(t.sheen.compositeOver(t.glow.compositeOver(t.top.compositeOver(wall)))))
             val speck = Color.White.copy(alpha = t.grain)
             val bottom = speck.compositeOver(t.bloom.compositeOver(t.bottom.compositeOver(wall)))
             for (ground in listOf(top, bottom)) {

@@ -1,12 +1,16 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.BiasAlignment
@@ -32,6 +36,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import kotlin.math.abs
 import kotlin.math.hypot
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -55,7 +60,6 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -420,7 +424,7 @@ private fun Home(
         }.combinedClickable(interactionSource = null, indication = null, onLongClickLabel = editLabel, onClick = {},
             onLongClick = { if (editor == null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openRequested = true } })) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
-        val statusTop = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+        val statusTop = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp() }
         val saved = settings.home.activeLayout()
         // The editor's live LENS (drag, undo) wins over the saved layout's.
         val cx = maxWidth / 2 + lensShift(editor?.lensDx() ?: saved.lensDx(), maxWidth)
@@ -477,7 +481,7 @@ private fun Home(
             val textAccent = onClock[PaletteTarget.Text]
             // The plate's 20 dp inset comes out of the 28 dp margin, so the time keeps its width.
             Column(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(top = topPad).padding(horizontal = if (plate) 8.dp else 28.dp)
+                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(top = topPad).padding(horizontal = if (plate) 8.dp else 28.dp)
                     .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
                     .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) }
                     .then(if (plate) Modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Top, RoundedCornerShape(26.dp))
@@ -494,7 +498,7 @@ private fun Home(
         if (freeDate != null) {
             // An unpinned date: placed like the clock (§5.5), by its own free point.
             val bias = (freeDate.anchor.fx * 2f - 1f).coerceIn(-1f, 1f)
-            DateText(freeDate, now, homeInk, wallPlaces[PaletteTarget.Text], Modifier.fillMaxWidth().statusBarsPadding()
+            DateText(freeDate, now, homeInk, wallPlaces[PaletteTarget.Text], Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
                 .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp).padding(horizontal = 28.dp)
                 .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
                 .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
@@ -604,6 +608,20 @@ private fun Home(
         if (ed != null) {
             if (settings.pulse) Pulse(settings, preview = true)
             CameraMark(camera, selected == PULSE_ID)
+            // The status bar would take every tap near the camera, so the editor hides it (swipe brings it back)
+            // and PULSE everywhere's lens lets taps through: tapping the capsule opens its inspector.
+            val view = androidx.compose.ui.platform.LocalView.current
+            DisposableEffect(view) {
+                val window = (view.context as? android.app.Activity)?.window
+                val bars = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+                bars?.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                bars?.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                PulseAccessibilityService.setEditing(true)
+                onDispose {
+                    bars?.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                    PulseAccessibilityService.setEditing(false)
+                }
+            }
         }
 
         if (ed != null) {
@@ -613,7 +631,8 @@ private fun Home(
                     detectTapGestures(onTap = { o ->
                         val p = Pt(o.x / density.density, o.y / density.density)
                         val onLens = hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) <= 34f
-                        val onCamera = hypot(p.x - camera.x, p.y - camera.y) <= 36f
+                        // The whole capsule around the camera, not just the lens: PULSE is edited by tapping it (§5.5).
+                        val onCamera = abs(p.x - camera.x) <= 96f && p.y <= camera.y + 40f
                         val hit = hitItem(ed, p, timeZone, dateZone) ?: ed.lensId()?.takeIf { onLens } ?: PULSE_ID.takeIf { onCamera }
                         when {
                             lookOpen && hit == null -> lookOpen = false
@@ -707,7 +726,7 @@ private fun Home(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (maxHeight.value - geometry.lensY + 64f).dp))
             }
 
-            if (lookOpen) LookPanel(settings, ed, set, ::refresh, onPulse = { lookOpen = false; selected = PULSE_ID; refresh() },
+            if (lookOpen) LookPanel(settings, ed, set, ::refresh,
                 Modifier.align(Alignment.BottomCenter).padding(bottom = (maxHeight.value - geometry.lensY + 64f).dp))
             if (selected == PULSE_ID && drag == null) {
                 val r = hole.radius / density.density + 10f

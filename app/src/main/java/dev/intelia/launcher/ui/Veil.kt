@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import dev.intelia.launcher.data.Glass
@@ -58,6 +59,14 @@ data class VeilTokens(
     val bloom: Color = Color.Transparent,
     /** Opacity of the fine frosted grain (Frost); 0 = none. */
     val grain: Float = 0f,
+    /** Diagonal specular streaks across the panel (Crystal's facets). */
+    val streak: Color = Color.Transparent,
+    /** A rounded highlight near the top-left corner, like light caught in a drop (Liquid). */
+    val spot: Color = Color.Transparent,
+    /** A hairline of light along the top edge only, inside the panel (Crystal, Liquid). */
+    val rim: Color = Color.Transparent,
+    /** The rim runs round the whole outline, lit at two opposite corners (Liquid), instead of the top only. */
+    val rimAround: Boolean = false,
 )
 
 /**
@@ -117,29 +126,41 @@ private fun edgeless(glass: Glass, dark: Boolean, acc: Color, aTop: Float, aBott
     val none = Color.Transparent
     fun a(v: Float) = v.coerceIn(.5f, .97f)
     return when (glass) {
-        Glass.Crystal -> VeilTokens(
-            top = top.copy(alpha = a(aTop + if (dark) .08f else -.02f)), bottom = deep.copy(alpha = a(aBottom + if (dark) .06f else -.02f)),
-            edgeCold = none, edgeHot = none, glow = acc.copy(alpha = .05f), edge = false,
-            sheen = Color.White.copy(alpha = if (dark) .05f else .55f), sheenReach = .45f,
-        )
-        Glass.Frost -> {
-            // Milky: a lighter, cooler base in the dark theme, a whiter one in the light theme.
-            val milk = if (dark) Color(0xFF1C1F25) else Color(0xFFFAFBFC)
+        // Clear and cool: lighter body, two diagonal facet streaks and a lit top rim; no colour of its own.
+        Glass.Crystal -> {
+            val ice = if (dark) Color(0xFF0E1218) else Color(0xFFF4F7FA)
             VeilTokens(
-                top = lerp(milk, acc, .04f).copy(alpha = a(aTop + .08f)), bottom = milk.copy(alpha = a(aBottom + .08f)),
+                top = ice.copy(alpha = a(aTop + if (dark) .14f else -.04f)), bottom = deep.copy(alpha = a(aBottom + if (dark) .04f else -.04f)),
                 edgeCold = none, edgeHot = none, glow = none, edge = false,
-                sheen = Color.White.copy(alpha = if (dark) .04f else .35f), sheenReach = .6f, grain = if (dark) .05f else .04f,
+                sheen = Color.White.copy(alpha = if (dark) .04f else .45f), sheenReach = .3f,
+                streak = Color.White.copy(alpha = if (dark) .11f else .55f),
+                rim = Color.White.copy(alpha = if (dark) .6f else 1f),
             )
         }
+        // Milky: an opaque, paler body with a coarse visible grain; light spread evenly, no rim, no colour.
+        Glass.Frost -> {
+            val milk = if (dark) Color(0xFF262A31) else Color(0xFFFDFDFE)
+            VeilTokens(
+                top = milk.copy(alpha = a(aTop + .14f)), bottom = lerp(milk, deep, .35f).copy(alpha = a(aBottom + .12f)),
+                edgeCold = none, edgeHot = none, glow = none, edge = false,
+                sheen = Color.White.copy(alpha = if (dark) .03f else .3f), sheenReach = 1f, grain = if (dark) .11f else .09f,
+            )
+        }
+        // Liquid glass: clear and neutral, a rim of light running round the whole outline, brightest at the
+        // top-left and bottom-right corners, with a soft glow just inside it; a trace of the accent at the bottom.
         Glass.Liquid -> VeilTokens(
-            top = top.copy(alpha = a(aTop + if (dark) .09f else 0f)), bottom = deep.copy(alpha = a(aBottom + if (dark) .08f else 0f)),
+            top = top.copy(alpha = a(aTop + if (dark) .10f else -.02f)), bottom = deep.copy(alpha = a(aBottom + if (dark) .08f else -.02f)),
             edgeCold = none, edgeHot = none, glow = none, edge = false,
-            sheen = Color.White.copy(alpha = if (dark) .07f else .7f), sheenReach = .22f,
-            bloom = acc.copy(alpha = if (dark) .10f else .12f),
+            sheen = Color.White.copy(alpha = if (dark) .03f else .35f), sheenReach = .25f,
+            bloom = acc.copy(alpha = if (dark) .07f else .08f),
+            spot = Color.White.copy(alpha = if (dark) .03f else .4f),
+            rim = Color.White.copy(alpha = if (dark) .75f else 1f), rimAround = true,
         )
         Glass.Veil -> error("Veil has an edge")
     }
 }
+
+private fun Color.luminanceIsDark() = .2126f * red + .7152f * green + .0722f * blue < .5f
 
 /** A 64 px tile of white and black specks, made once; tiled at [VeilTokens.grain] it reads as frosted glass. */
 private val grainTile: ImageBitmap by lazy {
@@ -175,12 +196,40 @@ fun Modifier.veilSurface(
     val bloom = if (tokens.bloom.alpha > 0f) Brush.radialGradient(listOf(tokens.bloom, Color.Transparent),
         center = Offset(size.width / 2f, size.height * 1.1f), radius = max(size.width * .7f, 1f)) else null
     val grain = if (tokens.grain > 0f) ShaderBrush(ImageShader(grainTile, TileMode.Repeated, TileMode.Repeated)) else null
+    val streak = if (tokens.streak.alpha > 0f) {
+        // Two facets across the whole diagonal: a broad one near the top-left, a thin fainter one past the middle.
+        val c = tokens.streak; val t = Color.Transparent
+        Brush.linearGradient(0f to t, .12f to c, .26f to t, .56f to t, .62f to c.copy(alpha = c.alpha * .6f), .68f to t, 1f to t,
+            start = Offset.Zero, end = Offset(size.width, size.height))
+    } else null
+    val spot = if (tokens.spot.alpha > 0f) Brush.radialGradient(listOf(tokens.spot, Color.Transparent),
+        center = Offset(size.width * .18f, size.height * .12f), radius = max(minOf(size.width, size.height) * .45f, 1f)) else null
+    val rim = when {
+        tokens.rim.alpha <= 0f -> null
+        tokens.rimAround -> {
+            val r = tokens.rim; val t = Color.Transparent
+            Brush.linearGradient(0f to r, .28f to r.copy(alpha = r.alpha * .25f), .5f to t, .72f to r.copy(alpha = r.alpha * .2f), 1f to r.copy(alpha = r.alpha * .8f),
+                start = Offset.Zero, end = Offset(size.width, size.height))
+        }
+        else -> Brush.horizontalGradient(listOf(Color.Transparent, tokens.rim, Color.Transparent))
+    }
+    val rimStroke = Stroke(if (tokens.rimAround) 1.5.dp.toPx() else 1.dp.toPx())
+    // Twice as wide as the outline and half clipped by the shape: a soft glow just inside the rim.
+    val rimGlow = Stroke(8.dp.toPx())
     onDrawWithContent {
         drawOutline(outline, fill)
         drawOutline(outline, glow)
         bloom?.let { drawOutline(outline, it) }
         grain?.let { drawOutline(outline, it, alpha = tokens.grain) }
         sheen?.let { drawOutline(outline, it) }
+        streak?.let { drawOutline(outline, it) }
+        spot?.let { drawOutline(outline, it) }
+        rim?.let {
+            if (tokens.rimAround) {
+                drawOutline(outline, it, alpha = if (tokens.top.luminanceIsDark()) .10f else .35f, style = rimGlow)
+                drawOutline(outline, it, style = rimStroke)
+            } else clipRect(bottom = 1.5.dp.toPx()) { drawOutline(outline, it, style = rimStroke) }
+        }
         drawContent()
         if (tokens.edge) drawOutline(outline, edge, style = stroke)
     }

@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import android.app.AlarmManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
@@ -42,7 +46,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -126,7 +129,7 @@ internal fun rememberLens(lens: PulseLens?): Hole {
     val view = LocalView.current
     val density = LocalDensity.current
     val detected = rememberDetectedHole()
-    val statusTop = with(density) { WindowInsets.statusBars.getTop(this).toFloat() }
+    val statusTop = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toFloat() }
     val portrait = view.height >= view.width
     return with(density) {
         when {
@@ -213,7 +216,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         alarm?.takeIf { rest.alarmMark }?.let { stringResource(R.string.pulse_alarm_near,
             Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("H:mm"))) },
     ).joinToString(", ")
-    val statusBar = with(density) { WindowInsets.statusBars.getTop(this).toDp().value }
+    val statusBar = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp().value }
 
     Box(modifier.fillMaxSize()) {
         val hx = with(density) { h.x.toDp() }

@@ -114,6 +114,7 @@ class PulseAccessibilityService : AccessibilityService() {
         windows = getSystemService(WindowManager::class.java)
         _running.value = true
         placeLens()
+        relayout = { main.post { if (lens != null) placeLens() } }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
@@ -139,6 +140,7 @@ class PulseAccessibilityService : AccessibilityService() {
         closeMenu()
         lens?.let { runCatching { windows.removeView(it) } }
         lens = null
+        relayout = null
         _running.value = false
     }
 
@@ -192,7 +194,11 @@ class PulseAccessibilityService : AccessibilityService() {
     private fun placeLens() {
         val h = hole()
         val box = lensTarget(h.x, h.y, h.radius, 10f * dp, 32f * dp)
-        val params = overlay(box.width, box.height, focusable = false).apply { x = box.left; y = box.top }
+        val params = overlay(box.width, box.height, focusable = false).apply {
+            x = box.left; y = box.top
+            // While Home's editor is open the camera ring there edits PULSE, so the lens lets taps through.
+            if (editing) flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
         val view = lens ?: View(this).apply {
             contentDescription = getString(R.string.pulse)
             setOnClickListener {
@@ -269,6 +275,16 @@ class PulseAccessibilityService : AccessibilityService() {
 
         /** True while the service is bound in this process; Lab then hides its own lens target. */
         val running: StateFlow<Boolean> = _running.asStateFlow()
+
+        @Volatile private var editing = false
+        @Volatile private var relayout: (() -> Unit)? = null
+
+        /** Home's editor is open (true) or closed: the lens overlay stops or resumes taking taps. */
+        fun setEditing(on: Boolean) {
+            if (editing == on) return
+            editing = on
+            relayout?.invoke()
+        }
 
         /**
          * The system accessibility list, where the owner switches the service on or off. The per-service

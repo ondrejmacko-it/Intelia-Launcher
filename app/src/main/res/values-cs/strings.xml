@@ -289,10 +289,9 @@
     <string name="look_edge">Světelná hrana</string>
     <string name="look_icons_same">Stejná velikost všech ikon</string>
     <string name="look_labels">Popisky pod ikonami</string>
-    <string name="look_hint">Roztažením nebo stažením dvou prstů změníš velikost prvku. Kroužek u kamery = PULSE.</string>
+    <string name="look_hint">Roztažením nebo stažením dvou prstů změníš velikost prvku. Klepnutím na PULSE u kamery otevřeš jeho nastavení.</string>
     <string name="studio_look_moved">Vzhled, ikony, hodiny, datum a PULSE se upravují přímo na ploše.</string>
     <string name="studio_pulse_moved">Vzhled kapsle a události: v editoru plochy klepni na kroužek u kamery.</string>
-    <string name="look_pulse">Vzhled kapsle a události</string>
     <string name="accent_rose">Růžová</string>
     <string name="accent_coral">Korál</string>
     <string name="accent_amber">Jantar</string>
