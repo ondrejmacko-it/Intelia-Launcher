@@ -167,3 +167,13 @@ Decided by the owner:
   shapes, wallpapers.
 Open: how ARC opens from a side dock (proposal: rings open towards the screen centre).
 
+
+## D14 — 2026-10-17 — Bundle six OFL font families for the clock and the date (follows D13)
+
+Six families under SIL OFL 1.1, taken from the google/fonts repository (`ofl/<family>/`), subset with fontTools
+to Latin + Latin Extended (U+0000–024F, combining marks, U+1E00–1EFF, general punctuation, €, ™, −) with layout
+features kept (`kern`, `liga`, `tnum`, `lnum`, `calt`, `ccmp`, `mark`, `mkmk`, `locl`) and hinting dropped:
+Inter (opsz, wght), Space Grotesk (wght), DM Serif Display (Regular), JetBrains Mono (wght), Bodoni Moda (opsz, wght),
+Unbounded (wght). Files in `res/font/`, licences in `assets/licenses/<Family>-OFL.txt`; about 1.05 MB together.
+Subsetting is a modification under the OFL; none of the families' names is a Reserved Font Name (DM Serif Display
+reserves only "Source"), so the names stay. Used only for the clock and the date (owner's choice per item).
