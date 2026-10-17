@@ -1,23 +1,44 @@
-Pokračujeme na Intelia Launcheru (`AGENTS.md` platí). Odpovídej česky, stručně. Tvrdý limit 250 000 tokenů na session,
-cíl ~150k. Žádní agenti, soubory nečti celé, výstupy filtruj (pozor: `read_console_messages` v Browser pane vrací
-celý data: URL stránky — nepoužívat).
+Pokračujeme na Intelia Launcheru — **Control System V1** (`AGENTS.md` platí). Odpovídej česky, stručně. Limit
+~200–250k tokenů na session: žádní agenti, soubory nečti celé, výstupy filtruj, screenshoty zmenšuj (PIL, výřez).
 
-Stav (2026-10-17): větev `claude/crystal-redesign`. D15 / Veil 3.0 schváleno. **B1 hotovo** (viz `docs/STATUS.md`):
-jeden materiál v `ui/Veil.kt` (`veilTokens` + `VeilPreset`, krytí 64/80/74 %, s blur 48/66/60 %), sdílená depth
-vrstva v `ui/Depth.kt` (`VeilDepth`, `VeilDepthSource`, `veilBackdrop`, `veilScrim`), napojeno v `HomeRoot`, Search,
-drawer a `AppOptionsSheet`. Telefon: blur Home funguje (RenderEffect), cross-window blur na Phone (3) není. Měřeno:
-blur přidává jank jen během přechodu (9,4 → 12,0 %), proto vypnut v úsporném režimu a při Omezit pohyb.
-Neověřeno: světlý motiv, fallback na telefonu, Dense list nad Home, zařízení s cross-window blur.
+Stav (2026-10-18): větev `feat/control-system-v1` z `main` 710e84f (PR #3 mergnutý). Nemergovat do `main`.
+Zadání celé řady: M0 → M5 (Action Engine, ARC V2, PULSE 2.0, gesta + hardwarová tlačítka, Studio „Ovládání“).
 
-Další krok — **B2 Home + Editor** (D15, prototyp `docs/design/veil3-prototype.html`, sekce „Pořadí implementace“):
-1. Home: výchozí hodiny „Čisté“ jen pro nové instalace (`LauncherSettings.sanitized()` / výchozí hodnoty, žádná
-   migrace existujících dat), popisky ve výchozím stavu vypnuté a nikdy se nepřekrývají.
-2. Editor: Home zmenšená na 86 %, 48 dp horní lišta (zrušit, zpět/znovu, název, Hotovo) a spodní podnos (Přidat,
-   Předlohy, Rozložení, Vzhled) jako Veil Light (`HomeEditor.kt` `EditorBar`, `BAR_HEIGHT`); lišta nesmí krýt horní hodiny.
-3. Inspektory: umístění podle usazené pozice prvku po 86 % škále, na straně s víc místem; Home pod nimi zůstává ostrá
-   (žádný `VeilDepthSource`).
-Každý celek: testy → build → telefon (screenshoty, i světlý motiv) → malý commit + push. Studio (B4) a dědičnost (B5) ne.
-Build/telefon: JAVA_HOME `C:/Users/Ondra/AppData/Local/lesnik-toolchain/jdk-17.0.20.1+1`, `-Dorg.gradle.jvmargs=-Xmx2g`,
-adb v `lesnik-toolchain/sdk/platform-tools`, `MSYS_NO_PATHCONV=1`, záloha `intelia.xml`, `install -r`, před každým
-`input` ověřit `topResumedActivity`.
-Netracked: `docs/screens/v0.1.0-2026-10-17b.rar` (majitelův, nemazat ani necommitovat bez dotazu).
+Hotovo a ověřeno na Nothing Phone (3) (Lab build, `install -r`):
+- **M0** (`adffdc6`): filtr v pickeru „Přidat aplikaci/FLOW“ (bez diakritiky, „zpra“ → Zprávy); názvy v řádku „Moje“
+  v šuplíku mají 4 dp okraj a výpustku (130 % ověřeno); klepnutí na kameru v editoru otevírá PULSE inspektor
+  (Home je v editoru škálovaná na 86 %, kamera má vlastní cíl v souřadnicích obrazovky). Nastavení při 130 %: žádný
+  ovládací prvek pod 48 dp. Zbývá: na Home je FLOW ikona těsně nad LENS ořezaná na 44 dp výšky (překryv s LENS),
+  PULSE overlay cíl je 40 dp vysoký (řeší M3).
+- **M1 jádro** (`970e324`): `action/Controls.kt` — `Trigger` (ArcSlot, Pulse, Home, Lens, Key) × `Gesture`,
+  `Binding`, `ArcSet`, `Controls` + `sanitized()` + nedestruktivní `migrate(arc, arcFlows, arcShortcuts)`.
+  `Action.Flow(id)` (stabilní ID), `Action.Lock`, `Requirement`. `LauncherSettings.controlConfig` (null = odvozeno
+  z legacy polí přes `settings.controls`). `ui/AndroidActionHost.kt` (+ `rememberActionHost`). ARC puštění → `Action`
+  → `HomeRoot.perform` (hláška podle `Reason`). Telefon: ARC app slot spustil Claude, FLOW „pocty“ spustil
+  Kalkulačku → Hodiny v pořadí, návrat na LENS nespustil nic, žádné pády.
+
+Pravdivě NEhotovo:
+- ARC obsah se pořád kreslí z legacy `arc/arcFlows/arcShortcuts` (`HomeViewModel.arcApps…`), ne z `settings.controls`.
+- `Binding`y pro PULSE/Home/LENS/klávesy nikdo nečte; PULSE služba má vlastní `PulseAction` menu (neprošlo enginem).
+- Export/import: `controlConfig` je v JSON dokumentu (projde `sanitized()`), ale nebyl testován restore na telefonu.
+- Akce Torch/Media/Sound/Panel/Lock/Screenshot v `AndroidActionHost` nejsou ověřené na telefonu (žádný trigger je
+  zatím nevolá). Velikost textu majitele vrácena na 100 % (ověř v Nastavení › Pohyb, text a dotek).
+
+Další krok — **M2 ARC V2** (jedna etapa, end-to-end):
+1. `HomeViewModel`: ARC sloty z `settings.controls.arcSet(…)` (mix app/FLOW/shortcut/systém), aktivní sada, počet
+   viditelných slotů; legacy pole se dál nepřepisují — první uložení z nového Studia zapíše `controlConfig`.
+2. Nový `LensArc`: jeden mělký oblouk podle hrany/pozice LENS, bez velkých titulků, přepínání sad (tah přes okraj
+   nebo tečky), haptika na slot, TalkBack: assisted seznam (zachovat `assisted` režim). `ArcGesture` zůstává čistá
+   a testovaná — rozšiř testy o sady a návrat na LENS.
+3. Sdílený picker akcí (`AddPicker` → obecný `ActionPicker` s filtrem, sekce Aplikace/FLOW/Zkratky/Systém,
+   dostupnost + `Requirement`), použitý ve Studiu › Ovládání › ARC (sady, pořadí, velikost, úhel, haptika).
+4. Testy → Lab → telefon (jedna ruka, obě hrany, TalkBack, Reduced Motion, jank vs. baseline) → commit + push.
+Pak M3 PULSE 2.0 (gesta přes `Trigger.Pulse` + `perform`), M4 (diagnostika kláves — Essential Key nejdřív jen
+změřit v explicitním testovacím režimu), M5 Studio.
+
+Build/telefon: JAVA_HOME `C:/Users/Ondra/AppData/Local/lesnik-toolchain/jdk-17.0.20.1+1`, `./gradlew -q
+-Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab`, adb v `lesnik-toolchain/sdk/platform-tools`,
+`MSYS_NO_PATHCONV=1`, `install -r` (nikdy uninstall), před každým `input` ověřit `topResumedActivity`. Lab není
+debuggable (`run-as` nejde) — zálohu dělej exportem v aplikaci. ARC test: `input motionevent DOWN 540 2190; sleep
+0.9; MOVE …; UP …`. Python na Windows potřebuje cesty `C:/…`, ne `/c/…`.
+Netracked: `docs/screens/v0.1.0-2026-10-17b.rar`, `…17c.rar` (majitelovy, nemazat ani necommitovat).

@@ -2,6 +2,19 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Control System V1: M0 fixes, M1 Action Engine core (`feat/control-system-v1`)
+
+Verified (`./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r` on Nothing Phone (3)):
+- Add picker filter: "zpra" → Zprávy. Drawer "Moje" names ellipsize with a gutter at 130 % text. Settings at 130 %:
+  no control under 48 dp. Tapping the camera in the Home editor opens the PULSE inspector.
+- LENS ARC release runs through the Action Engine: app slot launched Claude; FLOW "pocty" launched Calculator then
+  Clock; sliding back onto LENS launched nothing. No Intelia crashes in the crash buffer.
+
+Not verified / not done:
+- ARC content still comes from the legacy lists; PULSE, Home, LENS and key bindings are modelled but not wired.
+- Torch, media, sound, panels, lock and screenshot actions in `AndroidActionHost` not exercised on the phone.
+- Export/import of `controlConfig` on the phone; TalkBack, Reduced Motion and jank for the ARC path.
+
 ## 2026-10-17 — D18 accessibility, icon pass, full screenshot sweep (`claude/crystal-redesign`)
 
 - `./gradlew :app:testDebugUnitTest :app:assembleLab` — PASS (150 JVM tests; new `CoreTest.textScaleSnapsToOfferedSizes`,
