@@ -24,10 +24,13 @@ the light plate is dark and legible; editor with LENS on the right side and on t
 row and tray clear of each other; Vzhled › Tapeta › Oceán applies at once; Papír at 20 % gives dark type and dark
 status bar icons; the window flag returns with the system wallpaper.
 
+Follow-up check (same build, owner's document with `wallpaper=ocean`, `wallDim=10`, LENS row on top, pushed via
+`run-as` and restored byte-identical): drawer, Search (typing "chr" → Chrome) and Studio are legible over Oceán;
+drawer and Search blur the own wallpaper together with Home, Studio's live preview shows it. The owner's free date
+sits between the top LENS row and the clock, clear of both — the overlap noted earlier did not reproduce.
+
 Not verified: real TalkBack (only the semantics tree via `uiautomator`), the system Reduce motion switch (Compose
-honours the animator scale; not toggled on the owner's phone), drawer/Search/Studio over an own wallpaper, Focus
-blur of the own wallpaper (it lies under Home's blurred layer, so it stays sharp like the system one). Known: with
-LENS on top the owner's free date overlaps the clock digits (the clock moves down, a free date does not). Not done:
+honours the animator scale; not toggled on the owner's phone), surfaces over a light own preset. Not done:
 saving a preset as the system wallpaper (`SET_WALLPAPER`, its own commit per D13), own image. Next: owner picks.
 
 ## 2026-10-17 — Veil 3.0 B2: Home defaults, editor at 86 %, bar + tray, inspector placement (`claude/crystal-redesign`, `e440b0b`, `53355d0`)
