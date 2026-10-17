@@ -1,7 +1,7 @@
 Pokračujeme na Intelia Launcheru — **Control System V1** (`AGENTS.md` platí). Odpovídej česky, stručně. Limit
 ~200–250k tokenů na session: žádní agenti, soubory nečti celé, výstupy filtruj, screenshoty zmenšuj (PIL, výřez).
 
-Stav (2026-10-18): větev `feat/control-system-v1` z `main` 710e84f (PR #3 mergnutý). Nemergovat do `main`.
+Stav (2026-10-18, po M2): větev `feat/control-system-v1` z `main` 710e84f (PR #3 mergnutý). Nemergovat do `main`.
 Zadání celé řady: M0 → M5 (Action Engine, ARC V2, PULSE 2.0, gesta + hardwarová tlačítka, Studio „Ovládání“).
 
 Hotovo a ověřeno na Nothing Phone (3) (Lab build, `install -r`):
@@ -17,24 +17,21 @@ Hotovo a ověřeno na Nothing Phone (3) (Lab build, `install -r`):
   → `HomeRoot.perform` (hláška podle `Reason`). Telefon: ARC app slot spustil Claude, FLOW „pocty“ spustil
   Kalkulačku → Hodiny v pořadí, návrat na LENS nespustil nic, žádné pády.
 
-Pravdivě NEhotovo:
-- ARC obsah se pořád kreslí z legacy `arc/arcFlows/arcShortcuts` (`HomeViewModel.arcApps…`), ne z `settings.controls`.
-- `Binding`y pro PULSE/Home/LENS/klávesy nikdo nečte; PULSE služba má vlastní `PulseAction` menu (neprošlo enginem).
-- Export/import: `controlConfig` je v JSON dokumentu (projde `sanitized()`), ale nebyl testován restore na telefonu.
-- Akce Torch/Media/Sound/Panel/Lock/Screenshot v `AndroidActionHost` nejsou ověřené na telefonu (žádný trigger je
-  zatím nevolá). Velikost textu majitele vrácena na 100 % (ověř v Nastavení › Pohyb, text a dotek).
+- **M2 ARC V2** (`50edba3`, `558234f` + oprava): ARC ze `settings.controls` (migrace: sada na prstenec), mělký
+  oblouk `ArcBow` (slot 1 uprostřed, ≥ 48 dp rozestupy, okraj obrazovky), sady přes tah za konec nebo tečky,
+  haptika na slot, malý popisek + náhled FLOW. Sdílený `ActionPicker` (Aplikace/FLOW/Zkratky/Systém, filtr,
+  `Reason`/`Requirement`), Studio › Ovládání › ARC (sloty 3–7, S/M/L, úhel, haptika, sady). Telefon: viz STATUS.
 
-Další krok — **M2 ARC V2** (jedna etapa, end-to-end):
-1. `HomeViewModel`: ARC sloty z `settings.controls.arcSet(…)` (mix app/FLOW/shortcut/systém), aktivní sada, počet
-   viditelných slotů; legacy pole se dál nepřepisují — první uložení z nového Studia zapíše `controlConfig`.
-2. Nový `LensArc`: jeden mělký oblouk podle hrany/pozice LENS, bez velkých titulků, přepínání sad (tah přes okraj
-   nebo tečky), haptika na slot, TalkBack: assisted seznam (zachovat `assisted` režim). `ArcGesture` zůstává čistá
-   a testovaná — rozšiř testy o sady a návrat na LENS.
-3. Sdílený picker akcí (`AddPicker` → obecný `ActionPicker` s filtrem, sekce Aplikace/FLOW/Zkratky/Systém,
-   dostupnost + `Requirement`), použitý ve Studiu › Ovládání › ARC (sady, pořadí, velikost, úhel, haptika).
-4. Testy → Lab → telefon (jedna ruka, obě hrany, TalkBack, Reduced Motion, jank vs. baseline) → commit + push.
-Pak M3 PULSE 2.0 (gesta přes `Trigger.Pulse` + `perform`), M4 (diagnostika kláves — Essential Key nejdřív jen
-změřit v explicitním testovacím režimu), M5 Studio.
+Pravdivě NEhotovo:
+- TalkBack přímo (ověřena jen klávesnice → stejný assisted režim), Reduced Motion, LENS na boční/horní hraně na
+  telefonu, export/import `controlConfig`. Legacy pole `arc/arcFlows/arcShortcuts/arcRings` se už nečtou pro ARC
+  (jen pro migraci); `LauncherSettings.ARC_*` konstanty a `ArcRings` (`CoreTest`) jsou zbytky k úklidu.
+- `Binding`y pro PULSE/Home/LENS/klávesy nikdo nečte; PULSE služba má vlastní `PulseAction` menu.
+- Akce Media/Sound/Panel/Lock/Screenshot ověřené nejsou (Svítilna ano, přes ARC).
+
+Další krok — **M3 PULSE 2.0**: gesta kapsle přes `Trigger.Pulse(gesture)` → `Controls.bound` → `HomeRoot.perform`
+(na Home) a v `PulseAccessibilityService` (mimo Home, jen akce bez UI Intelie); Studio › Ovládání › PULSE se
+sdíleným `ActionPicker` (tap/double/hold), PULSE cíl ≥ 48 dp. Pak M4 (diagnostika kláves), M5 Studio.
 
 Build/telefon: JAVA_HOME `C:/Users/Ondra/AppData/Local/lesnik-toolchain/jdk-17.0.20.1+1`, `./gradlew -q
 -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab`, adb v `lesnik-toolchain/sdk/platform-tools`,

@@ -137,7 +137,7 @@
     <string name="studio_search_clear">Clear search</string>
     <string name="studio_no_results">Nothing found. Try “icons”, “wallpaper” or “ARC”.</string>
     <string name="studio_home_sub">%1$s · edited right on Home</string>
-    <string name="studio_flow_sub">Commands: %1$d · shortcuts: %2$d</string>
+    <string name="studio_flow_sub">Commands: %1$d · in ARC: %2$d</string>
     <string name="studio_hidden_sub">Hidden apps: %1$d</string>
     <string name="studio_kw_icons">style shape colour mono tinted veil circle squircle size bigger labels names</string>
     <string name="studio_kw_material">material glass veil crystal frost drop matte density edge blur</string>
@@ -527,4 +527,5 @@
     <string name="arc_slot_n">Slot %1$d</string>
     <string name="arc_slot_choose">Choose for this slot</string>
     <string name="arc_set_add">Add a set</string>
+    <string name="arc_release_run">release to run</string>
 </resources>

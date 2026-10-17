@@ -135,10 +135,10 @@ class ArcBow(val count: Int, radius: Float, span: Float, left: Float, right: Flo
     /** Middle of the arc, where the dots and the label sit. */
     val middle: Float = if (angles.isEmpty()) 0f else (angles.first() + angles.last()) / 2f
 
-    /** Centre of set dot [k]; the dots sit side by side above the middle of the arc. */
-    fun dot(k: Int): Pair<Float, Float> {
+    /** Centre of set dot [k]; the dots sit side by side above the middle of the arc, [gap] dp apart. */
+    fun dot(k: Int, gap: Float = DOT_GAP): Pair<Float, Float> {
         val r = radius + DOTS
-        val spacing = (DOT_GAP / r) * 180f / PI.toFloat()
+        val spacing = (gap / r) * 180f / PI.toFloat()
         return polar(r, middle + (k - (sets - 1) / 2f) * spacing)
     }
 
@@ -201,6 +201,8 @@ class ArcBow(val count: Int, radius: Float, span: Float, left: Float, right: Flo
         private const val MAX_RADIUS = 220f
         private const val MAX_HALF = 85f
         private const val DOT_GAP = 30f
+        /** Dot spacing when they are buttons (TalkBack, keyboard): 48 dp targets that do not overlap. */
+        const val DOT_GAP_ASSISTED = 52f
         private const val DOT_HIT = 18f
         private const val EDGE = 34f
         private const val HIT = .6f

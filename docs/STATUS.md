@@ -2,6 +2,27 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Control System V1: M2 ARC V2 (`feat/control-system-v1`, `50edba3`, `558234f` + follow-up)
+
+Verified (`./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r` on Nothing Phone (3)):
+- ARC is drawn from `settings.controls`: the legacy rings migrated to three sets (Hlavní 5 apps, FLOW 2, Zkratky 2),
+  shown as one shallow arc with set dots; slot 1 straight above LENS.
+- Hold + slide: slot pick with label (FLOW previewed as Kalkulačka → Hodiny); sliding past the right end switched to
+  FLOW; sliding onto the third dot switched to Zkratky; back on LENS cancelled. Releasing on FLOW "pocty" opened
+  Calculator then Clock.
+- Studio › Ovládání › ARC: slots 3–7, size S/M/L, arc narrow/medium/wide, tick toggle, sets slot by slot (up, remove,
+  add set). Shared ActionPicker: sections, "svit" → Svítilna (diacritics-insensitive); picked into FLOW slot 3.
+  Releasing on it turned the torch on, again off (`dumpsys media.camera`).
+- Keyboard: Tab to LENS + Up opens assisted ARC; slots are clickable nodes with their names, dots are separate
+  48 dp tabs (Up used to move focus away before key-up; fixed by handling key-down).
+- gfxinfo, 5 × hold/slide/cancel, 3 runs each: before M2 (`0e27fc9`) 7.6–8.6 % janky, p90 25–29 ms;
+  M2 9.1–9.3 % janky, p90 23–29 ms. No clear regression; not a performance claim.
+
+Not verified / not done:
+- TalkBack itself (only the keyboard path, which uses the same assisted mode); Reduced Motion; LENS on a side or top
+  edge on the phone (unit-tested geometry only); one-handed reach with the L size.
+- Export/import of `controlConfig` on the phone. PULSE, Home, LENS and key bindings still not wired (M3/M4).
+
 ## 2026-10-18 — Control System V1: M0 fixes, M1 Action Engine core (`feat/control-system-v1`)
 
 Verified (`./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r` on Nothing Phone (3)):

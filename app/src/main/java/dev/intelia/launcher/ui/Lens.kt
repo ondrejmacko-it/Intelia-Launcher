@@ -243,7 +243,7 @@ fun LensArc(
 
             // Set dots above the middle of the arc: the shown set is filled.
             if (sets > 1) repeat(sets) { k ->
-                val (dx, dy) = bow.dot(k)
+                val (dx, dy) = if (assisted) bow.dot(k, ArcBow.DOT_GAP_ASSISTED) else bow.dot(k)
                 val p = screen(dx, dy)
                 val name = setNames.getOrElse(k) { "" }
                 Box(Modifier.centerAt(cx + p.x.dp, cy + p.y.dp).graphicsLayer { alpha = reveal }
@@ -266,7 +266,8 @@ fun LensArc(
             Column(Modifier.centerAt(lx.dp, ly.dp).widthIn(max = 220.dp).graphicsLayer { alpha = reveal },
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val kicker = when {
-                    chosenSlot != null -> stringResource(R.string.arc_release)
+                    chosenSlot != null -> stringResource(if (chosenSlot.app != null || chosenSlot.shortcut != null) R.string.arc_release
+                        else R.string.arc_release_run)
                     content.empty -> stringResource(R.string.arc_empty_title)
                     sets > 1 -> setNames.getOrElse(set) { "" }
                     else -> if (assisted) arcOpen else stringResource(R.string.arc_cancel_hint)
@@ -297,10 +298,14 @@ fun LensArc(
                     }
                 }
                 .onKeyEvent { event ->
+                    // Up opens ARC on key down: otherwise focus search moves away from LENS before the key comes up.
+                    if (event.key == Key.DirectionUp && onEditSelect == null) {
+                        if (event.type == KeyEventType.KeyDown && !open) { open = true; assisted = true; track = BowTrack() }
+                        return@onKeyEvent true
+                    }
                     if (event.type != KeyEventType.KeyUp) return@onKeyEvent false
                     when (event.key) {
                         Key.Enter, Key.NumPadEnter, Key.Spacebar -> { if (onEditSelect != null) onEditSelect() else { close(); onSearch() }; true }
-                        Key.DirectionUp -> { open = true; assisted = true; track = BowTrack(); true }
                         Key.Escape -> { close(); true }
                         else -> false
                     }
