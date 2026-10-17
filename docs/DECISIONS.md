@@ -179,3 +179,20 @@ Inter (opsz, wght), Space Grotesk (wght), DM Serif Display (Regular), JetBrains 
 Unbounded (wght). Files in `res/font/`, licences in `assets/licenses/<Family>-OFL.txt`; about 1.05 MB together.
 Subsetting is a modification under the OFL; none of the families' names is a Reserved Font Name (DM Serif Display
 reserves only "Source"), so the names stay. Used only for the clock and the date (owner's choice per item).
+
+## D15 — 2026-10-17 — Intelia Veil 3.0 (PROPOSED, awaiting owner approval)
+Phase A of the owner's "Veil 3.0" brief. Prototype `docs/design/veil3-prototype.html` (private artifact
+https://claude.ai/artifact/UCthmYs5TCqSjsdSFbh9EF). Builds on D10/D12/D13; nothing that exists is rebuilt.
+- **One material, three densities** (Veil Light / Dense / Focus); one crystal edge (1 dp, light at the top, fading,
+  faint accent at the bottom). Veil / Crystal / Frost / Liquid / Matte stay as presets of the same surface.
+  Phone (3) has no cross-window blur, so the no-blur opacities are the default and Studio says so.
+- **Home:** default clock for new installs = "Čisté" (type straight on the wallpaper); stacked and plate stay styles.
+  Labels off by default and never overlap.
+- **Editor:** Home scales to 86 %, a 48 dp top bar (cancel, undo/redo, edited name, Hotovo) and a bottom tray
+  (Přidat, Předlohy, Rozložení, Vzhled) use the freed margins, so the bar never covers a top clock. Inspectors grow
+  from the element on the opposite side; common options first, the rest under "Další možnosti".
+- **Inheritance:** System → global theme → layout → element; every element property shows Globální / Vlastní ↺.
+  Studio and inspectors draw one shared setting definition.
+- **Studio IA:** Vzhled · Plocha (enters the editor) · Ovládání · Akce a FLOW · Systém, with settings search that
+  jumps to the exact row.
+Not decided yet: implementation order after approval (prototype's list), icon packs and custom fonts (need own entries).
