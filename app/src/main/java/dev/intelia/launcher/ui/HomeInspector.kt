@@ -597,6 +597,16 @@ fun LensInspector(state: HomeEditorState, item: HomeItem, dock: DockSpec, settin
         LensAt.End to stringResource(R.string.dock_lens_end)), dock.lensAt) { v ->
         if (state.setDock(dock.copy(lensAt = v))) onChange()
     }
+    // How far apart the four slots stand (§5.5.3): set by hand, or spread evenly over the edge.
+    Toggle(stringResource(R.string.dock_spread), dock.spread) { v -> if (state.setDock(dock.copy(spread = v))) onChange() }
+    if (!dock.spread) {
+        SliderRow(stringResource(R.string.dock_gap), dock.gap.toFloat(), DockSpec.MIN_GAP.toFloat(), DockSpec.MAX_GAP.toFloat(), 2f, "${dock.gap} dp") { v ->
+            if (state.setDock(dock.copy(gap = v.roundToInt()), "gap")) onChange()
+        }
+        SliderRow(stringResource(R.string.dock_pitch), dock.pitch.toFloat(), DockSpec.MIN_PITCH.toFloat(), DockSpec.MAX_PITCH.toFloat(), 2f, "${dock.pitch} dp") { v ->
+            if (state.setDock(dock.copy(pitch = v.roundToInt()), "pitch")) onChange()
+        }
+    }
     // The drag's accessible twin (§5.5): the same band, in 4 dp steps that always include the centre.
     val room = (state.lensRoom() / 4f).toInt() * 4f
     val dx = state.lensDx().coerceIn(-room, room)

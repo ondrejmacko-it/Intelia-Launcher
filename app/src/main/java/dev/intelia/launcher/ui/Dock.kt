@@ -14,16 +14,18 @@ object Dock {
     const val INSET = 52f
     /** LENS centre below the status bar on the top edge, clear of PULSE and of the editor's bar. */
     const val TOP_INSET = 96f
-    /** Half the length of four slots beside LENS (62 + 3 × 46 dp): LENS at the start or end moves back by it. */
-    const val HALF_ROW = 100f
+    /** Half the length of four slots beside LENS (62 + 3 × 46 dp by default): LENS at the start or end moves back by it. */
+    fun halfRow(dock: DockSpec): Float = (dock.gap + 3f * dock.pitch) / 2f
 
     /**
      * LENS centre for [dock] with the owner's along-edge offset [dx] on a [width] × [height] screen whose status bar
      * ends at [top] and navigation bar starts [bottom] above the bottom edge.
      */
     fun centre(dock: DockSpec, dx: Float, width: Float, height: Float, top: Float, bottom: Float): Pt {
-        val shift = dx + when (dock.lensAt) { LensAt.Middle -> 0f; LensAt.Start -> -HALF_ROW; LensAt.End -> HALF_ROW }
         val alongLen = if (dock.edge.vertical) height - top - bottom else width
+        // Spread: LENS goes as far to its end as it may, the four slots share the rest of the edge.
+        val half = if (dock.spread) alongLen else halfRow(dock)
+        val shift = dx + when (dock.lensAt) { LensAt.Middle -> 0f; LensAt.Start -> -half; LensAt.End -> half }
         val room = (alongLen / 2f - LENS_EDGE).coerceAtLeast(0f)
         val along = shift.coerceIn(-room, room)
         return when (dock.edge) {

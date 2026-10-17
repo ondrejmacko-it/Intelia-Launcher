@@ -364,4 +364,7 @@
     <string name="dock_lens_start">LENS first</string>
     <string name="dock_lens_middle">LENS between</string>
     <string name="dock_lens_end">LENS last</string>
+    <string name="dock_spread">Spread over the edge</string>
+    <string name="dock_gap">Distance from LENS</string>
+    <string name="dock_pitch">Spacing between apps</string>
 </resources>

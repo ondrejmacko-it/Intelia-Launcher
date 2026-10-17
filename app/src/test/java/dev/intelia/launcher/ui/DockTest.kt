@@ -81,4 +81,35 @@ class DockTest {
         val s = SettingsCodec.decode("{\"schema\":2,\"home\":{\"active\":\"mine\",\"layouts\":[{\"id\":\"mine\",\"dock\":{\"edge\":\"Diagonal\",\"lensAt\":\"End\"}}]}}")
         assertEquals(DockSpec(DockEdge.Bottom, LensAt.End), s.home.activeLayout().dock)
     }
+
+    @Test fun widerRowKeepsItsStepsAndAWideOneShrinksToFit() {
+        val g = geometry(DockSpec(gap = 80, pitch = 70))
+        assertEquals(listOf(30f, 100f, 260f, 330f), Anchor.LENS_SLOTS.sorted().map { g.lensSlot(it).x })
+        // 2 × (140 + 140) = 560 dp on a 312 dp band: both steps scale by the same factor, order and symmetry stay.
+        val tight = geometry(DockSpec(gap = 140, pitch = 140))
+        val xs = Anchor.LENS_SLOTS.sorted().map { tight.lensSlot(it).x }
+        assertEquals(xs, xs.sorted())
+        assertTrue(xs.first() >= 24f && xs.last() <= w - 24f)
+        assertEquals(w / 2f, (xs.first() + xs.last()) / 2f, .01f)
+        // LENS first: the row is centred by its own length.
+        val first = geometry(DockSpec(lensAt = LensAt.Start, gap = 64, pitch = 50))
+        assertEquals(w / 2f, (first.lensX + first.lensSlot(Anchor.LENS_SLOTS.max()).x) / 2f, .01f)
+    }
+
+    @Test fun spreadFillsTheEdge() {
+        val g = geometry(DockSpec(spread = true))
+        val xs = Anchor.LENS_SLOTS.sorted().map { g.lensSlot(it).x }
+        // 156 dp of room per side: LENS and the slots 78 dp apart, the outer ones at the 24 dp limit.
+        assertEquals(listOf(24f, 102f, 258f, 336f), xs)
+        val first = geometry(DockSpec(lensAt = LensAt.Start, spread = true))
+        assertEquals(LENS_EDGE, first.lensX, .01f)
+        val fs = Anchor.LENS_SLOTS.sorted().map { first.lensSlot(it).x }
+        assertTrue(fs.zipWithNext().all { (a, b) -> b - a > 46f } && fs.last() <= w - 24f)
+    }
+
+    @Test fun spacingIsClampedOnRestore() {
+        assertEquals(DockSpec(gap = DockSpec.MIN_GAP, pitch = DockSpec.MAX_PITCH), DockSpec(gap = -5, pitch = 9999).sanitized())
+        val s = SettingsCodec.decode("{\"schema\":2,\"home\":{\"active\":\"mine\",\"layouts\":[{\"id\":\"mine\",\"dock\":{\"gap\":1,\"pitch\":500,\"spread\":true}}]}}")
+        assertEquals(DockSpec(gap = DockSpec.MIN_GAP, pitch = DockSpec.MAX_PITCH, spread = true), s.home.activeLayout().dock)
+    }
 }

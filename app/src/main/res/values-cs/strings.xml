@@ -363,4 +363,7 @@
     <string name="dock_lens_start">LENS první</string>
     <string name="dock_lens_middle">LENS uprostřed</string>
     <string name="dock_lens_end">LENS poslední</string>
+    <string name="dock_spread">Rozprostřít po hraně</string>
+    <string name="dock_gap">Odstup od LENS</string>
+    <string name="dock_pitch">Rozestup aplikací</string>
 </resources>

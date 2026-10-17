@@ -240,7 +240,7 @@ data class LauncherSettings(
             .toMutableList()
         if (ItemKind.Lens !in singles) items.add(0, HomeItem("lens", ItemKind.Lens, Anchor(AnchorType.Lens, dx = reach.dx)))
         val name = l.name.filterNot(Char::isISOControl).trim().take(HomeLayouts.MAX_NAME).ifEmpty { HomeTemplates.DEFAULT_NAME }
-        return l.copy(name = name, grid = grid, items = items, linked = false)
+        return l.copy(name = name, grid = grid, items = items, linked = false, dock = l.dock.sanitized())
     }
 
     private fun sanitizeLook(it: HomeItem): HomeItem {

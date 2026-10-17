@@ -150,8 +150,29 @@ enum class ItemTint { Accent, Light, Dark }
 /** Where LENS stands in its row of four slots: between them, or before / after all four (start = left or top). */
 @Serializable enum class LensAt { Middle, Start, End }
 
-/** The LENS row of a layout; absent in older documents = the bottom row with LENS in the middle, as before. */
-@Serializable data class DockSpec(val edge: DockEdge = DockEdge.Bottom, val lensAt: LensAt = LensAt.Middle)
+/**
+ * The LENS row of a layout; absent in older documents = the bottom row with LENS in the middle, as before.
+ * [gap] is LENS centre to the nearest slot and [pitch] slot to slot, dp; [spread] spaces the four slots evenly over
+ * the edge instead. The geometry shrinks both when the row would not fit the edge.
+ */
+@Serializable data class DockSpec(
+    val edge: DockEdge = DockEdge.Bottom,
+    val lensAt: LensAt = LensAt.Middle,
+    val gap: Int = GAP,
+    val pitch: Int = PITCH,
+    val spread: Boolean = false,
+) {
+    fun sanitized() = copy(gap = gap.coerceIn(MIN_GAP, MAX_GAP), pitch = pitch.coerceIn(MIN_PITCH, MAX_PITCH))
+
+    companion object {
+        const val GAP = 62
+        const val PITCH = 46
+        const val MIN_GAP = 52
+        const val MAX_GAP = 140
+        const val MIN_PITCH = 46
+        const val MAX_PITCH = 140
+    }
+}
 
 @Serializable
 data class LayoutSpec(

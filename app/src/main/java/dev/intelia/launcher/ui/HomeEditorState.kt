@@ -60,8 +60,10 @@ class HomeGeometry(
     }
 
     /**
-     * ±62 / ±108 dp from LENS on its baseline (phase B2 placement). A slot that would come closer than 24 dp to the
-     * edge, because LENS sits off centre (§5.5), continues outwards on the other side at the same 46 dp pitch.
+     * [DockSpec.gap] and then [DockSpec.pitch] apart from LENS on its baseline (by default ±62 / ±108 dp, phase B2).
+     * A row longer than the edge shrinks to fit; a slot that would come closer than 24 dp to the edge, because LENS
+     * sits off centre (§5.5), continues outwards on the other side at the same pitch. [DockSpec.spread] spaces the
+     * slots evenly over the room beyond LENS instead.
      */
     fun lensSlot(slot: Int): Pt {
         val vertical = edge.vertical
@@ -70,24 +72,52 @@ class HomeGeometry(
         val hi = if (vertical) height - bottomInset - EDGE else width - EDGE
         // On a side the row runs down the edge; "start" is the top. LENS before or after all four: one pitch apart.
         val k = Anchor.LENS_SLOTS.sorted().indexOf(slot).coerceAtLeast(0)
+        val n = Anchor.LENS_SLOTS.size
+        val (gap, pitch) = rowSteps(at, lo, hi)
         val along = when (dock.lensAt) {
-            LensAt.Start -> at + SIDE[0] + k * PITCH
-            LensAt.End -> at - SIDE[0] - (Anchor.LENS_SLOTS.size - 1 - k) * PITCH
-            LensAt.Middle -> middleSlot(slot, at, lo, hi)
+            LensAt.Start -> at + gap + k * pitch
+            LensAt.End -> at - gap - (n - 1 - k) * pitch
+            LensAt.Middle -> if (dock.spread) spreadSlot(slot, at, lo, hi) else middleSlot(slot, at, lo, hi, gap, pitch)
         }.coerceIn(lo, hi)
         return if (vertical) Pt(lensX, along) else Pt(along, lensY)
     }
 
-    private fun middleSlot(slot: Int, at: Float, lo: Float, hi: Float): Float {
+    /** LENS to the first slot and slot to slot, dp, fitted to the edge between [lo] and [hi]. */
+    private fun rowSteps(at: Float, lo: Float, hi: Float): Pair<Float, Float> {
+        val n = Anchor.LENS_SLOTS.size
+        if (dock.spread && dock.lensAt != LensAt.Middle) {
+            // LENS and the four slots evenly over the room beyond LENS, the last one at the edge limit.
+            val room = if (dock.lensAt == LensAt.Start) hi - at else at - lo
+            val step = (room / n).coerceAtLeast(MIN_STEP)
+            return step to step
+        }
+        val gap = dock.gap.toFloat()
+        val pitch = dock.pitch.toFloat()
+        val need = if (dock.lensAt == LensAt.Middle) 2 * (gap + pitch) else gap + (n - 1) * pitch
+        val fit = ((hi - lo) / need).coerceAtMost(1f)
+        return gap * fit to pitch * fit
+    }
+
+    /** Spread with LENS between: each side's two slots evenly in that side's room. */
+    private fun spreadSlot(slot: Int, at: Float, lo: Float, hi: Float): Float {
         val side = if (slot > 0) 1 else -1
         val room = if (side > 0) hi - at else at - lo
-        val fit = SIDE.count { it <= room }
+        val step = room / 2f
+        return if (step >= MIN_STEP) at + side * step * abs(slot)
+        else middleSlot(slot, at, lo, hi, DockSpec.GAP.toFloat(), DockSpec.PITCH.toFloat())
+    }
+
+    private fun middleSlot(slot: Int, at: Float, lo: Float, hi: Float, gap: Float, pitch: Float): Float {
+        val steps = listOf(gap, gap + pitch)
+        val side = if (slot > 0) 1 else -1
+        val room = if (side > 0) hi - at else at - lo
+        val fit = steps.count { it <= room }
         val i = abs(slot) - 1
-        if (i < fit) return at + side * SIDE[i]
+        if (i < fit) return at + side * steps[i]
         // Overflow: after the other side's own slots that fit there.
         val otherRoom = if (side > 0) at - lo else hi - at
-        val k = SIDE.count { it <= otherRoom }.coerceAtMost(SIDE.size) + (i - fit)
-        return at - side * (SIDE[0] + k * PITCH)
+        val k = steps.count { it <= otherRoom } + (i - fit)
+        return at - side * (gap + k * pitch)
     }
 
     /** The LENS-row slot under [p], if it is on the row (±36 dp) and within 30 dp of a slot. */
@@ -129,8 +159,8 @@ class HomeGeometry(
         /** Room kept above the navigation bar when the LENS row is elsewhere: an icon's name still fits. */
         const val FOOT = 40f
         private const val EDGE = 24f
-        private const val PITCH = 46f
-        private val SIDE = listOf(62f, 108f)
+        /** The closest two slots may come in a spread row, dp. */
+        private const val MIN_STEP = 46f
     }
 }
 
@@ -254,9 +284,12 @@ class HomeEditorState(
     fun cancelLensDrag() { lensDrag = null; bump() }
 
     /** Moves the LENS row to another edge or LENS within it (§5.5), as one undo step; false if nothing changed. */
-    fun setDock(dock: DockSpec): Boolean {
-        if (dock == layout.dock) return false
-        commit(layout.copy(dock = dock))
+    /** Changes the LENS row; steps of one slider ([key]) make one undo step, like [edit]. */
+    fun setDock(dock: DockSpec, key: String? = null): Boolean {
+        val next = dock.sanitized()
+        if (next == layout.dock) return false
+        if (key != null && coalesce == "dock/$key" && undoStack.isNotEmpty()) { layout = layout.copy(dock = next); redoStack.clear(); bump() }
+        else { commit(layout.copy(dock = next)); if (key != null) coalesce = "dock/$key" }
         return true
     }
 
