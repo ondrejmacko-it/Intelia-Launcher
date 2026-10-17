@@ -255,7 +255,7 @@ suspend fun androidx.compose.ui.input.pointer.PointerInputScope.pinchToResize(
 @Composable
 private fun BarIcon(glyph: Glyph, label: String, enabled: Boolean, onClick: () -> Unit) {
     val c = LocalCrystal.current
-    Box(Modifier.size(44.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         HomeGlyph(glyph, label, tint = if (enabled) c.fg else c.fg3, size = 20.dp)
     }
 }

@@ -146,7 +146,7 @@
     <string name="studio_kw_edit_home">editor rozložení předlohy hodiny datum ikony mřížka</string>
     <string name="studio_kw_arc">kruhy prstence podržení lens gesto</string>
     <string name="studio_kw_pulse">kapsle kamera výřez upozornění</string>
-    <string name="studio_kw_motion">animace omezit pohyb rychlost haptika vibrace</string>
+    <string name="studio_kw_motion">animace omezit pohyb rychlost haptika vibrace text písmo velikost přístupnost</string>
     <string name="studio_kw_flows">příkazy flow spustit aplikace pořadí</string>
     <string name="studio_kw_shortcuts">zkratky aplikací arc</string>
     <string name="studio_kw_hidden">skryté aplikace schovat</string>
@@ -195,7 +195,8 @@
     <string name="shortcuts_explain">Zkratky aplikací na vnějším prstenci, %1$d z %2$d.</string>
     <string name="shortcuts_need_home">Android ukazuje zkratky aplikací jen výchozí ploše. Nastav Intelia jako plochu a pak je vybereš.</string>
     <string name="shortcuts_none">Žádná aplikace teď zkratky nenabízí.</string>
-    <string name="motion_section">Pohyb a dotek</string>
+    <string name="motion_section">Pohyb, text a dotek</string>
+    <string name="text_size">Velikost textu</string>
     <string name="motion">Pohyb</string>
     <string name="motion_calm">Klidný</string>
     <string name="motion_brisk">Svižný</string>

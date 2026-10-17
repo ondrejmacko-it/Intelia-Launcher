@@ -175,6 +175,14 @@ class SettingsCodecTest {
         assertEquals(6, SettingsCodec.decode("""{"pulseAlarmHours":6}""").pulseAlarmHours)
     }
 
+    @Test fun textScaleSnapsToOfferedSizes() {
+        assertEquals(1f, SettingsCodec.decode("{}").textScale)
+        assertEquals(1.3f, SettingsCodec.decode("""{"textScale":9}""").textScale)
+        assertEquals(1f, SettingsCodec.decode("""{"textScale":0.2}""").textScale)
+        assertEquals(1.15f, LauncherSettings(textScale = 1.16f).sanitized().textScale)
+        assertEquals(1f, LauncherSettings(textScale = Float.NaN).sanitized().textScale)
+    }
+
     @Test fun foundationSettingsStillDecode() {
         val decoded = SettingsCodec.decode("""{"theme":"Dark","accent":"Sage","arc":["a"]}""")
         assertEquals(ThemeMode.Dark, decoded.theme)

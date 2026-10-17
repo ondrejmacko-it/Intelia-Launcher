@@ -30,11 +30,13 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import dev.intelia.launcher.data.Accent
@@ -271,6 +273,7 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
             LocalHomeInk provides homeInk,
             LocalWallPlaces provides wallPlaces,
             LocalMotion provides settings.motion,
+            LocalDensity provides LocalDensity.current.let { Density(it.density, it.fontScale * settings.textScale) },
             LocalIconStyle provides settings.iconStyle,
             LocalIconShape provides settings.iconShape,
             LocalVeil provides VeilPrefs(settings.veilSolid, settings.veilShift, settings.veilEdge, settings.glass),

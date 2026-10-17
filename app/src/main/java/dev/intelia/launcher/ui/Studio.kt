@@ -314,7 +314,7 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack:
                 else if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only)) { onOpen(StudioSection.Pulse, null) }
             SectionRow(stringResource(R.string.gestures_title), stringResource(R.string.settings_gestures_sub)) { onOpen(StudioSection.Gestures, null) }
             SectionRow(stringResource(R.string.motion_section), stringResource(motionName(settings.motion)) + " · " +
-                stringResource(hapticsName(settings.haptics))) { onOpen(StudioSection.Motion, null) }
+                stringResource(hapticsName(settings.haptics)) + " · " + "${(settings.textScale * 100).toInt()} %") { onOpen(StudioSection.Motion, null) }
         }
         Group(R.string.settings_group_data) {
             SectionRow(stringResource(R.string.backup_title), stringResource(R.string.settings_backup_sub)) { onOpen(StudioSection.Backup, null) }
@@ -356,7 +356,8 @@ private fun StudioSearchField(query: String, onChange: (String) -> Unit) {
     val hint = stringResource(R.string.studio_search)
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).heightIn(min = 52.dp).clip(RoundedCornerShape(26.dp))
         .background(ink.ink.copy(alpha = .07f)).padding(start = 18.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.foundation.text.BasicTextField(query, onChange, Modifier.weight(1f).semantics { contentDescription = hint },
+        HomeGlyph(Glyph.Search, null, tint = ink.muted, size = 20.dp)
+        androidx.compose.foundation.text.BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).semantics { contentDescription = hint },
             singleLine = true, textStyle = InkText.body.copy(color = ink.ink), cursorBrush = androidx.compose.ui.graphics.SolidColor(ink.accent),
             decorationBox = { inner -> Box { if (query.isEmpty()) Text(hint, style = InkText.body, color = ink.muted); inner() } })
         if (query.isNotEmpty()) IconAction(Glyph.Close, stringResource(R.string.studio_search_clear), { onChange("") }, tint = ink.muted)
@@ -487,6 +488,9 @@ private fun MotionPage(settings: LauncherSettings, set: SettingsEdit) {
     Stacked(stringResource(R.string.motion)) {
         Segments(listOf(Motion.Calm to stringResource(R.string.motion_calm), Motion.Brisk to stringResource(R.string.motion_brisk),
             Motion.Off to stringResource(R.string.off)), settings.motion, { v -> set { it.copy(motion = v) } })
+    }
+    Stacked(stringResource(R.string.text_size)) {
+        Segments(LauncherSettings.TEXT_SCALES.map { it to "${(it * 100).toInt()} %" }, settings.textScale, { v -> set { it.copy(textScale = v) } })
     }
     Stacked(stringResource(R.string.haptics)) {
         Segments(listOf(Haptics.Soft to stringResource(R.string.haptics_soft), Haptics.Strong to stringResource(R.string.haptics_strong),

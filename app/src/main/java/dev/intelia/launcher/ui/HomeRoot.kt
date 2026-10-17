@@ -703,7 +703,11 @@ private fun Home(
                         val onCamera = view.toScreen(p).let { q -> abs(q.x - camera.x) <= 96f && q.y <= camera.y + 40f }
                         val hit = hitItem(ed, p, timeZone, dateZone) ?: ed.lensId()?.takeIf { onLens } ?: PULSE_ID.takeIf { onCamera }
                         when {
-                            hit != null -> { selected = hit.takeIf { it != selected }; addPoint = null }
+                            hit != null -> {
+                                // A preset only previewed is dropped first, so edits never land on a layout ✓ would discard.
+                                if (presetsOpen) { ed.cancelPreview(); presetsOpen = false; previewKey = null }
+                                selected = hit.takeIf { it != selected }; addPoint = null
+                            }
                             selected != null || addPoint != null -> { selected = null; addPoint = null }
                             presetsOpen -> { ed.cancelPreview(); presetsOpen = false; previewKey = null }
                             view.toScreen(p).y > barBottom && hypot(p.x - ed.lensAt().x, p.y - ed.lensAt().y) > 50f -> addPoint = p
@@ -814,8 +818,7 @@ private fun Home(
                 // previewed layout stay visible, or where the owner moved it.
                 key("presets") { InspectorCard(lensRowZone, maxWidth.value, barBottom + EDIT_LABEL, null,
                     stringResource(R.string.presets), inspectorFrame) {
-                    PresetStrip(choices, previewKey, geometry, placementLabel(ed.layout),
-                        onPlacement = { ed.setPlacement(Placement.entries[(ed.layout.placement.ordinal + 1) % Placement.entries.size]); refresh() },
+                    PresetStrip(choices, previewKey, geometry,
                         onPick = { ed.preview(it.spec); previewKey = it.key; refresh() },
                         onApply = { if (ed.canUndo) ask = EditorAsk.Replace else { applyPreset(); refresh() } },
                         onCancel = { ed.cancelPreview(); presetsOpen = false; previewKey = null; refresh() },

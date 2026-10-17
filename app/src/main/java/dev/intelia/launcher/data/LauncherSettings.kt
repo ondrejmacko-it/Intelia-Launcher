@@ -114,6 +114,8 @@ data class LauncherSettings(
     val clockStyle: ClockStyle = ClockStyle.Serif,
     val motion: Motion = Motion.Calm,
     val haptics: Haptics = Haptics.Soft,
+    /** D18: extra text size on top of the system font scale; 1 = as the system sets it. */
+    val textScale: Float = 1f,
     val iconStyle: IconStyle = IconStyle.System,
     val pulse: Boolean = true,
     /** Null: use the display cutout reported by the system. */
@@ -166,6 +168,8 @@ data class LauncherSettings(
         const val MAX_LENS_Y = 300f
         const val MIN_LENS_R = 3f
         const val MAX_LENS_R = 60f
+        /** D18: the text sizes Settings offers. */
+        val TEXT_SCALES = listOf(1f, 1.15f, 1.3f)
         const val MIN_PULSE_OPACITY = 40
         const val MAX_VEIL_SHIFT = 10
         const val MIN_ICON = 32
@@ -198,6 +202,7 @@ data class LauncherSettings(
             pulseLens = pulseLens?.takeIf { it.x.isFinite() && it.y.isFinite() && it.r.isFinite() }
                 ?.let { PulseLens(it.x.coerceIn(0f, MAX_LENS_X), it.y.coerceIn(0f, MAX_LENS_Y), it.r.coerceIn(MIN_LENS_R, MAX_LENS_R)) },
             pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
+            textScale = TEXT_SCALES.minBy { kotlin.math.abs(it - (if (textScale.isFinite()) textScale else 1f)) },
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
             veilShift = veilShift.coerceIn(-MAX_VEIL_SHIFT, MAX_VEIL_SHIFT),
             iconSize = iconSize.coerceIn(MIN_ICON, MAX_ICON),

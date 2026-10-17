@@ -518,7 +518,7 @@ private fun VolumeRow(level: Float, ringer: Int, onStep: (Boolean) -> Unit, onRi
 @Composable
 private fun StepButton(text: String, label: String, onClick: () -> Unit) {
     val ink = LocalInk.current
-    Box(Modifier.size(44.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
+    Box(Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
         .semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
         Text(text, style = InkText.item, color = ink.onNight)
     }

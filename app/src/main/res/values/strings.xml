@@ -147,7 +147,7 @@
     <string name="studio_kw_edit_home">editor layout presets clock date icons grid</string>
     <string name="studio_kw_arc">rings hold lens gesture</string>
     <string name="studio_kw_pulse">capsule camera cutout notifications</string>
-    <string name="studio_kw_motion">animation reduce motion speed haptics vibration</string>
+    <string name="studio_kw_motion">animation reduce motion speed haptics vibration text font size accessibility</string>
     <string name="studio_kw_flows">commands flow run apps order</string>
     <string name="studio_kw_shortcuts">app shortcuts arc</string>
     <string name="studio_kw_hidden">hidden apps hide</string>
@@ -196,7 +196,8 @@
     <string name="shortcuts_explain">App shortcuts on the outer ring, %1$d of %2$d.</string>
     <string name="shortcuts_need_home">Android shows app shortcuts only to the default home app. Make Intelia your home screen to choose them.</string>
     <string name="shortcuts_none">No app offers shortcuts right now.</string>
-    <string name="motion_section">Motion and touch</string>
+    <string name="motion_section">Motion, text and touch</string>
+    <string name="text_size">Text size</string>
     <string name="motion">Motion</string>
     <string name="motion_calm">Calm</string>
     <string name="motion_brisk">Brisk</string>

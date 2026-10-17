@@ -236,7 +236,7 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
         }
         .padding(start = 18.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).graphicsLayer { alpha = ((morph() - .5f) * 2f).coerceIn(0f, 1f) }, verticalAlignment = Alignment.CenterVertically) {
-            Canvas(Modifier.size(16.dp)) { drawCircle(c.fg2, size.minDimension / 2f - .75.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
+            HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 20.dp)
             BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).focusRequester(focus).semantics { contentDescription = description },
                 singleLine = true, textStyle = CrystalType.body.copy(fontSize = 17.sp, color = c.fg), cursorBrush = SolidColor(c.acc),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { onSubmit() }),
@@ -407,7 +407,7 @@ fun DrawerOverlay(
                     Spacer(Modifier.weight(1f))
                     Text(apps.size.toString(), Modifier.padding(end = 6.dp), style = CrystalType.label, color = c.fg3)
                     IconAction(Glyph.Flow, stringResource(R.string.flow), onFlows, tint = c.fg)
-                    IconAction(Glyph.Studio, stringResource(R.string.studio), onStudio, tint = c.fg)
+                    IconAction(Glyph.Settings, stringResource(R.string.settings), onStudio, tint = c.fg)
                 }
                 Box(Modifier.weight(1f).fillMaxWidth()) { Drawer(apps, favorites, list, onLaunch, onOptions) }
                 // The field opens Search in place: same pill, same spot at the thumb.
@@ -416,7 +416,7 @@ fun DrawerOverlay(
                     .background(solid).background(c.fg.copy(alpha = .06f))
                     .clickable(role = Role.Button, onClick = onSearch).padding(horizontal = 18.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Canvas(Modifier.size(16.dp)) { drawCircle(c.fg2, size.minDimension / 2f - .75.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
+                    HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 20.dp)
                     Text(stringResource(R.string.search), Modifier.padding(start = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg3)
                 }
             }

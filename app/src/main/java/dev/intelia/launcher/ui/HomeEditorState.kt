@@ -208,7 +208,8 @@ class HomeEditorState(
     var revision: Int = 0
         private set
 
-    val dirty get() = layout != saved
+    /** A preset only previewed is not a change: leaving after it discards the preview without a question. */
+    val dirty get() = (previewOf ?: layout) != saved
     val canUndo get() = undoStack.isNotEmpty()
     val canRedo get() = redoStack.isNotEmpty()
 

@@ -271,7 +271,7 @@ private fun CardHeader(title: String, frame: InspectorFrame?, onDrag: (Offset) -
         Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 16.sp), color = c.fg, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
-            if (frame?.moved == true) Box(Modifier.size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = reset) { frame.reset() }
+            if (frame?.moved == true) Box(Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = reset) { frame.reset() }
                 .semantics(mergeDescendants = true) { contentDescription = reset },
                 contentAlignment = Alignment.Center) {
                 Text("⟲", Modifier.clearAndSetSemantics { }, style = CrystalType.body.copy(fontSize = 18.sp), color = c.fg2)
@@ -448,7 +448,7 @@ private fun MoveButtons(onMove: (Int, Int) -> Unit) {
         listOf(Triple("←", R.string.move_left, -1 to 0), Triple("↑", R.string.move_up, 0 to -1),
             Triple("↓", R.string.move_down, 0 to 1), Triple("→", R.string.move_right, 1 to 0)).forEach { (arrow, label, d) ->
             val text = stringResource(label)
-            Text(arrow, Modifier.size(44.dp).clip(CircleShape).clickable(role = Role.Button) { onMove(d.first, d.second) }
+            Text(arrow, Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button) { onMove(d.first, d.second) }
                 .semantics { contentDescription = text }.padding(top = 11.dp),
                 style = CrystalType.body.copy(fontSize = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center), color = c.fg)
         }
@@ -792,7 +792,7 @@ data class PresetChoice(val key: String, val name: String, val spec: LayoutSpec)
  * Reset goes back to the current preset (with a question, asked by the caller).
  */
 @Composable
-fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: HomeGeometry, placement: String, onPlacement: () -> Unit,
+fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: HomeGeometry,
     onPick: (PresetChoice) -> Unit,
     onApply: () -> Unit, onCancel: () -> Unit, onReset: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
@@ -811,8 +811,6 @@ fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: Home
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.preset_reset), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onReset)
                 .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2)
-            Text(placement, Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onPlacement)
-                .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg)
             Spacer(Modifier.weight(1f))
             Text(stringResource(R.string.preset_cancel), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onCancel)
                 .padding(horizontal = 12.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg)

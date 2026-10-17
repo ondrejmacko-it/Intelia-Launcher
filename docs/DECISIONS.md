@@ -256,3 +256,22 @@ Google APIs. That needs its own decision: the `INTERNET` permission, an account 
 Manager / Google Identity), a Drive appDataFolder or similar, the licences and size of Play services libraries,
 conflict handling between phones, and what leaves the phone. D17's versioned envelope is the payload such a sync
 would carry, so nothing in D17 has to change for it.
+
+## D18 — 2026-10-17 — Accessibility: reduced motion, larger text, 48 dp targets (APPROVED by the owner 2026-10-17)
+Owner: "udělej vše co máš" after the D18 proposal.
+- **Reduce motion** stays what already exists: Pohyb › Vyp (`Motion.Off`) and the system's "Remove animations"
+  both make every `motionMs` duration 0 ms. No second switch.
+- **Larger text:** Nastavení › Pohyb, text a dotek › Velikost textu 100 / 115 / 130 %. `LauncherSettings.textScale`
+  multiplies the system font scale for Intelia's own UI (`LocalDensity` in the theme), so it adds to, never replaces,
+  the system setting. `sanitized()` snaps any stored value to the three offered sizes (non-finite → 100 %).
+  Home miniatures and the PULSE overlay keep their own sizes.
+- **Touch targets:** every icon-only control is at least 48 × 48 dp (editor bar icons, inspector arrows and the
+  card reset, PULSE Quick View buttons).
+- Revert: drop the field and the row; stored documents with `textScale` decode with the key ignored.
+
+## D19 — 2026-10-17 — Google account sync: PROPOSED, not built
+The offline alternative is D17 (export/import through the system picker; a cloud provider such as Google Drive can
+be chosen in that picker). Automatic sync needs, before any code: the `INTERNET` permission (Intelia has none
+today), a Google Cloud project with an OAuth client owned by the owner, Credential Manager / Google Identity and a
+Drive `appDataFolder` client (licences and APK size to check), conflict rules between phones, and a list of what
+leaves the phone (D17 envelope: package names, FLOW names, wallpaper choice). Waiting for the owner's decision.

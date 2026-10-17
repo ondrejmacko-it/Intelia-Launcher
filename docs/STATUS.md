@@ -2,6 +2,28 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — D18 accessibility, icon pass, full screenshot sweep (`claude/crystal-redesign`)
+
+- `./gradlew :app:testDebugUnitTest :app:assembleLab` — PASS (150 JVM tests; new `CoreTest.textScaleSnapsToOfferedSizes`,
+  `HomeEditorStateTest.previewIsOutsideHistoryUntilConfirmed` now checks `dirty`). Lab installed with `install -r`,
+  profile broadcast, `speed-profile` compiled.
+- Icons: the drawer header opens Settings with the same gear as the editor bar and the Settings title (was the
+  Studio glyph). Search on Home/drawer, Settings search and the FLOW app filter show a magnifier at the left (was a
+  bare ring or nothing). Verified on the phone (screens 10–12, 30).
+- Duplicate removed: the placement switch ("Hybrid 4×6") was both in the Předlohy card and the editor bar; it stays
+  only in the bar.
+- "Neuložené změny" no longer asks after a preset was only previewed: `dirty` compares the layout under the
+  preview. Verified: preview Vyvážená → ✕ closes at once, Home unchanged; a real change (placement) still asks
+  (screen 71, then Zahodit).
+- Selecting an element while a preset is previewed now drops the preview first (before, edits landed on the
+  previewed layout and ✓ would have discarded them). Verified: preview → tap LENS → the own layout is shown.
+- D18: Velikost textu 100/115/130 % in Pohyb, text a dotek; 130 % verified on Settings and the drawer (labels
+  ellipsize, favourites' names touch at 130 %), set back to 100 %. Icon-only controls raised to 48 dp.
+- Screenshots: `docs/screens/v0.1.0-2026-10-17c/` (42 shots).
+- Not verified: TalkBack speech; PULSE inspector in the editor (tap on the camera opened nothing in this pass —
+  not investigated); onboarding; Boční/Magazín save.
+- Open: the editor's app picker has no filter (221 apps to scroll).
+
 ## 2026-10-17 — Preset thumbnails use their own LENS row; device pass (`claude/crystal-redesign`)
 
 - `./gradlew :app:testDebugUnitTest :app:assembleLab` — PASS (149 JVM tests, new `DockTest.presetMiniatureUsesItsOwnLensRow`).
