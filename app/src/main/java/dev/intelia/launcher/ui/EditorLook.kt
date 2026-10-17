@@ -51,18 +51,22 @@ private fun themeName(t: ThemeMode) = when (t) {
     ThemeMode.Dark -> R.string.theme_dark
 }
 
-/** The panel glass (§5.2) for every surface; in the Look panel and Studio. */
+/**
+ * The panel material (§5.2) for every surface in one choice: the four glasses, or matte. Matte ignores the glass,
+ * so it is a fifth option rather than a switch beside them.
+ */
 @Composable
-fun GlassChips(settings: LauncherSettings, set: SettingsEdit) {
-    Chips(listOf(Glass.Veil to stringResource(R.string.look_veil), Glass.Crystal to stringResource(R.string.glass_crystal),
-        Glass.Frost to stringResource(R.string.glass_frost), Glass.Liquid to stringResource(R.string.glass_liquid)),
-        settings.glass) { v -> set { it.copy(glass = v) } }
+fun MaterialChips(settings: LauncherSettings, set: SettingsEdit) {
+    Chips(listOf<Pair<Glass?, String>>(Glass.Veil to stringResource(R.string.look_veil), Glass.Crystal to stringResource(R.string.glass_crystal),
+        Glass.Frost to stringResource(R.string.glass_frost), Glass.Liquid to stringResource(R.string.glass_liquid), null to stringResource(R.string.look_solid)),
+        settings.glass.takeUnless { settings.veilSolid }) { v ->
+        set { if (v == null) it.copy(veilSolid = true) else it.copy(glass = v, veilSolid = false) }
+    }
 }
 
 /**
- * The editor's Look panel (Vzhled): everything that styles the whole Home and every panel — Veil material,
- * theme, accent, icons, labels. Opened from the bar; sits above the LENS row so the clock stays visible.
- * Settings apply immediately; labels and icon sizes are layout edits and go through undo.
+ * The editor's Look panel (Vzhled): everything that styles the whole Home and every panel, each part folded and
+ * naming its current choice, one open at a time. Settings apply immediately; labels and icon sizes go through undo.
  */
 @Composable
 fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsEdit, onChange: () -> Unit,
@@ -70,17 +74,14 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
     val c = LocalCrystal.current
     // The body of the editor card (InspectorCard): it brings the glass, the header, the scroll and the handles.
     Column(modifier.fillMaxWidth()) {
-        Kick(stringResource(R.string.icons))
-        IconStyleChips(settings, set)
-        AllIconsSize(settings, state, set, onChange)
-        val icons = state.layout.items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
-        Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on -> state.setLabels(on); onChange() }
-        // Less used: folded, each names its current choice.
-        Fold(stringResource(R.string.look_material), stringResource(glassName(settings.glass))) {
-            GlassChips(settings, set)
-            Chips(listOf(false to stringResource(R.string.look_glass_clear), true to stringResource(R.string.look_solid)), settings.veilSolid) { v ->
-                set { it.copy(veilSolid = v) }
-            }
+        Fold(stringResource(R.string.icons), stringResource(iconStyleName(settings.iconStyle))) {
+            IconStyleChips(settings, set)
+            AllIconsSize(settings, state, set, onChange)
+            val icons = state.layout.items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
+            Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on -> state.setLabels(on); onChange() }
+        }
+        Fold(stringResource(R.string.look_material), stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass))) {
+            MaterialChips(settings, set)
             if (!settings.veilSolid) {
                 val shift = settings.veilShift
                 SliderRow(stringResource(R.string.look_density), shift.toFloat(), -LauncherSettings.MAX_VEIL_SHIFT.toFloat(),
@@ -88,15 +89,27 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
                     set { it.copy(veilShift = v.toInt()) }
                 }
             }
-            if (settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v -> set { it.copy(veilEdge = v) } }
+            // The accent edge exists on Veil and on matte panels; the other glasses have no outline to light.
+            if (settings.veilSolid || settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v ->
+                set { it.copy(veilEdge = v) }
+            }
         }
         Fold(stringResource(R.string.theme), stringResource(themeName(settings.theme))) {
             Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
                 ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
+        }
+        Fold(stringResource(R.string.palette_section), stringResource(if (settings.palette.unified) R.string.palette_one else R.string.palette_places)) {
             PaletteEditor(settings, set)
         }
         Text(stringResource(R.string.look_hint), Modifier.padding(vertical = 8.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
     }
+}
+
+private fun iconStyleName(s: IconStyle) = when (s) {
+    IconStyle.System -> R.string.icons_system
+    IconStyle.Ink -> R.string.icons_ink
+    IconStyle.Veil -> R.string.look_veil
+    IconStyle.Tinted -> R.string.icons_tinted
 }
 
 /**
@@ -125,11 +138,14 @@ fun PulseInspector(settings: LauncherSettings, set: SettingsEdit, onLens: () -> 
     if (!settings.pulse) return
     SliderRow(stringResource(R.string.pulse_opacity), settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, 5f,
         "${settings.pulseOpacity} %") { v -> set { it.copy(pulseOpacity = v.toInt()) } }
-    Toggle(stringResource(R.string.pulse_echo), settings.pulseEcho) { v -> set { it.copy(pulseEcho = v) } }
-    Toggle(stringResource(R.string.pulse_charging), settings.pulseCharging) { v -> set { it.copy(pulseCharging = v) } }
-    Toggle(stringResource(R.string.pulse_alarm), settings.pulseAlarm) { v -> set { it.copy(pulseAlarm = v) } }
-    if (settings.pulseAlarm) Chips(listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours) { v ->
-        set { it.copy(pulseAlarmHours = v) }
+    val events = listOf(settings.pulseEcho, settings.pulseCharging, settings.pulseAlarm).count { it }
+    Fold(stringResource(R.string.pulse_events), "$events / 3") {
+        Toggle(stringResource(R.string.pulse_echo), settings.pulseEcho) { v -> set { it.copy(pulseEcho = v) } }
+        Toggle(stringResource(R.string.pulse_charging), settings.pulseCharging) { v -> set { it.copy(pulseCharging = v) } }
+        Toggle(stringResource(R.string.pulse_alarm), settings.pulseAlarm) { v -> set { it.copy(pulseAlarm = v) } }
+        if (settings.pulseAlarm) Chips(listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours) { v ->
+            set { it.copy(pulseAlarmHours = v) }
+        }
     }
     Action(stringResource(R.string.pulse_lens), c.acc, onLens)
 }

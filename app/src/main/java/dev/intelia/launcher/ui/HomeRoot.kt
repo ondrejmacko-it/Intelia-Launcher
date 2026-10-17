@@ -830,13 +830,13 @@ private fun Home(
                     // Above the ghost ARC the LENS card may cover the clock: the arcs matter more while LENS is edited.
                     clockZone.takeIf { !sel.kind.isText() && sel.kind != ItemKind.Lens }, editingTitle, inspectorFrame) {
                     when (sel.kind) {
-                        ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, settings, set, onRemoved = { selected = null }, onChange = ::refresh)
+                        ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, onRemoved = { selected = null }, onChange = ::refresh)
                         ItemKind.Date -> DateInspector(ed, sel, zone.let { z ->
                             ((z.top + 6f - statusTop.value - textTop.value) / geometry.areaH).takeIf { it.isFinite() } }, onRemoved = { selected = null }, onChange = ::refresh)
-                        ItemKind.Lens -> LensInspector(ed, sel, dock, settings, set, onChange = ::refresh)
+                        ItemKind.Lens -> LensInspector(ed, sel, dock, onChange = ::refresh)
                         else -> {
                             val app = apps[sel.target]
-                            ItemInspector(ed, sel, iconDefault, settings, set,
+                            ItemInspector(ed, sel, iconDefault,
                                 onMore = app?.let { a -> { onOptions(a) } }, onRemoved = { selected = null }, onChange = ::refresh)
                         }
                     }

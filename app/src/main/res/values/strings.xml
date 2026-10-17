@@ -368,4 +368,17 @@
     <string name="dock_pitch">Spacing between apps</string>
     <string name="icons_all_size">Size for all icons</string>
     <string name="icon_this_size">This icon</string>
+    <string name="fold_colour">Colour and opacity</string>
+    <string name="fold_place">Placement</string>
+    <string name="date_under_clock">Under the clock</string>
+    <string name="date_free">Free</string>
+    <string name="clock_align">Alignment with the date</string>
+    <string name="dock_spacing">Spacing</string>
+    <string name="dock_spread_short">Spread</string>
+    <string name="pulse_events">Events</string>
+    <string name="palette_one">One colour</string>
+    <string name="palette_places">Per place</string>
+    <string name="arc_rings_count">Rings: %1$d</string>
+    <string name="pulse_everywhere_short">Everywhere</string>
+    <string name="pulse_home_only">Home only</string>
 </resources>

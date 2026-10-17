@@ -225,7 +225,8 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
             Column(Modifier.heightIn(max = maxH.dp).verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 16.dp, top = if (title != null) 0.dp else 12.dp, bottom = if (frame != null) 20.dp else 12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                content()
+                // One fold open at a time per card; a new card (another target) starts with all folded.
+                androidx.compose.runtime.CompositionLocalProvider(LocalFoldGroup provides remember(title) { FoldGroup() }) { content() }
             }
         }
         if (frame != null) {
@@ -409,30 +410,73 @@ private fun MoveButtons(onMove: (Int, Int) -> Unit) {
     }
 }
 
-/** Progressive disclosure: the less common options stay folded. */
-@Composable
-internal fun Advanced(content: @Composable () -> Unit) = Fold(stringResource(R.string.inspect_advanced), content = content)
+/**
+ * The folds of one card or panel: at most one is open, so opening another closes the last (owner, 2026-10-17).
+ * Each open fold brings its own group, so folds inside it behave the same way one level down.
+ */
+class FoldGroup { var open by mutableStateOf<String?>(null) }
 
-/** A titled section that opens in place; the card grows with a spring (§5.6). */
+val LocalFoldGroup = androidx.compose.runtime.compositionLocalOf<FoldGroup?> { null }
+
+/**
+ * A titled section that opens in place; the card grows with a spring (§5.6). Closed it names its current choice;
+ * open it sits on an accent-tinted plate with an accent title, so it is clear which part is being edited.
+ */
 @Composable
 internal fun Fold(title: String, summary: String? = null, content: @Composable () -> Unit) {
     val c = LocalCrystal.current
-    var open by remember { mutableStateOf(false) }
+    val group = LocalFoldGroup.current
+    var own by remember { mutableStateOf(false) }
+    val open = if (group != null) group.open == title else own
+    fun toggle(v: Boolean) { if (group != null) group.open = if (v) title else null else own = v }
     val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 45f else 0f, label = "fold")
-    Row(Modifier.fillMaxWidth().heightIn(min = 40.dp).toggleable(open, role = Role.Button) { open = it },
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(title.uppercase(), Modifier.weight(1f), style = CrystalType.label, color = c.fg2)
-        if (summary != null && !open) Text(summary, Modifier.padding(end = 10.dp), style = CrystalType.caption, color = c.fg3, maxLines = 1)
-        Text("+", Modifier.graphicsLayer { rotationZ = turn }, style = CrystalType.body.copy(fontSize = 18.sp), color = c.fg2)
-    }
-    androidx.compose.animation.AnimatedVisibility(open, enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-        exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { content() }
+    val shape = RoundedCornerShape(16.dp)
+    Column(Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(shape)
+        .then(if (open) Modifier.background(c.acc.copy(alpha = if (c.dark) .14f else .10f)).border(1.dp, c.acc.copy(alpha = .45f), shape)
+            else Modifier)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).toggleable(open, role = Role.Button) { toggle(it) }.padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(title.uppercase(), Modifier.weight(1f), style = CrystalType.label, color = if (open) c.acc else c.fg2, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
+            if (summary != null && !open) Text(summary, Modifier.padding(horizontal = 10.dp), style = CrystalType.caption, color = c.fg3, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
+            Text("+", Modifier.graphicsLayer { rotationZ = turn }, style = CrystalType.body.copy(fontSize = 18.sp), color = if (open) c.acc else c.fg2)
+        }
+        androidx.compose.animation.AnimatedVisibility(open, enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()) {
+            Column(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                androidx.compose.runtime.CompositionLocalProvider(LocalFoldGroup provides remember { FoldGroup() }) { content() }
+            }
+        }
     }
 }
 
 private val FACES = listOf(TypeFace.Style to "Auto", TypeFace.Flex to "Flex", TypeFace.Inter to "Inter", TypeFace.SpaceGrotesk to "Space Grotesk",
     TypeFace.DmSerif to "DM Serif", TypeFace.JetBrainsMono to "JetBrains Mono", TypeFace.BodoniModa to "Bodoni", TypeFace.Unbounded to "Unbounded")
+
+/** The clock's typefaces in one list: its four styles first, then the bundled faces (a face overrides the style). */
+private fun clockFonts(names: Map<ClockStyle, String>): List<Pair<String, String>> =
+    ClockStyle.entries.map { "s:${it.name}" to names.getValue(it) } + FACES.drop(1).map { "f:${it.first.name}" to it.second }
+
+private fun clockFontKey(style: ClockStyle, face: TypeFace) = if (face == TypeFace.Style) "s:${style.name}" else "f:${face.name}"
+
+private fun clockFontFamily(key: String): androidx.compose.ui.text.font.FontFamily? {
+    val name = key.substring(2)
+    if (key.startsWith("f:")) return faceFamily(TypeFace.valueOf(name), 450)
+    return when (ClockStyle.valueOf(name)) {
+        ClockStyle.Crystal -> CrystalType.clock.fontFamily
+        ClockStyle.Serif -> InkFonts.serif
+        ClockStyle.Grotesk -> InkFonts.sans
+        ClockStyle.Mono -> InkFonts.mono
+    }
+}
+
+/** Only faces with a weight axis (or a system family with weights) react to the weight slider. */
+fun hasWeights(style: ClockStyle, face: TypeFace) = when (face) {
+    TypeFace.Style -> style == ClockStyle.Crystal || style == ClockStyle.Grotesk
+    TypeFace.DmSerif -> false
+    else -> true
+}
 
 /**
  * The plate behind a clock or a date (§5.12): none, Veil (the glass chosen in Look) or one glass of its own;
@@ -447,27 +491,28 @@ private fun PlateControls(state: HomeEditorState, item: HomeItem, onChange: () -
     }
     if (item.background.isEmpty()) return
     fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
-    Fold(stringResource(R.string.plate_title), "${item.look.padX.roundToInt()} × ${item.look.padY.roundToInt()}") {
-        SliderRow(stringResource(R.string.plate_wide), item.look.padX, 0f, TextLook.MAX_PAD, 2f, "${item.look.padX.roundToInt()} dp") { v -> edit("padX") { it.copy(padX = v) } }
-        SliderRow(stringResource(R.string.plate_tall), item.look.padY, 0f, TextLook.MAX_PAD, 2f, "${item.look.padY.roundToInt()} dp") { v -> edit("padY") { it.copy(padY = v) } }
-    }
+    SliderRow(stringResource(R.string.plate_wide), item.look.padX, 0f, TextLook.MAX_PAD, 2f, "${item.look.padX.roundToInt()} dp") { v -> edit("padX") { it.copy(padX = v) } }
+    SliderRow(stringResource(R.string.plate_tall), item.look.padY, 0f, TextLook.MAX_PAD, 2f, "${item.look.padY.roundToInt()} dp") { v -> edit("padY") { it.copy(padY = v) } }
 }
 
-/** Face and letter spacing, shared by the clock and the date. */
 @Composable
-private fun TypeControls(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
-    val look = item.look
-    fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
-    // Each face previewed on its own chip.
-    Chips(FACES, look.face, family = { f -> faceFamily(f, 450) }) { v -> edit("face") { it.copy(face = v) } }
-    SliderRow(stringResource(R.string.type_tracking), look.tracking.toFloat(), TextLook.MIN_TRACKING.toFloat(), TextLook.MAX_TRACKING.toFloat(), 1f,
-        "${look.tracking}") { v -> edit("tracking") { it.copy(tracking = v.roundToInt()) } }
+private fun plateSummary(item: HomeItem) = stringResource(when (item.background) {
+    ClockBackground.Veil.name -> R.string.look_veil
+    ClockBackground.Crystal.name -> R.string.glass_crystal
+    ClockBackground.Frost.name -> R.string.glass_frost
+    ClockBackground.Liquid.name -> R.string.glass_liquid
+    else -> R.string.clock_bg_none
+})
+
+@Composable
+private fun TrackingRow(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+    SliderRow(stringResource(R.string.type_tracking), item.look.tracking.toFloat(), TextLook.MIN_TRACKING.toFloat(), TextLook.MAX_TRACKING.toFloat(), 1f,
+        "${item.look.tracking}") { v -> state.edit(item.id, "tracking") { it.copy(look = it.look.copy(tracking = v.roundToInt())) }; onChange() }
 }
 
-/** App or FLOW on Home: size, label, remove from Home (never uninstall). */
+/** App or FLOW on Home: its own size and label; moving step by step folded. Style and size of all icons live in Look. */
 @Composable
-fun ItemInspector(state: HomeEditorState, item: HomeItem, iconDefault: Int, settings: LauncherSettings, set: SettingsEdit,
-    onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
+fun ItemInspector(state: HomeEditorState, item: HomeItem, iconDefault: Int, onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
     val c = LocalCrystal.current
     // The card's header names the app; its options link sits on the right.
     if (onMore != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -478,58 +523,64 @@ fun ItemInspector(state: HomeEditorState, item: HomeItem, iconDefault: Int, sett
     SliderRow(stringResource(R.string.icon_this_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp") { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
-    AllIconsSize(settings, state, set, onChange)
-    MoveButtons { dx, dy -> state.nudge(item.id, dx, dy); onChange() }
     Toggle(stringResource(R.string.inspect_label), item.label) { on -> state.edit(item.id, "label") { it.copy(label = on) }; onChange() }
-    // Style and colour apply to every icon (settings, not this layout's undo).
-    Advanced {
-        IconStyleChips(settings, set)
-        if (settings.iconStyle == IconStyle.Tinted) PlaceSwatches(settings, PaletteTarget.Icons, set)
-    }
+    Fold(stringResource(R.string.inspect_move)) { MoveButtons { dx, dy -> state.nudge(item.id, dx, dy); onChange() } }
     Action(stringResource(R.string.inspect_remove), c.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }
 
-/** The clock: typeface, size, date first; weight, colour and opacity under Advanced. */
+/** The clock: size and date on top; font, time format, colour and background each in one fold. */
 @Composable
-fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle, settings: LauncherSettings, set: SettingsEdit,
-    onRemoved: () -> Unit, onChange: () -> Unit) {
+fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle, onRemoved: () -> Unit, onChange: () -> Unit) {
     val style = item.clockStyle(fallback)
-    Chips(listOf(ClockStyle.Crystal to stringResource(R.string.clock_crystal), ClockStyle.Serif to stringResource(R.string.clock_serif),
-        ClockStyle.Grotesk to stringResource(R.string.clock_grotesk), ClockStyle.Mono to stringResource(R.string.clock_mono)), style) { v ->
-        state.edit(item.id, "style") { it.copy(style = v.name) }; onChange()
-    }
+    val look = item.look
+    fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
     val size = if (item.sizeDp == 0) ItemSizes.CLOCK else item.sizeDp.coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.CLOCK_MIN.toFloat(), ItemSizes.CLOCK_MAX.toFloat(), 2f, "$size") { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
     Toggle(stringResource(R.string.inspect_date), state.layout.items.any { it.kind == ItemKind.Date }) { on -> state.setDate(on); onChange() }
-    PlateControls(state, item, onChange)
-    val look = item.look
-    fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
-    Fold(stringResource(R.string.type_font), FACES.first { it.first == look.face }.second) { TypeControls(state, item, onChange) }
-    Fold(stringResource(R.string.clock_shape)) {
-        Chips(listOf(ClockSeparator.Colon to ":", ClockSeparator.Dot to "·", ClockSeparator.Bullet to "•", ClockSeparator.Bar to "|",
-            ClockSeparator.Space to "␣", ClockSeparator.None to "—"), look.separator) { v -> edit("separator") { it.copy(separator = v) } }
+    val fonts = clockFonts(mapOf(ClockStyle.Crystal to stringResource(R.string.clock_crystal), ClockStyle.Serif to stringResource(R.string.clock_serif),
+        ClockStyle.Grotesk to stringResource(R.string.clock_grotesk), ClockStyle.Mono to stringResource(R.string.clock_mono)))
+    val key = clockFontKey(style, look.face)
+    Fold(stringResource(R.string.type_font), fonts.first { it.first == key }.second) {
+        Chips(fonts, key, family = ::clockFontFamily) { v ->
+            val name = v.substring(2)
+            state.edit(item.id, "font") {
+                if (v.startsWith("s:")) it.copy(style = name, look = it.look.copy(face = TypeFace.Style))
+                else it.copy(look = it.look.copy(face = TypeFace.valueOf(name)))
+            }
+            onChange()
+        }
+        if (hasWeights(style, look.face)) {
+            val weight = if (item.weight == 0) defaultWeight(style) else item.weight
+            SliderRow(stringResource(R.string.inspect_weight), weight.toFloat(), 100f, 700f, 50f, "$weight") { v ->
+                state.edit(item.id, "weight") { it.copy(weight = v.roundToInt()) }; onChange()
+            }
+        }
+        TrackingRow(state, item, onChange)
+    }
+    Fold(stringResource(R.string.clock_shape), if (look.hours12) "12 h" else "24 h") {
+        Chips(listOf(false to "24 h", true to "12 h"), look.hours12) { v -> edit("hours12") { it.copy(hours12 = v) } }
         Chips(listOf(ClockLayout.Row to stringResource(R.string.clock_row), ClockLayout.Stack to stringResource(R.string.clock_stack),
             ClockLayout.Slant to stringResource(R.string.clock_slant)), look.layout) { v -> edit("layout") { it.copy(layout = v) } }
-        Chips(listOf(false to "24 h", true to "12 h"), look.hours12) { v -> edit("hours12") { it.copy(hours12 = v) } }
-        Chips(listOf(ItemAlign.Auto to stringResource(R.string.tint_auto), ItemAlign.Start to stringResource(R.string.align_start),
-            ItemAlign.Center to stringResource(R.string.align_center), ItemAlign.End to stringResource(R.string.align_end)), look.align) { v ->
-            edit("align") { it.copy(align = v) }
+        // The separator is drawn only between hours and minutes on one line.
+        if (look.layout == ClockLayout.Row) Chips(listOf(ClockSeparator.Colon to ":", ClockSeparator.Dot to "·", ClockSeparator.Bullet to "•",
+            ClockSeparator.Bar to "|", ClockSeparator.Space to "␣", ClockSeparator.None to "—"), look.separator) { v -> edit("separator") { it.copy(separator = v) } }
+        // Alignment lines the time up with the date under it; without that date there is nothing to line up with.
+        if (state.layout.items.any { it.kind == ItemKind.Date && it.anchor.type == AnchorType.Bound }) {
+            Kick(stringResource(R.string.clock_align))
+            Chips(listOf(ItemAlign.Auto to stringResource(R.string.tint_auto), ItemAlign.Start to stringResource(R.string.align_start),
+                ItemAlign.Center to stringResource(R.string.align_center), ItemAlign.End to stringResource(R.string.align_end)), look.align) { v ->
+                edit("align") { it.copy(align = v) }
+            }
         }
     }
-    Advanced {
-        val weight = if (item.weight == 0) defaultWeight(style) else item.weight
-        SliderRow(stringResource(R.string.inspect_weight), weight.toFloat(), 100f, 700f, 50f, "$weight") { v ->
-            state.edit(item.id, "weight") { it.copy(weight = v.roundToInt()) }; onChange()
-        }
-        TintAndOpacity(state, item, onChange)
-        // "Accent" above is the clock's place in the palette (§5.12).
-        PlaceSwatches(settings, PaletteTarget.Clock, set)
-    }
+    Fold(stringResource(R.string.fold_colour), "${(item.alpha * 100).roundToInt()} %") { TintAndOpacity(state, item, onChange) }
+    Fold(stringResource(R.string.plate_title), plateSummary(item)) { PlateControls(state, item, onChange) }
     Action(stringResource(R.string.clock_hide), LocalCrystal.current.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }
 
+/** Colour (auto, the palette's accent for this place, light, dark) and opacity; the accent itself is chosen in Look › Colours. */
 @Composable
 private fun TintAndOpacity(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
     Chips(listOf("" to stringResource(R.string.tint_auto), ItemTint.Accent.name to stringResource(R.string.tint_accent),
@@ -542,16 +593,12 @@ private fun TintAndOpacity(state: HomeEditorState, item: HomeItem, onChange: () 
     }
 }
 
-/** The date on its own (§5.5): format, size, pinned under the clock or free; colour and opacity under Advanced. */
+/** The date on its own (§5.5): format and size on top; place, font, colour and background folded. */
 @Composable
 fun DateInspector(state: HomeEditorState, item: HomeItem, shownFy: Float?, onRemoved: () -> Unit, onChange: () -> Unit) {
     Chips(listOf(DateFormat.Long to stringResource(R.string.date_long), DateFormat.Short to stringResource(R.string.date_short),
         DateFormat.Weekday to stringResource(R.string.date_weekday), DateFormat.Custom to stringResource(R.string.date_custom)), item.dateFormat()) { v ->
         state.edit(item.id, "style") { it.copy(style = if (v == DateFormat.Long) "" else v.name) }; onChange()
-    }
-    val size = item.dateSp()
-    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.DATE_MIN.toFloat(), ItemSizes.DATE_MAX.toFloat(), 1f, "$size") { v ->
-        state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
     val look = item.look
     fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
@@ -565,27 +612,37 @@ fun DateInspector(state: HomeEditorState, item: HomeItem, shownFy: Float?, onRem
         Toggle(stringResource(R.string.date_day), look.day) { v -> edit("day") { it.copy(day = v) } }
         Toggle(stringResource(R.string.date_year), look.year) { v -> edit("year") { it.copy(year = v) } }
     }
-    Toggle(stringResource(R.string.date_pinned), item.anchor.type == AnchorType.Bound) { on -> state.pinDate(on, shownFy); onChange() }
-    if (item.anchor.type == AnchorType.Bound) Fold(stringResource(R.string.date_offset)) {
-        SliderRow("↔", look.dx, -TextLook.MAX_OFFSET, TextLook.MAX_OFFSET, 2f, "${look.dx.roundToInt()} dp") { v -> edit("dx") { it.copy(dx = v) } }
-        SliderRow("↕", look.dy, -TextLook.MAX_OFFSET, TextLook.MAX_OFFSET, 2f, "${look.dy.roundToInt()} dp") { v -> edit("dy") { it.copy(dy = v) } }
-    } else PlateControls(state, item, onChange)
+    val size = item.dateSp()
+    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.DATE_MIN.toFloat(), ItemSizes.DATE_MAX.toFloat(), 1f, "$size") { v ->
+        state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
+    }
+    val bound = item.anchor.type == AnchorType.Bound
+    Fold(stringResource(R.string.fold_place), stringResource(if (bound) R.string.date_under_clock else R.string.date_free)) {
+        Toggle(stringResource(R.string.date_pinned), bound) { on -> state.pinDate(on, shownFy); onChange() }
+        if (bound) {
+            SliderRow("↔", look.dx, -TextLook.MAX_OFFSET, TextLook.MAX_OFFSET, 2f, "${look.dx.roundToInt()} dp") { v -> edit("dx") { it.copy(dx = v) } }
+            SliderRow("↕", look.dy, -TextLook.MAX_OFFSET, TextLook.MAX_OFFSET, 2f, "${look.dy.roundToInt()} dp") { v -> edit("dy") { it.copy(dy = v) } }
+        }
+    }
     Fold(stringResource(R.string.type_font), FACES.first { it.first == look.face }.second) {
-        TypeControls(state, item, onChange)
+        Chips(FACES, look.face, family = { f -> faceFamily(f, 450) }) { v -> edit("face") { it.copy(face = v) } }
+        TrackingRow(state, item, onChange)
         Chips(listOf(TextCase.Auto to stringResource(R.string.tint_auto), TextCase.Upper to "ABC", TextCase.Lower to "abc"), look.case) { v ->
             edit("case") { it.copy(case = v) }
         }
         Toggle(stringResource(R.string.date_vertical), look.vertical) { v -> edit("vertical") { it.copy(vertical = v) } }
     }
-    Advanced { TintAndOpacity(state, item, onChange) }
+    Fold(stringResource(R.string.fold_colour), "${(item.alpha * 100).roundToInt()} %") { TintAndOpacity(state, item, onChange) }
+    // Under the clock the date shares the clock's plate; only a free date has one of its own.
+    if (!bound) Fold(stringResource(R.string.plate_title), plateSummary(item)) { PlateControls(state, item, onChange) }
     Action(stringResource(R.string.date_hide), LocalCrystal.current.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }
 
 fun defaultWeight(style: ClockStyle) = if (style == ClockStyle.Crystal) 220 else 300
 
-/** LENS: ring size, style and position; its touch area stays the same and the ghost rings show the adapted ARC. */
+/** LENS: size and style on top; the app row, its spacing and LENS's position folded. The ghost rings show the adapted ARC. */
 @Composable
-fun LensInspector(state: HomeEditorState, item: HomeItem, dock: DockSpec, settings: LauncherSettings, set: SettingsEdit, onChange: () -> Unit) {
+fun LensInspector(state: HomeEditorState, item: HomeItem, dock: DockSpec, onChange: () -> Unit) {
     val c = LocalCrystal.current
     val size = item.lensDp()
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.LENS_MIN.toFloat(), ItemSizes.LENS_MAX.toFloat(), 2f, "$size dp") { v ->
@@ -595,39 +652,41 @@ fun LensInspector(state: HomeEditorState, item: HomeItem, dock: DockSpec, settin
     Chips(listOf(LensStyle.Ring to stringResource(R.string.lens_ring), LensStyle.Filled to stringResource(R.string.lens_filled)), style) { v ->
         state.edit(item.id, "style") { it.copy(style = if (v == LensStyle.Ring) "" else v.name) }; onChange()
     }
+    val edges = listOf(DockEdge.Bottom to stringResource(R.string.dock_bottom), DockEdge.Top to stringResource(R.string.dock_top),
+        DockEdge.Left to stringResource(R.string.dock_left), DockEdge.Right to stringResource(R.string.dock_right))
     // The row's edge and LENS's place in it (§5.5, D13): on a side the row runs down the edge and ARC opens inwards.
-    Kick(stringResource(R.string.dock_edge))
-    Chips(listOf(DockEdge.Bottom to stringResource(R.string.dock_bottom), DockEdge.Top to stringResource(R.string.dock_top),
-        DockEdge.Left to stringResource(R.string.dock_left), DockEdge.Right to stringResource(R.string.dock_right)), dock.edge) { v ->
-        if (state.setDock(dock.copy(edge = v))) onChange()
-    }
-    Chips(listOf(LensAt.Start to stringResource(R.string.dock_lens_start), LensAt.Middle to stringResource(R.string.dock_lens_middle),
-        LensAt.End to stringResource(R.string.dock_lens_end)), dock.lensAt) { v ->
-        if (state.setDock(dock.copy(lensAt = v))) onChange()
+    Fold(stringResource(R.string.dock_edge), edges.first { it.first == dock.edge }.second) {
+        Chips(edges, dock.edge) { v -> if (state.setDock(dock.copy(edge = v))) onChange() }
+        Chips(listOf(LensAt.Start to stringResource(R.string.dock_lens_start), LensAt.Middle to stringResource(R.string.dock_lens_middle),
+            LensAt.End to stringResource(R.string.dock_lens_end)), dock.lensAt) { v ->
+            if (state.setDock(dock.copy(lensAt = v))) onChange()
+        }
     }
     // How far apart the four slots stand (§5.5.3): set by hand, or spread evenly over the edge.
-    Toggle(stringResource(R.string.dock_spread), dock.spread) { v -> if (state.setDock(dock.copy(spread = v))) onChange() }
-    if (!dock.spread) {
-        SliderRow(stringResource(R.string.dock_gap), dock.gap.toFloat(), DockSpec.MIN_GAP.toFloat(), DockSpec.MAX_GAP.toFloat(), 2f, "${dock.gap} dp") { v ->
-            if (state.setDock(dock.copy(gap = v.roundToInt()), "gap")) onChange()
-        }
-        SliderRow(stringResource(R.string.dock_pitch), dock.pitch.toFloat(), DockSpec.MIN_PITCH.toFloat(), DockSpec.MAX_PITCH.toFloat(), 2f, "${dock.pitch} dp") { v ->
-            if (state.setDock(dock.copy(pitch = v.roundToInt()), "pitch")) onChange()
+    Fold(stringResource(R.string.dock_spacing), if (dock.spread) stringResource(R.string.dock_spread_short) else "${dock.gap} · ${dock.pitch} dp") {
+        Toggle(stringResource(R.string.dock_spread), dock.spread) { v -> if (state.setDock(dock.copy(spread = v))) onChange() }
+        if (!dock.spread) {
+            SliderRow(stringResource(R.string.dock_gap), dock.gap.toFloat(), DockSpec.MIN_GAP.toFloat(), DockSpec.MAX_GAP.toFloat(), 2f, "${dock.gap} dp") { v ->
+                if (state.setDock(dock.copy(gap = v.roundToInt()), "gap")) onChange()
+            }
+            SliderRow(stringResource(R.string.dock_pitch), dock.pitch.toFloat(), DockSpec.MIN_PITCH.toFloat(), DockSpec.MAX_PITCH.toFloat(), 2f, "${dock.pitch} dp") { v ->
+                if (state.setDock(dock.copy(pitch = v.roundToInt()), "pitch")) onChange()
+            }
         }
     }
     // The drag's accessible twin (§5.5): the same band, in 4 dp steps that always include the centre.
     val room = (state.lensRoom() / 4f).toInt() * 4f
     val dx = state.lensDx().coerceIn(-room, room)
     val at = dx.roundToInt()
-    SliderRow(stringResource(R.string.lens_position), dx, -room, room, 4f,
-        if (at == 0) stringResource(R.string.lens_centre) else stringResource(R.string.lens_offset, at)) { v ->
-        state.edit(item.id, "dx") { it.copy(anchor = it.anchor.copy(dx = v)) }; onChange()
+    val where = if (at == 0) stringResource(R.string.lens_centre) else stringResource(R.string.lens_offset, at)
+    if (room > 0f) Fold(stringResource(R.string.lens_position), where) {
+        SliderRow(stringResource(R.string.lens_position), dx, -room, room, 4f, where) { v ->
+            state.edit(item.id, "dx") { it.copy(anchor = it.anchor.copy(dx = v)) }; onChange()
+        }
     }
-    Advanced { PlaceSwatches(settings, PaletteTarget.Lens, set) }
     Text(stringResource(R.string.lens_hint), Modifier.padding(vertical = 6.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
 }
 
-/** Tap on an empty spot: what can be added there (§5.5). Widgets are reserved. */
 @Composable
 fun AddMenu(at: Pt, screenW: Float, topLimit: Float, avoid: Zone?, onApp: () -> Unit, onFlow: () -> Unit, onClock: (() -> Unit)?, onDate: (() -> Unit)?) {
     val c = LocalCrystal.current

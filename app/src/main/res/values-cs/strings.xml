@@ -367,4 +367,17 @@
     <string name="dock_pitch">Rozestup aplikací</string>
     <string name="icons_all_size">Velikost všech ikon</string>
     <string name="icon_this_size">Tato ikona</string>
+    <string name="fold_colour">Barva a krytí</string>
+    <string name="fold_place">Umístění</string>
+    <string name="date_under_clock">Pod hodinami</string>
+    <string name="date_free">Volně</string>
+    <string name="clock_align">Zarovnání s datem</string>
+    <string name="dock_spacing">Rozestupy</string>
+    <string name="dock_spread_short">Rozprostřeno</string>
+    <string name="pulse_events">Události</string>
+    <string name="palette_one">Jedna barva</string>
+    <string name="palette_places">Podle míst</string>
+    <string name="arc_rings_count">Kruhy: %1$d</string>
+    <string name="pulse_everywhere_short">Všude</string>
+    <string name="pulse_home_only">Jen na ploše</string>
 </resources>

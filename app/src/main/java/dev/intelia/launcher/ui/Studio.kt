@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
@@ -121,78 +122,82 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
                 .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Top, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .verticalScroll(scroll).navigationBarsPadding().padding(bottom = 24.dp)) {
                 // Everything that changes how Home looks is edited on Home itself (owner, 2026-10-16); Studio keeps behaviour.
-                Section(R.string.home_section)
                 Hint(stringResource(R.string.studio_look_moved))
                 NavRow(stringResource(R.string.edit_home), null, onEditHome)
+                // One section open at a time (owner, 2026-10-17): each names its state while closed.
+                var open by rememberSaveable { mutableStateOf<Int?>(null) }
+                @Composable
+                fun Part(title: Int, summary: String?, content: @Composable () -> Unit) =
+                    StudioFold(stringResource(title), summary, open == title, { open = if (it) title else null }, content)
 
-                Section(R.string.palette_section)
-                PaletteEditor(settings, ::set, Modifier.padding(horizontal = 24.dp))
-                Kicker(stringResource(R.string.look_material), Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-                Column(Modifier.padding(horizontal = 24.dp)) { GlassChips(settings, ::set) }
-                Kicker(stringResource(R.string.icons), Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-                Column(Modifier.padding(horizontal = 24.dp)) { IconStyleChips(settings, ::set) }
-
-                Section(R.string.arc_section)
-                Hint(stringResource(R.string.arc_explain))
-                ChoiceRow(stringResource(R.string.arc_rings)) {
-                    Segments(listOf(1 to "1", 2 to "2", 3 to "3"), settings.arcRings, { v -> set { it.copy(arcRings = v) } })
-                }
-                Kicker("1 · " + stringResource(R.string.arc_ring_apps) + " · ${settings.arc.size}/${LauncherSettings.ARC_SLOTS}",
-                    Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-                val ringApps = arcApps.filterNotNull()
-                if (ringApps.isEmpty()) Hint(stringResource(R.string.arc_apps_hint))
-                ringApps.forEachIndexed { index, app -> OrderedAppRow(app, index, onUp = null, onRemove = { model.toggleArc(app) }) }
-                Kicker("2 · " + stringResource(R.string.flow) + " · ${settings.arcFlows.size}/${LauncherSettings.ARC_FLOW_SLOTS}",
-                    Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = if (settings.arcRings >= 2) ink.muted else ink.faint)
-                if (settings.aliases.isEmpty()) Hint(stringResource(R.string.flow_empty))
-                settings.aliases.forEach { alias ->
-                    val on = alias.id in settings.arcFlows
-                    val full = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS
-                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(on, enabled = on || !full, role = Role.Switch) {
-                        model.toggleArcFlow(alias.id, it)
-                    }.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(alias.name, Modifier.weight(1f), style = InkText.item.copy(fontStyle = FontStyle.Italic), maxLines = 1,
-                            overflow = TextOverflow.Ellipsis, color = if (on || !full) ink.ink else ink.faint)
-                        RingToggle(on)
+                Part(R.string.arc_section, stringResource(R.string.arc_rings_count, settings.arcRings)) {
+                    Hint(stringResource(R.string.arc_explain))
+                    ChoiceRow(stringResource(R.string.arc_rings)) {
+                        Segments(listOf(1 to "1", 2 to "2", 3 to "3"), settings.arcRings, { v -> set { it.copy(arcRings = v) } })
+                    }
+                    Kicker("1 · " + stringResource(R.string.arc_ring_apps) + " · ${settings.arc.size}/${LauncherSettings.ARC_SLOTS}",
+                        Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
+                    val ringApps = arcApps.filterNotNull()
+                    if (ringApps.isEmpty()) Hint(stringResource(R.string.arc_apps_hint))
+                    ringApps.forEachIndexed { index, app -> OrderedAppRow(app, index, onUp = null, onRemove = { model.toggleArc(app) }) }
+                    // Rings beyond the chosen count are never drawn, so their contents are only shown when in use.
+                    if (settings.arcRings >= 2) {
+                        Kicker("2 · " + stringResource(R.string.flow) + " · ${settings.arcFlows.size}/${LauncherSettings.ARC_FLOW_SLOTS}",
+                            Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
+                        if (settings.aliases.isEmpty()) Hint(stringResource(R.string.flow_empty))
+                        settings.aliases.forEach { alias ->
+                            val on = alias.id in settings.arcFlows
+                            val full = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS
+                            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(on, enabled = on || !full, role = Role.Switch) {
+                                model.toggleArcFlow(alias.id, it)
+                            }.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(alias.name, Modifier.weight(1f), style = InkText.item.copy(fontStyle = FontStyle.Italic), maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis, color = if (on || !full) ink.ink else ink.faint)
+                                RingToggle(on)
+                            }
+                        }
+                    }
+                    if (settings.arcRings >= 3) {
+                        Kicker("3 · " + stringResource(R.string.arc_ring_shortcuts) + " · ${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}",
+                            Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
+                        NavRow(stringResource(R.string.shortcuts_pick), null, { onPane(StudioPane.Shortcuts) })
                     }
                 }
-                NavRow(stringResource(R.string.flow_manage), null, onFlows)
-                Kicker("3 · " + stringResource(R.string.arc_ring_shortcuts) + " · ${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}",
-                    Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = if (settings.arcRings >= 3) ink.muted else ink.faint)
-                NavRow(stringResource(R.string.shortcuts_pick), null, { onPane(StudioPane.Shortcuts) })
+                NavRow(stringResource(R.string.flow_manage), settings.aliases.size.toString(), onFlows)
 
-                Section(R.string.pulse)
-                Hint(stringResource(R.string.studio_pulse_moved))
                 // D9: the switch only mirrors the service; Android settings are where it is turned on or off.
                 val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
                 val context = LocalContext.current
-                ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
-                    detail = stringResource(R.string.pulse_everywhere_detail))
-                NavRow(stringResource(R.string.pulse_lens), stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short
-                    else R.string.pulse_lens_custom), { onPane(StudioPane.Lens) })
-
-                Section(R.string.motion_section)
-                Stacked(stringResource(R.string.motion)) {
-                    Segments(listOf(Motion.Calm to stringResource(R.string.motion_calm), Motion.Brisk to stringResource(R.string.motion_brisk),
-                        Motion.Off to stringResource(R.string.off)), settings.motion, { v -> set { it.copy(motion = v) } })
-                }
-                Stacked(stringResource(R.string.haptics)) {
-                    Segments(listOf(Haptics.Soft to stringResource(R.string.haptics_soft), Haptics.Strong to stringResource(R.string.haptics_strong),
-                        Haptics.Off to stringResource(R.string.off)), settings.haptics, { v -> set { it.copy(haptics = v) } })
+                Part(R.string.pulse, stringResource(if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only)) {
+                    Hint(stringResource(R.string.studio_pulse_moved))
+                    ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
+                        detail = stringResource(R.string.pulse_everywhere_detail))
                 }
 
-                Section(R.string.default_home_section)
-                if (role.held) Hint(stringResource(R.string.default_home_active))
-                else {
+                Part(R.string.motion_section, null) {
+                    Stacked(stringResource(R.string.motion)) {
+                        Segments(listOf(Motion.Calm to stringResource(R.string.motion_calm), Motion.Brisk to stringResource(R.string.motion_brisk),
+                            Motion.Off to stringResource(R.string.off)), settings.motion, { v -> set { it.copy(motion = v) } })
+                    }
+                    Stacked(stringResource(R.string.haptics)) {
+                        Segments(listOf(Haptics.Soft to stringResource(R.string.haptics_soft), Haptics.Strong to stringResource(R.string.haptics_strong),
+                            Haptics.Off to stringResource(R.string.off)), settings.haptics, { v -> set { it.copy(haptics = v) } })
+                    }
+                }
+
+                // Only while Intelia is not the default home is there something to do here; it stays in sight.
+                if (!role.held) {
+                    Section(R.string.default_home_section)
                     Hint(stringResource(R.string.default_home_why))
                     Capsule(stringResource(R.string.default_home), role.request, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                 }
 
-                Section(R.string.hidden_apps)
                 NavRow(stringResource(R.string.hidden_manage), hidden.size.toString(), { onPane(StudioPane.Hidden) })
 
-                Section(R.string.about_title)
-                About()
+                Part(R.string.about_title, null) {
+                    if (role.held) Hint(stringResource(R.string.default_home_active))
+                    About()
+                }
             }
         }
         // Live capsule at the real camera while PULSE is on: width and opacity change as you drag.
@@ -204,6 +209,31 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
 private fun Section(title: Int) {
     Kicker(stringResource(title), Modifier.padding(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 6.dp), color = LocalInk.current.accent)
     Hairline(Modifier.padding(horizontal = 24.dp))
+}
+
+/**
+ * One Studio section that opens in place; while open it sits on an accent-tinted plate with an accent title, so it
+ * is clear which part is being changed. The caller keeps one open at a time.
+ */
+@Composable
+private fun StudioFold(title: String, summary: String?, open: Boolean, onToggle: (Boolean) -> Unit, content: @Composable () -> Unit) {
+    val ink = LocalInk.current
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 45f else 0f, label = "studioFold")
+    val shape = RoundedCornerShape(20.dp)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp).clip(shape)
+        .then(if (open) Modifier.background(ink.accent.copy(alpha = .09f)).border(1.dp, ink.accent.copy(alpha = .4f), shape) else Modifier)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).toggleable(open, role = Role.Button, onValueChange = onToggle).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(title.uppercase(), Modifier.weight(1f), style = InkText.label, color = if (open) ink.accent else ink.ink, maxLines = 1)
+            if (summary != null && !open) Text(summary, Modifier.padding(horizontal = 10.dp), style = InkText.small, color = ink.muted, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
+            Text("+", Modifier.graphicsLayer { rotationZ = turn }, style = InkText.item, color = if (open) ink.accent else ink.muted)
+        }
+        androidx.compose.animation.AnimatedVisibility(open, enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()) {
+            Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) { content() }
+        }
+    }
 }
 
 @Composable
