@@ -70,4 +70,8 @@ object Dock {
 
     fun rings(slots: List<List<Boolean>>, edge: DockEdge, lens: Pt, width: Float, height: Float): ArcRings =
         room(edge, lens, width, height).let { (l, r) -> ArcRings(slots, left = l, right = r) }
+
+    /** The shallow ARC (M2) for [look] with [sets] sets around LENS at [lens]. */
+    fun bow(look: dev.intelia.launcher.action.ArcLook, sets: Int, edge: DockEdge, lens: Pt, width: Float, height: Float): ArcBow =
+        room(edge, lens, width, height).let { (l, r) -> ArcBow(look.slots, look.radius.toFloat(), look.span.toFloat(), l, r, sets) }
 }

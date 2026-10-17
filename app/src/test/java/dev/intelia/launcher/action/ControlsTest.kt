@@ -3,15 +3,58 @@ package dev.intelia.launcher.action
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ControlsTest {
     @Test fun migrationKeepsLegacyContentAndOrder() {
         val c = Controls.migrate(listOf("b/B", "a/A"), listOf("f2", "f1"), listOf("com.x/open", "bad", "com.y/a/b"))
-        assertEquals(listOf(Action.App("b/B"), Action.App("a/A"), Action.Flow("f2"), Action.Flow("f1"),
-            Action.Shortcut("com.x", "open"), Action.Shortcut("com.y", "a/b")), c.arcSet(Controls.MAIN_SET)!!.slots)
-        assertEquals(Action.Flow("f2"), c.bound(Trigger.ArcSlot(Controls.MAIN_SET, 2)))
+        assertEquals(listOf(Action.App("b/B"), Action.App("a/A")), c.arcSet(Controls.MAIN_SET)!!.slots)
+        assertEquals(listOf(Action.Flow("f2"), Action.Flow("f1")), c.arcSet(Controls.FLOW_SET)!!.slots)
+        assertEquals(listOf(Action.Shortcut("com.x", "open"), Action.Shortcut("com.y", "a/b")), c.arcSet(Controls.SHORTCUT_SET)!!.slots)
+        assertEquals(Action.Flow("f1"), c.bound(Trigger.ArcSlot(Controls.FLOW_SET, 1)))
         assertNull(c.bound(Trigger.ArcSlot(Controls.MAIN_SET, 9)))
+        assertEquals(5, c.arc.slots)
+    }
+
+    @Test fun migrationFollowsTheRingCountAndSkipsEmptyRings() {
+        val c = Controls.migrate(emptyList(), List(7) { "f$it" }, emptyList(), rings = 2)
+        assertEquals(listOf(Controls.MAIN_SET, Controls.FLOW_SET), c.arcSets.map { it.id })
+        assertEquals(7, c.arc.slots)
+        assertEquals(listOf(Controls.MAIN_SET), Controls.migrate(listOf("a/A"), listOf("f"), listOf("p/s"), rings = 1).arcSets.map { it.id })
+    }
+
+    @Test fun editsKeepOtherSlotsInPlace() {
+        var c = Controls.migrate(listOf("a/A", "b/B", "c/C"), emptyList(), emptyList())
+        c = c.setSlot(Controls.MAIN_SET, 1, null)
+        assertEquals(listOf(Action.App("a/A"), null, Action.App("c/C")), c.arcSet(Controls.MAIN_SET)!!.slots)
+        c = c.toggleInArc(Action.Torch, on = true)
+        assertEquals(Action.Torch, c.arcSet(Controls.MAIN_SET)!!.slots[1])
+        c = c.moveSlot(Controls.MAIN_SET, 2, -1)
+        assertEquals(listOf(Action.App("a/A"), Action.App("c/C"), Action.Torch), c.arcSet(Controls.MAIN_SET)!!.slots)
+        c = c.toggleInArc(Action.App("c/C"), on = false)
+        assertEquals(listOf(Action.App("a/A"), null, Action.Torch), c.arcSet(Controls.MAIN_SET)!!.slots)
+        assertEquals(c, c.setSlot(Controls.MAIN_SET, 5, Action.Torch)) // beyond the visible slots
+        assertEquals(c, c.moveSlot(Controls.MAIN_SET, 0, -1))
+    }
+
+    @Test fun setsAddAndRemoveButTheFirstStays() {
+        val base = Controls()
+        val two = checkNotNull(base.addSet())
+        assertEquals(listOf(Controls.MAIN_SET, "set2"), two.arcSets.map { it.id })
+        assertEquals(two, two.removeSet(Controls.MAIN_SET))
+        assertEquals(listOf(Controls.MAIN_SET), two.removeSet("set2").arcSets.map { it.id })
+        var many: Controls = base
+        repeat(Controls.MAX_SETS - 1) { many = checkNotNull(many.addSet()) }
+        assertNull(many.addSet())
+        val fullArc = (0 until 5).fold(Controls()) { acc, i -> acc.toggleInArc(Action.App("p/C$i"), true) }
+        assertTrue(fullArc.arcFull())
+        assertEquals(fullArc, fullArc.toggleInArc(Action.Torch, true))
+    }
+
+    @Test fun lookIsClamped() {
+        assertEquals(ArcLook(7, ArcLook.RADIUS_S, ArcLook.SPAN_L, false), ArcLook(99, 1, 999, false).sanitized())
+        assertEquals(ArcLook(3), Controls(arc = ArcLook(0)).sanitized(emptySet()).arc)
     }
 
     @Test fun sanitizeDropsDeletedFlowsAndDuplicates() {

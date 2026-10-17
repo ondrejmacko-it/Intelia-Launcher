@@ -159,7 +159,7 @@ data class LauncherSettings(
     val schema: Int = 0,
 ) {
     /** The effective Control System configuration (stored, or migrated from the legacy ARC lists). */
-    val controls: Controls get() = controlConfig ?: Controls.migrate(arc, arcFlows, arcShortcuts)
+    val controls: Controls get() = controlConfig ?: Controls.migrate(arc, arcFlows, arcShortcuts, arcRings)
 
     companion object {
         const val SCHEMA = 2

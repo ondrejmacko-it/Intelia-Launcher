@@ -27,8 +27,28 @@ sealed interface Trigger {
 
 @Serializable data class Binding(val trigger: Trigger, val action: Action)
 
-/** One switchable ARC set: mixed apps, FLOWs, shortcuts and other actions; null is an empty slot. */
+/**
+ * One switchable ARC set: mixed apps, FLOWs, shortcuts and other actions; null is an empty slot.
+ * Slots are in priority order: slot 0 sits in the middle of the arc, then left and right alternately (D6).
+ */
 @Serializable data class ArcSet(val id: String, val name: String = "", val slots: List<Action?> = emptyList())
+
+/** How the shallow ARC looks and feels (M2): visible slots, radius (dp), opening angle (degrees), haptic tick per slot. */
+@Serializable
+data class ArcLook(val slots: Int = 5, val radius: Int = RADIUS_M, val span: Int = SPAN_M, val haptics: Boolean = true) {
+    fun sanitized() = ArcLook(slots.coerceIn(MIN_SLOTS, MAX_VISIBLE), radius.coerceIn(RADIUS_S, RADIUS_L), span.coerceIn(SPAN_S, SPAN_L), haptics)
+
+    companion object {
+        const val MIN_SLOTS = 3
+        const val MAX_VISIBLE = 7
+        const val RADIUS_S = 104
+        const val RADIUS_M = 120
+        const val RADIUS_L = 140
+        const val SPAN_S = 90
+        const val SPAN_M = 120
+        const val SPAN_L = 150
+    }
+}
 
 /**
  * The Control System configuration: ARC sets plus gesture bindings. Stored in settings as `controls`;
@@ -36,9 +56,68 @@ sealed interface Trigger {
  * (which stay untouched), so existing content and order carry over.
  */
 @Serializable
-data class Controls(val arcSets: List<ArcSet> = emptyList(), val bindings: List<Binding> = emptyList()) {
+data class Controls(
+    val arcSets: List<ArcSet> = emptyList(),
+    val bindings: List<Binding> = emptyList(),
+    val arc: ArcLook = ArcLook(),
+) {
 
     fun arcSet(id: String): ArcSet? = arcSets.firstOrNull { it.id == id }
+
+    /** True when any ARC set holds [action]. */
+    fun inArc(action: Action): Boolean = arcSets.any { action in it.slots }
+
+    /** The first set always exists, so ARC has somewhere to put things. */
+    private fun sets(): List<ArcSet> = arcSets.ifEmpty { listOf(ArcSet(MAIN_SET)) }
+
+    private fun edit(id: String, transform: (List<Action?>) -> List<Action?>): Controls =
+        copy(arcSets = sets().map { if (it.id == id) it.copy(slots = trim(transform(it.slots))) else it })
+
+    /** Puts [action] (or an empty slot) at [index] of set [id]; the other slots keep their positions. */
+    fun setSlot(id: String, index: Int, action: Action?): Controls {
+        if (index !in 0 until arc.slots) return this
+        return edit(id) { slots -> List(maxOf(slots.size, index + 1)) { i -> if (i == index) action else slots.getOrNull(i) } }
+    }
+
+    /** Swaps slot [index] with its neighbour [delta] places away (priority order). */
+    fun moveSlot(id: String, index: Int, delta: Int): Controls {
+        val j = index + delta
+        if (index !in 0 until arc.slots || j !in 0 until arc.slots) return this
+        return edit(id) { slots ->
+            val list = MutableList(maxOf(slots.size, index + 1, j + 1)) { slots.getOrNull(it) }
+            list[index] = list[j].also { list[j] = list[index] }
+            list
+        }
+    }
+
+    /** Adds [action] to the first free visible slot of the first set with room, or removes it from every set. */
+    fun toggleInArc(action: Action, on: Boolean): Controls = if (!on) {
+        copy(arcSets = arcSets.map { set -> set.copy(slots = trim(set.slots.map { if (it == action) null else it })) })
+    } else if (inArc(action)) this else {
+        val set = sets().firstOrNull { firstFree(it) != null } ?: return this
+        setSlot(set.id, checkNotNull(firstFree(set)), action)
+    }
+
+    /** Whether [toggleInArc] has a free slot left anywhere. */
+    fun arcFull(): Boolean = sets().none { firstFree(it) != null }
+
+    private fun firstFree(set: ArcSet): Int? = (0 until arc.slots).firstOrNull { set.slots.getOrNull(it) == null }
+
+    /** A new, empty set with a fresh id; null when [MAX_SETS] are in use. */
+    fun addSet(): Controls? {
+        val all = sets()
+        if (all.size >= MAX_SETS) return null
+        val id = generateSequence(all.size + 1) { it + 1 }.map { "set$it" }.first { id -> all.none { it.id == id } }
+        return copy(arcSets = all + ArcSet(id))
+    }
+
+    /** Removes set [id]; the first set stays so ARC is never without one. */
+    fun removeSet(id: String): Controls = if (sets().firstOrNull()?.id == id) this else copy(arcSets = sets().filterNot { it.id == id })
+
+    fun withLook(look: ArcLook): Controls = copy(arc = look.sanitized())
+
+    /** Slots beyond the last filled one carry nothing. */
+    private fun trim(slots: List<Action?>): List<Action?> = slots.dropLastWhile { it == null }
 
     fun bound(trigger: Trigger): Action? = when (trigger) {
         is Trigger.ArcSlot -> arcSet(trigger.set)?.slots?.getOrNull(trigger.slot)
@@ -59,7 +138,7 @@ data class Controls(val arcSets: List<ArcSet> = emptyList(), val bindings: List<
         val kept = bindings.asSequence()
             .filter { it.trigger !is Trigger.ArcSlot && it.trigger.valid() && ok(it.action) && seen.add(it.trigger) }
             .take(MAX_BINDINGS).toList()
-        return Controls(sets, kept)
+        return Controls(sets, kept, arc.sanitized())
     }
 
     companion object {
@@ -69,15 +148,23 @@ data class Controls(val arcSets: List<ArcSet> = emptyList(), val bindings: List<
         const val MAX_BINDINGS = 64
         private const val MAX_NAME = 32
 
+        const val FLOW_SET = "flow"
+        const val SHORTCUT_SET = "shortcuts"
+
         /**
-         * Legacy ARC → one set, in ring order (apps, then FLOWs, then shortcuts), each list in its stored order.
+         * Legacy ARC → one set per ring the owner used ([rings]): apps, FLOWs, shortcuts, each list in its stored order.
          * Shortcut keys are "package/id"; FLOWs are referenced by their stable id, so renaming keeps the binding.
+         * Empty rings make no set (the first set always exists); the arc shows as many slots as the fullest set needs.
          */
-        fun migrate(arc: List<String>, arcFlows: List<String>, arcShortcuts: List<String>): Controls {
-            val slots = arc.map { Action.App(it) } +
-                arcFlows.map { Action.Flow(it) } +
-                arcShortcuts.mapNotNull { key -> key.indexOf('/').takeIf { it > 0 }?.let { Action.Shortcut(key.substring(0, it), key.substring(it + 1)) } }
-            return Controls(arcSets = listOf(ArcSet(MAIN_SET, slots = slots)))
+        fun migrate(arc: List<String>, arcFlows: List<String>, arcShortcuts: List<String>, rings: Int = 3): Controls {
+            val apps = ArcSet(MAIN_SET, slots = arc.map { Action.App(it) })
+            val flows = ArcSet(FLOW_SET, slots = arcFlows.map { Action.Flow(it) })
+            val shortcuts = ArcSet(SHORTCUT_SET, slots = arcShortcuts.mapNotNull { key ->
+                key.indexOf('/').takeIf { it > 0 }?.let { Action.Shortcut(key.substring(0, it), key.substring(it + 1)) }
+            })
+            val sets = listOf(apps) + listOf(flows, shortcuts).take((rings - 1).coerceIn(0, 2)).filter { it.slots.isNotEmpty() }
+            val widest = sets.maxOf { it.slots.size }
+            return Controls(arcSets = sets, arc = ArcLook(slots = widest.coerceIn(5, ArcLook.MAX_VISIBLE)))
         }
     }
 }
