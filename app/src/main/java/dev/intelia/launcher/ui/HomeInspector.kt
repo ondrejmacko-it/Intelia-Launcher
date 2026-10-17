@@ -60,6 +60,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import dev.intelia.launcher.R
+import dev.intelia.launcher.data.DockEdge
+import dev.intelia.launcher.data.LensAt
+import dev.intelia.launcher.data.DockSpec
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockBackground
@@ -574,7 +577,7 @@ fun defaultWeight(style: ClockStyle) = if (style == ClockStyle.Crystal) 220 else
 
 /** LENS: ring size, style and position; its touch area stays the same and the ghost rings show the adapted ARC. */
 @Composable
-fun LensInspector(state: HomeEditorState, item: HomeItem, settings: LauncherSettings, set: SettingsEdit, onChange: () -> Unit) {
+fun LensInspector(state: HomeEditorState, item: HomeItem, dock: DockSpec, settings: LauncherSettings, set: SettingsEdit, onChange: () -> Unit) {
     val c = LocalCrystal.current
     val size = item.lensDp()
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.LENS_MIN.toFloat(), ItemSizes.LENS_MAX.toFloat(), 2f, "$size dp") { v ->
@@ -583,6 +586,16 @@ fun LensInspector(state: HomeEditorState, item: HomeItem, settings: LauncherSett
     val style = LensStyle.entries.firstOrNull { it.name == item.style } ?: LensStyle.Ring
     Chips(listOf(LensStyle.Ring to stringResource(R.string.lens_ring), LensStyle.Filled to stringResource(R.string.lens_filled)), style) { v ->
         state.edit(item.id, "style") { it.copy(style = if (v == LensStyle.Ring) "" else v.name) }; onChange()
+    }
+    // The row's edge and LENS's place in it (§5.5, D13): on a side the row runs down the edge and ARC opens inwards.
+    Kick(stringResource(R.string.dock_edge))
+    Chips(listOf(DockEdge.Bottom to stringResource(R.string.dock_bottom), DockEdge.Top to stringResource(R.string.dock_top),
+        DockEdge.Left to stringResource(R.string.dock_left), DockEdge.Right to stringResource(R.string.dock_right)), dock.edge) { v ->
+        if (state.setDock(dock.copy(edge = v))) onChange()
+    }
+    Chips(listOf(LensAt.Start to stringResource(R.string.dock_lens_start), LensAt.Middle to stringResource(R.string.dock_lens_middle),
+        LensAt.End to stringResource(R.string.dock_lens_end)), dock.lensAt) { v ->
+        if (state.setDock(dock.copy(lensAt = v))) onChange()
     }
     // The drag's accessible twin (§5.5): the same band, in 4 dp steps that always include the centre.
     val room = (state.lensRoom() / 4f).toInt() * 4f
@@ -722,7 +735,7 @@ fun ConfirmDialog(title: String, action: String, onConfirm: () -> Unit, onDismis
 
 /** Faint ARC rings around LENS while its inspector is open (radii 108 / 180 / 250 dp, as on the phone). */
 @Composable
-fun GhostArc(lens: Pt, rings: ArcRings, modifier: Modifier = Modifier) {
+fun GhostArc(lens: Pt, rings: ArcRings, modifier: Modifier = Modifier, edge: DockEdge = DockEdge.Bottom) {
     val c = LocalCrystal.current
     Canvas(modifier) {
         val o = Offset(lens.x * density, lens.y * density)
@@ -733,10 +746,11 @@ fun GhostArc(lens: Pt, rings: ArcRings, modifier: Modifier = Modifier) {
             val r = rings.radius(ring) * density
             val from = angles.min()
             val to = angles.max()
-            drawArc(ink, -90f + from - 6f, to - from + 12f, false, Offset(o.x - r, o.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
+            drawArc(ink, -90f + Dock.degrees(edge) + from - 6f, to - from + 12f, false, Offset(o.x - r, o.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
             angles.indices.forEach { i ->
-                val (x, y) = rings.position(ring, i)
-                drawCircle(ink, 3.dp.toPx(), Offset(o.x + x * density, o.y + y * density))
+                val (lx, ly) = rings.position(ring, i)
+                val p = Dock.toScreen(edge, lx, ly)
+                drawCircle(ink, 3.dp.toPx(), Offset(o.x + p.x * density, o.y + p.y * density))
             }
         }
     }

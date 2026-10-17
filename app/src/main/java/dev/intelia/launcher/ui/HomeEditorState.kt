@@ -2,6 +2,9 @@ package dev.intelia.launcher.ui
 
 import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.AnchorType
+import dev.intelia.launcher.data.DockEdge
+import dev.intelia.launcher.data.DockSpec
+import dev.intelia.launcher.data.LensAt
 import dev.intelia.launcher.data.HomeItem
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.LauncherSettings
@@ -31,11 +34,15 @@ class HomeGeometry(
     val statusTop: Float,
     val lensX: Float,
     val lensY: Float,
+    val dock: DockSpec = DockSpec(),
+    /** Height of the navigation bar, dp; the content area stops above it when the row is not at the bottom. */
+    val bottomInset: Float = 0f,
 ) {
-    val areaLeft = MARGIN
-    val areaRight = width - MARGIN
-    val areaTop = statusTop + 24f
-    val areaBottom = lensY - LENS_BAND
+    private val edge get() = dock.edge
+    val areaLeft = if (edge == DockEdge.Left) lensX + SIDE_BAND else MARGIN
+    val areaRight = if (edge == DockEdge.Right) lensX - SIDE_BAND else width - MARGIN
+    val areaTop = if (edge == DockEdge.Top) lensY + LENS_BAND else statusTop + 24f
+    val areaBottom = if (edge == DockEdge.Bottom) lensY - LENS_BAND else height - bottomInset - FOOT
     val areaW get() = areaRight - areaLeft
     val areaH get() = (areaBottom - areaTop).coerceAtLeast(1f)
 
@@ -57,21 +64,38 @@ class HomeGeometry(
      * edge, because LENS sits off centre (§5.5), continues outwards on the other side at the same 46 dp pitch.
      */
     fun lensSlot(slot: Int): Pt {
+        val vertical = edge.vertical
+        val at = if (vertical) lensY else lensX
+        val lo = if (vertical) statusTop + EDGE else EDGE
+        val hi = if (vertical) height - bottomInset - EDGE else width - EDGE
+        // On a side the row runs down the edge; "start" is the top. LENS before or after all four: one pitch apart.
+        val k = Anchor.LENS_SLOTS.sorted().indexOf(slot).coerceAtLeast(0)
+        val along = when (dock.lensAt) {
+            LensAt.Start -> at + SIDE[0] + k * PITCH
+            LensAt.End -> at - SIDE[0] - (Anchor.LENS_SLOTS.size - 1 - k) * PITCH
+            LensAt.Middle -> middleSlot(slot, at, lo, hi)
+        }.coerceIn(lo, hi)
+        return if (vertical) Pt(lensX, along) else Pt(along, lensY)
+    }
+
+    private fun middleSlot(slot: Int, at: Float, lo: Float, hi: Float): Float {
         val side = if (slot > 0) 1 else -1
-        val room = if (side > 0) width - EDGE - lensX else lensX - EDGE
+        val room = if (side > 0) hi - at else at - lo
         val fit = SIDE.count { it <= room }
         val i = abs(slot) - 1
-        if (i < fit) return Pt(lensX + side * SIDE[i], lensY)
+        if (i < fit) return at + side * SIDE[i]
         // Overflow: after the other side's own slots that fit there.
-        val otherRoom = if (side > 0) lensX - EDGE else width - EDGE - lensX
+        val otherRoom = if (side > 0) at - lo else hi - at
         val k = SIDE.count { it <= otherRoom }.coerceAtMost(SIDE.size) + (i - fit)
-        return Pt((lensX - side * (SIDE[0] + k * PITCH)).coerceIn(EDGE, width - EDGE), lensY)
+        return at - side * (SIDE[0] + k * PITCH)
     }
 
     /** The LENS-row slot under [p], if it is on the row (±36 dp) and within 30 dp of a slot. */
     fun lensSlotAt(p: Pt): Int? {
-        if (abs(p.y - lensY) > 36f) return null
-        return Anchor.LENS_SLOTS.minByOrNull { abs(lensSlot(it).x - p.x) }?.takeIf { abs(lensSlot(it).x - p.x) <= 30f }
+        val vertical = edge.vertical
+        if (abs(if (vertical) p.x - lensX else p.y - lensY) > 36f) return null
+        fun gap(slot: Int) = lensSlot(slot).let { abs(if (vertical) it.y - p.y else it.x - p.x) }
+        return Anchor.LENS_SLOTS.minByOrNull(::gap)?.takeIf { gap(it) <= 30f }
     }
 
     /** Centre of an app-like item; null for kinds that are laid out specially (clock, date, LENS, legacy list). */
@@ -86,11 +110,24 @@ class HomeGeometry(
     }
 
     /** The LENS zone that nothing may cover. */
-    val lensZone get() = Zone(lensX - 42f, lensY - 50f, lensX + 42f, lensY + 50f)
+    val lensZone get() = if (edge.vertical) Zone(lensX - 50f, lensY - 42f, lensX + 50f, lensY + 42f)
+        else Zone(lensX - 42f, lensY - 50f, lensX + 42f, lensY + 50f)
+
+    /** The whole LENS row, which an editor card keeps clear of. */
+    val rowZone get() = when (edge) {
+        DockEdge.Bottom, DockEdge.Top -> Zone(0f, lensY - 40f, width, lensY + 40f)
+        DockEdge.Left, DockEdge.Right -> Zone(lensX - 40f, 0f, lensX + 40f, height)
+    }
+
+    /** Length of the edge LENS moves along, dp. */
+    val alongLength get() = if (edge.vertical) height - statusTop - bottomInset else width
 
     companion object {
         const val MARGIN = 16f
         const val LENS_BAND = 56f
+        const val SIDE_BAND = 44f
+        /** Room kept above the navigation bar when the LENS row is elsewhere: an icon's name still fits. */
+        const val FOOT = 40f
         private const val EDGE = 24f
         private const val PITCH = 46f
         private val SIDE = listOf(62f, 108f)
@@ -216,6 +253,13 @@ class HomeEditorState(
 
     fun cancelLensDrag() { lensDrag = null; bump() }
 
+    /** Moves the LENS row to another edge or LENS within it (§5.5), as one undo step; false if nothing changed. */
+    fun setDock(dock: DockSpec): Boolean {
+        if (dock == layout.dock) return false
+        commit(layout.copy(dock = dock))
+        return true
+    }
+
     /** Places LENS [dx] dp from the centre (inspector, TalkBack), clamped like a drag, as one undo step. */
     fun setLensDx(dx: Float): Boolean {
         val v = clampLens(dx)
@@ -225,7 +269,7 @@ class HomeEditorState(
     }
 
     /** Room on either side of the centre for this screen: never past [LauncherSettings.MAX_LENS_DX] or [LENS_EDGE]. */
-    fun lensRoom() = (geometry.width / 2f - LENS_EDGE).coerceIn(0f, LauncherSettings.MAX_LENS_DX)
+    fun lensRoom() = (geometry.alongLength / 2f - LENS_EDGE).coerceIn(0f, LauncherSettings.MAX_LENS_DX)
 
     private fun clampLens(dx: Float) = LauncherSettings.clampLensDx(dx).coerceIn(-lensRoom(), lensRoom())
 
@@ -348,14 +392,23 @@ class HomeEditorState(
         val stepX = if (free) 24f else geometry.areaW / layout.grid.cols
         val stepY = if (free) 24f else geometry.areaH / layout.grid.rows
         val delta = if (item.anchor.type == AnchorType.LensRow) {
-            // On the LENS row: sideways to the neighbouring slot, up into the lowest grid row.
-            val from = geometry.lensSlot(item.anchor.slot)
-            if (dy < 0) Pt(0f, geometry.areaBottom - geometry.areaH / layout.grid.rows / 2f - from.y)
-            else if (dy > 0) return false
+            // On the LENS row: along it to the neighbouring slot, or off it into the nearest grid cell.
+            val g = geometry
+            val from = g.lensSlot(item.anchor.slot)
+            val (along, across) = if (g.dock.edge.vertical) dy to dx else dx to dy
+            val inward = when (g.dock.edge) { DockEdge.Bottom, DockEdge.Right -> -1; DockEdge.Top, DockEdge.Left -> 1 }
+            if (across == inward) when (g.dock.edge) {
+                DockEdge.Bottom -> Pt(0f, g.areaBottom - g.areaH / layout.grid.rows / 2f - from.y)
+                DockEdge.Top -> Pt(0f, g.areaTop + g.areaH / layout.grid.rows / 2f - from.y)
+                DockEdge.Left -> Pt(g.areaLeft + g.areaW / layout.grid.cols / 2f - from.x, 0f)
+                DockEdge.Right -> Pt(g.areaRight - g.areaW / layout.grid.cols / 2f - from.x, 0f)
+            }
+            else if (across != 0) return false
             else {
                 val slots = Anchor.LENS_SLOTS.sorted()
-                val next = slots.getOrNull(slots.indexOf(item.anchor.slot) + dx) ?: return false
-                Pt(geometry.lensSlot(next).x - from.x, 0f)
+                val next = slots.getOrNull(slots.indexOf(item.anchor.slot) + along) ?: return false
+                val to = g.lensSlot(next)
+                Pt(to.x - from.x, to.y - from.y)
             }
         } else Pt(dx * stepX, dy * stepY)
         if (!startDrag(id)) return false

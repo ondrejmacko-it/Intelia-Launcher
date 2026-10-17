@@ -88,7 +88,7 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
 }
 
 @Composable
-private fun Kick(text: String) {
+internal fun Kick(text: String) {
     Text(text.uppercase(), Modifier.padding(top = 10.dp, bottom = 2.dp), style = CrystalType.label, color = LocalCrystal.current.fg2)
 }
 

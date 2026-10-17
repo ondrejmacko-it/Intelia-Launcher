@@ -33,6 +33,7 @@ import dev.intelia.launcher.data.HomeTemplates
 import dev.intelia.launcher.data.LayoutBase
 import dev.intelia.launcher.data.LensStyle
 import dev.intelia.launcher.data.lensDx
+import dev.intelia.launcher.data.DockEdge
 import dev.intelia.launcher.data.Placement
 import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -441,10 +442,10 @@ private fun Home(
         val statusTop = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp() }
         val saved = settings.home.activeLayout()
         // The editor's live LENS (drag, undo) wins over the saved layout's.
-        val cx = maxWidth / 2 + lensShift(editor?.lensDx() ?: saved.lensDx(), maxWidth)
-        val cy = maxHeight - bottomInset - LensLift
+        val dock = (editor?.layout ?: saved).dock
+        val lensSpot = Dock.centre(dock, editor?.lensDx() ?: saved.lensDx(), maxWidth.value, maxHeight.value, statusTop.value, bottomInset.value)
         val compact = maxHeight < 560.dp
-        val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, cx.value, cy.value)
+        val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, lensSpot.x, lensSpot.y, dock, bottomInset.value)
         check(tick >= 0) // read so that editor changes recompose this scope
         fun open(): HomeEditorState = editor ?: HomeEditorState(saved, geometry,
             blocked = { listOfNotNull(clockZone, dateZone.takeIf { editor?.layout?.items?.any { it.kind == ItemKind.Date && it.anchor.type == AnchorType.Free } == true }) })
@@ -462,7 +463,9 @@ private fun Home(
         val clock = layout.items.firstOrNull { it.kind == ItemKind.Clock }
         val date = layout.items.firstOrNull { it.kind == ItemKind.Date }
         /** Where free text (fy = 0) starts below the status bar. */
-        val textTop = if (compact) 24.dp else 92.dp
+        // A LENS row on the top edge pushes all text down by its band.
+        val dockTop = if (dock.edge == DockEdge.Top) (geometry.areaTop - statusTop.value - 24f).dp else 0.dp
+        val textTop = (if (compact) 24.dp else 92.dp) + dockTop
         val freeDate = date?.takeIf { it.anchor.type == AnchorType.Free }
         val iconDefault = settings.iconSize
         fun zoneOf(c: androidx.compose.ui.layout.LayoutCoordinates, pad: Float): Zone {
@@ -485,7 +488,7 @@ private fun Home(
         if (clock != null || (date != null && freeDate == null)) {
             val a = clock?.anchor ?: Anchor.free(if (listLayout) 0f else .5f, 0f)
             val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
-            val topPad = (if (compact) 24.dp else if (listLayout) 72.dp else 92.dp) + (geometry.areaH * a.fy).dp
+            val topPad = (if (compact) 24.dp else if (listLayout) 72.dp else 92.dp) + dockTop + (geometry.areaH * a.fy).dp
             // §5.12 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
             val plate = !clock?.background.isNullOrEmpty()
             val clockInk = if (plate) LocalCrystal.current.fg else homeInk
@@ -536,7 +539,9 @@ private fun Home(
             val p = geometry.position(item, layout) ?: return@forEach
             val iconDp = item.iconDp(iconDefault).dp
             key(item.id) {
-                if (item.label) Text(name, Modifier.centerAt(p.x.dp, p.y.dp + iconDp / 2 + 12.dp).widthIn(max = 76.dp)
+                // On a side row the slots stand 46 dp apart: no room for a name under each icon.
+                val labelled = item.label && !(dock.edge.vertical && item.anchor.type == AnchorType.LensRow)
+                if (labelled) Text(name, Modifier.centerAt(p.x.dp, p.y.dp + iconDp / 2 + 12.dp).widthIn(max = 76.dp)
                     .graphicsLayer { alpha = if (dragging) 0f else quiet }.clearAndSetSemantics {},
                     style = CrystalType.body.copy(fontSize = 12.sp, lineHeight = 14.sp, shadow = homeShadow(homeInk)),
                     color = homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -612,7 +617,7 @@ private fun Home(
             }
         }
 
-        AccentScope(PaletteTarget.Lens) { LensArc(arc, (cx - maxWidth / 2).value, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
+        AccentScope(PaletteTarget.Lens) { LensArc(arc, lensSpot, dock.edge, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
             onShortcut = onShortcut, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
             lensFilled = lensItem?.style == LensStyle.Filled.name,
             // TalkBack moves LENS in the editor without a drag (§5.5), each as one undo step.
@@ -702,7 +707,7 @@ private fun Home(
                             if (ed.lensDrag != null) {
                                 change.consume()
                                 moved += step
-                                if (ed.dragLensBy(moved.x / density.density)) haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                if (ed.dragLensBy((if (dock.edge.vertical) moved.y else moved.x) / density.density)) haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
                                 refresh()
                             } else if (ed.drag != null) {
                                 change.consume()
@@ -744,7 +749,7 @@ private fun Home(
                 modifier = Modifier.align(Alignment.TopCenter))
 
             /** The LENS row as a target: the Look and Presets cards open just above it. */
-            val lensRowZone = Zone(0f, geometry.lensY - 40f, maxWidth.value, geometry.lensY + 40f)
+            val lensRowZone = geometry.rowZone
             if (presetsOpen) {
                 val start = ed.previewOf ?: ed.layout
                 val favs = settings.favorites
@@ -777,15 +782,16 @@ private fun Home(
                 }
             }
             val sel = selected?.let(ed::item)
-            val rings = remember(arc.slots, lensPt.x, maxWidth) { ArcRings(arc.slots, left = lensPt.x, right = maxWidth.value - lensPt.x) }
-            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, rings, Modifier.fillMaxSize())
+            val rings = remember(arc.slots, lensPt, dock.edge, maxWidth, maxHeight) { Dock.rings(arc.slots, dock.edge, lensPt, maxWidth.value, maxHeight.value) }
+            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, rings, Modifier.fillMaxSize(), dock.edge)
             if (sel != null && drag == null && ed.lensDrag == null) {
                 val zone = when (sel.kind) {
                     ItemKind.Clock -> timeZone ?: clockZone
                     ItemKind.Date -> dateZone
                     // The card keeps clear of the ghost ARC: its zone reaches up to the outermost ring.
                     ItemKind.Lens -> (sel.lensDp() / 2f + 6f).let { r ->
-                        Zone(lensPt.x - r, lensPt.y - maxOf(r, rings.reach + 8f), lensPt.x + r, lensPt.y + r)
+                        val tip = Dock.toScreen(dock.edge, 0f, -maxOf(r, rings.reach + 8f))
+                        Zone(lensPt.x + minOf(-r, tip.x), lensPt.y + minOf(-r, tip.y), lensPt.x + maxOf(r, tip.x), lensPt.y + maxOf(r, tip.y))
                     }
                     else -> ed.pointOf(sel)?.let { c ->
                         val r = sel.iconDp() / 2f + 6f
@@ -797,7 +803,7 @@ private fun Home(
                 val corner = when (sel.kind) {
                     ItemKind.Clock -> zone?.let { Pt(it.right - 6f, it.bottom - 6f) }
                     ItemKind.Date -> null
-                    ItemKind.Lens -> (sel.lensDp() / 2f).let { r -> Pt(lensPt.x + r + 16f, lensPt.y + r * .6f) }
+                    ItemKind.Lens -> (sel.lensDp() / 2f).let { r -> Dock.toScreen(dock.edge, r + 16f, r * .6f).let { Pt(lensPt.x + it.x, lensPt.y + it.y) } }
                     else -> ed.pointOf(sel)?.let { p -> (sel.iconDp(iconDefault) / 2f).let { r -> Pt(p.x + r + 10f, p.y + r) } }
                 }
                 if (corner != null) SizeHandle(corner.x, corner.y, stringResource(when (sel.kind) {
@@ -827,7 +833,7 @@ private fun Home(
                         ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, settings, set, onRemoved = { selected = null }, onChange = ::refresh)
                         ItemKind.Date -> DateInspector(ed, sel, zone.let { z ->
                             ((z.top + 6f - statusTop.value - textTop.value) / geometry.areaH).takeIf { it.isFinite() } }, onRemoved = { selected = null }, onChange = ::refresh)
-                        ItemKind.Lens -> LensInspector(ed, sel, settings, set, onChange = ::refresh)
+                        ItemKind.Lens -> LensInspector(ed, sel, dock, settings, set, onChange = ::refresh)
                         else -> {
                             val app = apps[sel.target]
                             ItemInspector(ed, sel, iconDefault, settings, set,

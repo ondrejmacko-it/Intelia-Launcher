@@ -141,6 +141,18 @@ enum class ClockBackground { None, Veil, Crystal, Frost, Liquid }
 /** Colour choices of the clock inspector, stored by name. */
 enum class ItemTint { Accent, Light, Dark }
 
+/** The screen edge the LENS row sits on (§5.5); on [Left] and [Right] the row runs vertically. */
+@Serializable enum class DockEdge {
+    Bottom, Top, Left, Right;
+    val vertical get() = this == Left || this == Right
+}
+
+/** Where LENS stands in its row of four slots: between them, or before / after all four (start = left or top). */
+@Serializable enum class LensAt { Middle, Start, End }
+
+/** The LENS row of a layout; absent in older documents = the bottom row with LENS in the middle, as before. */
+@Serializable data class DockSpec(val edge: DockEdge = DockEdge.Bottom, val lensAt: LensAt = LensAt.Middle)
+
 @Serializable
 data class LayoutSpec(
     val id: String,
@@ -151,6 +163,7 @@ data class LayoutSpec(
     val guides: Boolean = true,
     val items: List<HomeItem> = emptyList(),
     val linked: Boolean = false,
+    val dock: DockSpec = DockSpec(),
 )
 
 @Serializable

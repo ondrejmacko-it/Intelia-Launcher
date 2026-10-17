@@ -354,5 +354,13 @@
     <string name="shape_circle">Kruh</string>
     <string name="shape_squircle">Squircle</string>
     <string name="shape_rounded">Zaoblený čtverec</string>
-    <string name="shape_drop">Kapka</string>
+    <string name="shape_drop">Slza</string>
+    <string name="dock_edge">Řada LENS</string>
+    <string name="dock_bottom">Dole</string>
+    <string name="dock_top">Nahoře</string>
+    <string name="dock_left">Vlevo</string>
+    <string name="dock_right">Vpravo</string>
+    <string name="dock_lens_start">LENS první</string>
+    <string name="dock_lens_middle">LENS uprostřed</string>
+    <string name="dock_lens_end">LENS poslední</string>
 </resources>
