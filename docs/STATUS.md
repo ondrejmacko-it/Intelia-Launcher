@@ -2,6 +2,25 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Regression pass: B5 labels, Studio in the light theme (`claude/crystal-redesign`, `da70807`)
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` PASS, 137 JVM tests, 0
+failures. Lab build via `install -r`, profile broadcast, `pm compile -m speed-profile -f`.
+
+Verified on the Phone (3) (`uiautomator` + screenshots; no setting kept changed):
+- LENS inspector: size row "Vlastní ↺" (56 dp); tap → "Řídí se globální hodnotou", 44 dp; Zpět → 56 dp, Vlastní.
+- Clock inspector: Font fold "Vlastní hodnota" above the faces; Colour fold "Řídí se globální hodnotou". Date
+  inspector: same two folds, same labels. Editor left with ✕; Home bounds identical before and after.
+- Light theme (Intelia theme is Systém, so only the system night mode was switched `no` → back to `yes`): drawer,
+  Studio main, Vzhled and the settings search ("ztmaveni" → "Tapeta · Vzhled › Tapeta") legible on the light sheet.
+- Semantics tree: the Studio search field is an EditText with the label "Hledat v nastavení"; a result row is one
+  clickable, focusable node holding its title and path.
+
+Found, not changed: Studio's live preview draws the favourites ("Moje") around LENS and the clock above the date,
+while the owner's Home has the date above the clock and Telefon / Zprávy / Fotoaparát / Chrome in the LENS row.
+
+Not verified: real TalkBack speech (not switched on; it is a system accessibility setting for the owner).
+
 ## 2026-10-17 — Home wallpaper drawn from one cached picture; drawer jank A/B; B5 on clock and date (`claude/crystal-redesign`)
 
 - `WallpaperLayer`: an own wallpaper is rendered once per preset and size off the main thread
