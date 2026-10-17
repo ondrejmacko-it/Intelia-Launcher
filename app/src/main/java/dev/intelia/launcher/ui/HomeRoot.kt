@@ -85,6 +85,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -127,7 +128,8 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private enum class Page { Home, Search, Drawer, Flows, FlowEdit, Studio }
+/** [depth]: 0 = Home and its layers; a step between deeper pages slides (Veil 3.0 motion), anything else fades. */
+private enum class Page(val depth: Int) { Home(0), Search(0), Drawer(0), Flows(2), FlowEdit(3), Studio(1) }
 
 @Composable
 fun HomeRoot(model: HomeViewModel, homeSignal: Int) {
@@ -172,6 +174,10 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     /** FLOW being edited: an id, or "" for a new command. */
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var editBack by rememberSaveable { mutableStateOf(Page.Flows) }
+    /** Příkazy opened from Studio return there (to the same row); from the drawer they return Home. */
+    var flowsBack by rememberSaveable { mutableStateOf(Page.Home) }
+    /** Keeps a page's scroll and open section while a deeper page is shown; dropped on the way Home. */
+    val pages = rememberSaveableStateHolder()
     var options by remember { mutableStateOf<AppEntry?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -187,6 +193,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     var editOnHome by remember { mutableStateOf(false) }
     var studioLens by remember { mutableStateOf(false) }
     fun goHome() {
+        pages.removeState(Page.Studio.name); pages.removeState(Page.Flows.name)
         page = Page.Home; model.query.value = ""; options = null; editing = null; focus.clearFocus(); keyboard?.hide()
     }
     fun openSearch(fromLens: Boolean) { searchFromLens = fromLens; model.query.value = ""; page = Page.Search }
@@ -211,6 +218,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     BackHandler {
         when (page) {
             Page.FlowEdit -> { editing = null; page = editBack }
+            Page.Flows -> if (flowsBack == Page.Studio) page = Page.Studio else goHome()
             Page.Home -> Unit
             else -> goHome()
         }
@@ -234,10 +242,13 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     CompositionLocalProvider(LocalVeilDepth provides depth) {
     val enter = motionMs(140)
     val exit = motionMs(100)
+    val pageMs = motionMs(VeilMotion.PAGE_MS)
     Box(Modifier.fillMaxSize()) {
         WallpaperLayer(dev.intelia.launcher.data.Wallpapers.byId(settings.wallpaper), settings.wallDim)
-        AnimatedContent(surface, transitionSpec = { fadeIn(tween(enter)) togetherWith fadeOut(tween(exit)) },
-            label = "page") { target ->
+        AnimatedContent(surface, transitionSpec = {
+            val slide = VeilMotion.slide(initialState.depth, targetState.depth)
+            if (slide != 0) VeilMotion.page(slide, pageMs) else fadeIn(tween(enter)) togetherWith fadeOut(tween(exit))
+        }, label = "page") { target -> pages.SaveableStateProvider(target.name) {
             when (target) {
                 Page.Home -> Box(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().veilBackdrop(depth, backdropBlur)) { Home(
@@ -283,7 +294,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onSearch = { openSearch(false) },
                     onLaunch = ::launch,
                     onOptions = { options = it },
-                    onFlows = { page = Page.Flows },
+                    onFlows = { flowsBack = Page.Home; page = Page.Flows },
                     onStudio = { page = Page.Studio },
                 ) }
                 }
@@ -292,7 +303,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     aliases = settings.aliases,
                     arcFlows = settings.arcFlows,
                     flowSteps = steps,
-                    onBack = ::goHome,
+                    onBack = { if (flowsBack == Page.Studio) page = Page.Studio else goHome() },
                     onCreate = { edit(null, Page.Flows) },
                     onEdit = { edit(it, Page.Flows) },
                     onRun = ::run,
@@ -314,11 +325,11 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     )
                 }
                 Page.Studio -> AccentScope(PaletteTarget.Studio) {
-                    Studio(model, settings, onBack = { studioLens = false; goHome() }, onFlows = { page = Page.Flows },
-                        onEditHome = { studioLens = false; editOnHome = true; page = Page.Home }, lensFirst = studioLens)
+                    Studio(model, settings, onBack = { studioLens = false; goHome() }, onFlows = { flowsBack = Page.Studio; page = Page.Flows },
+                        onEditHome = { studioLens = false; editOnHome = true; pages.removeState(Page.Studio.name); page = Page.Home }, lensFirst = studioLens)
                 }
             }
-        }
+        } }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 132.dp)) { data ->
             InkSnackbar(data.visuals.message)
         }
@@ -494,7 +505,7 @@ private fun Home(
         val barBottom = statusTop.value + BAR_HEIGHT
         // D15: the editor shows the same Home at 86 %; cards are placed from the settled scale, not the animated one.
         val view = EditView(maxWidth.value, maxHeight.value, if (ed != null) EditView.EDIT_SCALE else 1f)
-        val homeScale by animateFloatAsState(view.scale, tween(motionMs(320)), label = "edit-scale")
+        val homeScale by animateFloatAsState(view.scale, tween(motionMs(320), easing = VeilMotion.ease), label = "edit-scale")
         val homeLayer = Modifier.graphicsLayer { scaleX = homeScale; scaleY = homeScale; transformOrigin = TransformOrigin(.5f, EditView.ORIGIN_Y) }
 
         val hole = rememberLens(settings.pulseLens)

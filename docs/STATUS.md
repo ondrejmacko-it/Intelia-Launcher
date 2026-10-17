@@ -2,6 +2,29 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Veil 3.0 B6: motion per the prototype, gfxinfo (`claude/crystal-redesign`)
+
+- Owner's choice: Calm keeps the brisker durations; B6 adds the prototype's curve and the page motion (DESIGN_SYSTEM
+  §5.6 "Veil 3.0 B6"). `ui/Motion.kt`: `VeilMotion.ease` (cubic-bezier .2/.9/.25/1.04) on Home → Editor and the
+  inspector entry; `VeilMotion.slide/page` — pages above Home slide 180 ms deeper / back, Home ↔ page still fades.
+- Příkazy opened from Studio return to Studio (from the drawer: Home). Studio's scroll and open section survive a
+  detail page (Příkazy, Skryté aplikace, Zkratky, Čočka); cleared when leaving for Home. All through `motionMs`.
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug` PASS, 123 JVM tests, 0
+failures (new `MotionTest`: slide only between deeper pages; curve ends at 0/1 with 0–2 % overshoot).
+
+Verified on the Phone (3), debug Lab via `install -r`, 120 Hz, adb input:
+- Studio with ARC open, scrolled to Spravovat příkazy → Příkazy → Back: Studio again, ARC still open, the row at the
+  same bounds (`uiautomator`); same for Zobrazit skryté aplikace → Back.
+- `gfxinfo`, 3 series of 3 × LENS → Search → Back → Back, warm: before (HEAD `75e7599`) 19–28 janky of ~294,
+  p99 36–57 ms; after 23–26 janky of ~289, p99 46–53 ms — same within noise (first series after install, cold: 59).
+- 3 series of 3 × Studio → Příkazy → Back (after only; before, Back went Home): 16–17 janky of ~127, p50 12–13 ms,
+  p99 105–125 ms — the slow frames are composing the incoming page in a debug build (interpreted, ~2.5× UI time).
+
+Not verified: a release-build measurement, the slide caught mid-way (180 ms is shorter than `screencap`), the
+system Reduce motion switch, TalkBack. The owner's own Home edits made meanwhile (LENS row WhatsApp / Keep /
+calculator, editor card position) were left as they are. Next: owner picks (system wallpaper, Studio B4, B5).
+
 ## 2026-10-17 — Veil 3.0 B3: Intelia wallpapers and dim, date on the plate, tray semantics (`claude/crystal-redesign`)
 
 - B3 scope (owner's choice): D13 ④ wallpapers drawn by the launcher. Icons, fonts and colours were already in place.

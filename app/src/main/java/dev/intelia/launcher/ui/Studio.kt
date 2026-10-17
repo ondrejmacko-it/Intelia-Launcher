@@ -38,6 +38,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,8 +90,12 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     var pane by rememberSaveable { mutableStateOf(if (lensFirst) StudioPane.Lens else StudioPane.Main) }
     // Hoisted so coming back from a sub-page lands where you left the list.
     val scroll = rememberScrollState()
+    // The open section survives a detail page too, so Back lands on the same row (Veil 3.0 motion).
+    val panes = rememberSaveableStateHolder()
+    val ms = motionMs(VeilMotion.PAGE_MS)
     BackHandler(enabled = pane != StudioPane.Main) { pane = StudioPane.Main }
-    when (pane) {
+    AnimatedContent(pane, transitionSpec = { VeilMotion.page(if (targetState == StudioPane.Main) -1 else 1, ms) },
+        label = "studio-pane") { shown -> panes.SaveableStateProvider(shown.name) { when (shown) {
         StudioPane.Main -> StudioMain(model, settings, scroll, onBack, onFlows, onEditHome, onPane = { pane = it })
         StudioPane.Shortcuts -> ShortcutPicker(model, settings, onBack = { pane = StudioPane.Main })
         StudioPane.Hidden -> HiddenApps(model, onBack = { pane = StudioPane.Main })
@@ -97,7 +103,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
             model.updateSettings { it.copy(pulseLens = lens) }
             pane = StudioPane.Main
         }, onBack = { pane = StudioPane.Main })
-    }
+    } } }
 }
 
 @Composable

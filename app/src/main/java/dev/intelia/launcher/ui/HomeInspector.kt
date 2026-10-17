@@ -201,13 +201,13 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
     val at by androidx.compose.runtime.rememberUpdatedState(Offset(x, y))
     val size by androidx.compose.runtime.rememberUpdatedState(Offset(width, maxH))
     val shown by androidx.compose.runtime.rememberUpdatedState(hDp)
-    // §5.6: scale 0.86 → 1 from the element, 220 ms (0 ms with Reduced Motion).
+    // §5.6: scale 0.86 → 1 from the element on the Veil curve (0 ms with Reduced Motion).
     val appear = remember { androidx.compose.animation.core.Animatable(0f) }
     val ms = motionMs(160)
-    androidx.compose.runtime.LaunchedEffect(Unit) { appear.animateTo(1f, androidx.compose.animation.core.tween(ms)) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { appear.animateTo(1f, androidx.compose.animation.core.tween(ms, easing = VeilMotion.ease)) }
     Box(Modifier.offset { IntOffset((x * d).roundToInt(), (y * d).roundToInt()) }
         .width(width.dp).onSizeChanged { h = it.height }.graphicsLayer {
-            alpha = if (h == 0) 0f else appear.value
+            alpha = if (h == 0) 0f else appear.value.coerceAtMost(1f)
             val k = .86f + .14f * appear.value
             scaleX = k; scaleY = k
             transformOrigin = androidx.compose.ui.graphics.TransformOrigin(fx, if (above) 1f else 0f)

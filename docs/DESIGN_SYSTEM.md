@@ -408,6 +408,14 @@ As built (brisker motion, 2026-10-16): Calm durations cut by about a quarter —
 140 ms, back 120 ms; drawer in 160 ms / out 110 ms; page fade 140 / 100 ms; inspector 160 ms; ARC reveal 130 ms,
 slot 80 ms; Home quiet 130 ms; LENS press 110 ms; ring toggle 120 ms. The table above keeps the original intent.
 
+As built (Veil 3.0 B6, 2026-10-17): the owner kept the brisker Calm durations (about 3/5 of the prototype's
+320 / 260 / 300 / 300 ms; Home → Editor stays 320 ms). New: `VeilMotion.ease` = the prototype's
+cubic-bezier(.2, .9, .25, 1.04), ≤ 2 % overshoot, on Home → Editor and the inspector entry. A step between pages
+above Home (Studio → Příkazy → FLOW editor, Studio → Skryté aplikace / Zkratky / Čočka) slides 180 ms: the deeper
+page enters from the end, Back reverses it; Home ↔ any page still fades. Příkazy opened from Studio return to
+Studio, and Studio keeps its scroll and open section across a detail page (`SaveableStateHolder`, cleared on the way
+Home). Theme changes stay 0 ms (no colour is animated). Search morph and drawer curves unchanged.
+
 As built (Search in Veil, `53b9769`): Search and the drawer are layers over Home, not pages; Home stays composed
 under a black 42 % scrim. Field = Veil Dense pill, centred on LENS while the IME is down, then riding it via an
 `offset {}` that reads `WindowInsets.ime` (placement only). Card = Veil Dense, ≤ 6 rows (`SearchPicks`), first row
