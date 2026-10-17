@@ -113,6 +113,7 @@ class PulseAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         windows = getSystemService(WindowManager::class.java)
         _running.value = true
+        instance = this
         placeLens()
         relayout = { main.post { if (lens != null) placeLens() } }
     }
@@ -142,6 +143,7 @@ class PulseAccessibilityService : AccessibilityService() {
         lens = null
         relayout = null
         _running.value = false
+        if (instance === this) instance = null
     }
 
     private val dp get() = resources.displayMetrics.density
@@ -277,6 +279,13 @@ class PulseAccessibilityService : AccessibilityService() {
         val running: StateFlow<Boolean> = _running.asStateFlow()
 
         @Volatile private var editing = false
+        @Volatile private var instance: PulseAccessibilityService? = null
+
+        /**
+         * A system action for the Action Engine (lock, screenshot, notifications, Quick Settings). False when the
+         * service is off or the platform refused; never queued for later.
+         */
+        fun performGlobal(action: Int): Boolean = instance?.performGlobalAction(action) ?: false
         @Volatile private var relayout: (() -> Unit)? = null
 
         /** Home's editor is open (true) or closed: the lens overlay stops or resumes taking taps. */

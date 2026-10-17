@@ -487,4 +487,10 @@
     <string name="studio_kw_favorites">favourites apps order lens dock</string>
     <string name="studio_kw_gestures">gestures tap swipe hold controls help</string>
     <string name="studio_kw_grid">grid columns rows resolution density placement free hybrid</string>
+    <string name="action_app_missing">The app is no longer installed.</string>
+    <string name="action_flow_missing">This FLOW no longer exists.</string>
+    <string name="action_not_default_home">Shortcuts work only while Intelia is the default home app.</string>
+    <string name="action_shortcut_missing">This shortcut is no longer available.</string>
+    <string name="action_needs_pulse">Needs the PULSE service (Accessibility) to be on.</string>
+    <string name="action_unsupported">This device does not support the action.</string>
 </resources>

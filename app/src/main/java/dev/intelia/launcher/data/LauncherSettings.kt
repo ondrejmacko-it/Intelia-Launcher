@@ -1,5 +1,6 @@
 package dev.intelia.launcher.data
 
+import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
 import kotlinx.serialization.Serializable
@@ -149,9 +150,17 @@ data class LauncherSettings(
     val wallDim: Int = 0,
     /** The editor card as the owner last moved and sized it; null = placed by the element every time. */
     val editorCard: CardFrame? = null,
+    /**
+     * Control System V1: ARC sets and trigger bindings. Null = not yet edited in the new Studio; [controls] then
+     * derives it from the legacy ARC lists, which are never rewritten (non-destructive migration).
+     */
+    val controlConfig: Controls? = null,
     /** Document version; 0 = written before the Crystal design (phase B1). Migrated by [sanitized]. */
     val schema: Int = 0,
 ) {
+    /** The effective Control System configuration (stored, or migrated from the legacy ARC lists). */
+    val controls: Controls get() = controlConfig ?: Controls.migrate(arc, arcFlows, arcShortcuts)
+
     companion object {
         const val SCHEMA = 2
 
@@ -198,6 +207,7 @@ data class LauncherSettings(
             arcFlows = arcFlows.filter { it in ids }.distinct().take(ARC_FLOW_SLOTS),
             arcShortcuts = arcShortcuts.filter(::validKey).distinct().take(ARC_SHORTCUT_SLOTS),
             arcRings = arcRings.coerceIn(1, 3),
+            controlConfig = controlConfig?.sanitized(ids),
             motion = if (reduceMotion) Motion.Off else motion,
             pulseLens = pulseLens?.takeIf { it.x.isFinite() && it.y.isFinite() && it.r.isFinite() }
                 ?.let { PulseLens(it.x.coerceIn(0f, MAX_LENS_X), it.y.coerceIn(0f, MAX_LENS_Y), it.r.coerceIn(MIN_LENS_R, MAX_LENS_R)) },

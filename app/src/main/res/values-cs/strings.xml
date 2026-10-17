@@ -486,4 +486,10 @@
     <string name="studio_kw_favorites">oblíbené aplikace pořadí lens dok</string>
     <string name="studio_kw_gestures">gesta klepnutí tah podržení ovládání nápověda</string>
     <string name="studio_kw_grid">mřížka sloupce řádky rozlišení hustota rozmístění volně hybrid</string>
+    <string name="action_app_missing">Aplikace už není nainstalovaná.</string>
+    <string name="action_flow_missing">Tento FLOW už neexistuje.</string>
+    <string name="action_not_default_home">Zkratky fungují, jen když je Intelia výchozí plocha.</string>
+    <string name="action_shortcut_missing">Tato zkratka už není dostupná.</string>
+    <string name="action_needs_pulse">Vyžaduje zapnutou službu PULSE (Přístupnost).</string>
+    <string name="action_unsupported">Toto zařízení akci nepodporuje.</string>
 </resources>

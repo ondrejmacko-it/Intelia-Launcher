@@ -78,6 +78,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.DockEdge
+import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.FlowAlias
@@ -137,9 +138,8 @@ fun LensArc(
     flowSteps: (FlowAlias) -> List<String?>,
     onSearch: () -> Unit,
     onDrawer: () -> Unit,
-    onLaunch: (AppEntry) -> Unit,
-    onRun: (FlowAlias) -> Unit,
-    onShortcut: (ShortcutEntry) -> Unit,
+    /** A released slot, as an Action Engine action: the caller runs it and reports why when it cannot. */
+    onAction: (Action) -> Unit,
     onOpenChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     lensRing: Dp = CrystalDims.lensRing,
@@ -168,10 +168,11 @@ fun LensArc(
         val c = latestContent
         close()
         when (target?.ring) {
-            0 -> c.apps.getOrNull(target.index)?.let { haptics.confirm(); onLaunch(it) }
-            1 -> c.flows.getOrNull(target.index)?.let { haptics.confirm(); onRun(it) }
-            2 -> c.shortcuts.getOrNull(target.index)?.let { haptics.confirm(); onShortcut(it) }
-        }
+            0 -> c.apps.getOrNull(target.index)?.let { Action.App(it.key) }
+            1 -> c.flows.getOrNull(target.index)?.let { Action.Flow(it.id) }
+            2 -> c.shortcuts.getOrNull(target.index)?.let { Action.Shortcut(it.packageName, it.id) }
+            else -> null
+        }?.let { haptics.confirm(); onAction(it) }
     }
 
     LaunchedEffect(open) { openChanged(open) }

@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.ActionResult
+import dev.intelia.launcher.action.Reason
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -209,6 +212,23 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
             FlowRun.Failed -> message(R.string.launch_failed)
         }
     }
+    val actionHost = rememberActionHost(model) { openSearch(fromLens = true) }
+    /** The Action Engine entry for every trigger: run, go Home when something opened, otherwise say why. */
+    fun perform(action: Action) {
+        when (val result = action.run(actionHost)) {
+            ActionResult.Opened -> if (action != Action.Search) goHome()
+            ActionResult.Done -> Unit
+            is ActionResult.Unavailable -> message(when (result.reason) {
+                Reason.AppMissing -> R.string.action_app_missing
+                Reason.FlowMissing -> R.string.action_flow_missing
+                Reason.NotDefaultHome -> R.string.action_not_default_home
+                Reason.ShortcutMissing -> R.string.action_shortcut_missing
+                Reason.NeedsPulseService -> R.string.action_needs_pulse
+                Reason.Unsupported -> R.string.action_unsupported
+                Reason.Invalid, Reason.CardMissing, Reason.Failed -> R.string.launch_failed
+            })
+        }
+    }
     fun edit(alias: FlowAlias?, from: Page) { editBack = from; editing = alias?.id ?: ""; focus.clearFocus(); keyboard?.hide(); page = Page.FlowEdit }
     val steps: (FlowAlias) -> List<String?> = { alias -> alias.targets.map { model.entry(it)?.label } }
 
@@ -270,7 +290,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onLaunch = ::launch,
                     onOptions = { options = it },
                     onRun = ::run,
-                    onShortcut = ::launch,
+                    onAction = ::perform,
                     onMessage = ::message,
                     onSaveLayout = { edited ->
                         model.updateSettings { it.copy(home = it.home.save(edited)) }
@@ -381,7 +401,7 @@ private fun Home(
     onLaunch: (AppEntry) -> Unit,
     onOptions: (AppEntry) -> Unit,
     onRun: (FlowAlias) -> Unit,
-    onShortcut: (ShortcutEntry) -> Unit,
+    onAction: (Action) -> Unit,
     onMessage: (Int) -> Unit,
     onSaveLayout: (LayoutSpec) -> Unit,
 ) {
@@ -693,8 +713,8 @@ private fun Home(
             }
         }
 
-        AccentScope(PaletteTarget.Lens) { LensArc(arc, lensSpot, dock.edge, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
-            onShortcut = onShortcut, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
+        AccentScope(PaletteTarget.Lens) { LensArc(arc, lensSpot, dock.edge, flowSteps, onSearch = onSearch, onDrawer = onDrawer,
+            onAction = onAction, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
             lensFilled = lensItem?.style == LensStyle.Filled.name,
             // TalkBack moves LENS in the editor without a drag (§5.5), each as one undo step.
             editActions = if (ed == null) emptyList() else listOf(

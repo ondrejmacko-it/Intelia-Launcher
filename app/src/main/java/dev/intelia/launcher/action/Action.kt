@@ -15,8 +15,8 @@ sealed interface Action {
     /** Launcher component key, as stored in settings ("package/class"). */
     @Serializable @SerialName("app") data class App(val component: String) : Action
 
-    /** A FLOW by its exact name; resolved at run time, so renaming the FLOW breaks the binding visibly. */
-    @Serializable @SerialName("flow") data class Flow(val name: String) : Action
+    /** A FLOW by its stable id: renaming the FLOW keeps the binding; deleting it makes it [Reason.FlowMissing]. */
+    @Serializable @SerialName("flow") data class Flow(val id: String) : Action
 
     @Serializable @SerialName("search") data object Search : Action
 
@@ -34,6 +34,8 @@ sealed interface Action {
 
     @Serializable @SerialName("card") data class Card(val id: String) : Action
 
+    @Serializable @SerialName("lock") data object Lock : Action
+
     /** Null when the action can run now; otherwise why not. Never has side effects. */
     fun unavailableReason(host: ActionHost): Reason? = when (this) {
         is App -> when {
@@ -41,7 +43,7 @@ sealed interface Action {
             !host.hasApp(component) -> Reason.AppMissing
             else -> null
         }
-        is Flow -> when (val flow = host.findFlow(name)) {
+        is Flow -> when (val flow = host.findFlow(id)) {
             null -> Reason.FlowMissing
             else -> if (flow.targets.all(host::hasApp)) null else Reason.AppMissing
         }
@@ -58,6 +60,23 @@ sealed interface Action {
         SoundMode -> null
         is SystemPanel -> null
         is Card -> if (wellFormed(id) && host.hasCard(id)) null else Reason.CardMissing
+        Lock -> if (host.hasPulseService()) null else Reason.NeedsPulseService
+    }
+
+    /** What the user has to grant before this can run; shown next to the action in pickers. */
+    val requirement: Requirement get() = when (this) {
+        is Shortcut -> Requirement.DefaultHome
+        Screenshot, Lock -> Requirement.PulseService
+        else -> Requirement.None
+    }
+
+    /** Structural check for restored data; availability on this device is [unavailableReason]. */
+    fun wellFormed(): Boolean = when (this) {
+        is App -> wellFormed(component)
+        is Flow -> wellFormed(id)
+        is Shortcut -> wellFormed(pkg) && wellFormed(id)
+        is Card -> wellFormed(id)
+        else -> true
     }
 
     fun isAvailable(host: ActionHost): Boolean = unavailableReason(host) == null
@@ -70,7 +89,7 @@ sealed interface Action {
         unavailableReason(host)?.let { return ActionResult.Unavailable(it) }
         val ok = when (this) {
             is App -> return opened(host.launchApp(component))
-            is Flow -> return opened(host.runFlow(checkNotNull(host.findFlow(name))))
+            is Flow -> return opened(host.runFlow(checkNotNull(host.findFlow(id))))
             Search -> return opened(host.openSearch())
             is Shortcut -> return opened(host.startShortcut(pkg, id))
             is Media -> host.sendMedia(key)
@@ -79,6 +98,7 @@ sealed interface Action {
             SoundMode -> host.toggleSoundMode()
             is SystemPanel -> return opened(host.openPanel(kind))
             is Card -> return opened(host.openCard(id))
+            Lock -> host.lockScreen()
         }
         return if (ok) ActionResult.Done else ActionResult.Unavailable(Reason.Failed)
     }
@@ -96,6 +116,8 @@ sealed interface Action {
 
 /** System panels; Wi-Fi, Bluetooth and mobile data cannot be toggled by an app, only opened (D10, honesty). */
 @Serializable enum class PanelKind { Internet, Wifi, Bluetooth, Sound, Display, Notifications, QuickSettings }
+
+enum class Requirement { None, DefaultHome, PulseService }
 
 enum class Reason { Invalid, AppMissing, FlowMissing, ShortcutMissing, NotDefaultHome, CardMissing, NeedsPulseService, Unsupported, Failed }
 
@@ -115,7 +137,8 @@ sealed interface ActionResult {
  */
 interface ActionHost {
     fun hasApp(component: String): Boolean
-    fun findFlow(name: String): FlowAlias?
+    /** By stable id; Search's exact name match uses [exactFlow] instead. */
+    fun findFlow(id: String): FlowAlias?
     fun isDefaultHome(): Boolean
     fun hasShortcut(pkg: String, id: String): Boolean
     fun hasTorch(): Boolean
@@ -132,6 +155,7 @@ interface ActionHost {
     fun toggleSoundMode(): Boolean
     fun openPanel(kind: PanelKind): Boolean
     fun openCard(id: String): Boolean
+    fun lockScreen(): Boolean
 }
 
 /** Exact FLOW lookup shared by hosts: same normalisation as Search, never a prefix match. */

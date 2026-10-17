@@ -19,7 +19,7 @@ private class FakeHost(
 ) : ActionHost {
     val calls = mutableListOf<String>()
     override fun hasApp(component: String) = component in apps
-    override fun findFlow(name: String) = flows.exactFlow(name)
+    override fun findFlow(id: String) = flows.firstOrNull { it.id == id }
     override fun isDefaultHome() = home
     override fun hasShortcut(pkg: String, id: String) = (pkg to id) in shortcuts
     override fun hasTorch() = torch
@@ -36,6 +36,7 @@ private class FakeHost(
     override fun toggleSoundMode() = call("sound")
     override fun openPanel(kind: PanelKind) = call("panel $kind")
     override fun openCard(id: String) = call("card $id")
+    override fun lockScreen() = call("lock")
 }
 
 class ActionTest {
@@ -50,11 +51,11 @@ class ActionTest {
 
     @Test fun flowMatchesExactNameOnlyAndNeedsAllTargets() {
         val host = FakeHost()
-        assertEquals(ActionResult.Opened, Action.Flow("  VLAK ").run(host))
-        assertEquals(ActionResult.Unavailable(Reason.FlowMissing), Action.Flow("vla").run(host))
+        assertEquals(ActionResult.Opened, Action.Flow("1").run(host))
+        assertEquals(ActionResult.Unavailable(Reason.FlowMissing), Action.Flow("2").run(host))
         assertEquals(ActionResult.Unavailable(Reason.FlowMissing), Action.Flow("").run(host))
         val broken = FakeHost(apps = setOf("a/A"))
-        assertEquals(Reason.AppMissing, Action.Flow("vlak").unavailableReason(broken))
+        assertEquals(Reason.AppMissing, Action.Flow("1").unavailableReason(broken))
         assertEquals(listOf("flow 1"), host.calls)
     }
 
@@ -89,7 +90,7 @@ class ActionTest {
 
     @Test fun serialisesWithStableNames() {
         val json = Json
-        val actions = listOf(Action.App("a/A"), Action.Flow("vlak"), Action.Search, Action.Media(MediaKey.PlayPause),
+        val actions = listOf(Action.App("a/A"), Action.Flow("1"), Action.Lock, Action.Search, Action.Media(MediaKey.PlayPause),
             Action.SystemPanel(PanelKind.Bluetooth), Action.Card("media"))
         actions.forEach { assertEquals(it, json.decodeFromString(Action.serializer(), json.encodeToString(Action.serializer(), it))) }
         assertEquals("""{"type":"app","component":"a/A"}""", json.encodeToString(Action.serializer(), Action.App("a/A")))
