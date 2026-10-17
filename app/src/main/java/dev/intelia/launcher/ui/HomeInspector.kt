@@ -178,6 +178,8 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
     val maxH = (frame?.maxH?.takeIf { it > 0f } ?: minOf(screenH * .58f, autoCap)).coerceIn(InspectorFrame.MIN_H, room)
     var above by remember { mutableStateOf(true) }
     var fx by remember { mutableFloatStateOf(.5f) }
+    /** The card's bottom when it opened above its element (dp); it keeps that bottom as its content grows. */
+    var anchorBottom by remember { mutableFloatStateOf(0f) }
     if (auto == null && h > 0) {
         val ax = ((target.left + target.right) / 2f - width / 2f).coerceIn(12f, screenW - 12f - width)
         // Above when it fits and leaves [avoid] (the clock) visible; otherwise below.
@@ -191,12 +193,17 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
             if (aboveRoom > belowRoom && aboveRoom >= 200f) { above = true; autoCap = aboveRoom - 72f }
             else if (belowRoom >= 200f) autoCap = belowRoom - 72f
         }
+        // Above, the card never reaches down over its element: its body is capped to the room up there.
+        if (above) autoCap = minOf(autoCap, target.top - 12f - topLimit - 72f).coerceAtLeast(InspectorFrame.MIN_H)
         auto = Offset(ax, if (above) target.top - 12f - minOf(hDp, autoCap + 72f) else target.bottom + 12f)
+        anchorBottom = target.top - 12f
         fx = (((target.left + target.right) / 2f - ax) / width).coerceIn(0f, 1f)
     }
     val p = frame?.pos ?: auto ?: Offset(12f, topLimit)
     val x = p.x.coerceIn(12f, maxOf(12f, screenW - 12f - width))
-    val y = p.y.coerceIn(topLimit, maxOf(topLimit, screenH - 12f - hDp))
+    // Placed above its element, the card grows upwards (a fold opening) so the element stays in sight.
+    val anchored = if (frame?.pos == null && above && auto != null) anchorBottom - hDp else p.y
+    val y = anchored.coerceIn(topLimit, maxOf(topLimit, screenH - 12f - hDp))
     val at by androidx.compose.runtime.rememberUpdatedState(Offset(x, y))
     val size by androidx.compose.runtime.rememberUpdatedState(Offset(width, maxH))
     val shown by androidx.compose.runtime.rememberUpdatedState(hDp)
@@ -468,9 +475,10 @@ fun ItemInspector(state: HomeEditorState, item: HomeItem, iconDefault: Int, sett
             .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.acc)
     }
     val size = item.iconDp(iconDefault)
-    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp") { v ->
+    SliderRow(stringResource(R.string.icon_this_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp") { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
+    AllIconsSize(settings, state, set, onChange)
     MoveButtons { dx, dy -> state.nudge(item.id, dx, dy); onChange() }
     Toggle(stringResource(R.string.inspect_label), item.label) { on -> state.edit(item.id, "label") { it.copy(label = on) }; onChange() }
     // Style and colour apply to every icon (settings, not this layout's undo).

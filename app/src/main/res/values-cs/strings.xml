@@ -287,7 +287,6 @@
     <string name="look_solid">Matné</string>
     <string name="look_density">Hustota</string>
     <string name="look_edge">Světelná hrana</string>
-    <string name="look_icons_same">Stejná velikost všech ikon</string>
     <string name="look_labels">Popisky pod ikonami</string>
     <string name="look_hint">Roztažením nebo stažením dvou prstů změníš velikost prvku. Klepnutím na PULSE u kamery otevřeš jeho nastavení.</string>
     <string name="studio_look_moved">Vzhled, ikony, hodiny, datum a PULSE se upravují přímo na ploše.</string>
@@ -366,4 +365,6 @@
     <string name="dock_spread">Rozprostřít po hraně</string>
     <string name="dock_gap">Odstup od LENS</string>
     <string name="dock_pitch">Rozestup aplikací</string>
+    <string name="icons_all_size">Velikost všech ikon</string>
+    <string name="icon_this_size">Tato ikona</string>
 </resources>

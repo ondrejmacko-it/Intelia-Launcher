@@ -38,6 +38,19 @@ fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
     }
 }
 
+private fun glassName(g: Glass) = when (g) {
+    Glass.Veil -> R.string.look_veil
+    Glass.Crystal -> R.string.glass_crystal
+    Glass.Frost -> R.string.glass_frost
+    Glass.Liquid -> R.string.glass_liquid
+}
+
+private fun themeName(t: ThemeMode) = when (t) {
+    ThemeMode.System -> R.string.theme_system
+    ThemeMode.Light -> R.string.theme_light
+    ThemeMode.Dark -> R.string.theme_dark
+}
+
 /** The panel glass (§5.2) for every surface; in the Look panel and Studio. */
 @Composable
 fun GlassChips(settings: LauncherSettings, set: SettingsEdit) {
@@ -57,33 +70,45 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
     val c = LocalCrystal.current
     // The body of the editor card (InspectorCard): it brings the glass, the header, the scroll and the handles.
     Column(modifier.fillMaxWidth()) {
-        Kick(stringResource(R.string.look_material))
-        GlassChips(settings, set)
-        Chips(listOf(false to stringResource(R.string.look_glass_clear), true to stringResource(R.string.look_solid)), settings.veilSolid) { v ->
-            set { it.copy(veilSolid = v) }
-        }
-        if (!settings.veilSolid) {
-            val shift = settings.veilShift
-            SliderRow(stringResource(R.string.look_density), shift.toFloat(), -LauncherSettings.MAX_VEIL_SHIFT.toFloat(),
-                LauncherSettings.MAX_VEIL_SHIFT.toFloat(), 1f, (if (shift > 0) "+" else "") + "$shift %") { v ->
-                set { it.copy(veilShift = v.toInt()) }
-            }
-        }
-        if (settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v -> set { it.copy(veilEdge = v) } }
-
-        Kick(stringResource(R.string.theme))
-        Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
-            ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
-        PaletteEditor(settings, set)
-
         Kick(stringResource(R.string.icons))
         IconStyleChips(settings, set)
-        SliderRow(stringResource(R.string.inspect_size), settings.iconSize.toFloat(), LauncherSettings.MIN_ICON.toFloat(),
-            LauncherSettings.MAX_ICON.toFloat(), 2f, "${settings.iconSize} dp") { v -> set { it.copy(iconSize = v.toInt()) } }
+        AllIconsSize(settings, state, set, onChange)
         val icons = state.layout.items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
-        if (icons.any { it.sizeDp != 0 }) Action(stringResource(R.string.look_icons_same), c.acc) { state.resetIconSizes(); onChange() }
         Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on -> state.setLabels(on); onChange() }
+        // Less used: folded, each names its current choice.
+        Fold(stringResource(R.string.look_material), stringResource(glassName(settings.glass))) {
+            GlassChips(settings, set)
+            Chips(listOf(false to stringResource(R.string.look_glass_clear), true to stringResource(R.string.look_solid)), settings.veilSolid) { v ->
+                set { it.copy(veilSolid = v) }
+            }
+            if (!settings.veilSolid) {
+                val shift = settings.veilShift
+                SliderRow(stringResource(R.string.look_density), shift.toFloat(), -LauncherSettings.MAX_VEIL_SHIFT.toFloat(),
+                    LauncherSettings.MAX_VEIL_SHIFT.toFloat(), 1f, (if (shift > 0) "+" else "") + "$shift %") { v ->
+                    set { it.copy(veilShift = v.toInt()) }
+                }
+            }
+            if (settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v -> set { it.copy(veilEdge = v) } }
+        }
+        Fold(stringResource(R.string.theme), stringResource(themeName(settings.theme))) {
+            Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
+                ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
+            PaletteEditor(settings, set)
+        }
         Text(stringResource(R.string.look_hint), Modifier.padding(vertical = 8.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
+    }
+}
+
+/**
+ * One size for every app and FLOW icon on Home: moving it drops each icon's own size (one undo step), so all of them
+ * really follow it; in the Look panel and in every icon's inspector.
+ */
+@Composable
+fun AllIconsSize(settings: LauncherSettings, state: HomeEditorState, set: SettingsEdit, onChange: () -> Unit) {
+    SliderRow(stringResource(R.string.icons_all_size), settings.iconSize.toFloat(), LauncherSettings.MIN_ICON.toFloat(),
+        LauncherSettings.MAX_ICON.toFloat(), 2f, "${settings.iconSize} dp") { v ->
+        set { it.copy(iconSize = v.toInt()) }
+        state.resetIconSizes(); onChange()
     }
 }
 

@@ -288,7 +288,6 @@
     <string name="look_solid">Solid</string>
     <string name="look_density">Density</string>
     <string name="look_edge">Lit edge</string>
-    <string name="look_icons_same">Same size for all icons</string>
     <string name="look_labels">Labels under icons</string>
     <string name="look_hint">Pinch any element to resize it. Tap PULSE at the camera to set it up.</string>
     <string name="studio_look_moved">Look, icons, clock, date and PULSE are edited right on Home.</string>
@@ -367,4 +366,6 @@
     <string name="dock_spread">Spread over the edge</string>
     <string name="dock_gap">Distance from LENS</string>
     <string name="dock_pitch">Spacing between apps</string>
+    <string name="icons_all_size">Size for all icons</string>
+    <string name="icon_this_size">This icon</string>
 </resources>

@@ -496,10 +496,10 @@ private fun Home(
             val onClock = if (plate) places else wallPlaces
             val accent = onClock[PaletteTarget.Clock]
             val textAccent = onClock[PaletteTarget.Text]
-            // The plate's 20 dp inset comes out of the 28 dp margin, so the time keeps its width.
+            // The plate keeps 8 dp from the edges; bare text may come [TEXT_EDGE] dp close.
             Column(
                 Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(top = topPad)
-                    .atFx(a.fx, geometry.areaLeft, geometry.areaW, if (plate) 8f else 28f).graphicsLayer { alpha = quiet }
+                    .atFx(a.fx, geometry.areaLeft, geometry.areaW, if (plate) 8f else TEXT_EDGE).graphicsLayer { alpha = quiet }
                     .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) }
                     .then(if (plate) Modifier.veilSurface(plateTokens(clock.background), VeilOrigin.Top, RoundedCornerShape(26.dp))
                         .padding(horizontal = (20f + clock.look.padX).dp).padding(top = (14f + clock.look.padY).dp, bottom = (16f + clock.look.padY).dp)
@@ -523,7 +523,7 @@ private fun Home(
             // An unpinned date: placed like the clock (§5.5), by its own free point.
             DateText(freeDate, now, homeInk, wallPlaces[PaletteTarget.Text], Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
                 .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp)
-                .atFx(freeDate.anchor.fx, geometry.areaLeft, geometry.areaW, 28f).graphicsLayer { alpha = quiet }
+                .atFx(freeDate.anchor.fx, geometry.areaLeft, geometry.areaW, TEXT_EDGE).graphicsLayer { alpha = quiet }
                 .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
         }
 
@@ -794,7 +794,7 @@ private fun Home(
                         Zone(lensPt.x + minOf(-r, tip.x), lensPt.y + minOf(-r, tip.y), lensPt.x + maxOf(r, tip.x), lensPt.y + maxOf(r, tip.y))
                     }
                     else -> ed.pointOf(sel)?.let { c ->
-                        val r = sel.iconDp() / 2f + 6f
+                        val r = sel.iconDp(iconDefault) / 2f + 6f
                         Zone(c.x - r, c.y - r, c.x + r, c.y + r + if (sel.label) 20f else 0f)
                     }
                 }
@@ -908,8 +908,10 @@ private const val LENS_A11Y_STEP = 24f
 
 /** Room under the editor bar for the name of what is edited, dp. */
 private const val EDIT_LABEL = 8f
-/** Where the clock and free text start below the status bar, dp: just under the editor bar. */
-private const val TEXT_TOP = BAR_HEIGHT + 4f
+/** Where the clock and free text start below the status bar, dp: right under it (the editor bar floats over). */
+private const val TEXT_TOP = 0f
+/** How close the clock and free text may come to the screen's side edges, dp. */
+private const val TEXT_EDGE = 12f
 
 /**
  * Places a clock or an unpinned date so that its centre sits at [fx] across the editor's area, the very point
