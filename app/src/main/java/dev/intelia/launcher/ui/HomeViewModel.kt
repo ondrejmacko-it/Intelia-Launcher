@@ -3,6 +3,10 @@ package dev.intelia.launcher.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.ArcLook
+import dev.intelia.launcher.action.ArcSet
+import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.HomeLayout
 import dev.intelia.launcher.data.LauncherSettings
@@ -43,27 +47,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val flowMatches: StateFlow<List<FlowAlias>> = combine(settings, query) { s, q -> Flow.suggest(s.aliases, q) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    /** Fixed slots; a removed or hidden app leaves its slot empty instead of shifting the others. */
-    val arcApps: StateFlow<List<AppEntry?>> = combine(visibleApps, settings) { apps, s ->
-        val byKey = apps.associateBy { it.key }
-        List(LauncherSettings.ARC_SLOTS) { i -> s.arc.getOrNull(i)?.let(byKey::get) }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherSettings.ARC_SLOTS) { null })
-
-    /** Ring 2 fills from the centre outwards, so the first FLOW sits straight above LENS (D6). */
-    val arcFlows: StateFlow<List<FlowAlias?>> = settings.map { s ->
-        val byId = s.aliases.associateBy { it.id }
-        fillFromCentre(s.arcFlows.map(byId::get), LauncherSettings.ARC_FLOW_SLOTS)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherSettings.ARC_FLOW_SLOTS) { null })
-
     private val _shortcuts = MutableStateFlow<List<ShortcutEntry>>(emptyList())
     /** Shortcuts the system exposes to us; empty unless Intelia is the default home app. */
     val shortcuts: StateFlow<List<ShortcutEntry>> = _shortcuts.asStateFlow()
 
-    /** Ring 3 fills from the centre outwards like ring 2, so the first shortcut sits straight above LENS. */
-    val arcShortcuts: StateFlow<List<ShortcutEntry?>> = combine(shortcuts, settings) { list, s ->
-        val byKey = list.associateBy { it.key }
-        fillFromCentre(s.arcShortcuts.map(byKey::get), LauncherSettings.ARC_SHORTCUT_SLOTS)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherSettings.ARC_SHORTCUT_SLOTS) { null })
+    /**
+     * ARC from `settings.controls` (M2): every set, each slot resolved on this device. A removed or hidden app, a
+     * deleted FLOW or a shortcut the system no longer offers leaves its slot empty instead of shifting the others.
+     */
+    val arc: StateFlow<ArcContent> = combine(visibleApps, shortcuts, settings) { apps, list, s ->
+        val controls = s.controls
+        val byKey = apps.associateBy { it.key }
+        val flows = s.aliases.associateBy { it.id }
+        val cuts = list.associateBy { it.key }
+        fun resolve(a: Action?): ArcEntry? = when (a) {
+            null -> null
+            is Action.App -> byKey[a.component]?.let { ArcEntry(a, app = it) }
+            is Action.Flow -> flows[a.id]?.let { ArcEntry(a, flow = it) }
+            is Action.Shortcut -> cuts[a.pkg + "/" + a.id]?.let { ArcEntry(a, shortcut = it) }
+            else -> ArcEntry(a)
+        }
+        val sets = controls.arcSets.ifEmpty { listOf(ArcSet(Controls.MAIN_SET)) }.map { set ->
+            ArcSetView(set.id, set.name, List(controls.arc.slots) { i -> resolve(set.slots.getOrNull(i)) })
+        }
+        ArcContent(sets, controls.arc)
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, ArcContent(emptyList(), ArcLook()))
 
     val favoriteApps: StateFlow<List<AppEntry>> = combine(visibleApps, settings) { apps, s ->
         val byKey = apps.associateBy { it.key }
@@ -110,18 +118,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** Adds to the first empty slot so the other slots keep their positions. */
     private fun <T> placeInSlot(list: List<T>, item: T, capacity: Int): List<T> = if (item in list || list.size >= capacity) list else list + item
 
-    fun toggleArc(entry: AppEntry) = updateSettings { s ->
-        if (entry.key in s.arc) s.copy(arc = s.arc - entry.key) else s.copy(arc = placeInSlot(s.arc, entry.key, LauncherSettings.ARC_SLOTS))
-    }
+    /**
+     * Every ARC edit goes through the Control System: the first one writes `controlConfig` (migrated from the legacy
+     * lists, which stay untouched), later ones edit it.
+     */
+    fun editControls(transform: (Controls) -> Controls) = updateSettings { s -> s.copy(controlConfig = transform(s.controls)) }
 
-    fun toggleArcFlow(id: String, on: Boolean) = updateSettings { s ->
-        s.copy(arcFlows = if (on) placeInSlot(s.arcFlows, id, LauncherSettings.ARC_FLOW_SLOTS) else s.arcFlows - id)
-    }
-
-    fun toggleArcShortcut(key: String) = updateSettings { s ->
-        s.copy(arcShortcuts = if (key in s.arcShortcuts) s.arcShortcuts - key
-        else placeInSlot(s.arcShortcuts, key, LauncherSettings.ARC_SHORTCUT_SLOTS))
-    }
+    fun toggleArc(entry: AppEntry) = editControls { c -> Action.App(entry.key).let { c.toggleInArc(it, !c.inArc(it)) } }
 
     fun toggleFavorite(entry: AppEntry) = updateSettings { s ->
         s.copy(favorites = if (entry.key in s.favorites) s.favorites - entry.key
@@ -153,11 +156,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         updateSettings { s ->
             val exists = s.aliases.any { it.id == alias.id }
             val aliases = if (exists) s.aliases.map { if (it.id == alias.id) alias else it } else s.aliases + alias
-            val arcFlows = if (inArc) placeInSlot(s.arcFlows, alias.id, LauncherSettings.ARC_FLOW_SLOTS) else s.arcFlows - alias.id
-            s.copy(aliases = aliases, arcFlows = arcFlows)
+            s.copy(aliases = aliases, controlConfig = s.controls.toggleInArc(Action.Flow(alias.id), inArc))
         }
         return null
     }
 
-    fun deleteAlias(id: String) = updateSettings { s -> s.copy(aliases = s.aliases.filterNot { it.id == id }, arcFlows = s.arcFlows - id) }
+    fun deleteAlias(id: String) = updateSettings { s ->
+        s.copy(aliases = s.aliases.filterNot { it.id == id }, controlConfig = s.controls.toggleInArc(Action.Flow(id), on = false))
+    }
 }

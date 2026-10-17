@@ -166,9 +166,7 @@ fun dateLine(now: LocalDateTime): String =
 private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSignal: Int) {
     val context = LocalContext.current
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
-    val arcApps by model.arcApps.collectAsStateWithLifecycle()
-    val arcFlows by model.arcFlows.collectAsStateWithLifecycle()
-    val arcShortcuts by model.arcShortcuts.collectAsStateWithLifecycle()
+    val arc by model.arc.collectAsStateWithLifecycle()
     val visible by model.visibleApps.collectAsStateWithLifecycle()
     val icons = LocalContext.current.intelia.icons
     // The drawer's icons are rendered while Home rests, so opening it draws them in its first frames.
@@ -276,9 +274,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                 Box(Modifier.fillMaxSize().veilBackdrop(depth, backdropBlur)) { Home(
                     settings = settings,
                     apps = remember(favorites, visible) { (visible + favorites).associateBy { it.key } },
-                    arc = remember(arcApps, arcFlows, arcShortcuts, settings.arcRings) {
-                        ArcContent(arcApps, arcFlows, arcShortcuts, settings.arcRings)
-                    },
+                    arc = arc,
                     flowSteps = steps,
                     onSearch = { openSearch(true) },
                     onDrawer = ::openDrawer,
@@ -324,7 +320,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                 Page.Search, Page.Drawer -> Unit
                 Page.Flows -> FlowList(
                     aliases = settings.aliases,
-                    arcFlows = settings.arcFlows,
+                    arcFlows = remember(settings) { settings.controls.arcSets.flatMap { it.slots }.filterIsInstance<Action.Flow>().map { it.id } },
                     flowSteps = steps,
                     onBack = { if (flowsBack == Page.Studio) page = Page.Studio else goHome() },
                     onCreate = { edit(null, Page.Flows) },
@@ -336,8 +332,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     val initial = settings.aliases.firstOrNull { it.id == id }
                     FlowEditor(
                         initial = initial,
-                        inArc = initial != null && initial.id in settings.arcFlows,
-                        arcFull = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS,
+                        inArc = initial != null && settings.controls.inArc(Action.Flow(initial.id)),
+                        arcFull = settings.controls.arcFull(),
                         apps = visible,
                         resolve = model::entry,
                         onSave = { alias, inArc ->
@@ -362,8 +358,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     options?.let { entry ->
         AppOptionsSheet(
             app = entry,
-            inArc = entry.key in settings.arc,
-            arcFull = settings.arc.size >= LauncherSettings.ARC_SLOTS,
+            inArc = settings.controls.inArc(Action.App(entry.key)),
+            arcFull = settings.controls.arcFull(),
             favorite = entry.key in settings.favorites,
             favoritesFull = settings.favorites.size >= LauncherSettings.MAX_FAVORITES,
             onArc = { model.toggleArc(entry); options = null },
@@ -866,15 +862,17 @@ private fun Home(
                 }
             }
             val sel = selected?.let(ed::item)
-            val rings = remember(arc.slots, lensPt, dock.edge, maxWidth, maxHeight) { Dock.rings(arc.slots, dock.edge, lensPt, maxWidth.value, maxHeight.value) }
-            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, rings, Modifier.fillMaxSize().then(homeLayer), dock.edge)
+            val bow = remember(arc.look, arc.sets.size, lensPt, dock.edge, maxWidth, maxHeight) {
+                Dock.bow(arc.look, arc.sets.size.coerceAtLeast(1), dock.edge, lensPt, maxWidth.value, maxHeight.value)
+            }
+            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, bow, Modifier.fillMaxSize().then(homeLayer), dock.edge)
             if (sel != null && drag == null && ed.lensDrag == null) {
                 val zone = when (sel.kind) {
                     ItemKind.Clock -> timeZone ?: clockZone
                     ItemKind.Date -> dateZone
                     // The card keeps clear of the ghost ARC: its zone reaches up to the outermost ring.
                     ItemKind.Lens -> (sel.lensDp() / 2f + 6f).let { r ->
-                        val tip = Dock.toScreen(dock.edge, 0f, -maxOf(r, rings.reach + 8f))
+                        val tip = Dock.toScreen(dock.edge, 0f, -maxOf(r, bow.reach + 8f))
                         Zone(lensPt.x + minOf(-r, tip.x), lensPt.y + minOf(-r, tip.y), lensPt.x + maxOf(r, tip.x), lensPt.y + maxOf(r, tip.y))
                     }
                     else -> ed.pointOf(sel)?.let { c ->

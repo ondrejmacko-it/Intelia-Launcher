@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import dev.intelia.launcher.R
+import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.data.DockEdge
 import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.LensAt
@@ -756,46 +757,23 @@ fun AddMenu(at: Pt, screenW: Float, topLimit: Float, avoid: Zone?, onApp: () -> 
     }
 }
 
-/** A list of apps or FLOWs to add, on Veil Dense from the bottom. */
+/** A list of apps or FLOWs to add to Home: the shared [ActionPicker] with just those two sections. */
 @Composable
 fun AddPicker(title: String, apps: List<AppEntry>, flows: List<FlowAlias>, onApp: (AppEntry) -> Unit, onFlow: (FlowAlias) -> Unit, onDismiss: () -> Unit) {
-    val c = LocalCrystal.current
-    Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Bottom)
-            .padding(vertical = 12.dp)) {
-            Text(title, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
-            var filter by remember { mutableStateOf("") }
-            if (apps.size + flows.size > PICKER_FILTER_FROM) PickerFilter(filter) { filter = it }
-            val shownApps = if (filter.isBlank()) apps else AppSearch.rank(apps, filter) { it.searchKey }
-            val shownFlows = if (filter.isBlank()) flows else AppSearch.rank(flows, filter) { AppSearch.fold(it.name) }
-            if (shownApps.isEmpty() && shownFlows.isEmpty()) Text(stringResource(R.string.pick_none), Modifier.padding(20.dp),
-                style = CrystalType.body.copy(fontSize = 14.sp), color = c.fg2)
-            LazyColumn {
-                items(shownApps, key = { "a" + it.key }) { app ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onApp(app) }.padding(horizontal = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        AppIcon(app, Modifier.size(32.dp), tint = c.fg)
-                        Text(app.label, Modifier.padding(start = 14.dp), style = CrystalType.body.copy(fontSize = 15.sp), color = c.fg, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                items(shownFlows, key = { "f" + it.id }) { flow ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onFlow(flow) }.padding(horizontal = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        HomeGlyph(Glyph.Flow, null, tint = c.fg, size = 24.dp)
-                        Text(flow.name, Modifier.padding(start = 18.dp), style = CrystalType.body.copy(fontSize = 15.sp), color = c.fg, maxLines = 1)
-                    }
-                }
-            }
+    ActionPicker(title, apps, flows, onPick = { action ->
+        when (action) {
+            is Action.App -> apps.firstOrNull { it.key == action.component }?.let(onApp)
+            is Action.Flow -> flows.firstOrNull { it.id == action.id }?.let(onFlow)
+            else -> Unit
         }
-    }
+    }, onDismiss = onDismiss)
 }
 
-private const val PICKER_FILTER_FROM = 8
+internal const val PICKER_FILTER_FROM = 8
 
 /** The picker's filter row: diacritics-insensitive, the same ranking as Search; never runs anything. */
 @Composable
-private fun PickerFilter(value: String, onChange: (String) -> Unit) {
+internal fun PickerFilter(value: String, onChange: (String) -> Unit) {
     val c = LocalCrystal.current
     val label = stringResource(R.string.flow_find_app)
     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp).heightIn(min = 48.dp).clip(CircleShape)
@@ -935,25 +913,22 @@ fun ConfirmDialog(title: String, action: String, onConfirm: () -> Unit, onDismis
     }
 }
 
-/** Faint ARC rings around LENS while its inspector is open (radii 108 / 180 / 250 dp, as on the phone). */
+/** The faint shallow ARC around LENS while its inspector is open: the arc and slots ARC would really open with LENS here. */
 @Composable
-fun GhostArc(lens: Pt, rings: ArcRings, modifier: Modifier = Modifier, edge: DockEdge = DockEdge.Bottom) {
+fun GhostArc(lens: Pt, bow: ArcBow, modifier: Modifier = Modifier, edge: DockEdge = DockEdge.Bottom) {
     val c = LocalCrystal.current
     Canvas(modifier) {
         val o = Offset(lens.x * density, lens.y * density)
         val ink = c.fg.copy(alpha = .22f)
-        // The arcs ARC would really open with LENS here: each ring's span and its slots, clipped by the edges.
-        rings.angles.forEachIndexed { ring, angles ->
-            if (angles.isEmpty()) return@forEachIndexed
-            val r = rings.radius(ring) * density
-            val from = angles.min()
-            val to = angles.max()
-            drawArc(ink, -90f + Dock.degrees(edge) + from - 6f, to - from + 12f, false, Offset(o.x - r, o.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
-            angles.indices.forEach { i ->
-                val (lx, ly) = rings.position(ring, i)
-                val p = Dock.toScreen(edge, lx, ly)
-                drawCircle(ink, 3.dp.toPx(), Offset(o.x + p.x * density, o.y + p.y * density))
-            }
+        if (bow.angles.isEmpty()) return@Canvas
+        val r = bow.radius * density
+        val from = bow.angles.first()
+        val to = bow.angles.last()
+        drawArc(ink, -90f + Dock.degrees(edge) + from - 6f, to - from + 12f, false, Offset(o.x - r, o.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
+        (0 until bow.count).forEach { i ->
+            val (lx, ly) = bow.position(i)
+            val p = Dock.toScreen(edge, lx, ly)
+            drawCircle(ink, 3.dp.toPx(), Offset(o.x + p.x * density, o.y + p.y * density))
         }
     }
 }

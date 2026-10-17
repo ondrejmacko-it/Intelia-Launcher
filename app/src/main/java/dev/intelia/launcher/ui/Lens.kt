@@ -63,6 +63,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
@@ -99,18 +100,6 @@ fun lensShift(dx: Float, width: Dp): Dp {
 /** Closest the LENS centre gets to a screen edge, dp (x 60–300 on a 360 dp screen). */
 const val LENS_EDGE = 60f
 
-/** Everything ARC can hold, ring by ring, in fixed slots. */
-class ArcContent(
-    val apps: List<AppEntry?>,
-    val flows: List<FlowAlias?>,
-    val shortcuts: List<ShortcutEntry?>,
-    val rings: Int,
-) {
-    val slots: List<List<Boolean>> = listOf(apps.map { it != null }, flows.map { it != null }, shortcuts.map { it != null })
-        .take(rings.coerceIn(1, 3))
-    val empty get() = slots.all { ring -> ring.none { it } }
-}
-
 /**
  * Centres the content at ([x], [y]) of the parent. The node itself fills the parent: content placed
  * outside a node's own bounds would draw but never receive touches.
@@ -125,9 +114,10 @@ internal fun Modifier.centerAt(x: Dp, y: Dp) = layout { measurable, constraints 
 }
 
 /**
- * LENS and its ARC. Tap = search, swipe up = apps, hold = ARC: slide outwards through the rings,
- * release on an item to open it, slide back onto LENS (or below it) to cancel.
- * The composable fills the screen so the rings can grow over Home; only LENS takes touches.
+ * LENS and its ARC. Tap = search, swipe up = apps, hold = ARC: one shallow arc of slots opens away from LENS's edge
+ * (M2). Slide onto a slot and release to run it; slide past an end of the arc or onto a dot to switch the set;
+ * slide back onto LENS (or below it) to cancel. The composable fills the screen so the arc can grow over Home;
+ * only LENS takes touches.
  */
 @Composable
 fun LensArc(
@@ -156,23 +146,20 @@ fun LensArc(
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
     var open by remember { mutableStateOf(false) }
-    /** Opened by TalkBack or a keyboard: items become ordinary buttons, nothing follows a finger. */
+    /** Opened by TalkBack or a keyboard: slots and set dots become ordinary buttons, nothing follows a finger. */
     var assisted by remember { mutableStateOf(false) }
-    var pick by remember { mutableStateOf<ArcPick?>(null) }
-    var hoverRing by remember { mutableStateOf(0) }
+    var track by remember { mutableStateOf(BowTrack()) }
     val latestContent by rememberUpdatedState(content)
     val openChanged by rememberUpdatedState(onOpenChange)
+    val sets = content.sets.size.coerceAtLeast(1)
+    val set = track.set.coerceIn(0, sets - 1)
 
-    fun close() { open = false; assisted = false; pick = null; hoverRing = 0 }
-    fun commit(target: ArcPick?) {
-        val c = latestContent
+    // Every open starts on the first set, so the hand always knows where it lands.
+    fun close() { open = false; assisted = false; track = BowTrack() }
+    fun commit(setIndex: Int, slot: Int?) {
+        val chosen = slot?.let { latestContent.sets.getOrNull(setIndex)?.slots?.getOrNull(it) }
         close()
-        when (target?.ring) {
-            0 -> c.apps.getOrNull(target.index)?.let { Action.App(it.key) }
-            1 -> c.flows.getOrNull(target.index)?.let { Action.Flow(it.id) }
-            2 -> c.shortcuts.getOrNull(target.index)?.let { Action.Shortcut(it.packageName, it.id) }
-            else -> null
-        }?.let { haptics.confirm(); onAction(it) }
+        chosen?.let { haptics.confirm(); onAction(it.action) }
     }
 
     LaunchedEffect(open) { openChanged(open) }
@@ -184,151 +171,114 @@ fun LensArc(
     val lensDescription = stringResource(R.string.lens_description)
     val arcAction = stringResource(R.string.arc_action)
     val arcOpen = stringResource(R.string.arc_open)
-    val kinds = listOf(stringResource(R.string.arc_ring_apps), stringResource(R.string.flow), stringResource(R.string.arc_ring_shortcuts))
     val missing = stringResource(R.string.flow_target_missing)
+    val setNames = content.sets.mapIndexed { i, v -> setLabel(v, i) }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
         val topInset = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp() }
         val cx = lens.x.dp
         val cy = lens.y.dp
-        val rings = remember(content.slots, lens, edge, maxWidth, maxHeight) { Dock.rings(content.slots, edge, lens, maxWidth.value, maxHeight.value) }
+        val look = content.look
+        val bow = remember(look, sets, lens, edge, maxWidth, maxHeight) { Dock.bow(look, sets, edge, lens, maxWidth.value, maxHeight.value) }
         fun screen(x: Float, y: Float) = Dock.toScreen(edge, x, y)
 
         if (reveal > 0f) {
             // Veil only while ARC is open: it is a transient layer, never part of resting Home.
-            val veil = if (homeInk.luminance() > .5f) Color.Black.copy(alpha = .62f) else ink.paper.copy(alpha = .82f)
+            val veil = if (homeInk.luminance() > .5f) Color.Black.copy(alpha = .58f) else ink.paper.copy(alpha = .78f)
+            val veilRadius = (bow.reach + 140f).dp
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = reveal }.drawBehind {
-                val center = Offset(cx.toPx(), cy.toPx())
-                drawRect(Brush.radialGradient(0f to veil, .62f to veil.copy(alpha = veil.alpha * .7f), 1f to Color.Transparent,
-                    center = center, radius = 520.dp.toPx()))
+                drawRect(Brush.radialGradient(0f to veil, .6f to veil.copy(alpha = veil.alpha * .7f), 1f to Color.Transparent,
+                    center = Offset(cx.toPx(), cy.toPx()), radius = veilRadius.toPx()))
             }.then(if (assisted) Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
                 onClickLabel = stringResource(R.string.close)) { close() } else Modifier))
 
-            val reached = if (assisted) rings.slots.lastIndex else hoverRing.coerceAtLeast(0)
-            fun ringAlpha(ring: Int) = when {
-                ring <= reached -> 1f
-                ring == reached + 1 -> .35f
-                else -> 0f
-            }
+            val view = content.sets.getOrNull(set)
+            val pick = track.pick
 
-            // Orbits, the thread to the chosen slot, and ring names.
+            // The arc, and the thread to the chosen slot.
             Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = reveal }) {
                 val center = Offset(cx.toPx(), cy.toPx())
-                rings.slots.indices.forEach { ring ->
-                    val a = ringAlpha(ring)
-                    if (a == 0f) return@forEach
-                    val r = rings.radius(ring).dp.toPx()
-                    val angles = rings.angles[ring]
-                    val start = (angles.first() - 9f) - 90f + Dock.degrees(edge)
-                    val sweep = (angles.last() - angles.first()) + 18f
-                    drawArc(homeInk.copy(alpha = (if (pick?.ring == ring) .42f else .2f) * a), start, sweep, false,
+                val r = bow.radius.dp.toPx()
+                if (bow.angles.isNotEmpty()) {
+                    val start = (bow.angles.first() - 10f) - 90f + Dock.degrees(edge)
+                    val sweep = (bow.angles.last() - bow.angles.first()) + 20f
+                    drawArc(homeInk.copy(alpha = if (pick != null) .4f else .22f), start, sweep, false,
                         topLeft = Offset(center.x - r, center.y - r), size = Size(2 * r, 2 * r),
                         style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 5.dp.toPx()))))
                 }
                 pick?.let { p ->
-                    val (lx, ly) = rings.position(p.ring, p.index)
+                    val (lx, ly) = bow.position(p)
                     val e = screen(lx, ly)
                     val end = Offset(center.x + e.x.dp.toPx(), center.y + e.y.dp.toPx())
                     val length = hypot(end.x - center.x, end.y - center.y)
                     val ux = (end.x - center.x) / length
                     val uy = (end.y - center.y) / length
-                    val from = Offset(center.x + ux * 20.dp.toPx(), center.y + uy * 20.dp.toPx())
-                    val to = Offset(end.x - ux * 28.dp.toPx(), end.y - uy * 28.dp.toPx())
-                    drawLine(accent, from, to, 1.5.dp.toPx(), StrokeCap.Round)
-                    drawCircle(accent, 3.dp.toPx(), Offset((from.x + to.x) / 2f, (from.y + to.y) / 2f))
+                    drawLine(accent, Offset(center.x + ux * 20.dp.toPx(), center.y + uy * 20.dp.toPx()),
+                        Offset(end.x - ux * 28.dp.toPx(), end.y - uy * 28.dp.toPx()), 1.5.dp.toPx(), StrokeCap.Round)
                 }
-            }
-            rings.slots.indices.forEach { ring ->
-                val a = ringAlpha(ring)
-                // Above the ring's middle; on a side row, where the text would lie across the slots, past its first end.
-                val label = if (!edge.vertical || rings.angles[ring].isEmpty()) screen(0f, -rings.radius(ring) - 44f) else {
-                    val a = (rings.angles[ring].first() - 30f) * PI.toFloat() / 180f
-                    val r = rings.radius(ring)
-                    screen(r * sin(a), -r * cos(a)).let { p ->
-                        Pt((lens.x + p.x).coerceIn(48f, maxWidth.value - 48f) - lens.x, (lens.y + p.y).coerceIn(topInset.value + 16f, maxHeight.value - 16f) - lens.y)
-                    }
-                }
-                if (a > 0f) Kicker(kinds[ring], Modifier.centerAt(cx + label.x.dp, cy + label.y.dp).graphicsLayer { alpha = a * reveal },
-                    color = homeInk.copy(alpha = .7f))
             }
 
-            // Slots.
-            rings.slots.forEachIndexed { ring, ringSlots ->
-                val a = ringAlpha(ring)
-                ringSlots.forEachIndexed { index, filled ->
-                    if (!filled) return@forEachIndexed
-                    val (lx, ly) = rings.position(ring, index)
-                    val (x, y) = screen(lx, ly).let { it.x to it.y }
-                    val chosen = pick == ArcPick(ring, index)
-                    val scale by animateFloatAsState(if (chosen) 1.22f else 1f, tween(motionMs(80)), label = "arc-slot")
-                    val itemModifier = Modifier.centerAt(cx + x.dp, cy + y.dp).graphicsLayer {
-                        alpha = (if (a == 0f) 0f else a) * reveal
-                        scaleX = scale; scaleY = scale
-                        // Slots rise out of LENS, away from its edge.
-                        val rise = screen(0f, (1f - reveal) * 18f)
-                        translationX = rise.x.dp.toPx(); translationY = rise.y.dp.toPx()
-                    }
-                    val clickModifier = if (assisted) Modifier.clip(CircleShape).clickable(role = Role.Button) { commit(ArcPick(ring, index)) }
-                    else Modifier.semantics { hideFromAccessibility() }
-                    when (ring) {
-                        0 -> content.apps[index]?.let { app ->
-                            Box(itemModifier.then(clickModifier).size(52.dp).semantics { contentDescription = app.label },
-                                contentAlignment = Alignment.Center) {
-                                AppIcon(app, Modifier.size(42.dp), tint = if (chosen) accent else homeInk)
-                                if (chosen) Canvas(Modifier.size(52.dp)) { drawCircle(accent, size.minDimension / 2f - 1.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
-                            }
-                        }
-                        1 -> content.flows[index]?.let { alias ->
-                            val angle = rings.angles[ring][index]
-                            Text(alias.name, itemModifier.then(clickModifier).graphicsLayer { rotationZ = angle * .55f }
-                                .widthIn(max = 92.dp).padding(8.dp),
-                                style = InkText.item.copy(fontStyle = FontStyle.Italic, fontSize = 20.sp, shadow = homeShadow(homeInk)),
-                                color = if (chosen) accent else homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        2 -> content.shortcuts[index]?.let { shortcut ->
-                            Box(itemModifier.then(clickModifier).size(48.dp).semantics { contentDescription = shortcut.label },
-                                contentAlignment = Alignment.Center) {
-                                ShortcutIcon(shortcut, Modifier.size(36.dp), tint = if (chosen) accent else homeInk)
-                                if (chosen) Canvas(Modifier.size(48.dp)) { drawCircle(accent, size.minDimension / 2f - 1.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
-                            }
-                        }
+            // Slots, in priority order (0 = middle of the arc).
+            view?.slots?.forEachIndexed { index, slot ->
+                if (slot == null) return@forEachIndexed
+                val (lx, ly) = bow.position(index)
+                val p = screen(lx, ly)
+                val chosen = pick == index
+                val scale by animateFloatAsState(if (chosen) 1.18f else 1f, tween(motionMs(80)), label = "arc-slot")
+                val label = slotLabel(slot)
+                Box(Modifier.centerAt(cx + p.x.dp, cy + p.y.dp).graphicsLayer {
+                    alpha = reveal
+                    scaleX = scale; scaleY = scale
+                    // Slots rise out of LENS, away from its edge.
+                    val rise = screen(0f, (1f - reveal) * 18f)
+                    translationX = rise.x.dp.toPx(); translationY = rise.y.dp.toPx()
+                }.then(if (assisted) Modifier.clip(CircleShape).clickable(role = Role.Button) { commit(set, index) }
+                    .semantics { contentDescription = label } else Modifier.semantics { hideFromAccessibility() })
+                    .size(52.dp), contentAlignment = Alignment.Center) {
+                    ActionIcon(slot.action, label, 40.dp, if (chosen) accent else homeInk, app = slot.app, shortcut = slot.shortcut)
+                    if (chosen) Canvas(Modifier.size(52.dp)) { drawCircle(accent, size.minDimension / 2f - 1.dp.toPx(), style = Stroke(1.5.dp.toPx())) }
+                }
+            }
+
+            // Set dots above the middle of the arc: the shown set is filled.
+            if (sets > 1) repeat(sets) { k ->
+                val (dx, dy) = bow.dot(k)
+                val p = screen(dx, dy)
+                val name = setNames.getOrElse(k) { "" }
+                Box(Modifier.centerAt(cx + p.x.dp, cy + p.y.dp).graphicsLayer { alpha = reveal }
+                    .then(if (assisted) Modifier.clip(CircleShape).clickable(role = Role.Tab) { track = BowTrack(k) }
+                        .semantics { contentDescription = name; selected = k == set } else Modifier.semantics { hideFromAccessibility() })
+                    .size(if (assisted) 48.dp else 28.dp), contentAlignment = Alignment.Center) {
+                    Canvas(Modifier.size(10.dp)) {
+                        if (k == set) drawCircle(accent, size.minDimension / 2f)
+                        else drawCircle(homeInk.copy(alpha = .6f), size.minDimension / 2f - .75.dp.toPx(), style = Stroke(1.5.dp.toPx()))
                     }
                 }
             }
 
-            // What releasing will do, said once and large.
-            val chosen = pick
-            // With the LENS row on top, ARC opens downwards and the words go to the bottom instead.
-            val place = if (edge == DockEdge.Top) Modifier.align(Alignment.BottomCenter).padding(bottom = bottomInset + 72.dp)
-                else Modifier.padding(top = topInset + 72.dp)
-            Column(Modifier.then(place).fillMaxWidth().padding(start = 28.dp, end = 28.dp).graphicsLayer { alpha = reveal },
-                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val title: String
-                val kicker: String
-                var steps: List<String?>? = null
-                when (chosen?.ring) {
-                    0 -> { title = content.apps[chosen.index]?.label.orEmpty(); kicker = kinds[0] + " · " + stringResource(R.string.arc_release) }
-                    1 -> {
-                        val alias = content.flows[chosen.index]
-                        title = alias?.name.orEmpty(); kicker = kinds[1] + " · " + stringResource(R.string.arc_release)
-                        steps = alias?.let(flowSteps)
-                    }
-                    2 -> { title = content.shortcuts[chosen.index]?.label.orEmpty(); kicker = kinds[2] + " · " + stringResource(R.string.arc_release) }
-                    else -> {
-                        title = if (content.empty) stringResource(R.string.arc_empty_title) else "ARC"
-                        kicker = if (assisted) arcOpen else stringResource(R.string.arc_further)
-                    }
+            // What releasing will do, said small just beyond the arc; a FLOW is always previewed step by step.
+            val chosenSlot = pick?.let { view?.slots?.getOrNull(it) }
+            val beyond = screen(0f, -(bow.radius + if (sets > 1) ArcBow.DOTS + 40f else 60f))
+            // Kept on screen: with LENS on a side edge the label would otherwise hang past it.
+            val lx = (lens.x + beyond.x).coerceIn(110f, maxWidth.value - 110f)
+            val ly = (lens.y + beyond.y).coerceIn(topInset.value + 40f, maxHeight.value - bottomInset.value - 40f)
+            Column(Modifier.centerAt(lx.dp, ly.dp).widthIn(max = 220.dp).graphicsLayer { alpha = reveal },
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                val kicker = when {
+                    chosenSlot != null -> stringResource(R.string.arc_release)
+                    content.empty -> stringResource(R.string.arc_empty_title)
+                    sets > 1 -> setNames.getOrElse(set) { "" }
+                    else -> if (assisted) arcOpen else stringResource(R.string.arc_cancel_hint)
                 }
-                Kicker(kicker, color = if (chosen?.ring == 1) accent else homeInk.copy(alpha = .75f))
-                Text(title, style = InkText.title.copy(fontSize = 40.sp, lineHeight = 44.sp, shadow = homeShadow(homeInk),
-                    fontStyle = if (chosen?.ring == 1) FontStyle.Italic else FontStyle.Normal), color = homeInk,
-                    textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                when {
-                    steps != null -> BeadThread(steps, missing, color = homeInk.copy(alpha = .8f), bead = accent)
-                    chosen == null -> Text(stringResource(if (content.empty) R.string.arc_empty else R.string.arc_cancel_hint),
-                        style = InkText.small, color = homeInk.copy(alpha = .75f), textAlign = TextAlign.Center)
-                }
+                Kicker(kicker, color = homeInk.copy(alpha = .75f))
+                if (chosenSlot != null) {
+                    Text(slotLabel(chosenSlot), style = InkText.item.copy(fontSize = 19.sp, shadow = homeShadow(homeInk),
+                        fontStyle = if (chosenSlot.flow != null) FontStyle.Italic else FontStyle.Normal), color = homeInk,
+                        textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    chosenSlot.flow?.let { BeadThread(flowSteps(it), missing, color = homeInk.copy(alpha = .8f), bead = accent) }
+                } else if (content.empty) Text(stringResource(R.string.arc_empty), style = InkText.small, color = homeInk.copy(alpha = .75f),
+                    textAlign = TextAlign.Center)
             }
         }
 
@@ -343,20 +293,20 @@ fun LensArc(
                     if (onEditSelect != null) onClick(label = selectLabel) { onEditSelect(); true }
                     else {
                         onClick(label = searchLabel) { close(); onSearch(); true }
-                        onLongClick(label = arcAction) { open = true; assisted = true; true }
+                        onLongClick(label = arcAction) { open = true; assisted = true; track = BowTrack(); true }
                     }
                 }
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyUp) return@onKeyEvent false
                     when (event.key) {
                         Key.Enter, Key.NumPadEnter, Key.Spacebar -> { if (onEditSelect != null) onEditSelect() else { close(); onSearch() }; true }
-                        Key.DirectionUp -> { open = true; assisted = true; true }
+                        Key.DirectionUp -> { open = true; assisted = true; track = BowTrack(); true }
                         Key.Escape -> { close(); true }
                         else -> false
                     }
                 }
                 .focusable()
-                .pointerInput(content.slots, lens, edge) {
+                .pointerInput(bow, edge) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = true)
                         // LENS owns this touch: Home's own tap, hold (Studio) and swipe must not see it.
@@ -381,7 +331,7 @@ fun LensArc(
                             return@awaitEachGesture
                         }
                         if (hold.id != down.id || currentEvent.changes.size != 1) return@awaitEachGesture
-                        open = true; assisted = false; pick = null; hoverRing = 0
+                        open = true; assisted = false; track = BowTrack()
                         haptics.confirm()
                         try {
                             while (true) {
@@ -392,12 +342,12 @@ fun LensArc(
                                     with(density) { (change.position.y - size.height / 2f).toDp().value })
                                 val x = local.x
                                 val y = local.y
-                                hoverRing = rings.ringAt(x, y) ?: if (hypot(x, y) < ArcRings.DEAD) 0 else hoverRing
-                                val next = rings.select(x, y, pick)
-                                if (next != null && next != pick) haptics.tick()
-                                pick = next
+                                val before = track
+                                val next = bow.track(before, x, y, latestContent::filled)
+                                if (look.haptics && ((next.pick != null && next.pick != before.pick) || next.set != before.set)) haptics.tick()
+                                track = next
                                 change.consume()
-                                if (!change.pressed) { commit(pick); break }
+                                if (!change.pressed) { commit(next.set, next.pick); break }
                             }
                         } finally {
                             if (open && !assisted) close()

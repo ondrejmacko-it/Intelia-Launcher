@@ -63,6 +63,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.intelia.launcher.R
+import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.ArcLook
+import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.HomeItem
@@ -98,7 +101,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 /** The main page, one page per section (Home has none: it opens the editor) and their sub-pages; [depth] drives the slide. */
 private enum class StudioPane(val depth: Int) {
     Main(1), Look(2), Icons(2), Favorites(2), Arc(2), Flow(2), Pulse(2), Gestures(2), Motion(2), Backup(2), System(2), About(2), Home(2),
-    Shortcuts(3), Hidden(3), Lens(3),
+    Hidden(3), Lens(3),
 }
 
 private fun StudioSection.pane() = when (this) {
@@ -140,7 +143,6 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     fun up() {
         pane = when (pane) {
             StudioPane.Main -> { leave(); return }
-            StudioPane.Shortcuts -> StudioPane.Arc
             StudioPane.Hidden -> StudioPane.System
             StudioPane.Lens -> if (start == StudioStart.Lens) StudioPane.Main else StudioPane.Pulse
             else -> { panes.removeState(pane.name); focus = null; StudioPane.Main }
@@ -169,7 +171,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
             FavoritesPage(model, settings)
         }
         StudioPane.Arc -> StudioFrame(settings, model, stringResource(R.string.arc_section), ::up) {
-            ArcPage(model, settings, onShortcuts = { pane = StudioPane.Shortcuts })
+            ArcPage(model, settings)
         }
         StudioPane.Flow -> StudioFrame(settings, model, stringResource(R.string.flow), ::up) { FlowPage(settings, onFlows) }
         StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up, preview = true) {
@@ -184,7 +186,6 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
             SystemPage(model, onHidden = { pane = StudioPane.Hidden })
         }
         StudioPane.About -> StudioFrame(settings, model, stringResource(R.string.about_title), ::up) { About() }
-        StudioPane.Shortcuts -> ShortcutPicker(model, settings, onBack = ::up)
         StudioPane.Hidden -> HiddenApps(model, onBack = ::up)
         StudioPane.Lens -> LensCalibration(settings.pulseLens, onSave = { lens ->
             model.updateSettings { it.copy(pulseLens = lens) }
@@ -304,10 +305,10 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack:
                 LauncherSettings.MAX_FAVORITES)) { onOpen(StudioSection.Favorites, null) }
         }
         Group(R.string.settings_group_controls) {
-            SectionRow(stringResource(R.string.arc_section), stringResource(R.string.settings_arc_sub, settings.arcRings, settings.arcShortcuts.size)) {
+            SectionRow(stringResource(R.string.arc_section), stringResource(R.string.settings_arc_sub, settings.controls.arcSets.size.coerceAtLeast(1), settings.controls.arc.slots)) {
                 onOpen(StudioSection.Arc, null)
             }
-            SectionRow(stringResource(R.string.flow), stringResource(R.string.studio_flow_sub, settings.aliases.size, settings.arcFlows.size)) {
+            SectionRow(stringResource(R.string.flow), stringResource(R.string.studio_flow_sub, settings.aliases.size, settings.controls.arcSets.sumOf { set -> set.slots.count { it is Action.Flow } })) {
                 onOpen(StudioSection.Flow, null)
             }
             SectionRow(stringResource(R.string.pulse), stringResource(if (!settings.pulse) R.string.off
@@ -411,41 +412,86 @@ private fun FavoritesPage(model: HomeViewModel, settings: LauncherSettings) {
     }
 }
 
-/** ARC: the rings and what each holds; ring 3's shortcuts are picked on their own page. */
+/**
+ * Studio › Ovládání › ARC (M2): the arc's look, then every set slot by slot. Slot 1 sits in the middle of the arc,
+ * the next ones left and right alternately; an empty slot stays where it is. Each edit writes `controlConfig`.
+ */
 @Composable
-private fun ArcPage(model: HomeViewModel, settings: LauncherSettings, onShortcuts: () -> Unit) {
+private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
     val ink = LocalInk.current
-    val arcApps by model.arcApps.collectAsStateWithLifecycle()
-    Hint(stringResource(R.string.arc_explain))
-    ChoiceRow(stringResource(R.string.arc_rings)) {
-        Segments(listOf(1 to "1", 2 to "2", 3 to "3"), settings.arcRings, { v -> model.updateSettings { it.copy(arcRings = v) } })
+    val arc by model.arc.collectAsStateWithLifecycle()
+    val apps by model.visibleApps.collectAsStateWithLifecycle()
+    val all by model.allApps.collectAsStateWithLifecycle()
+    val shortcuts by model.shortcuts.collectAsStateWithLifecycle()
+    val role = rememberHomeRole()
+    val host = rememberActionHost(model) { }
+    val controls = settings.controls
+    val look = controls.arc
+    var picking by remember { mutableStateOf<Pair<String, Int>?>(null) }
+    fun look(transform: (ArcLook) -> ArcLook) = model.editControls { it.withLook(transform(it.arc)) }
+
+    Hint(stringResource(R.string.arc_explain_sets))
+    ChoiceRow(stringResource(R.string.arc_slots)) {
+        Segments((ArcLook.MIN_SLOTS..ArcLook.MAX_VISIBLE).map { it to it.toString() }, look.slots, { v -> look { it.copy(slots = v) } })
     }
-    Kicker("1 · " + stringResource(R.string.arc_ring_apps) + " · ${settings.arc.size}/${LauncherSettings.ARC_SLOTS}",
-        Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-    val ringApps = arcApps.filterNotNull()
-    if (ringApps.isEmpty()) Hint(stringResource(R.string.arc_apps_hint))
-    ringApps.forEachIndexed { index, app -> OrderedAppRow(app, index, onUp = null, onRemove = { model.toggleArc(app) }) }
-    // Rings beyond the chosen count are never drawn, so their contents are only shown when in use.
-    if (settings.arcRings >= 2) {
-        Kicker("2 · " + stringResource(R.string.flow) + " · ${settings.arcFlows.size}/${LauncherSettings.ARC_FLOW_SLOTS}",
-            Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-        if (settings.aliases.isEmpty()) Hint(stringResource(R.string.flow_empty))
-        settings.aliases.forEach { alias ->
-            val on = alias.id in settings.arcFlows
-            val full = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS
-            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(on, enabled = on || !full, role = Role.Switch) {
-                model.toggleArcFlow(alias.id, it)
-            }.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(alias.name, Modifier.weight(1f), style = InkText.item.copy(fontStyle = FontStyle.Italic), maxLines = 1,
-                    overflow = TextOverflow.Ellipsis, color = if (on || !full) ink.ink else ink.faint)
-                RingToggle(on)
+    ChoiceRow(stringResource(R.string.arc_size)) {
+        Segments(listOf(ArcLook.RADIUS_S to "S", ArcLook.RADIUS_M to "M", ArcLook.RADIUS_L to "L"), look.radius, { v -> look { it.copy(radius = v) } })
+    }
+    ChoiceRow(stringResource(R.string.arc_angle)) {
+        Segments(listOf(ArcLook.SPAN_S to stringResource(R.string.arc_angle_narrow), ArcLook.SPAN_M to stringResource(R.string.arc_angle_mid),
+            ArcLook.SPAN_L to stringResource(R.string.arc_angle_wide)), look.span, { v -> look { it.copy(span = v) } })
+    }
+    ToggleRow(stringResource(R.string.arc_haptics), look.haptics, { on -> look { it.copy(haptics = on) } },
+        detail = stringResource(R.string.arc_haptics_detail))
+
+    val stored = controls.arcSets.ifEmpty { listOf(dev.intelia.launcher.action.ArcSet(Controls.MAIN_SET)) }
+    stored.forEachIndexed { setIndex, set ->
+        val view = arc.sets.getOrNull(setIndex)?.takeIf { it.id == set.id } ?: ArcSetView(set.id, set.name, List(look.slots) { null })
+        val name = setLabel(view, setIndex)
+        Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp, top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Kicker("${setIndex + 1} · $name · ${set.slots.take(look.slots).count { it != null }}/${look.slots}", Modifier.weight(1f), color = ink.accent)
+            if (setIndex > 0) IconAction(Glyph.Close, stringResource(R.string.arc_set_remove, name), { model.editControls { it.removeSet(set.id) } },
+                tint = ink.muted)
+        }
+        repeat(look.slots) { index ->
+            val raw = set.slots.getOrNull(index)
+            val shown = view.slots.getOrNull(index)
+            val label = when {
+                shown != null -> slotLabel(shown)
+                raw != null -> stringResource(R.string.arc_slot_unavailable)
+                else -> stringResource(R.string.arc_slot_empty)
+            }
+            val position = stringResource(if (index == 0) R.string.arc_slot_middle else R.string.arc_slot_n, index + 1)
+            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button,
+                onClickLabel = stringResource(R.string.arc_slot_choose)) { picking = set.id to index }
+                .padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text((index + 1).toString(), Modifier.padding(end = 10.dp).semantics { contentDescription = position },
+                    style = InkText.label.copy(letterSpacing = 0.sp), color = ink.faint)
+                if (shown != null) ActionIcon(shown.action, label, 28.dp, ink.ink, app = shown.app, shortcut = shown.shortcut)
+                else HomeGlyph(Glyph.Plus, null, tint = ink.faint, size = 22.dp)
+                Text(label, Modifier.padding(start = 14.dp).weight(1f), style = InkText.body.copy(
+                    fontStyle = if (shown?.flow != null) FontStyle.Italic else FontStyle.Normal), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = if (shown != null) ink.ink else ink.faint)
+                if (raw != null && index > 0) IconAction(Glyph.Up, stringResource(R.string.move_earlier), { model.editControls { it.moveSlot(set.id, index, -1) } },
+                    tint = ink.muted)
+                if (raw != null) IconAction(Glyph.Close, stringResource(R.string.remove), { model.editControls { it.setSlot(set.id, index, null) } }, tint = ink.muted)
             }
         }
     }
-    if (settings.arcRings >= 3) {
-        Kicker("3 · " + stringResource(R.string.arc_ring_shortcuts) + " · ${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}",
-            Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-        NavRow(stringResource(R.string.shortcuts_pick), null, onShortcuts)
+    if (stored.size < Controls.MAX_SETS) NavRow(stringResource(R.string.arc_set_add), null, { model.editControls { it.addSet() ?: it } })
+
+    picking?.let { (setId, index) ->
+        val inArc = remember(settings) { controls.arcSets.flatMap { it.slots }.filterNotNull().toSet() }
+        val names = remember(all) { all.filter { it.mainProfile }.associate { it.component.packageName to it.label } }
+        ActionPicker(stringResource(R.string.arc_slot_choose),
+            apps = apps.filter { Action.App(it.key) !in inArc }.sortedBy { it.label.lowercase() },
+            flows = settings.aliases.filter { Action.Flow(it.id) !in inArc },
+            shortcuts = shortcuts.filter { Action.Shortcut(it.packageName, it.id) !in inArc },
+            system = SystemActions.filter { it !in inArc },
+            host = host, appNames = names,
+            shortcutsNote = stringResource(if (role.held) R.string.shortcuts_none else R.string.shortcuts_need_home),
+            onPick = { action -> model.editControls { it.setSlot(setId, index, action) }; picking = null },
+            onDismiss = { picking = null })
     }
 }
 
@@ -640,46 +686,6 @@ private fun About() {
     }
     Hint(stringResource(R.string.local_only))
     Hint(stringResource(R.string.about_text))
-}
-
-@Composable
-private fun ShortcutPicker(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit) {
-    val ink = LocalInk.current
-    val shortcuts by model.shortcuts.collectAsStateWithLifecycle()
-    val apps by model.allApps.collectAsStateWithLifecycle()
-    val role = rememberHomeRole()
-    SystemBarIcons(darkIcons = !ink.dark)
-    val labels = remember(apps) { apps.filter { it.mainProfile }.associate { it.component.packageName to it.label } }
-    val full = settings.arcShortcuts.size >= LauncherSettings.ARC_SHORTCUT_SLOTS
-    InkPage(stringResource(R.string.studio), onBack, kicker = "ARC · 3", title = stringResource(R.string.arc_ring_shortcuts)) {
-        Text(stringResource(R.string.shortcuts_explain, settings.arcShortcuts.size, LauncherSettings.ARC_SHORTCUT_SLOTS),
-            Modifier.padding(horizontal = 24.dp, vertical = 6.dp), style = InkText.small, color = ink.muted)
-        if (shortcuts.isEmpty()) {
-            Hint(stringResource(if (role.held) R.string.shortcuts_none else R.string.shortcuts_need_home))
-            if (!role.held) Capsule(stringResource(R.string.default_home), role.request, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-            return@InkPage
-        }
-        val groups = remember(shortcuts) { shortcuts.groupBy { it.packageName }.toList() }
-        LazyColumn(Modifier.weight(1f)) {
-            groups.forEach { (pkg, list) ->
-                item(key = "pkg:$pkg") {
-                    Kicker(labels[pkg] ?: pkg, Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 4.dp), color = ink.accent)
-                    Hairline(Modifier.padding(horizontal = 24.dp))
-                }
-                items(list, key = { it.key }) { shortcut ->
-                    val on = shortcut.key in settings.arcShortcuts
-                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(on, enabled = on || !full, role = Role.Switch) {
-                        model.toggleArcShortcut(shortcut.key)
-                    }.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                        ShortcutIcon(shortcut, Modifier.size(28.dp))
-                        Text(shortcut.label, Modifier.padding(start = 14.dp).weight(1f), style = InkText.body,
-                            color = if (on || !full) ink.ink else ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        RingToggle(on)
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
