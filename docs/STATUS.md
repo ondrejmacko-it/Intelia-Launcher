@@ -2,6 +2,30 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Home wallpaper drawn from one cached picture; drawer jank A/B; B5 on clock and date (`claude/crystal-redesign`)
+
+- `WallpaperLayer`: an own wallpaper is rendered once per preset and size off the main thread
+  (`WallpaperExport.render`, the same drawing) and drawn as one bitmap; the live lights + grain stand in until it is
+  ready; half size on low-RAM phones. The dim stays a separate layer (slider stays live). Swatches keep live drawing.
+
+Drawer open/close, 5 × swipe up on LENS + Back, two runs each, lab build, Phone (3) at 120 Hz (own wallpaper Aurora):
+| variant | janky | p50 | p90 | GPU p50 |
+|---|---|---|---|---|
+| before (blur, live wallpaper) | 32.8 / 33.0 % | 25 / 28 ms | 40 / 42 ms | 16 / 15 ms |
+| no backdrop blur (test only) | 22.9 / 21.5 % | 24 / 23 ms | 36 / 36 ms | 12 / 11 ms |
+| no blur + cached wallpaper (test only) | 11.1 / 10.0 % | 16 / 16 ms | 27 / 27 ms | 11 / 11 ms |
+| **after (blur + cached wallpaper)** | 23.1 / 20.9 % | 23 / 22 ms | 36 / 34 ms | 12 / 12 ms |
+Every janky frame is "slow issue draw commands" (render thread / GPU), not the UI thread. Settled PSS 123 MB (was
+107 MB; the picture is 10 MB at 1080 × 2392). Home looks the same (screenshot).
+
+Open: the backdrop blur (D15) still costs ~10 points of janky frames on the drawer at 120 Hz — an owner decision
+(e.g. a fixed radius instead of an animated one, or no blur under the drawer).
+
+B5 on the phone: the clock's and the date's size rows show the label ("Vlastní hodnota" — the owner's own sizes);
+editor left unchanged. Not checked: LENS inspector, Font and Colour folds.
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug :app:assembleLab` PASS.
+
 ## 2026-10-17 — Veil 3.0 B5: Globální / Vlastní in the inspectors (`claude/crystal-redesign`)
 
 - One definition, `ItemProp` (`ui/Inheritance.kt`, pure Kotlin): Size, Font, Weight, Tint — where an element keeps
