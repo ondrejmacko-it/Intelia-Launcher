@@ -2,6 +2,29 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Veil 3.0 B2: Home defaults, editor at 86 %, bar + tray, inspector placement (`claude/crystal-redesign`, `e440b0b`, `53355d0`)
+
+- Home: new installs already get the pure clock (Crystal, row, no plate) and no icon names; now pinned by
+  `HomeModelTest.freshInstallHasThePureClockAndNoNames`. Existing documents are not migrated (the owner's stacked
+  plate clock stays). Icon names never overlap: `labelWidths` shares the gap between neighbours on one line and keeps
+  clear of LENS; a name under 48 dp is left out (on the default ±62/±108 dp row the outer pair loses its names).
+- Editor: Home is one layer scaled to 86 % around 50 %/52 % (`EditView`); gestures and zones stay in Home
+  coordinates, PULSE stays at the camera. Top bar 48 dp: ×, undo/redo, edited name, Hotovo (no Studio button).
+  Bottom tray (Veil Light): Přidat, Předlohy, placement (tap cycles), Vzhled; hidden while a card is open.
+- Inspectors: `inspectorAbove` picks the side where the card fits whole, the roomier one otherwise; above never covers
+  the clock when it fits below. Placed from the element's settled (86 %) position; no `VeilDepthSource`.
+
+Commands: `./gradlew :app:testDebugUnitTest :app:assembleDebug` PASS (gradlew fails with `MSYS_NO_PATHCONV=1`;
+set it only for adb).
+
+Verified on the Phone (3), dark and light theme: editor bar clear of the top clock, tray below the LENS row, names
+whole and apart, Chrome card above its icon and clear of the clock, clock card below the clock, Přidat opens the add
+menu. The owner's saved card position (`editorCard`) still wins over automatic placement; `intelia.xml` unchanged.
+
+Not verified: TalkBack in the bar and tray, Reduced Motion (scale animation uses `motionMs`), side LENS rows in the
+editor, a top LENS row with the tray, fresh install on the phone. Known: in the light theme the date on a light
+plate has low contrast (not changed here). Next: B3 per the prototype order (Studio B4 and inheritance B5 later).
+
 ## 2026-10-17 — Veil 3.0 B1: one material, shared depth backdrop (`claude/crystal-redesign`)
 
 Change: `ui/Veil.kt` computes every panel from one formula (body + accent tint + 1 dp crystal edge light at the top →
