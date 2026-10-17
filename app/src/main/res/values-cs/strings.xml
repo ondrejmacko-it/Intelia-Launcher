@@ -384,4 +384,20 @@
     <string name="arc_rings_count">Kruhy: %1$d</string>
     <string name="pulse_everywhere_short">Všude</string>
     <string name="pulse_home_only">Jen na ploše</string>
+    <string name="wallpaper">Tapeta</string>
+    <string name="wallpaper_dim">Ztmavení</string>
+    <string name="wallpaper_system">Systémová</string>
+    <string name="wall_night">Noc</string>
+    <string name="wall_ocean">Oceán</string>
+    <string name="wall_forest">Les</string>
+    <string name="wall_aurora">Polární záře</string>
+    <string name="wall_dusk">Soumrak</string>
+    <string name="wall_ember">Žhavé uhlíky</string>
+    <string name="wall_graphite">Grafit</string>
+    <string name="wall_mist">Mlha</string>
+    <string name="wall_paper">Papír</string>
+    <string name="wall_sand">Písek</string>
+    <string name="wall_dawn">Svítání</string>
+    <string name="wall_ice">Led</string>
+    <string name="wall_sage">Šalvěj</string>
 </resources>

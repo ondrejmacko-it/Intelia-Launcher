@@ -141,6 +141,10 @@ data class LauncherSettings(
     val home: HomeLayouts = HomeLayouts(),
     /** Per-place colours; absent in older documents = unified (one accent everywhere). */
     val palette: Palette = Palette(),
+    /** One of Intelia's own wallpapers ([Wallpapers]) by id; empty = the system wallpaper (D13 ④). */
+    val wallpaper: String = "",
+    /** Black over the wallpaper, % (0 – [Wallpapers.maxDim]). */
+    val wallDim: Int = 0,
     /** The editor card as the owner last moved and sized it; null = placed by the element every time. */
     val editorCard: CardFrame? = null,
     /** Document version; 0 = written before the Crystal design (phase B1). Migrated by [sanitized]. */
@@ -197,6 +201,8 @@ data class LauncherSettings(
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
             veilShift = veilShift.coerceIn(-MAX_VEIL_SHIFT, MAX_VEIL_SHIFT),
             iconSize = iconSize.coerceIn(MIN_ICON, MAX_ICON),
+            wallpaper = wallpaper.takeIf { Wallpapers.byId(it) != null }.orEmpty(),
+            wallDim = wallDim.coerceIn(0, Wallpapers.maxDim(Wallpapers.byId(wallpaper))),
             editorCard = editorCard?.takeIf { f -> listOfNotNull(f.x, f.y, f.w, f.h).all(Float::isFinite) }?.let { f ->
                 CardFrame(f.x?.coerceIn(0f, CardFrame.MAX_POS), f.y?.coerceIn(0f, CardFrame.MAX_POS),
                     f.w.coerceIn(CardFrame.MIN_W, CardFrame.MAX_W), f.h.coerceIn(0f, CardFrame.MAX_H))

@@ -2,6 +2,34 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Veil 3.0 B3: Intelia wallpapers and dim, date on the plate, tray semantics (`claude/crystal-redesign`)
+
+- B3 scope (owner's choice): D13 ④ wallpapers drawn by the launcher. Icons, fonts and colours were already in place.
+- `data/Wallpapers.kt`: 13 presets (7 dark, 6 light), each a ground and 2–3 soft lights; drawn once and cached by
+  `WallpaperLayer` with a faint grain against banding, nothing animated, no permission, no asset. The system
+  wallpaper stays untouched; while an own one is shown the window drops `FLAG_SHOW_WALLPAPER`.
+- `LauncherSettings.wallpaper` (empty = system) and `wallDim` (0–60 %, light presets 0–35 % — darker turns them mid
+  grey, where neither type colour reaches 4.5:1); sanitized; absent in older documents = system, undimmed.
+- Home type follows the own wallpaper exactly (`Wallpapers.wantsDarkText`); on the system one a dim ≥ 30 % flips a
+  light wallpaper to light type. Editor › Vzhled › Tapeta: swatches (Systém + presets, radio semantics) and Ztmavení.
+- Date on a plate: a bound date, or a free date whose centre lies on the clock's plate, takes the plate's ink at full
+  opacity with no wallpaper shadow (was white on the light plate). Tray: Přidat and the placement are plain buttons,
+  the placement speaks "Umístění: …" with the action "Změnit".
+
+Commands: `./gradlew :app:testDebugUnitTest :app:assembleDebug` PASS (new `WallpapersTest`: type ≥ 4.5:1 on every
+ground and ≥ 3:1 on every light at every allowed dim; `VeilTest.dateOnAPlateStaysLegible`; `Zone.centredIn`).
+
+Verified on the Phone (3) (settings backed up and restored byte-identical): light theme — the owner's free date on
+the light plate is dark and legible; editor with LENS on the right side and on top (Omezit pohyb = Motion Off): bar,
+row and tray clear of each other; Vzhled › Tapeta › Oceán applies at once; Papír at 20 % gives dark type and dark
+status bar icons; the window flag returns with the system wallpaper.
+
+Not verified: real TalkBack (only the semantics tree via `uiautomator`), the system Reduce motion switch (Compose
+honours the animator scale; not toggled on the owner's phone), drawer/Search/Studio over an own wallpaper, Focus
+blur of the own wallpaper (it lies under Home's blurred layer, so it stays sharp like the system one). Known: with
+LENS on top the owner's free date overlaps the clock digits (the clock moves down, a free date does not). Not done:
+saving a preset as the system wallpaper (`SET_WALLPAPER`, its own commit per D13), own image. Next: owner picks.
+
 ## 2026-10-17 — Veil 3.0 B2: Home defaults, editor at 86 %, bar + tray, inspector placement (`claude/crystal-redesign`, `e440b0b`, `53355d0`)
 
 - Home: new installs already get the pure clock (Crystal, row, no plate) and no icon names; now pinned by

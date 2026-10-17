@@ -1,5 +1,22 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import dev.intelia.launcher.data.WallpaperPreset
+import dev.intelia.launcher.data.Wallpapers
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -94,6 +111,14 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
                 set { it.copy(veilEdge = v) }
             }
         }
+        val wall = Wallpapers.byId(settings.wallpaper)
+        Fold(stringResource(R.string.wallpaper), stringResource(wallName(wall?.id))) {
+            WallpaperChoice(settings.wallpaper) { id ->
+                set { it.copy(wallpaper = id, wallDim = it.wallDim.coerceAtMost(Wallpapers.maxDim(Wallpapers.byId(id)))) }
+            }
+            SliderRow(stringResource(R.string.wallpaper_dim), settings.wallDim.toFloat(), 0f, Wallpapers.maxDim(wall).toFloat(), 5f,
+                "${settings.wallDim} %") { v -> set { it.copy(wallDim = v.toInt()) } }
+        }
         Fold(stringResource(R.string.theme), stringResource(themeName(settings.theme))) {
             Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
                 ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
@@ -103,6 +128,44 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
         }
         Text(stringResource(R.string.look_hint), Modifier.padding(vertical = 8.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
     }
+}
+
+/** The system wallpaper, then Intelia's own, as small swatches in one scrolling row; the chosen one is ringed. */
+@Composable
+private fun WallpaperChoice(chosen: String, onPick: (String) -> Unit) {
+    val c = LocalCrystal.current
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp).selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        (listOf<WallpaperPreset?>(null) + Wallpapers.all).forEach { p ->
+            val id = p?.id.orEmpty()
+            val on = id == chosen
+            val name = stringResource(wallName(p?.id))
+            Box(Modifier.size(44.dp, 72.dp).clip(RoundedCornerShape(12.dp))
+                .border(if (on) 2.dp else 1.dp, if (on) c.acc else c.fg.copy(alpha = .18f), RoundedCornerShape(12.dp))
+                .selectable(on, role = Role.RadioButton) { onPick(id) }.semantics { contentDescription = name },
+                contentAlignment = Alignment.Center) {
+                if (p != null) PresetWallpaper(p, Modifier.fillMaxSize())
+                else Text(stringResource(R.string.theme_system), style = CrystalType.body.copy(fontSize = 10.sp), color = c.fg2, maxLines = 1)
+            }
+        }
+    }
+}
+
+private fun wallName(id: String?) = when (id) {
+    "night" -> R.string.wall_night
+    "ocean" -> R.string.wall_ocean
+    "forest" -> R.string.wall_forest
+    "aurora" -> R.string.wall_aurora
+    "dusk" -> R.string.wall_dusk
+    "ember" -> R.string.wall_ember
+    "graphite" -> R.string.wall_graphite
+    "mist" -> R.string.wall_mist
+    "paper" -> R.string.wall_paper
+    "sand" -> R.string.wall_sand
+    "dawn" -> R.string.wall_dawn
+    "ice" -> R.string.wall_ice
+    "sage" -> R.string.wall_sage
+    else -> R.string.wallpaper_system
 }
 
 private fun iconStyleName(s: IconStyle) = when (s) {

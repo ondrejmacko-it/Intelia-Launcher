@@ -235,6 +235,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     val enter = motionMs(140)
     val exit = motionMs(100)
     Box(Modifier.fillMaxSize()) {
+        WallpaperLayer(dev.intelia.launcher.data.Wallpapers.byId(settings.wallpaper), settings.wallDim)
         AnimatedContent(surface, transitionSpec = { fadeIn(tween(enter)) togetherWith fadeOut(tween(exit)) },
             label = "page") { target ->
             when (target) {

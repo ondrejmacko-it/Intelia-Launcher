@@ -168,6 +168,7 @@ Decided by the owner:
 Settled 2026-10-17 (owner): ARC from a side or top row opens towards the screen centre; the row is part of each
 layout (`LayoutSpec.dock`), icon disc shape is global (`LauncherSettings.iconShape`); "order of the four slots" =
 LENS first / between / last (swapping slots was already a drag). Done: ③ (DESIGN_SYSTEM §5.5.3, §5.8).
+2026-10-17 (B3): ④ drawn wallpapers done (13 presets + dim, no permission); system wallpaper export not started.
 
 
 ## D14 — 2026-10-17 — Bundle six OFL font families for the clock and the date (follows D13)

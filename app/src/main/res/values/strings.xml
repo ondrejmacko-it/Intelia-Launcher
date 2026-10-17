@@ -385,4 +385,20 @@
     <string name="arc_rings_count">Rings: %1$d</string>
     <string name="pulse_everywhere_short">Everywhere</string>
     <string name="pulse_home_only">Home only</string>
+    <string name="wallpaper">Wallpaper</string>
+    <string name="wallpaper_dim">Dim</string>
+    <string name="wallpaper_system">System</string>
+    <string name="wall_night">Night</string>
+    <string name="wall_ocean">Ocean</string>
+    <string name="wall_forest">Forest</string>
+    <string name="wall_aurora">Aurora</string>
+    <string name="wall_dusk">Dusk</string>
+    <string name="wall_ember">Embers</string>
+    <string name="wall_graphite">Graphite</string>
+    <string name="wall_mist">Mist</string>
+    <string name="wall_paper">Paper</string>
+    <string name="wall_sand">Sand</string>
+    <string name="wall_dawn">Dawn</string>
+    <string name="wall_ice">Ice</string>
+    <string name="wall_sage">Sage</string>
 </resources>

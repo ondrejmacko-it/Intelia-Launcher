@@ -46,6 +46,7 @@ import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
 import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.ThemeMode
+import dev.intelia.launcher.data.Wallpapers
 
 /**
  * Ink: paper, ink and one accent. No cards and no elevation; structure comes from hairlines,
@@ -248,7 +249,10 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
     val ink = inkPalette(dark, accentColor(settings.accent, dark))
     val places = PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), dark) }, ink.accent)
     // Home type follows the wallpaper, not the theme: Crystal fg light on light wallpapers (4.1).
-    val wallLight = rememberWallpaperWantsDarkText()
+    // Intelia's own wallpaper is known exactly; on the system one only its hint, and a strong dim makes it dark.
+    val systemLight = rememberWallpaperWantsDarkText()
+    val wallLight = Wallpapers.byId(settings.wallpaper)?.let { Wallpapers.wantsDarkText(it, settings.wallDim) }
+        ?: (systemLight && settings.wallDim < Wallpapers.SYSTEM_LIGHT_TEXT_DIM)
     val homeInk = if (wallLight) CrystalColors.FgLight else CrystalColors.FgDark
     val wallPlaces = if (wallLight == !dark) places
         else PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), !wallLight) }, accentColor(settings.accent, !wallLight))
