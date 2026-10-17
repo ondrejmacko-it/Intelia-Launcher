@@ -298,7 +298,10 @@ fun LensArc(
 
             // What releasing will do, said once and large.
             val chosen = pick
-            Column(Modifier.fillMaxWidth().padding(top = topInset + 72.dp, start = 28.dp, end = 28.dp).graphicsLayer { alpha = reveal },
+            // With the LENS row on top, ARC opens downwards and the words go to the bottom instead.
+            val place = if (edge == DockEdge.Top) Modifier.align(Alignment.BottomCenter).padding(bottom = bottomInset + 72.dp)
+                else Modifier.padding(top = topInset + 72.dp)
+            Column(Modifier.then(place).fillMaxWidth().padding(start = 28.dp, end = 28.dp).graphicsLayer { alpha = reveal },
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val title: String
                 val kicker: String
