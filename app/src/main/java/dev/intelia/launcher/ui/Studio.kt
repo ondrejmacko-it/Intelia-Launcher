@@ -171,18 +171,23 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
     val now by rememberNow()
     SystemBarIcons(darkIcons = homeInk.luminance() < .5f)
-    Box(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val screenW = maxWidth
+        val screenH = maxHeight
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxWidth().then(if (preview) Modifier.height(300.dp) else Modifier)) {
-                // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
-                if (preview) {
-                    HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize().statusBarsPadding(),
-                        scale = .78f, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
-                }
-                Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp, bottom = if (preview) 0.dp else 12.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    IconAction(Glyph.Back, stringResource(R.string.back), onBack, tint = homeInk)
-                    Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
+            Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp, bottom = if (preview) 0.dp else 12.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                IconAction(Glyph.Back, stringResource(R.string.back), onBack, tint = homeInk)
+                Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
+            }
+            // Home as a true miniature of the screen: every size and distance at one scale, inside a phone outline.
+            if (preview) {
+                val shape = RoundedCornerShape(12.dp)
+                Box(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp).size(screenW * PREVIEW_SCALE, screenH * PREVIEW_SCALE)
+                    .clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)) {
+                    // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
+                    HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
+                        scale = PREVIEW_SCALE, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
                 }
             }
             Column(Modifier.weight(1f).fillMaxWidth()
@@ -625,14 +630,22 @@ fun HomePreview(
     val sketch = remember(home) { home?.sketch() }
     val custom = if (sketch != null) sketch.list.isNotEmpty() else settings.layout == HomeLayout.Custom
     fun d(v: Float): Dp = (v * scale).dp
+    // From a layout: Home's own distances (text under the status bar, LENS 48 dp, icons 32 dp, centre ~67 dp above the
+    // bottom edge); the onboarding sketch keeps its looser card proportions.
+    val real = sketch != null
+    val top = if (real) 56f else 64f
+    val ring = if (real) 48f else 44f
     BoxWithConstraints(modifier.semantics(mergeDescendants = true) { }) {
-        val textRoom = maxHeight - d(64f) - d(84f)
-        Column(Modifier.fillMaxWidth().padding(top = d(64f), start = d(28f), end = d(28f)),
+        val textRoom = maxHeight - d(top) - d(84f)
+        Column(Modifier.fillMaxWidth().padding(top = d(top), start = d(28f), end = d(28f)),
             horizontalAlignment = if (custom) Alignment.Start else Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(d(8f))) {
             // A big or stacked clock is shrunk as a whole to the room above LENS, so it never runs into the row.
             if (home != null && sketch != null) Box(Modifier.fitHeight(textRoom, if (custom) 0f else .5f)) {
-                HomeClockPreview(home.items.firstOrNull { it.kind == ItemKind.Clock }, home.items.firstOrNull { it.kind == ItemKind.Date },
-                    sketch.dateAbove, settings, now, ink, accent, scale)
+                // Drawn at Home's own size and shrunk as a picture: the date's size has a floor that would not scale.
+                Box(Modifier.shrink(scale)) {
+                    HomeClockPreview(home.items.firstOrNull { it.kind == ItemKind.Clock }, home.items.firstOrNull { it.kind == ItemKind.Date },
+                        sketch.dateAbove, settings, now, ink, accent, 1f)
+                }
             }
             else if (settings.showClock) SplitClock(now.toLocalTime(), settings.clockStyle, ink, accent, (84f * scale).sp, shadow = onWallpaper)
             if (home == null && settings.showDate) Text(dateLine(now), style = InkText.label.copy(fontSize = (11f * scale).coerceAtLeast(8f).sp,
@@ -645,13 +658,13 @@ fun HomePreview(
                     shadow = if (onWallpaper) homeShadow(ink) else null), color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        Row(Modifier.align(Alignment.BottomCenter).padding(bottom = d(26f)), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(d(14f))) {
+        Row(Modifier.align(Alignment.BottomCenter).padding(bottom = d(if (real) 43f else 26f)), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(d(if (real) 26f else 14f))) {
             if (sketch != null) sketch.row.forEach {
                 when {
-                    it == HomeSketch.LENS_SLOT -> LensMark(ink, ring = d(44f))
-                    it == null -> Spacer(Modifier.size(d(30f)))
-                    else -> PreviewSlot(if (it.kind == ItemKind.App) entry(it.target) else null, ink, scale)
+                    it == HomeSketch.LENS_SLOT -> LensMark(ink, ring = d(ring))
+                    it == null -> Spacer(Modifier.size(d(32f)))
+                    else -> PreviewSlot(if (it.kind == ItemKind.App) entry(it.target) else null, ink, scale, 32f)
                 }
             } else {
                 val around = settings.layout == HomeLayout.Essentials
@@ -661,6 +674,18 @@ fun HomePreview(
                 slots.drop(2).forEach { PreviewSlot(it, ink, scale) }
             }
         }
+    }
+}
+
+/** Studio's Home miniature: the screen at this scale, so the clock, LENS row and gaps keep their real proportions. */
+private const val PREVIEW_SCALE = .26f
+
+/** Lays the content out [k] times larger than the room and draws it scaled by [k] from the top start. */
+private fun Modifier.shrink(k: Float) = layout { m, c ->
+    fun up(v: Int) = if (v == androidx.compose.ui.unit.Constraints.Infinity) v else (v / k).roundToInt()
+    val p = m.measure(androidx.compose.ui.unit.Constraints(0, up(c.maxWidth), 0, up(c.maxHeight)))
+    layout((p.width * k).roundToInt(), (p.height * k).roundToInt()) {
+        p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f) }
     }
 }
 
@@ -684,7 +709,7 @@ private fun HomeClockPreview(clock: HomeItem?, date: HomeItem?, dateAbove: Boole
     val bound = date?.takeIf { it.anchor.type == AnchorType.Bound }
     // A free date has its own place on Home; in the miniature it sits above or below the clock, as on Home.
     val free = date?.takeIf { it.anchor.type != AnchorType.Bound }
-    fun scaled(d: HomeItem) = d.copy(sizeDp = (d.dateSp() * scale).roundToInt().coerceAtLeast(8),
+    fun scaled(d: HomeItem) = d.copy(sizeDp = (d.dateSp() * scale).roundToInt().coerceAtLeast(1),
         look = d.look.copy(padX = d.look.padX * scale, padY = d.look.padY * scale))
     val plate = !clock?.background.isNullOrEmpty()
     val clockInk = if (plate) LocalCrystal.current.fg else ink
@@ -706,8 +731,8 @@ private fun HomeClockPreview(clock: HomeItem?, date: HomeItem?, dateAbove: Boole
 }
 
 @Composable
-private fun PreviewSlot(app: AppEntry?, ink: Color, scale: Float) {
-    val size = (30f * scale).dp
+private fun PreviewSlot(app: AppEntry?, ink: Color, scale: Float, dp: Float = 30f) {
+    val size = (dp * scale).dp
     if (app != null) AppIcon(app, Modifier.size(size), tint = ink)
     else Canvas(Modifier.size(size)) { drawCircle(ink.copy(alpha = .5f), this.size.minDimension / 3f, style = Stroke(1.dp.toPx())) }
 }
