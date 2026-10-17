@@ -103,6 +103,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockBackground
+import dev.intelia.launcher.data.ItemAlign
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.offset
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.ShortcutEntry
@@ -486,13 +490,18 @@ private fun Home(
                     .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) }
                     .then(if (plate) Modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Top, RoundedCornerShape(26.dp))
                         .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 16.dp) else Modifier),
-                horizontalAlignment = if (bias < 0f) Alignment.Start else if (bias > 0f) Alignment.End else Alignment.CenterHorizontally,
+                horizontalAlignment = when (clock?.look?.align ?: ItemAlign.Auto) {
+                    ItemAlign.Start -> Alignment.Start
+                    ItemAlign.Center -> Alignment.CenterHorizontally
+                    ItemAlign.End -> Alignment.End
+                    ItemAlign.Auto -> if (bias < 0f) Alignment.Start else if (bias > 0f) Alignment.End else Alignment.CenterHorizontally
+                },
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: clockInk, accent,
                     (if (clock.sizeDp == 0) (if (compact) 64 else ItemSizes.CLOCK) else clock.sizeDp).sp,
-                    Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, shadow = !plate, weight = clock.weight)
-                if (date != null && freeDate == null) DateText(date, now, clockInk, textAccent, Modifier.onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
+                    Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, shadow = !plate, weight = clock.weight, look = clock.look)
+                if (date != null && freeDate == null) DateText(date, now, clockInk, textAccent, Modifier.offset(date.look.dx.dp, date.look.dy.dp).onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
             }
         } else clockZone = null
         if (freeDate != null) {
@@ -841,15 +850,21 @@ private const val LENS_A11Y_STEP = 24f
 @Composable
 private fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent: Color, modifier: Modifier) {
     val size = item.dateSp()
-    Text(dateText(now, item.dateFormat()), modifier.graphicsLayer { alpha = item.alpha },
-        style = CrystalType.date.copy(fontSize = size.sp, letterSpacing = (2.2f * size / ItemSizes.DATE).sp, shadow = homeShadow(homeInk)),
-        color = item.tintColor(accent) ?: homeInk.copy(alpha = .62f), maxLines = 1)
-}
-
-fun dateText(now: LocalDateTime, format: DateFormat): String = when (format) {
-    DateFormat.Long -> dateLine(now)
-    DateFormat.Short -> now.format(DateTimeFormatter.ofPattern("d. M.", Locale.getDefault()))
-    DateFormat.Weekday -> now.format(DateTimeFormatter.ofPattern("EEEE", Locale.getDefault())).uppercase(Locale.getDefault())
+    val look = item.look
+    val text = dateText(now, item.dateFormat(), look)
+    val plate = item.anchor.type != AnchorType.Bound && item.background == ClockBackground.Veil.name
+    val ink = if (plate) LocalCrystal.current.fg else homeInk
+    val family = faceFamily(look.face, if (item.weight == 0) 450 else item.weight) ?: CrystalType.date.fontFamily
+    val style = CrystalType.date.copy(fontFamily = family, fontSize = size.sp,
+        letterSpacing = (2.2f * size / ItemSizes.DATE + look.tracking / 100f * size).sp, shadow = if (plate) null else homeShadow(homeInk),
+        // Vertical: one letter per line, centred, a little air between lines.
+        lineHeight = if (look.vertical) (size * 1.2f).sp else TextUnit.Unspecified,
+        textAlign = if (look.vertical) TextAlign.Center else TextAlign.Unspecified)
+    Text(if (look.vertical) text.toList().joinToString("\n") else text,
+        modifier.graphicsLayer { alpha = item.alpha }
+            .then(if (plate) Modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Top, RoundedCornerShape(18.dp))
+                .padding(horizontal = 16.dp, vertical = 10.dp) else Modifier),
+        style = style, color = item.tintColor(accent) ?: ink.copy(alpha = if (plate) .8f else .62f), maxLines = if (look.vertical) 40 else 1)
 }
 
 /** A faint dashed ring around the camera in the editor: tap it to edit PULSE. */

@@ -71,9 +71,54 @@ data class HomeItem(
     val tint: String = "",
     /** 0.3..1. */
     val alpha: Float = 1f,
-    /** Clock: a [ClockBackground] name; empty = none. */
+    /** Clock or date: a [ClockBackground] name; empty = none. */
     val background: String = "",
+    /** Typography of the clock and the date (§5.12); the defaults draw them as before. */
+    val look: TextLook = TextLook(),
 )
+
+/** Faces for the clock and the date (D14); [Style] = the clock style's own (Roboto Flex for Crystal). */
+@Serializable enum class TypeFace { Style, Flex, Inter, SpaceGrotesk, DmSerif, JetBrainsMono, BodoniModa, Unbounded }
+@Serializable enum class ClockSeparator { Colon, Dot, Bullet, Bar, Space, None }
+/** [Stack]: hours above minutes; [Slant]: hours above-left, minutes below-right. */
+@Serializable enum class ClockLayout { Row, Stack, Slant }
+/** [Auto] follows the item's position (left third = start, …). */
+@Serializable enum class ItemAlign { Auto, Start, Center, End }
+/** [Auto]: caps for the long and weekday formats, as written for the others. */
+@Serializable enum class TextCase { Auto, Upper, Lower }
+@Serializable enum class DatePart { None, Number, Short, Long }
+
+/**
+ * Text look of a clock or date item. Unknown names decode to the defaults (`coerceInputValues`); numbers are
+ * clamped by [LauncherSettings.sanitized]. Date-only fields are ignored on the clock and the other way round.
+ */
+@Serializable
+data class TextLook(
+    val face: TypeFace = TypeFace.Style,
+    /** Letter spacing in hundredths of an em, [MIN_TRACKING]..[MAX_TRACKING]. */
+    val tracking: Int = 0,
+    val align: ItemAlign = ItemAlign.Auto,
+    val separator: ClockSeparator = ClockSeparator.Colon,
+    val layout: ClockLayout = ClockLayout.Row,
+    val hours12: Boolean = false,
+    val case: TextCase = TextCase.Auto,
+    /** [DateFormat.Custom] parts: weekday (None/Short/Long), day, month (None/Number/Short/Long), year. */
+    val weekday: DatePart = DatePart.Long,
+    val day: Boolean = true,
+    val month: DatePart = DatePart.Long,
+    val year: Boolean = false,
+    /** Date letters one under another, top to bottom. */
+    val vertical: Boolean = false,
+    /** Offset of a date bound to the clock, dp, ±[MAX_OFFSET]. */
+    val dx: Float = 0f,
+    val dy: Float = 0f,
+) {
+    companion object {
+        const val MIN_TRACKING = -10
+        const val MAX_TRACKING = 40
+        const val MAX_OFFSET = 48f
+    }
+}
 
 @Serializable enum class LensStyle { Ring, Filled }
 
@@ -81,7 +126,7 @@ data class HomeItem(
 fun LayoutSpec.lensDx(): Float = items.firstOrNull { it.kind == ItemKind.Lens }?.anchor?.dx ?: 0f
 
 /** Date line formats, stored by name in [HomeItem.style]; empty = [Long]. */
-enum class DateFormat { Long, Short, Weekday }
+enum class DateFormat { Long, Short, Weekday, Custom }
 
 /** What sits behind the clock and its bound date (§5.12); stored by name in [HomeItem.background]. */
 enum class ClockBackground { None, Veil }

@@ -320,4 +320,20 @@
     <string name="glass_frost">Mráz</string>
     <string name="glass_liquid">Kapka</string>
     <string name="look_glass_clear">Průsvitné</string>
+    <string name="type_tracking">Rozestup písmen</string>
+    <string name="align_start">Vlevo</string>
+    <string name="align_center">Na střed</string>
+    <string name="align_end">Vpravo</string>
+    <string name="type_font">Písmo</string>
+    <string name="clock_shape">Čas</string>
+    <string name="clock_row">Vedle sebe</string>
+    <string name="clock_stack">Pod sebou</string>
+    <string name="clock_slant">Šikmo</string>
+    <string name="date_custom">Vlastní</string>
+    <string name="date_part_short">Krátce</string>
+    <string name="date_part_long">Dlouze</string>
+    <string name="date_day">Číslo dne</string>
+    <string name="date_year">Rok</string>
+    <string name="date_offset">Posun od hodin</string>
+    <string name="date_vertical">Svisle shora dolů</string>
 </resources>

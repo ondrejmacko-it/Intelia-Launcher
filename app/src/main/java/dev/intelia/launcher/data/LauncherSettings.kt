@@ -237,7 +237,11 @@ data class LauncherSettings(
             weight = if (it.kind != ItemKind.Clock || it.weight == 0) 0 else it.weight.coerceIn(100, 900),
             tint = it.tint.takeIf { t -> ItemTint.entries.any { e -> e.name == t } }.orEmpty(),
             alpha = if (it.alpha.isFinite()) it.alpha.coerceIn(.3f, 1f) else 1f,
-            background = if (it.kind == ItemKind.Clock && it.background == ClockBackground.Veil.name) it.background else "",
+            background = if ((it.kind == ItemKind.Clock || it.kind == ItemKind.Date) && it.background == ClockBackground.Veil.name) it.background else "",
+            look = if (it.kind == ItemKind.Clock || it.kind == ItemKind.Date) it.look.let { l ->
+                fun off(v: Float) = if (v.isFinite()) v.coerceIn(-TextLook.MAX_OFFSET, TextLook.MAX_OFFSET) else 0f
+                l.copy(tracking = l.tracking.coerceIn(TextLook.MIN_TRACKING, TextLook.MAX_TRACKING), dx = off(l.dx), dy = off(l.dy))
+            } else TextLook(),
         )
     }
 

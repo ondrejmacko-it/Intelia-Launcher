@@ -57,6 +57,15 @@ import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockBackground
+import dev.intelia.launcher.data.ClockLayout
+import dev.intelia.launcher.data.ClockSeparator
+import dev.intelia.launcher.data.DatePart
+import dev.intelia.launcher.data.ItemAlign
+import dev.intelia.launcher.data.TextCase
+import dev.intelia.launcher.data.TextLook
+import dev.intelia.launcher.data.TypeFace
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.verticalScroll
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
@@ -145,6 +154,9 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
         }
         .veilSurface(veil(VeilLevel.Dense), VeilOrigin(fx, if (above) 1f else 0f))
         .pointerInput(Unit) { detectTapGestures() }
+        .animateContentSize(androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+        .heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .58f).dp)
+        .verticalScroll(rememberScrollState())
         .padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         content()
     }
@@ -240,15 +252,37 @@ private fun MoveButtons(onMove: (Int, Int) -> Unit) {
 
 /** Progressive disclosure: the less common options stay folded. */
 @Composable
-internal fun Advanced(content: @Composable () -> Unit) {
+internal fun Advanced(content: @Composable () -> Unit) = Fold(stringResource(R.string.inspect_advanced), content = content)
+
+/** A titled section that opens in place; the card grows with a spring (§5.6). */
+@Composable
+internal fun Fold(title: String, summary: String? = null, content: @Composable () -> Unit) {
     val c = LocalCrystal.current
     var open by remember { mutableStateOf(false) }
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 45f else 0f, label = "fold")
     Row(Modifier.fillMaxWidth().heightIn(min = 40.dp).toggleable(open, role = Role.Button) { open = it },
         verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.inspect_advanced), Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2)
-        Text(if (open) "−" else "+", style = CrystalType.body.copy(fontSize = 16.sp), color = c.fg2)
+        Text(title.uppercase(), Modifier.weight(1f), style = CrystalType.label, color = c.fg2)
+        if (summary != null && !open) Text(summary, Modifier.padding(end = 10.dp), style = CrystalType.caption, color = c.fg3, maxLines = 1)
+        Text("+", Modifier.graphicsLayer { rotationZ = turn }, style = CrystalType.body.copy(fontSize = 18.sp), color = c.fg2)
     }
-    if (open) content()
+    androidx.compose.animation.AnimatedVisibility(open, enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+        exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { content() }
+    }
+}
+
+private val FACES = listOf(TypeFace.Style to "Auto", TypeFace.Flex to "Flex", TypeFace.Inter to "Inter", TypeFace.SpaceGrotesk to "Space Grotesk",
+    TypeFace.DmSerif to "DM Serif", TypeFace.JetBrainsMono to "JetBrains Mono", TypeFace.BodoniModa to "Bodoni", TypeFace.Unbounded to "Unbounded")
+
+/** Face and letter spacing, shared by the clock and the date. */
+@Composable
+private fun TypeControls(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+    val look = item.look
+    fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
+    Chips(FACES, look.face) { v -> edit("face") { it.copy(face = v) } }
+    SliderRow(stringResource(R.string.type_tracking), look.tracking.toFloat(), TextLook.MIN_TRACKING.toFloat(), TextLook.MAX_TRACKING.toFloat(), 1f,
+        "${look.tracking}") { v -> edit("tracking") { it.copy(tracking = v.roundToInt()) } }
 }
 
 /** App or FLOW on Home: size, label, remove from Home (never uninstall). */
@@ -291,6 +325,20 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
     Chips(listOf("" to stringResource(R.string.clock_bg_none), ClockBackground.Veil.name to stringResource(R.string.look_veil)), item.background) { v ->
         state.edit(item.id, "background") { it.copy(background = v) }; onChange()
     }
+    val look = item.look
+    fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
+    Fold(stringResource(R.string.type_font), FACES.first { it.first == look.face }.second) { TypeControls(state, item, onChange) }
+    Fold(stringResource(R.string.clock_shape)) {
+        Chips(listOf(ClockSeparator.Colon to ":", ClockSeparator.Dot to "·", ClockSeparator.Bullet to "•", ClockSeparator.Bar to "|",
+            ClockSeparator.Space to "␣", ClockSeparator.None to "—"), look.separator) { v -> edit("separator") { it.copy(separator = v) } }
+        Chips(listOf(ClockLayout.Row to stringResource(R.string.clock_row), ClockLayout.Stack to stringResource(R.string.clock_stack),
+            ClockLayout.Slant to stringResource(R.string.clock_slant)), look.layout) { v -> edit("layout") { it.copy(layout = v) } }
+        Chips(listOf(false to "24 h", true to "12 h"), look.hours12) { v -> edit("hours12") { it.copy(hours12 = v) } }
+        Chips(listOf(ItemAlign.Auto to stringResource(R.string.tint_auto), ItemAlign.Start to stringResource(R.string.align_start),
+            ItemAlign.Center to stringResource(R.string.align_center), ItemAlign.End to stringResource(R.string.align_end)), look.align) { v ->
+            edit("align") { it.copy(align = v) }
+        }
+    }
     Advanced {
         val weight = if (item.weight == 0) defaultWeight(style) else item.weight
         SliderRow(stringResource(R.string.inspect_weight), weight.toFloat(), 100f, 700f, 50f, "$weight") { v ->
@@ -319,14 +367,39 @@ private fun TintAndOpacity(state: HomeEditorState, item: HomeItem, onChange: () 
 @Composable
 fun DateInspector(state: HomeEditorState, item: HomeItem, shownFy: Float?, onRemoved: () -> Unit, onChange: () -> Unit) {
     Chips(listOf(DateFormat.Long to stringResource(R.string.date_long), DateFormat.Short to stringResource(R.string.date_short),
-        DateFormat.Weekday to stringResource(R.string.date_weekday)), item.dateFormat()) { v ->
+        DateFormat.Weekday to stringResource(R.string.date_weekday), DateFormat.Custom to stringResource(R.string.date_custom)), item.dateFormat()) { v ->
         state.edit(item.id, "style") { it.copy(style = if (v == DateFormat.Long) "" else v.name) }; onChange()
     }
     val size = item.dateSp()
     SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.DATE_MIN.toFloat(), ItemSizes.DATE_MAX.toFloat(), 1f, "$size") { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
+    val look = item.look
+    fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
+    if (item.dateFormat() == DateFormat.Custom) {
+        val short = stringResource(R.string.date_part_short)
+        val long = stringResource(R.string.date_part_long)
+        Chips(listOf(DatePart.None to "—", DatePart.Short to short, DatePart.Long to long), look.weekday) { v -> edit("weekday") { it.copy(weekday = v) } }
+        Chips(listOf(DatePart.None to "—", DatePart.Number to "10.", DatePart.Short to short, DatePart.Long to long), look.month) { v ->
+            edit("month") { it.copy(month = v) }
+        }
+        Toggle(stringResource(R.string.date_day), look.day) { v -> edit("day") { it.copy(day = v) } }
+        Toggle(stringResource(R.string.date_year), look.year) { v -> edit("year") { it.copy(year = v) } }
+    }
     Toggle(stringResource(R.string.date_pinned), item.anchor.type == AnchorType.Bound) { on -> state.pinDate(on, shownFy); onChange() }
+    if (item.anchor.type == AnchorType.Bound) Fold(stringResource(R.string.date_offset)) {
+        SliderRow("↔", look.dx, -TextLook.MAX_OFFSET, TextLook.MAX_OFFSET, 2f, "${look.dx.roundToInt()} dp") { v -> edit("dx") { it.copy(dx = v) } }
+        SliderRow("↕", look.dy, -TextLook.MAX_OFFSET, TextLook.MAX_OFFSET, 2f, "${look.dy.roundToInt()} dp") { v -> edit("dy") { it.copy(dy = v) } }
+    } else Chips(listOf("" to stringResource(R.string.clock_bg_none), ClockBackground.Veil.name to stringResource(R.string.look_veil)), item.background) { v ->
+        state.edit(item.id, "background") { it.copy(background = v) }; onChange()
+    }
+    Fold(stringResource(R.string.type_font), FACES.first { it.first == look.face }.second) {
+        TypeControls(state, item, onChange)
+        Chips(listOf(TextCase.Auto to stringResource(R.string.tint_auto), TextCase.Upper to "ABC", TextCase.Lower to "abc"), look.case) { v ->
+            edit("case") { it.copy(case = v) }
+        }
+        Toggle(stringResource(R.string.date_vertical), look.vertical) { v -> edit("vertical") { it.copy(vertical = v) } }
+    }
     Advanced { TintAndOpacity(state, item, onChange) }
     Action(stringResource(R.string.date_hide), LocalCrystal.current.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }

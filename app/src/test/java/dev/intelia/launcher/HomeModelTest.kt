@@ -12,6 +12,13 @@ import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.SettingsCodec
 import dev.intelia.launcher.data.Reach
 import dev.intelia.launcher.data.lensDx
+import dev.intelia.launcher.data.ClockLayout
+import dev.intelia.launcher.data.ClockSeparator
+import dev.intelia.launcher.data.DateFormat
+import dev.intelia.launcher.data.DatePart
+import dev.intelia.launcher.data.TextCase
+import dev.intelia.launcher.data.TextLook
+import dev.intelia.launcher.data.TypeFace
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -183,5 +190,46 @@ class HomeModelTest {
         assertEquals("", kept.first { it.id == "a" }.background)
         val odd = LauncherSettings(home = HomeLayouts("u", listOf(LayoutSpec("u", items = listOf(items[0].copy(background = "Glass"))))), schema = 2)
         assertEquals("", odd.sanitized().home.activeLayout().items.first { it.id == "c" }.background)
+    }
+
+    @Test
+    fun textLookIsClampedAndKeptOnlyOnClockAndDate() {
+        val wild = TextLook(face = TypeFace.Inter, tracking = 99, dx = 500f, dy = Float.NaN, layout = ClockLayout.Stack)
+        val items = listOf(
+            HomeItem("c", ItemKind.Clock, Anchor.free(.5f, .1f), look = wild),
+            HomeItem("a", ItemKind.App, Anchor.cell(0, 0), target = "p/a", look = wild),
+        )
+        val kept = LauncherSettings(home = HomeLayouts("u", listOf(LayoutSpec("u", items = items))), schema = 2).sanitized().home.activeLayout().items
+        val c = kept.first { it.id == "c" }.look
+        assertEquals(TextLook.MAX_TRACKING, c.tracking)
+        assertEquals(TextLook.MAX_OFFSET, c.dx)
+        assertEquals(0f, c.dy)
+        assertEquals(ClockLayout.Stack, c.layout)
+        assertEquals(TextLook(), kept.first { it.id == "a" }.look)
+    }
+
+    @Test
+    fun unknownLookNamesDecodeToDefaultsAndOldDocumentsHaveNone() {
+        val doc = SettingsCodec.encode(LauncherSettings(home = HomeLayouts("u", listOf(LayoutSpec("u",
+            items = listOf(HomeItem("c", ItemKind.Clock, Anchor.free(.5f, .1f), look = TextLook(face = TypeFace.Unbounded, separator = ClockSeparator.Bar)))))), schema = 2))
+        val odd = doc.replace("\"Unbounded\"", "\"Comic\"")
+        val look = SettingsCodec.decode(odd).home.activeLayout().items.first { it.id == "c" }.look
+        assertEquals(TypeFace.Style, look.face)
+        assertEquals(ClockSeparator.Bar, look.separator)
+        val old = SettingsCodec.decode(doc.replace(Regex(",?\"look\":\\{[^}]*\\}"), "")).home.activeLayout().items.first { it.id == "c" }.look
+        assertEquals(TextLook(), old)
+    }
+
+    @Test
+    fun clockDigitsAndOwnDateFormat() {
+        assertEquals("09" to "05", dev.intelia.launcher.ui.clockDigits(java.time.LocalTime.of(9, 5), false))
+        assertEquals("9" to "05", dev.intelia.launcher.ui.clockDigits(java.time.LocalTime.of(21, 5), true))
+        assertEquals("12" to "00", dev.intelia.launcher.ui.clockDigits(java.time.LocalTime.of(0, 0), true))
+        val now = java.time.LocalDateTime.of(2026, 10, 17, 11, 0)
+        val cs = java.util.Locale.forLanguageTag("cs")
+        val own = TextLook(weekday = DatePart.None, month = DatePart.Number, year = true)
+        assertEquals("17. 10. 2026", dev.intelia.launcher.ui.dateText(now, DateFormat.Custom, own, cs))
+        assertEquals("SOBOTA 17. ŘÍJNA", dev.intelia.launcher.ui.dateText(now, DateFormat.Long, TextLook(), cs))
+        assertEquals("sobota", dev.intelia.launcher.ui.dateText(now, DateFormat.Weekday, TextLook(case = TextCase.Lower), cs))
     }
 }

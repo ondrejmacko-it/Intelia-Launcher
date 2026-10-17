@@ -321,4 +321,20 @@
     <string name="glass_frost">Frost</string>
     <string name="glass_liquid">Liquid</string>
     <string name="look_glass_clear">Translucent</string>
+    <string name="type_tracking">Letter spacing</string>
+    <string name="align_start">Left</string>
+    <string name="align_center">Centre</string>
+    <string name="align_end">Right</string>
+    <string name="type_font">Font</string>
+    <string name="clock_shape">Time</string>
+    <string name="clock_row">In a row</string>
+    <string name="clock_stack">Stacked</string>
+    <string name="clock_slant">Slanted</string>
+    <string name="date_custom">Own</string>
+    <string name="date_part_short">Short</string>
+    <string name="date_part_long">Long</string>
+    <string name="date_day">Day of the month</string>
+    <string name="date_year">Year</string>
+    <string name="date_offset">Offset from the clock</string>
+    <string name="date_vertical">Top to bottom</string>
 </resources>
