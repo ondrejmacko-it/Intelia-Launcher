@@ -169,7 +169,7 @@ data class LauncherSettings(
         const val MIN_PULSE_OPACITY = 40
         const val MAX_VEIL_SHIFT = 10
         const val MIN_ICON = 32
-        const val MAX_ICON = 64
+        const val MAX_ICON = 96
         private const val MAX_KEY = 512
         private const val MAX_HIDDEN = 1000
         private const val MAX_ALIASES = 200

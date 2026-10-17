@@ -2,20 +2,28 @@ package dev.intelia.launcher.ui
 
 import dev.intelia.launcher.search.AppSearch
 
-/** Studio's five sections (Veil 3.0 B4). [Home] has no page of its own: it opens the editor on Home. */
-enum class StudioSection { Look, Home, Controls, Flow, System }
+/**
+ * The pages of Settings (Studio), in the order of its main page. [Home] has no page of its own: it opens the editor.
+ */
+enum class StudioSection { Look, Icons, Home, Favorites, Arc, Flow, Pulse, Gestures, Motion, Backup, System, About }
 
 /**
- * Every place a Studio search can lead to: a part of a section page, opened there. The same keys name the folds on
- * the pages, so the index and the pages cannot drift apart.
+ * Every place a Settings search can lead to: a page, or a part of one opened there. Each setting lives in exactly
+ * one place, so a search never offers the same thing twice.
  */
 enum class StudioTarget(val section: StudioSection) {
-    Icons(StudioSection.Look), Material(StudioSection.Look), Wallpaper(StudioSection.Look), Theme(StudioSection.Look),
-    Colors(StudioSection.Look),
-    EditHome(StudioSection.Home),
-    Arc(StudioSection.Controls), Pulse(StudioSection.Controls), Motion(StudioSection.Controls),
-    Flows(StudioSection.Flow), Shortcuts(StudioSection.Flow),
-    Hidden(StudioSection.System), DefaultHome(StudioSection.System), Backup(StudioSection.System), About(StudioSection.System),
+    Material(StudioSection.Look), Wallpaper(StudioSection.Look), Theme(StudioSection.Look), Colors(StudioSection.Look),
+    Icons(StudioSection.Icons),
+    EditHome(StudioSection.Home), Grid(StudioSection.Home),
+    Favorites(StudioSection.Favorites),
+    Arc(StudioSection.Arc), Shortcuts(StudioSection.Arc),
+    Flows(StudioSection.Flow),
+    Pulse(StudioSection.Pulse),
+    Gestures(StudioSection.Gestures),
+    Motion(StudioSection.Motion),
+    Backup(StudioSection.Backup),
+    Hidden(StudioSection.System), DefaultHome(StudioSection.System),
+    About(StudioSection.About),
 }
 
 /** One searchable entry: what it is called, where it lives ("Vzhled › Tapeta") and words people may type instead. */

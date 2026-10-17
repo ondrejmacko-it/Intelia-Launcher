@@ -1,5 +1,6 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -153,7 +154,7 @@ private fun StepRing(mark: String, description: String, onClick: () -> Unit) {
 }
 
 /**
- * A hairline track; the chosen part is accent thread, the value is a bead. Tap or drag anywhere on it.
+ * A rounded track; the chosen part is accent, the value is a bead that grows a halo while held. Tap or drag anywhere on it.
  * TalkBack reads [valueText] (not a percentage of the range) and its swipes move by one [step].
  */
 @Composable
@@ -164,6 +165,9 @@ internal fun BeadSlider(value: Float, min: Float, max: Float, step: Float, label
     val span = (max - min).coerceAtLeast(1f)
     val fraction = ((value - min) / span).coerceIn(0f, 1f)
     val steps = if (step > 0f) ((max - min) / step).roundToInt() - 1 else 0
+    var held by remember { mutableStateOf(false) }
+    val grow by animateFloatAsState(if (held) 1f else 0f, label = "bead")
+    // The track runs between the bead's own margins, so the bead never leaves the slider's bounds at either end.
     Canvas(modifier.height(44.dp)
         .semantics {
             contentDescription = label
@@ -173,18 +177,29 @@ internal fun BeadSlider(value: Float, min: Float, max: Float, step: Float, label
         }
         .focusable()
         .pointerInput(min, max) {
-            fun at(px: Float) = current(min + (px / size.width).coerceIn(0f, 1f) * span)
-            detectTapGestures { at(it.x) }
+            val pad = BEAD_PAD.dp.toPx()
+            fun at(px: Float) = current(min + ((px - pad) / (size.width - 2 * pad)).coerceIn(0f, 1f) * span)
+            detectTapGestures(onPress = { held = true; tryAwaitRelease(); held = false }) { at(it.x) }
         }
         .pointerInput(min, max) {
-            fun at(px: Float) = current(min + (px / size.width).coerceIn(0f, 1f) * span)
-            detectHorizontalDragGestures(onDragStart = { at(it.x) }) { change, _ -> change.consume(); at(change.position.x) }
+            val pad = BEAD_PAD.dp.toPx()
+            fun at(px: Float) = current(min + ((px - pad) / (size.width - 2 * pad)).coerceIn(0f, 1f) * span)
+            detectHorizontalDragGestures(onDragStart = { held = true; at(it.x) }, onDragEnd = { held = false }, onDragCancel = { held = false }) { change, _ ->
+                change.consume(); at(change.position.x)
+            }
         }) {
+        val pad = BEAD_PAD.dp.toPx()
         val cy = size.height / 2f
-        val bx = size.width * fraction
-        drawLine(track.copy(alpha = .25f), Offset(0f, cy), Offset(size.width, cy), 1.dp.toPx(), StrokeCap.Round)
-        drawLine(ink.accent, Offset(0f, cy), Offset(bx, cy), 2.dp.toPx(), StrokeCap.Round)
-        drawCircle(ink.accent, 8.dp.toPx(), Offset(bx, cy))
-        drawCircle(Color.Black, 3.dp.toPx(), Offset(bx, cy))
+        val bx = pad + (size.width - 2 * pad) * fraction
+        val h = 4.dp.toPx()
+        drawLine(track.copy(alpha = .16f), Offset(pad, cy), Offset(size.width - pad, cy), h, StrokeCap.Round)
+        drawLine(ink.accent, Offset(pad, cy), Offset(bx, cy), h, StrokeCap.Round)
+        // A soft halo while held, then the bead: accent with a light core.
+        if (grow > 0f) drawCircle(ink.accent.copy(alpha = .18f * grow), (10f + 6f * grow).dp.toPx(), Offset(bx, cy))
+        drawCircle(ink.accent, 9.dp.toPx(), Offset(bx, cy))
+        drawCircle(Color.White.copy(alpha = .92f), 3.5.dp.toPx(), Offset(bx, cy))
     }
 }
+
+/** Room left of the track's start and right of its end for the bead (its halo included), dp. */
+private const val BEAD_PAD = 16f

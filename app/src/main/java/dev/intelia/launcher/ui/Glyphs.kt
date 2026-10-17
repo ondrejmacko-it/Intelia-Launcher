@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next, Check, Undo, Redo, Layers, Grid }
+enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next, Check, Undo, Redo, Layers, Grid, Settings }
 
 /** Original monoline glyphs on a 24-unit grid; no icon font or bitmap assets. */
 @Composable
@@ -39,6 +39,10 @@ fun HomeGlyph(glyph: Glyph, label: String?, modifier: Modifier = Modifier, tint:
             Glyph.Up -> { line(12f, 20f, 12f, 4f); line(12f, 4f, 6f, 10f); line(12f, 4f, 18f, 10f) }
             // Studio: a ring with its tide dash.
             Glyph.Studio -> { ring(12f, 10f, 6f); line(9f, 20f, 15f, 20f) }
+            // Settings: a gear of eight short teeth around a ring with a hub.
+            Glyph.Settings -> { ring(12f, 12f, 6f); ring(12f, 12f, 2.4f)
+                for (i in 0 until 8) { val a = Math.toRadians(i * 45.0); val cx = kotlin.math.cos(a).toFloat(); val sy = kotlin.math.sin(a).toFloat()
+                    line(12f + 6f * cx, 12f + 6f * sy, 12f + 9f * cx, 12f + 9f * sy) } }
             Glyph.Close -> { line(6f, 6f, 18f, 18f); line(18f, 6f, 6f, 18f) }
             Glyph.Plus -> { line(12f, 5f, 12f, 19f); line(5f, 12f, 19f, 12f) }
             Glyph.Check -> { line(5f, 12.5f, 10f, 17.5f); line(10f, 17.5f, 19f, 7f) }

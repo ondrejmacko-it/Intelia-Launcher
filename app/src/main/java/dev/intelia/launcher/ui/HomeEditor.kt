@@ -107,11 +107,11 @@ const val TRAY_BOTTOM = 34f
 
 /**
  * The editor's tool tray (D15) in the bottom margin: Přidat, Předlohy, the placement (Mřížka / Volně / Hybrid,
- * a tap cycles it) and Vzhled, which opens Studio › Vzhled; one Veil Light capsule.
+ * a tap cycles it) and Nastavení, which opens Settings with Vzhled first; one Veil Light capsule.
  */
 @Composable
 fun EditorTray(placement: String, presetsOpen: Boolean, onAdd: () -> Unit, onPresets: () -> Unit,
-               onPlacement: () -> Unit, onLook: () -> Unit, modifier: Modifier = Modifier) {
+               onPlacement: () -> Unit, onSettings: () -> Unit, modifier: Modifier = Modifier) {
     Row(modifier.padding(horizontal = 16.dp).padding(bottom = TRAY_BOTTOM.dp).fillMaxWidth().height(TRAY_HEIGHT.dp)
         .veilSurface(veil(VeilLevel.Light), VeilOrigin.Bottom, RoundedCornerShape(28.dp)).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -119,7 +119,7 @@ fun EditorTray(placement: String, presetsOpen: Boolean, onAdd: () -> Unit, onPre
         TrayButton(Glyph.Layers, stringResource(R.string.presets), presetsOpen, onPresets)
         TrayButton(Glyph.Grid, placement, null, onPlacement, spoken = stringResource(R.string.fold_place) + ": " + placement,
             clickLabel = stringResource(R.string.tray_cycle))
-        TrayButton(Glyph.Studio, stringResource(R.string.look), null, onLook)
+        TrayButton(Glyph.Settings, stringResource(R.string.settings), null, onSettings)
     }
 }
 

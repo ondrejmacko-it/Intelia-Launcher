@@ -261,7 +261,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onSearch = { openSearch(true) },
                     onDrawer = ::openDrawer,
                     onPulseLens = { studioStart = StudioStart.Lens; page = Page.Studio },
-                    onLook = { studioStart = StudioStart.Look; page = Page.Studio },
+                    onSettings = { studioStart = StudioStart.Editor; page = Page.Studio },
                     startEditing = editOnHome,
                     onEditingStarted = { editOnHome = false },
                     set = model::updateSettings,
@@ -372,7 +372,7 @@ private fun Home(
     onSearch: () -> Unit,
     onDrawer: () -> Unit,
     onPulseLens: () -> Unit,
-    onLook: () -> Unit,
+    onSettings: () -> Unit,
     startEditing: Boolean,
     onEditingStarted: () -> Unit,
     set: SettingsEdit,
@@ -792,8 +792,8 @@ private fun Home(
                         presetsOpen = !presetsOpen; selected = null; addPoint = null; refresh()
                     },
                     onPlacement = { ed.setPlacement(Placement.entries[(ed.layout.placement.ordinal + 1) % Placement.entries.size]); refresh() },
-                    // Vzhled lives in Studio only: unsaved edits are asked about first, as for PULSE calibration.
-                    onLook = { leave(onLook) })
+                    // Every setting lives in Settings only: unsaved edits are asked about first, as for PULSE calibration.
+                    onSettings = { leave(onSettings) })
             }
 
             /** The LENS row as a target: the Presets card opens just above it. */
@@ -801,9 +801,8 @@ private fun Home(
             if (presetsOpen) {
                 val start = ed.previewOf ?: ed.layout
                 val favs = settings.favorites
-                val choices = listOf(LayoutBase.Pure to R.string.layout_pure, LayoutBase.Essentials to R.string.layout_essentials,
-                    LayoutBase.Balanced to R.string.preset_balanced).map { (b, name) ->
-                    PresetChoice(b.name, stringResource(name), HomeTemplates.preview(b, favs, start))
+                val choices = HomeTemplates.PRESETS.map { b ->
+                    PresetChoice(b.name, stringResource(presetName(b)), HomeTemplates.preview(b, favs, start))
                 } + listOfNotNull(settings.home.layouts.firstOrNull { it.id == HomeLayouts.USER_ID }
                     ?.let { PresetChoice(OWN_KEY, stringResource(R.string.preset_own), it) })
                 // The same editor card as an element's: placed above the LENS row, so the clock and the top of the
@@ -1026,3 +1025,15 @@ private fun InkSnackbar(text: String) {
 private enum class EditorAsk { Replace, Reset, OverwriteOwn }
 
 private const val OWN_KEY = "own"
+
+/** The name of a built-in preset in the editor's strip. */
+internal fun presetName(base: LayoutBase) = when (base) {
+    LayoutBase.Pure, LayoutBase.None -> R.string.layout_pure
+    LayoutBase.Essentials -> R.string.layout_essentials
+    LayoutBase.Balanced -> R.string.preset_balanced
+    LayoutBase.Editorial -> R.string.preset_editorial
+    LayoutBase.Terminal -> R.string.preset_terminal
+    LayoutBase.Poster -> R.string.preset_poster
+    LayoutBase.Plate -> R.string.preset_plate
+    LayoutBase.Side -> R.string.preset_side
+}

@@ -2,6 +2,32 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Settings: one page per section, 50/50, distinct presets (`claude/crystal-redesign`)
+
+- `./gradlew :app:testDebugUnitTest :app:assembleLab` — PASS (148 JVM tests). Lab installed with `install -r`,
+  profile compiled (`speed-profile`).
+- Studio is now *Nastavení* (gear in the header): search, then Vzhled first on a faint accent plate, then groups
+  Plocha (Upravit plochu, Mřížka plochy, Ikony, Oblíbené), Ovládání (ARC, FLOW, PULSE, Gesta, Pohyb a dotek) and
+  Data a systém (Záloha, Systém, O aplikaci); each is its own page. Each setting lives in one place: Ikony moved out
+  of Vzhled; app shortcuts only under ARC; PULSE look, events, calibration and "everywhere" on one page.
+- Preview / sheet 50/50 (`PREVIEW_SHARE` .5) on the main page, Vzhled, Ikony, Mřížka, Oblíbené and PULSE.
+- Editor tray: *Nastavení* (gear) replaces Vzhled and opens the main page; Back returns to the editor
+  (`StudioStart.Editor`).
+- Icons up to 96 dp (`MAX_ICON`, `ItemSizes.ICON_MAX`); the miniature now draws LENS-row icons at their real size.
+- Presets: eight (`HomeTemplates.PRESETS`): Prázdná, Kolem LENS, Vyvážená (apps in a grid row above a lone LENS),
+  Magazín, Terminál, Plakát, Sklo, Boční. Each brings its own clock face / size / arrangement, date, LENS style and
+  row edge or order; the wallpaper and the owner's row spacing stay. New `LayoutBase` values are appended (an older
+  build reads them as `None`). Thumbnails draw clock size, plate, date, LENS style and row edge.
+- Sliders: the bead stays inside the track's margins (it used to overhang onto the − button / label), rounded 4 dp
+  track, halo while held, value in a pill, soft − / + discs. Editor card: only the end corner and end side show a
+  grip mark; all five grips still size the card.
+- On the phone (screenshots): Nastavení main page and Ikony page as above; editor tray shows Nastavení; preset strip
+  previews Magazín (Bodoni stacked clock, capital date above, LENS last) and Boční (vertical row on the right).
+
+Not verified: Terminál, Plakát, Sklo and Vyvážená previewed on the phone; applying a preset and ✓; grid sliders and
+placement from Settings on the phone; favourites page; light theme; TalkBack on the new pages; thumbnails place
+LENS by the current geometry, so after previewing Boční the others' LENS shifts right in their thumbnails.
+
 ## 2026-10-17 — Studio 60/40, Vzhled only in Studio (`claude/crystal-redesign`)
 
 - Studio Main and Vzhled: under the header the live Home miniature takes 60 % of the room (scale fitted to it, about

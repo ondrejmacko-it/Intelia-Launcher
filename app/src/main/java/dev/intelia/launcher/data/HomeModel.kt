@@ -10,7 +10,11 @@ import kotlinx.serialization.Serializable
  * on every sanitize, so Studio and the app sheet keep working as before. Saving from the Home Editor writes
  * an independent copy ([linked] = false); a preset switch never overwrites it.
  */
-@Serializable enum class LayoutBase { Pure, Essentials, Balanced, None }
+/**
+ * The preset a layout started from. Stored by name; the styled presets (Editorial … Side) were appended later, so an
+ * older build reads them as the default [None] (`coerceInputValues`).
+ */
+@Serializable enum class LayoutBase { Pure, Essentials, Balanced, None, Editorial, Terminal, Poster, Plate, Side }
 @Serializable enum class Placement { Grid, Free, Hybrid }
 /** [Widget] is reserved (an `AppWidgetHost` id in [HomeItem.target]); nothing renders it yet. */
 @Serializable enum class ItemKind { App, Flow, Clock, Date, Lens, Widget }
@@ -239,10 +243,14 @@ data class HomeLayouts(val active: String = LINKED_ID, val layouts: List<LayoutS
      * Studio › Vzhled: one change to every app and FLOW icon of the active layout (names on or off, own sizes
      * dropped), saved as the editor's ✓ would; nothing is saved when no icon changes.
      */
-    fun withIcons(transform: (HomeItem) -> HomeItem): HomeLayouts {
+    fun withIcons(transform: (HomeItem) -> HomeItem): HomeLayouts =
+        withLayout { l -> l.copy(items = l.items.map { if (it.kind == ItemKind.App || it.kind == ItemKind.Flow) transform(it) else it }) }
+
+    /** Settings › Plocha: one change to the active layout (grid, placement), saved as the editor's ✓ would; unchanged = as is. */
+    fun withLayout(transform: (LayoutSpec) -> LayoutSpec): HomeLayouts {
         val layout = activeLayout()
-        val items = layout.items.map { if (it.kind == ItemKind.App || it.kind == ItemKind.Flow) transform(it) else it }
-        return if (items == layout.items) this else save(layout.copy(items = items))
+        val next = transform(layout)
+        return if (next == layout) this else save(next)
     }
 
     companion object {
@@ -258,52 +266,104 @@ data class HomeLayouts(val active: String = LINKED_ID, val layouts: List<LayoutS
 object HomeTemplates {
     const val DEFAULT_NAME = "Moje plocha"
 
+    /** The presets offered in the editor, in order; [LayoutBase.None] is the legacy list and has no template. */
+    val PRESETS = listOf(LayoutBase.Pure, LayoutBase.Essentials, LayoutBase.Balanced, LayoutBase.Editorial, LayoutBase.Terminal,
+        LayoutBase.Poster, LayoutBase.Plate, LayoutBase.Side)
+
+    /**
+     * The items of a preset. Pure and Essentials draw the clock as before (they are also the linked layout); the
+     * others each bring their own face, size, arrangement and place for the apps, so no two look alike.
+     */
     fun build(base: LayoutBase, apps: List<String>, showClock: Boolean, showDate: Boolean, legacyList: Boolean = false): List<HomeItem> {
         val items = mutableListOf<HomeItem>()
-        // Legacy "Vlastní" keeps the clock at the start edge above the text list.
-        if (showClock) items += HomeItem("clock", ItemKind.Clock, Anchor.free(if (legacyList) 0f else .5f, 0f))
-        if (showDate) items += HomeItem("date", ItemKind.Date, Anchor.Bound)
-        items += HomeItem("lens", ItemKind.Lens, Anchor.Lens)
+        fun clock(fx: Float, fy: Float, look: TextLook = TextLook(), size: Int = 0, weight: Int = 0, background: String = "") {
+            if (showClock) items += HomeItem("clock", ItemKind.Clock, Anchor.free(fx, fy), sizeDp = size, weight = weight, look = look,
+                background = background)
+        }
+        fun date(anchor: Anchor = Anchor.Bound, format: DateFormat = DateFormat.Long, look: TextLook = TextLook()) {
+            if (showDate) items += HomeItem("date", ItemKind.Date, anchor, style = if (format == DateFormat.Long) "" else format.name, look = look)
+        }
+        fun lens(style: LensStyle = LensStyle.Ring) {
+            items += HomeItem("lens", ItemKind.Lens, Anchor.Lens, style = if (style == LensStyle.Ring) "" else style.name)
+        }
+        /** Up to four apps beside LENS: one left of it, two either side, three fill the left pair first (phase B2). */
+        fun around(list: List<String>) {
+            val take = list.take(4)
+            val slots = when (take.size) {
+                1 -> listOf(-1)
+                2 -> listOf(-1, 1)
+                3 -> listOf(-2, -1, 1)
+                else -> Anchor.LENS_SLOTS
+            }
+            take.zip(slots).forEach { (key, slot) -> items += HomeItem("app:$key", target = key, anchor = Anchor.lensRow(slot)) }
+        }
+        fun gridRow(list: List<String>, label: Boolean = false) = list.take(GridSpec().cols).forEachIndexed { i, key ->
+            items += HomeItem("app:$key", target = key, anchor = Anchor.cell(i, GridSpec().rows - 1), label = label)
+        }
+        fun stack(list: List<String>) = list.forEachIndexed { i, key ->
+            items += HomeItem("app:$key", target = key, anchor = Anchor.stack(i), label = true)
+        }
         if (legacyList) {
-            apps.forEachIndexed { i, key -> items += HomeItem("app:$key", target = key, anchor = Anchor.stack(i), label = true) }
+            // Legacy "Vlastní" keeps the clock at the start edge above the text list.
+            clock(0f, 0f); date(); lens(); stack(apps)
             return items
         }
         when (base) {
-            LayoutBase.Pure, LayoutBase.None -> Unit
-            LayoutBase.Essentials, LayoutBase.Balanced -> {
-                val around = apps.take(4)
-                // Same placement as phase B2: one app left of LENS, two either side, three fill the left pair first.
-                val slots = when (around.size) {
-                    1 -> listOf(-1)
-                    2 -> listOf(-1, 1)
-                    3 -> listOf(-2, -1, 1)
-                    else -> Anchor.LENS_SLOTS
-                }
-                around.zip(slots).forEach { (key, slot) -> items += HomeItem("app:$key", target = key, anchor = Anchor.lensRow(slot)) }
-                // Balanced: the rest sit on the lowest grid row above LENS.
-                if (base == LayoutBase.Balanced) apps.drop(4).take(GridSpec().cols).forEachIndexed { i, key ->
-                    items += HomeItem("app:$key", target = key, anchor = Anchor.cell(i, GridSpec().rows - 1))
-                }
+            LayoutBase.Pure, LayoutBase.None -> { clock(.5f, 0f); date(); lens() }
+            LayoutBase.Essentials -> { clock(.5f, 0f); date(); lens(); around(apps) }
+            // Light Inter clock; the apps stand in a row above a lone LENS, the rest beside it.
+            LayoutBase.Balanced -> {
+                clock(.5f, .04f, TextLook(face = TypeFace.Inter), size = 80, weight = 250); date(); lens()
+                gridRow(apps); around(apps.drop(GridSpec().cols))
+            }
+            // A magazine cover: the date in capitals over a tall stacked serif clock at the start edge.
+            LayoutBase.Editorial -> {
+                date(Anchor.free(0f, 0f), look = TextLook(case = TextCase.Upper, tracking = 20))
+                clock(0f, .06f, TextLook(face = TypeFace.BodoniModa, layout = ClockLayout.Stack, align = ItemAlign.Start), size = 104)
+                lens(); around(apps)
+            }
+            // A console: a small monospaced clock and the apps as a named list.
+            LayoutBase.Terminal -> {
+                clock(0f, 0f, TextLook(face = TypeFace.JetBrainsMono, align = ItemAlign.Start, tracking = -2), size = 48)
+                date(format = DateFormat.Short, look = TextLook(face = TypeFace.JetBrainsMono, case = TextCase.Lower))
+                lens(LensStyle.Filled); stack(apps.take(LauncherSettings.MAX_FAVORITES))
+            }
+            // One huge slanted clock in the middle and nothing else but a filled LENS.
+            LayoutBase.Poster -> {
+                clock(.5f, .3f, TextLook(face = TypeFace.Unbounded, layout = ClockLayout.Slant, separator = ClockSeparator.None), size = 136, weight = 700)
+                date(Anchor.free(.5f, .9f), DateFormat.Weekday, TextLook(case = TextCase.Upper, tracking = 30)); lens(LensStyle.Filled)
+            }
+            // The clock on a frosted plate; the apps spread over the whole bottom edge.
+            LayoutBase.Plate -> {
+                clock(.5f, .06f, TextLook(face = TypeFace.SpaceGrotesk, separator = ClockSeparator.Dot), size = 76, background = ClockBackground.Frost.name)
+                date(format = DateFormat.Weekday); lens(); around(apps)
+            }
+            // LENS and the apps run down the right edge; a serif clock at the start.
+            LayoutBase.Side -> {
+                clock(0f, .2f, TextLook(face = TypeFace.DmSerif, align = ItemAlign.Start), size = 96)
+                date(look = TextLook(align = ItemAlign.Start)); lens(); around(apps)
             }
         }
         return items
     }
 
+    /** The LENS row of a preset: Editorial ends with LENS, Plate spreads the apps, Side runs down the right edge. */
+    fun dock(base: LayoutBase): DockSpec = when (base) {
+        LayoutBase.Editorial -> DockSpec(lensAt = LensAt.End)
+        LayoutBase.Plate -> DockSpec(spread = true)
+        LayoutBase.Side -> DockSpec(edge = DockEdge.Right)
+        else -> DockSpec()
+    }
+
     /**
-     * A preset as an editor preview of [current]: same grid, placement and LENS, the clock keeps its look.
-     * [LayoutBase.None] has no template; it stays as it is.
+     * A preset as an editor preview of [current]: same grid, placement and row spacing; the preset brings its own
+     * clock, date, LENS look and LENS row edge and order (the editor keeps LENS where it was). [LayoutBase.None] has no template.
      */
     fun preview(base: LayoutBase, apps: List<String>, current: LayoutSpec): LayoutSpec {
-        val clock = current.items.firstOrNull { it.kind == ItemKind.Clock }
-        val lens = current.items.firstOrNull { it.kind == ItemKind.Lens }
-        val items = build(base, apps, showClock = true, showDate = true).map {
-            when (it.kind) {
-                ItemKind.Clock -> clock?.copy(anchor = it.anchor) ?: it
-                ItemKind.Lens -> lens ?: it
-                else -> it
-            }
-        }
-        return current.copy(id = HomeLayouts.LINKED_ID, base = base, items = items, linked = true)
+        val items = build(base, apps, showClock = true, showDate = true)
+        // The owner's spacing stays: a preset's row with bigger icons would otherwise overlap at the default pitch.
+        val row = dock(base).copy(gap = current.dock.gap, pitch = current.dock.pitch)
+        return current.copy(id = HomeLayouts.LINKED_ID, base = base, items = items, linked = true, dock = row)
     }
 
     /** The linked preset for the legacy fields of [s]. */

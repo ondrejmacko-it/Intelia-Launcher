@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.DockEdge
+import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.LensAt
 import dev.intelia.launcher.data.DockSpec
 import dev.intelia.launcher.data.AnchorType
@@ -92,7 +93,7 @@ import kotlin.math.roundToInt
 object ItemSizes {
     const val ICON = 40
     const val ICON_MIN = 32
-    const val ICON_MAX = 64
+    const val ICON_MAX = 96
     const val CLOCK = 84
     const val CLOCK_MIN = 48
     const val CLOCK_MAX = 140
@@ -269,8 +270,8 @@ private fun CardHeader(title: String, frame: InspectorFrame?, onDrag: (Offset) -
 }
 
 /**
- * A faint mark on the card's rim (a corner tick, a side or bottom bar) inside the card's own margin, so it never
- * lies over a control: drag it to size the card that way. TalkBack gets Bigger / Smaller instead of the drag.
+ * A grip on the card's rim inside its own margin, so it never lies over a control: drag it to size the card that
+ * way. Only the end corner and end side show a mark; TalkBack gets Bigger / Smaller instead of the drag.
  */
 @Composable
 private fun androidx.compose.foundation.layout.BoxScope.ResizeHandle(at: Alignment, label: String, onDrag: (Offset) -> Unit) {
@@ -292,8 +293,10 @@ private fun androidx.compose.foundation.layout.BoxScope.ResizeHandle(at: Alignme
             )
         }
         .pointerInput(Unit) { detectDragGestures { change, amount -> change.consume(); onDrag(amount) } }) {
-        val ink = c.fg3.copy(alpha = c.fg3.alpha * .7f)
-        val w = 2.dp.toPx()
+        // Only the end corner and the end side are drawn, as a sign that the card sizes at all; every rim grips.
+        if (at != Alignment.BottomEnd && at != Alignment.CenterEnd) return@Canvas
+        val ink = c.fg2.copy(alpha = .55f)
+        val w = 2.5.dp.toPx()
         val inset = 5.dp.toPx()
         when {
             side -> drawLine(ink, Offset(if (start) inset else size.width - inset, size.height / 2f - 9.dp.toPx()),
@@ -328,14 +331,16 @@ internal fun SliderRow(label: String, value: Float, min: Float, max: Float, step
                        inherit: (@Composable () -> Unit)? = null, onChange: (Float) -> Unit) {
     val c = LocalCrystal.current
     fun snap(v: Float) = (((v - min) / step).roundToInt() * step + min).coerceIn(min, max)
-    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2, maxLines = 1)
-        if (inherit != null) Box(Modifier.padding(end = 8.dp)) { inherit() }
-        Text(valueText, style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg, maxLines = 1)
+    // Label and value on their own line, the slider below: long labels never squeeze or overlap the track.
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp, start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (inherit != null) Box(Modifier.padding(horizontal = 8.dp)) { inherit() }
+        Text(valueText, Modifier.clip(CircleShape).background(c.acc.copy(alpha = .14f)).padding(horizontal = 9.dp, vertical = 2.dp),
+            style = CrystalType.body.copy(fontSize = 13.sp, lineHeight = 16.sp), color = c.fg, maxLines = 1)
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         StepButton("−", stringResource(R.string.step_less, label), value > min) { onChange(snap(value - step)) }
-        BeadSlider(value, min, max, step, label, valueText, Modifier.weight(1f).padding(horizontal = 4.dp), onChange = { v -> onChange(snap(v)) },
+        BeadSlider(value, min, max, step, label, valueText, Modifier.weight(1f), onChange = { v -> onChange(snap(v)) },
             track = c.fg)
         StepButton("+", stringResource(R.string.step_more, label), value < max) { onChange(snap(value + step)) }
     }
@@ -349,7 +354,7 @@ internal fun SliderRow(label: String, value: Float, min: Float, max: Float, step
 internal fun InheritChip(prop: ItemProp, state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
     val c = LocalCrystal.current
     val own = prop.isOwn(item)
-    val source = prop.source(item.kind)?.let { t -> lookFoldTitle(t)?.let { stringResource(R.string.look) + " › " + it } }
+    val source = prop.source(item.kind)?.let { t -> lookFoldTitle(t)?.let { stringResource(R.string.settings) + " › " + it } }
     val spoken = when {
         own -> stringResource(R.string.inherit_own_a11y)
         source != null -> stringResource(R.string.inherit_global_from_a11y, source)
@@ -376,10 +381,11 @@ internal fun InheritLine(prop: ItemProp, state: HomeEditorState, item: HomeItem,
 @Composable
 private fun StepButton(sign: String, label: String, enabled: Boolean, onClick: () -> Unit) {
     val c = LocalCrystal.current
-    Box(Modifier.size(40.dp).clip(CircleShape).border(1.dp, if (enabled) c.fg3 else c.fg3.copy(alpha = .4f), CircleShape)
+    // A soft disc rather than an outline: it reads as part of the slider, not as a separate control.
+    Box(Modifier.size(44.dp).padding(4.dp).clip(CircleShape).background(c.fg.copy(alpha = if (enabled) .08f else .03f))
         .clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = label },
         contentAlignment = Alignment.Center) {
-        Text(sign, style = CrystalType.body.copy(fontSize = 18.sp, lineHeight = 18.sp), color = if (enabled) c.fg else c.fg3)
+        Text(sign, style = CrystalType.body.copy(fontSize = 17.sp, lineHeight = 17.sp), color = if (enabled) c.fg else c.fg3)
     }
 }
 
@@ -806,7 +812,10 @@ fun PresetStrip(choices: List<PresetChoice>, previewing: String?, geometry: Home
     }
 }
 
-/** A miniature of a layout drawn from its own geometry: clock bar, icons as dots, LENS as a ring. */
+/**
+ * A miniature of a layout: the clock as bars sized by its own size and arrangement (on a plate when it has one),
+ * the date, icons as dots, named apps as lines and LENS (ring or filled) on its own edge, so presets differ at a glance.
+ */
 @Composable
 fun LayoutThumb(spec: LayoutSpec, geometry: HomeGeometry, selected: Boolean) {
     val c = LocalCrystal.current
@@ -814,19 +823,63 @@ fun LayoutThumb(spec: LayoutSpec, geometry: HomeGeometry, selected: Boolean) {
         .border(if (selected) 1.5.dp else 1.dp, if (selected) c.acc else c.fg3, RoundedCornerShape(10.dp))) {
         val k = size.width / geometry.width
         val ky = size.height / geometry.height
-        fun at(p: Pt) = Offset(p.x * k, p.y * ky)
+        val m = 6.dp.toPx()
+        val edge = spec.dock.edge
+        val lensItem = spec.items.firstOrNull { it.kind == ItemKind.Lens }
+        val lens = when (edge) {
+            DockEdge.Right -> Offset(size.width - m - 2.dp.toPx(), size.height * .62f)
+            DockEdge.Left -> Offset(m + 2.dp.toPx(), size.height * .62f)
+            DockEdge.Top -> Offset(geometry.lensX * k, m + 10.dp.toPx())
+            DockEdge.Bottom -> Offset(geometry.lensX * k, size.height - 14.dp.toPx())
+        }
+        val clock = spec.items.firstOrNull { it.kind == ItemKind.Clock }
+        val date = spec.items.firstOrNull { it.kind == ItemKind.Date }
+        val dateBar = Size(size.width * .32f, 2.dp.toPx())
+        var under = Offset.Zero
+        if (clock != null) {
+            val lines = if (clock.look.layout == ClockLayout.Row) 1 else 2
+            val f = ((if (clock.sizeDp == 0) ItemSizes.CLOCK else clock.sizeDp) / ItemSizes.CLOCK.toFloat()).coerceIn(.5f, 1.8f)
+            val barH = 5.dp.toPx() * f
+            val w = (size.width - 2 * m) * (if (lines == 2) .42f else .62f) * f.coerceAtMost(1.3f)
+            val x = m + (size.width - 2 * m - w) * clock.anchor.fx
+            val y = 12.dp.toPx() + (size.height * .5f) * clock.anchor.fy
+            val blockH = lines * barH + (lines - 1) * 2.dp.toPx()
+            if (clock.background.isNotEmpty()) drawRoundRect(c.fg.copy(alpha = .16f), Offset(x - 3.dp.toPx(), y - 3.dp.toPx()),
+                Size(w + 6.dp.toPx(), blockH + 9.dp.toPx()), CornerRadius(4.dp.toPx()))
+            repeat(lines) { i ->
+                val shift = if (clock.look.layout == ClockLayout.Slant) i * w * .25f else 0f
+                drawRoundRect(c.fg2, Offset(x + shift, y + i * (barH + 2.dp.toPx())), Size(if (lines == 2) w * .75f else w, barH), CornerRadius(barH / 2f))
+            }
+            under = Offset(x, y + blockH + 3.dp.toPx())
+        }
+        if (date != null) {
+            val at = if (date.anchor.type == AnchorType.Bound) under
+                else Offset(m + (size.width - 2 * m - dateBar.width) * date.anchor.fx, 8.dp.toPx() + size.height * .7f * date.anchor.fy)
+            drawRoundRect(c.fg3, at, dateBar, CornerRadius(1.dp.toPx()))
+        }
+        if (lensItem?.style == LensStyle.Filled.name) drawCircle(c.fg, 4.dp.toPx(), lens) else drawCircle(c.fg, 4.dp.toPx(), lens, style = Stroke(1.dp.toPx()))
+        val step = 9.dp.toPx()
         spec.items.forEach { item ->
             when {
-                item.kind == ItemKind.Clock -> {
-                    val list = spec.items.any { it.anchor.type == AnchorType.Stack }
-                    val w = size.width * .5f
-                    val x = if (list) 6.dp.toPx() else (size.width - w) * item.anchor.fx
-                    drawRoundRect(c.fg2, Offset(x, size.height * .14f + size.height * .5f * item.anchor.fy), Size(w, 7.dp.toPx()), CornerRadius(3.dp.toPx()))
-                }
-                item.kind == ItemKind.Lens -> drawCircle(c.fg, 4.dp.toPx(), at(Pt(geometry.lensX, geometry.lensY)), style = Stroke(1.dp.toPx()))
-                item.anchor.type == AnchorType.Stack -> drawRoundRect(c.fg2, Offset(6.dp.toPx(), size.height * .55f + item.anchor.row * 6.dp.toPx()),
+                item.kind == ItemKind.Clock || item.kind == ItemKind.Date || item.kind == ItemKind.Lens -> Unit
+                item.anchor.type == AnchorType.Stack -> drawRoundRect(c.fg2, Offset(m, size.height * .42f + item.anchor.row * 6.dp.toPx()),
                     Size(size.width * .45f, 3.dp.toPx()), CornerRadius(1.5.dp.toPx()))
-                else -> geometry.position(item, spec)?.let { drawCircle(c.fg, 2.6.dp.toPx(), at(it)) }
+                item.anchor.type == AnchorType.LensRow -> {
+                    val slot = item.anchor.slot
+                    // Index along the row: LENS in the middle, before or after the four slots.
+                    val along = when (spec.dock.lensAt) {
+                        LensAt.Middle -> slot.toFloat()
+                        LensAt.Start -> (Anchor.LENS_SLOTS.indexOf(slot) + 1).toFloat()
+                        LensAt.End -> (Anchor.LENS_SLOTS.indexOf(slot) - 4).toFloat()
+                    }
+                    val p = when {
+                        edge.vertical -> Offset(lens.x, lens.y + along * step)
+                        spec.dock.spread -> Offset(m + (size.width - 2 * m) * (Anchor.LENS_SLOTS.indexOf(slot) + .5f) / 4f, lens.y - 10.dp.toPx())
+                        else -> Offset(lens.x + along * step, lens.y)
+                    }
+                    drawCircle(c.fg, 2.6.dp.toPx(), p)
+                }
+                else -> geometry.position(item, spec)?.let { drawCircle(c.fg, 2.6.dp.toPx(), Offset(it.x * k, it.y * ky)) }
             }
         }
     }

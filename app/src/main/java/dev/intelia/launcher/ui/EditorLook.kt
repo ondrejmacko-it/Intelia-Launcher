@@ -45,7 +45,7 @@ import dev.intelia.launcher.data.ThemeMode
 /** Changes the stored settings at once (not part of the layout's undo history). */
 typealias SettingsEdit = ((LauncherSettings) -> LauncherSettings) -> Unit
 
-/** The icon style for all of Home, Search, drawer and ARC (Studio › Vzhled › Ikony). */
+/** The icon style for all of Home, Search, drawer and ARC (Settings › Ikony). */
 @Composable
 fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
     Chips(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink),
@@ -96,19 +96,22 @@ fun lookFoldTitle(target: StudioTarget): String? = when (target) {
 }
 
 /**
- * The look of the whole launcher — icons, panels, wallpaper, theme, colours — in one place, Studio › Vzhled (the
- * editor's Vzhled button opens it). The icon size and names apply to the active layout at once.
+ * Every app and FLOW icon at once (Settings › Ikony): style and disc shape, one size for all of Home (up to
+ * [LauncherSettings.MAX_ICON]) and their names, applied to the active layout at once.
  */
 @Composable
-fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
-    Fold(stringResource(R.string.icons), stringResource(iconStyleName(settings.iconStyle))) {
-        IconStyleChips(settings, set)
-        AllIconsSize(settings, set)
-        val icons = settings.home.activeLayout().items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
-        Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on ->
-            set { it.copy(home = it.home.withIcons { i -> i.copy(label = on) }) }
-        }
+fun IconSettings(settings: LauncherSettings, set: SettingsEdit) {
+    IconStyleChips(settings, set)
+    AllIconsSize(settings, set)
+    val icons = settings.home.activeLayout().items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
+    Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on ->
+        set { it.copy(home = it.home.withIcons { i -> i.copy(label = on) }) }
     }
+}
+
+/** The look of the whole launcher — panels, wallpaper, theme, colours — in one place, Settings › Vzhled; one part open at a time. */
+@Composable
+fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
     Fold(stringResource(R.string.look_material), stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass))) {
         MaterialChips(settings, set)
         if (!settings.veilSolid) {
@@ -213,7 +216,7 @@ internal fun wallName(id: String?) = when (id) {
     else -> R.string.wallpaper_system
 }
 
-private fun iconStyleName(s: IconStyle) = when (s) {
+internal fun iconStyleName(s: IconStyle) = when (s) {
     IconStyle.System -> R.string.icons_system
     IconStyle.Ink -> R.string.icons_ink
     IconStyle.Veil -> R.string.look_veil
