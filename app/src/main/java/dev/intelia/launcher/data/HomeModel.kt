@@ -112,11 +112,15 @@ data class TextLook(
     /** Offset of a date bound to the clock, dp, ±[MAX_OFFSET]. */
     val dx: Float = 0f,
     val dy: Float = 0f,
+    /** Extra room inside a background plate, dp each side, 0..[MAX_PAD]: the plate stretched by its handles. */
+    val padX: Float = 0f,
+    val padY: Float = 0f,
 ) {
     companion object {
         const val MIN_TRACKING = -10
         const val MAX_TRACKING = 40
-        const val MAX_OFFSET = 48f
+        const val MAX_OFFSET = 96f
+        const val MAX_PAD = 96f
     }
 }
 
@@ -128,8 +132,11 @@ fun LayoutSpec.lensDx(): Float = items.firstOrNull { it.kind == ItemKind.Lens }?
 /** Date line formats, stored by name in [HomeItem.style]; empty = [Long]. */
 enum class DateFormat { Long, Short, Weekday, Custom }
 
-/** What sits behind the clock and its bound date (§5.12); stored by name in [HomeItem.background]. */
-enum class ClockBackground { None, Veil }
+/**
+ * What sits behind the clock and its bound date (§5.12); stored by name in [HomeItem.background].
+ * [Veil] follows the glass chosen in Look; the others pin one glass to this plate.
+ */
+enum class ClockBackground { None, Veil, Crystal, Frost, Liquid }
 
 /** Colour choices of the clock inspector, stored by name. */
 enum class ItemTint { Accent, Light, Dark }

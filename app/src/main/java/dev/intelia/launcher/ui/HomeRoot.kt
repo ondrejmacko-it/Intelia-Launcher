@@ -18,10 +18,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.AnchorType
+import dev.intelia.launcher.data.TextLook
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
@@ -39,6 +41,9 @@ import androidx.compose.ui.semantics.customActions
 import kotlin.math.abs
 import kotlin.math.hypot
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -102,7 +107,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AppEntry
-import dev.intelia.launcher.data.ClockBackground
 import dev.intelia.launcher.data.ItemAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.text.style.TextAlign
@@ -374,6 +378,8 @@ private fun Home(
     /** Editor: the item whose inspector is open, the empty spot of the Add menu, its picker, the preset strip. */
     var selected by remember { mutableStateOf<String?>(null) }
     var addPoint by remember { mutableStateOf<Pt?>(null) }
+    /** Where the owner moved and how they sized the editor card, for this editing session. */
+    val inspectorFrame = remember { InspectorFrame() }
     var picker by remember { mutableStateOf<ItemKind?>(null) }
     var presetsOpen by remember { mutableStateOf(false) }
     var previewKey by remember { mutableStateOf<String?>(null) }
@@ -477,7 +483,7 @@ private fun Home(
             val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
             val topPad = (if (compact) 24.dp else if (listLayout) 72.dp else 92.dp) + (geometry.areaH * a.fy).dp
             // §5.12 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
-            val plate = clock?.background == ClockBackground.Veil.name
+            val plate = !clock?.background.isNullOrEmpty()
             val clockInk = if (plate) LocalCrystal.current.fg else homeInk
             // On a plate the theme's accent variant is right; straight on the wallpaper, the wallpaper's.
             val onClock = if (plate) places else wallPlaces
@@ -485,11 +491,13 @@ private fun Home(
             val textAccent = onClock[PaletteTarget.Text]
             // The plate's 20 dp inset comes out of the 28 dp margin, so the time keeps its width.
             Column(
-                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(top = topPad).padding(horizontal = if (plate) 8.dp else 28.dp)
-                    .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
+                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(top = topPad)
+                    .atFx(a.fx, geometry.areaLeft, geometry.areaW, if (plate) 8f else 28f).graphicsLayer { alpha = quiet }
                     .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) }
-                    .then(if (plate) Modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Top, RoundedCornerShape(26.dp))
-                        .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 16.dp) else Modifier),
+                    .then(if (plate) Modifier.veilSurface(plateTokens(clock.background), VeilOrigin.Top, RoundedCornerShape(26.dp))
+                        .padding(horizontal = (20f + clock.look.padX).dp).padding(top = (14f + clock.look.padY).dp, bottom = (16f + clock.look.padY).dp)
+                        else Modifier)
+                    .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
                 horizontalAlignment = when (clock?.look?.align ?: ItemAlign.Auto) {
                     ItemAlign.Start -> Alignment.Start
                     ItemAlign.Center -> Alignment.CenterHorizontally
@@ -506,10 +514,9 @@ private fun Home(
         } else clockZone = null
         if (freeDate != null) {
             // An unpinned date: placed like the clock (§5.5), by its own free point.
-            val bias = (freeDate.anchor.fx * 2f - 1f).coerceIn(-1f, 1f)
             DateText(freeDate, now, homeInk, wallPlaces[PaletteTarget.Text], Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
-                .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp).padding(horizontal = 28.dp)
-                .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
+                .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp)
+                .atFx(freeDate.anchor.fx, geometry.areaLeft, geometry.areaW, 28f).graphicsLayer { alpha = quiet }
                 .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
         }
 
@@ -708,7 +715,22 @@ private fun Home(
                         onDragCancel = { ed.cancelDrag(); ed.cancelLensDrag(); refresh() },
                     )
                 })
-            EditorBar(ed.canUndo, ed.canRedo, onUndo = { ed.undo(); refresh() }, onRedo = { ed.redo(); refresh() }, presetsOpen = presetsOpen, onPresets = {
+            // What is edited now, named in the bar (and in the card's header).
+            val editingTitle = when (val id = selected) {
+                null -> null
+                PULSE_ID -> stringResource(R.string.pulse)
+                else -> ed.item(id)?.let { item ->
+                    when (item.kind) {
+                        ItemKind.Clock -> stringResource(R.string.place_clock)
+                        ItemKind.Date -> stringResource(R.string.inspect_date)
+                        ItemKind.Lens -> stringResource(R.string.place_lens)
+                        ItemKind.App -> apps[item.target]?.label
+                        ItemKind.Flow -> flows[item.target]?.name
+                        else -> null
+                    }
+                }
+            }
+            EditorBar(ed.canUndo, ed.canRedo, editing = editingTitle, onUndo = { ed.undo(); refresh() }, onRedo = { ed.redo(); refresh() }, presetsOpen = presetsOpen, onPresets = {
                     if (presetsOpen) { ed.cancelPreview(); previewKey = null }
                     presetsOpen = !presetsOpen; lookOpen = false; selected = null; addPoint = null; refresh()
                 }, lookOpen = lookOpen, onLook = {
@@ -740,7 +762,8 @@ private fun Home(
             if (selected == PULSE_ID && drag == null) {
                 val r = hole.radius / density.density + 10f
                 // Below the editor bar: the camera sits under the status bar, the card hangs from the bar.
-                InspectorCard(Zone(camera.x - r, barBottom - 12f - r, camera.x + r, barBottom - 12f), maxWidth.value, barBottom, null) {
+                InspectorCard(Zone(camera.x - r, barBottom - 12f - r, camera.x + r, barBottom - 12f), maxWidth.value, barBottom + EDIT_LABEL, null,
+                    stringResource(R.string.pulse), inspectorFrame) {
                     PulseInspector(settings, set, onLens = { leave(onPulseLens) })
                 }
             }
@@ -766,9 +789,21 @@ private fun Home(
                     ed.edit(sel.id, "size") { it.copy(sizeDp = (now + dx.roundToInt()).coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)) }
                     refresh()
                 }
-                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom,
+                // A plate stretches by its own handles: right edge sideways, bottom edge down.
+                val plateZone = when {
+                    sel.background.isEmpty() -> null
+                    sel.kind == ItemKind.Clock -> clockZone
+                    sel.kind == ItemKind.Date && sel.anchor.type != AnchorType.Bound -> dateZone
+                    else -> null
+                }
+                if (plateZone != null) PlateHandles(plateZone) { dx, dy ->
+                    ed.edit(sel.id, "pad") { it.copy(look = it.look.copy(
+                        padX = (it.look.padX + dx / 2f).coerceIn(0f, TextLook.MAX_PAD), padY = (it.look.padY + dy / 2f).coerceIn(0f, TextLook.MAX_PAD))) }
+                    refresh()
+                }
+                if (zone != null) key(sel.id) { InspectorCard(zone, maxWidth.value, barBottom + EDIT_LABEL,
                     // Above the ghost ARC the LENS card may cover the clock: the arcs matter more while LENS is edited.
-                    clockZone.takeIf { !sel.kind.isText() && sel.kind != ItemKind.Lens }) {
+                    clockZone.takeIf { !sel.kind.isText() && sel.kind != ItemKind.Lens }, editingTitle, inspectorFrame) {
                     when (sel.kind) {
                         ItemKind.Clock -> ClockInspector(ed, sel, settings.clockStyle, settings, set, onRemoved = { selected = null }, onChange = ::refresh)
                         ItemKind.Date -> DateInspector(ed, sel, zone.let { z ->
@@ -846,13 +881,29 @@ private const val PULSE_ID = "#pulse"
 /** How far one TalkBack "move LENS" action shifts it (dp). */
 private const val LENS_A11Y_STEP = 24f
 
+/** Room under the editor bar for the name of what is edited, dp. */
+private const val EDIT_LABEL = 40f
+
+/**
+ * Places a clock or an unpinned date so that its centre sits at [fx] across the editor's area, the very point
+ * the editor drags, so the text follows the finger one to one; it is kept whole [margin] dp inside the screen
+ * (fx 0 and 1 still mean flush left and right, 0.5 centred).
+ */
+private fun Modifier.atFx(fx: Float, areaLeft: Float, areaW: Float, margin: Float) = layout { m, c ->
+    val edge = margin.dp.roundToPx()
+    val w = c.maxWidth
+    val p = m.measure(c.copy(minWidth = 0, maxWidth = (w - 2 * edge).coerceAtLeast(0)))
+    val centre = (areaLeft + fx * areaW).dp.roundToPx()
+    layout(w, p.height) { p.place((centre - p.width / 2).coerceIn(edge, maxOf(edge, w - edge - p.width)), 0) }
+}
+
 /** The date line in its own format, size, colour and opacity; 4.2 default: 12 sp caps, +2.2 tracking, fg2 (62 %). */
 @Composable
 private fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent: Color, modifier: Modifier) {
     val size = item.dateSp()
     val look = item.look
     val text = dateText(now, item.dateFormat(), look)
-    val plate = item.anchor.type != AnchorType.Bound && item.background == ClockBackground.Veil.name
+    val plate = item.anchor.type != AnchorType.Bound && item.background.isNotEmpty()
     val ink = if (plate) LocalCrystal.current.fg else homeInk
     val family = faceFamily(look.face, if (item.weight == 0) 450 else item.weight) ?: CrystalType.date.fontFamily
     val style = CrystalType.date.copy(fontFamily = family, fontSize = size.sp,
@@ -862,8 +913,8 @@ private fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent:
         textAlign = if (look.vertical) TextAlign.Center else TextAlign.Unspecified)
     Text(if (look.vertical) text.toList().joinToString("\n") else text,
         modifier.graphicsLayer { alpha = item.alpha }
-            .then(if (plate) Modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Top, RoundedCornerShape(18.dp))
-                .padding(horizontal = 16.dp, vertical = 10.dp) else Modifier),
+            .then(if (plate) Modifier.veilSurface(plateTokens(item.background), VeilOrigin.Top, RoundedCornerShape(18.dp))
+                .padding(horizontal = (16f + look.padX).dp, vertical = (10f + look.padY).dp) else Modifier),
         style = style, color = item.tintColor(accent) ?: ink.copy(alpha = if (plate) .8f else .62f), maxLines = if (look.vertical) 40 else 1)
 }
 

@@ -59,6 +59,8 @@ fun EditorBar(
     /** Plain values: [HomeEditorState] is plain Kotlin, so the caller refreshes after undo/redo. */
     canUndo: Boolean,
     canRedo: Boolean,
+    /** The element being edited, named in the middle of the bar; null = nothing selected. */
+    editing: String?,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     presetsOpen: Boolean,
@@ -72,7 +74,8 @@ fun EditorBar(
     val ink = LocalInk.current
     val c = LocalCrystal.current
     val veil = veil(VeilLevel.Light)
-    Row(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(horizontal = 12.dp, vertical = 8.dp),
+    Column(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility), horizontalAlignment = Alignment.CenterHorizontally) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         BarPill(stringResource(R.string.presets), presetsOpen, onPresets)
         BarPill(stringResource(R.string.look), lookOpen, onLook, Modifier.padding(start = 8.dp))
@@ -88,6 +91,12 @@ fun EditorBar(
             .clickable(role = Role.Button, onClick = onDone), contentAlignment = Alignment.Center) {
             HomeGlyph(Glyph.Check, stringResource(R.string.edit_done), tint = c.accInk, size = 20.dp)
         }
+    }
+    // What is edited now, under the bar.
+    androidx.compose.animation.AnimatedVisibility(editing != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+        Text(editing.orEmpty(), Modifier.veilSurface(veil, VeilOrigin.Top, CircleShape).padding(horizontal = 14.dp, vertical = 7.dp),
+            style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    }
     }
 }
 
@@ -120,6 +129,32 @@ fun ClockHandle(zone: Zone, onResize: (Float) -> Unit) {
         }, contentAlignment = Alignment.Center) {
         Box(Modifier.size(14.dp).clip(CircleShape).background(c.acc).border(2.dp, c.accInk, CircleShape))
     }
+}
+
+/** Two handles on a clock or date plate: the right edge stretches it sideways, the bottom edge down (dp). */
+@Composable
+fun PlateHandles(zone: Zone, onStretch: (Float, Float) -> Unit) {
+    val c = LocalCrystal.current
+    val density = LocalDensity.current
+    val label = stringResource(R.string.plate_title)
+    @Composable
+    fun handle(x: Float, y: Float, arrow: String, sideways: Boolean) {
+        Box(Modifier.offset { IntOffset(((x - 22f) * density.density).roundToInt(), ((y - 22f) * density.density).roundToInt()) }
+            .size(44.dp).semantics { contentDescription = label }
+            .pointerInput(sideways) {
+                detectDragGestures { change, amount ->
+                    change.consume()
+                    val v = (if (sideways) amount.x else amount.y) / density.density
+                    if (sideways) onStretch(v, 0f) else onStretch(0f, v)
+                }
+            }, contentAlignment = Alignment.Center) {
+            Box(Modifier.size(22.dp).clip(CircleShape).background(c.acc).border(2.dp, c.accInk, CircleShape), contentAlignment = Alignment.Center) {
+                Text(arrow, style = CrystalType.caption.copy(fontSize = 11.sp), color = c.accInk)
+            }
+        }
+    }
+    handle(zone.right - 8f, (zone.top + zone.bottom) / 2f, "↔", true)
+    handle((zone.left + zone.right) / 2f, zone.bottom - 8f, "↕", false)
 }
 
 @Composable

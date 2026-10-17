@@ -336,4 +336,10 @@
     <string name="date_year">Rok</string>
     <string name="date_offset">Posun od hodin</string>
     <string name="date_vertical">Svisle shora dolů</string>
+    <string name="inspect_move_card">Přetažením posuneš editor</string>
+    <string name="inspect_card_reset">Vrátit editor na místo</string>
+    <string name="plate_title">Pozadí</string>
+    <string name="plate_wide">Roztažení ↔</string>
+    <string name="plate_tall">Roztažení ↕</string>
+    <string name="editing_now">Upravuješ</string>
 </resources>

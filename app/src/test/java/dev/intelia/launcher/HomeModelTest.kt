@@ -194,9 +194,10 @@ class HomeModelTest {
 
     @Test
     fun textLookIsClampedAndKeptOnlyOnClockAndDate() {
-        val wild = TextLook(face = TypeFace.Inter, tracking = 99, dx = 500f, dy = Float.NaN, layout = ClockLayout.Stack)
+        val wild = TextLook(face = TypeFace.Inter, tracking = 99, dx = 500f, dy = Float.NaN, layout = ClockLayout.Stack, padX = 999f, padY = -5f)
         val items = listOf(
-            HomeItem("c", ItemKind.Clock, Anchor.free(.5f, .1f), look = wild),
+            HomeItem("c", ItemKind.Clock, Anchor.free(.5f, .1f), look = wild, background = "Liquid"),
+            HomeItem("d", ItemKind.Date, Anchor.free(.5f, .3f), background = "Glitter"),
             HomeItem("a", ItemKind.App, Anchor.cell(0, 0), target = "p/a", look = wild),
         )
         val kept = LauncherSettings(home = HomeLayouts("u", listOf(LayoutSpec("u", items = items))), schema = 2).sanitized().home.activeLayout().items
@@ -205,6 +206,10 @@ class HomeModelTest {
         assertEquals(TextLook.MAX_OFFSET, c.dx)
         assertEquals(0f, c.dy)
         assertEquals(ClockLayout.Stack, c.layout)
+        assertEquals(TextLook.MAX_PAD, c.padX)
+        assertEquals(0f, c.padY)
+        assertEquals("Liquid", kept.first { it.id == "c" }.background)
+        assertEquals("", kept.first { it.id == "d" }.background)
         assertEquals(TextLook(), kept.first { it.id == "a" }.look)
     }
 

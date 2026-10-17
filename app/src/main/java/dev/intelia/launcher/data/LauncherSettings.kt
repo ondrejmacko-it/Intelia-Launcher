@@ -237,10 +237,13 @@ data class LauncherSettings(
             weight = if (it.kind != ItemKind.Clock || it.weight == 0) 0 else it.weight.coerceIn(100, 900),
             tint = it.tint.takeIf { t -> ItemTint.entries.any { e -> e.name == t } }.orEmpty(),
             alpha = if (it.alpha.isFinite()) it.alpha.coerceIn(.3f, 1f) else 1f,
-            background = if ((it.kind == ItemKind.Clock || it.kind == ItemKind.Date) && it.background == ClockBackground.Veil.name) it.background else "",
+            background = if ((it.kind == ItemKind.Clock || it.kind == ItemKind.Date) && it.background != ClockBackground.None.name &&
+                ClockBackground.entries.any { b -> b.name == it.background }) it.background else "",
             look = if (it.kind == ItemKind.Clock || it.kind == ItemKind.Date) it.look.let { l ->
                 fun off(v: Float) = if (v.isFinite()) v.coerceIn(-TextLook.MAX_OFFSET, TextLook.MAX_OFFSET) else 0f
-                l.copy(tracking = l.tracking.coerceIn(TextLook.MIN_TRACKING, TextLook.MAX_TRACKING), dx = off(l.dx), dy = off(l.dy))
+                fun pad(v: Float) = if (v.isFinite()) v.coerceIn(0f, TextLook.MAX_PAD) else 0f
+                l.copy(tracking = l.tracking.coerceIn(TextLook.MIN_TRACKING, TextLook.MAX_TRACKING), dx = off(l.dx), dy = off(l.dy),
+                    padX = pad(l.padX), padY = pad(l.padY))
             } else TextLook(),
         )
     }

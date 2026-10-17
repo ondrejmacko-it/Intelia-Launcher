@@ -92,6 +92,23 @@ fun veil(level: VeilLevel): VeilTokens {
     return veilTokens(level, c.dark, c.acc, LocalVeil.current)
 }
 
+/**
+ * A clock or date plate (§5.12): [background] is a [dev.intelia.launcher.data.ClockBackground] name; Veil follows
+ * the glass chosen in Look, the others pin their own glass to the plate.
+ */
+@Composable
+fun plateTokens(background: String): VeilTokens {
+    val c = LocalCrystal.current
+    val prefs = LocalVeil.current
+    val glass = when (background) {
+        "Crystal" -> Glass.Crystal
+        "Frost" -> Glass.Frost
+        "Liquid" -> Glass.Liquid
+        else -> null
+    }
+    return veilTokens(VeilLevel.Light, c.dark, c.acc, if (glass == null) prefs else prefs.copy(solid = false, glass = glass))
+}
+
 fun veilTokens(level: VeilLevel, dark: Boolean, acc: Color, prefs: VeilPrefs = VeilPrefs()): VeilTokens {
     if (prefs.solid) {
         // §5.2 Solid: opaque matte fill, 1 dp white @ 15 % (black in light), accent only at the origin.

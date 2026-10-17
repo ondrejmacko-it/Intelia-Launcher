@@ -1,6 +1,10 @@
 package dev.intelia.launcher.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -123,29 +127,74 @@ fun HomeItem.tintColor(accent: Color): Color? = when (tint) {
     else -> null
 }
 
+/** Where the owner moved the editor card and how they sized it, dp; kept for the whole editing session. */
+class InspectorFrame {
+    /** Top-left; null = placed by the element. */
+    var pos by mutableStateOf<Offset?>(null)
+    var width by mutableFloatStateOf(DEFAULT_W)
+    /** Most the body may grow before it scrolls; 0 = automatic (58 % of the screen). */
+    var maxH by mutableFloatStateOf(0f)
+    val moved get() = pos != null || width != DEFAULT_W || maxH != 0f
+    fun reset() { pos = null; width = DEFAULT_W; maxH = 0f }
+
+    companion object {
+        const val DEFAULT_W = 312f
+        const val MIN_W = 240f
+        const val MIN_H = 140f
+    }
+}
+
 /**
- * Contextual editor on Veil Dense (§5.5): 312 dp, above [target] when it fits, else below, never over it;
+ * Contextual editor on Veil Dense (§5.5): 312 dp, above [target] when it fits, else below;
  * the edge lights from the element's side. [target] and [topLimit] are dp in Home coordinates.
+ * The spot is chosen once, when the card opens: it then stays put while its element moves or grows (a slider
+ * never runs away under the finger) and is always kept whole on the screen. With a [frame] the card has a
+ * header naming what is edited: drag it to move the card, drag the arrows at its corners and sides to size it.
  */
 @Composable
-fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = null, content: @Composable () -> Unit) {
-    val c = LocalCrystal.current
-    val density = LocalDensity.current
+fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = null, title: String? = null,
+                  frame: InspectorFrame? = null, content: @Composable () -> Unit) {
+    val d = LocalDensity.current.density
+    // The bottom stops above the navigation bar, so the handles never sit in the gesture area.
+    val navBottom = androidx.compose.foundation.layout.WindowInsets.navigationBars.getBottom(LocalDensity.current) / d
+    val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.toFloat() - navBottom
     var h by remember { mutableIntStateOf(0) }
-    val width = minOf(312f, screenW - 24f)
-    val hDp = h / density.density
-    val x = ((target.left + target.right) / 2f - width / 2f).coerceIn(12f, screenW - 12f - width)
-    // Above when it fits and leaves [avoid] (the clock) visible; otherwise below.
-    val aboveTop = target.top - 12f - hDp
-    val above = aboveTop >= topLimit && (avoid == null || avoid.bottom <= aboveTop || avoid.top >= target.top ||
-        avoid.right <= x || avoid.left >= x + width)
-    val y = if (above) target.top - 12f - hDp else target.bottom + 12f
-    val fx = (((target.left + target.right) / 2f - x) / width).coerceIn(0f, 1f)
+    val hDp = h / d
+    val width = (frame?.width ?: InspectorFrame.DEFAULT_W).coerceIn(minOf(InspectorFrame.MIN_W, screenW - 24f), screenW - 24f)
+    val room = (screenH - topLimit - 24f).coerceAtLeast(InspectorFrame.MIN_H)
+    var auto by remember { mutableStateOf<Offset?>(null) }
+    /** When the card fits neither above nor below whole, its body is capped to the roomier side. */
+    var autoCap by remember { mutableFloatStateOf(Float.MAX_VALUE) }
+    val maxH = (frame?.maxH?.takeIf { it > 0f } ?: minOf(screenH * .58f, autoCap)).coerceIn(InspectorFrame.MIN_H, room)
+    var above by remember { mutableStateOf(true) }
+    var fx by remember { mutableFloatStateOf(.5f) }
+    if (auto == null && h > 0) {
+        val ax = ((target.left + target.right) / 2f - width / 2f).coerceIn(12f, screenW - 12f - width)
+        // Above when it fits and leaves [avoid] (the clock) visible; otherwise below.
+        val aboveTop = target.top - 12f - hDp
+        above = aboveTop >= topLimit && (avoid == null || avoid.bottom <= aboveTop || avoid.top >= target.top ||
+            avoid.right <= ax || avoid.left >= ax + width)
+        val belowRoom = screenH - 12f - target.bottom - 12f
+        if (!above && hDp > belowRoom) {
+            val aboveRoom = target.top - 12f - topLimit
+            // Neither side takes it whole: the roomier side, the body capped to it (the header and margins ≈ 72 dp).
+            if (aboveRoom > belowRoom && aboveRoom >= 200f) { above = true; autoCap = aboveRoom - 72f }
+            else if (belowRoom >= 200f) autoCap = belowRoom - 72f
+        }
+        auto = Offset(ax, if (above) target.top - 12f - minOf(hDp, autoCap + 72f) else target.bottom + 12f)
+        fx = (((target.left + target.right) / 2f - ax) / width).coerceIn(0f, 1f)
+    }
+    val p = frame?.pos ?: auto ?: Offset(12f, topLimit)
+    val x = p.x.coerceIn(12f, maxOf(12f, screenW - 12f - width))
+    val y = p.y.coerceIn(topLimit, maxOf(topLimit, screenH - 12f - hDp))
+    val at by androidx.compose.runtime.rememberUpdatedState(Offset(x, y))
+    val size by androidx.compose.runtime.rememberUpdatedState(Offset(width, maxH))
+    val shown by androidx.compose.runtime.rememberUpdatedState(hDp)
     // §5.6: scale 0.86 → 1 from the element, 220 ms (0 ms with Reduced Motion).
     val appear = remember { androidx.compose.animation.core.Animatable(0f) }
     val ms = motionMs(160)
     androidx.compose.runtime.LaunchedEffect(Unit) { appear.animateTo(1f, androidx.compose.animation.core.tween(ms)) }
-    Column(Modifier.offset { IntOffset((x * density.density).roundToInt(), (y * density.density).roundToInt()) }
+    Box(Modifier.offset { IntOffset((x * d).roundToInt(), (y * d).roundToInt()) }
         .width(width.dp).onSizeChanged { h = it.height }.graphicsLayer {
             alpha = if (h == 0) 0f else appear.value
             val k = .86f + .14f * appear.value
@@ -153,12 +202,65 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
             transformOrigin = androidx.compose.ui.graphics.TransformOrigin(fx, if (above) 1f else 0f)
         }
         .veilSurface(veil(VeilLevel.Dense), VeilOrigin(fx, if (above) 1f else 0f))
-        .pointerInput(Unit) { detectTapGestures() }
-        .animateContentSize(androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
-        .heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .58f).dp)
-        .verticalScroll(rememberScrollState())
-        .padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        content()
+        .pointerInput(Unit) { detectTapGestures() }) {
+        Column(Modifier.animateContentSize(androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))) {
+            if (title != null) CardHeader(title, frame) { delta -> frame?.pos = at + delta / d }
+            Column(Modifier.heightIn(max = maxH.dp).verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = if (title != null) 0.dp else 12.dp, bottom = if (frame != null) 20.dp else 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                content()
+            }
+        }
+        if (frame != null) {
+            fun resize(left: Boolean, right: Boolean, down: Boolean, delta: Offset) {
+                val dx = delta.x / d
+                if (right) frame.width = (size.x + dx).coerceIn(InspectorFrame.MIN_W, screenW - 24f)
+                if (left) {
+                    val w = (size.x - dx).coerceIn(InspectorFrame.MIN_W, screenW - 24f)
+                    frame.pos = Offset(at.x + size.x - w, at.y); frame.width = w
+                }
+                // The body is the card less its header; its cap follows the finger from what is shown now.
+                if (down) frame.maxH = (minOf(size.y, shown) + delta.y / d).coerceIn(InspectorFrame.MIN_H, room)
+            }
+            ResizeHandle("↙", Alignment.BottomStart) { resize(left = true, right = false, down = true, delta = it) }
+            ResizeHandle("↘", Alignment.BottomEnd) { resize(left = false, right = true, down = true, delta = it) }
+            ResizeHandle("↔", Alignment.CenterStart) { resize(left = true, right = false, down = false, delta = it) }
+            ResizeHandle("↔", Alignment.CenterEnd) { resize(left = false, right = true, down = false, delta = it) }
+            ResizeHandle("↕", Alignment.BottomCenter) { resize(left = false, right = false, down = true, delta = it) }
+        }
+    }
+}
+
+/** What is being edited, as a grip: drag it to move the card; ⟲ puts the card back by its element. */
+@Composable
+private fun CardHeader(title: String, frame: InspectorFrame?, onDrag: (Offset) -> Unit) {
+    val c = LocalCrystal.current
+    val label = stringResource(R.string.inspect_move_card)
+    val reset = stringResource(R.string.inspect_card_reset)
+    Column(Modifier.fillMaxWidth().semantics { contentDescription = label }
+        .pointerInput(Unit) { detectDragGestures { change, amount -> change.consume(); onDrag(amount) } }
+        .padding(start = 16.dp, end = 8.dp, top = 6.dp)) {
+        Box(Modifier.align(Alignment.CenterHorizontally).width(36.dp).height(4.dp).clip(CircleShape).background(c.fg3))
+        Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 16.sp), color = c.fg, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
+            if (frame?.moved == true) Box(Modifier.size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = reset) { frame.reset() },
+                contentAlignment = Alignment.Center) {
+                Text("⟲", style = CrystalType.body.copy(fontSize = 18.sp), color = c.fg2)
+            }
+        }
+    }
+}
+
+/** A small arrow at a corner or side of the card: drag it to size the card that way. */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.ResizeHandle(arrow: String, at: Alignment, onDrag: (Offset) -> Unit) {
+    val c = LocalCrystal.current
+    val side = at == Alignment.CenterStart || at == Alignment.CenterEnd
+    Box(Modifier.align(at).size(if (side) 22.dp else 30.dp, if (side) 56.dp else 24.dp)
+        .pointerInput(Unit) { detectDragGestures { change, amount -> change.consume(); onDrag(amount) } },
+        contentAlignment = Alignment.Center) {
+        Text(arrow, style = CrystalType.caption.copy(fontSize = 13.sp), color = c.fg2)
     }
 }
 
@@ -200,7 +302,8 @@ private fun StepButton(sign: String, label: String, enabled: Boolean, onClick: (
 }
 
 @Composable
-internal fun <T> Chips(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+internal fun <T> Chips(options: List<Pair<T, String>>, selected: T, family: (T) -> androidx.compose.ui.text.font.FontFamily? = { null },
+                       onSelect: (T) -> Unit) {
     val c = LocalCrystal.current
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -208,7 +311,8 @@ internal fun <T> Chips(options: List<Pair<T, String>>, selected: T, onSelect: (T
             val on = value == selected
             Text(label, Modifier.clip(CircleShape).then(if (on) Modifier.background(c.acc) else Modifier.border(1.dp, c.fg3, CircleShape))
                 .selectable(on, role = Role.RadioButton) { onSelect(value) }.heightIn(min = 36.dp).padding(horizontal = 12.dp, vertical = 9.dp),
-                style = CrystalType.body.copy(fontSize = 13.sp, lineHeight = 16.sp), color = if (on) c.accInk else c.fg, maxLines = 1)
+                style = CrystalType.body.copy(fontSize = 13.sp, lineHeight = 16.sp, fontFamily = family(value) ?: CrystalType.body.fontFamily),
+                color = if (on) c.accInk else c.fg, maxLines = 1)
         }
     }
 }
@@ -275,12 +379,32 @@ internal fun Fold(title: String, summary: String? = null, content: @Composable (
 private val FACES = listOf(TypeFace.Style to "Auto", TypeFace.Flex to "Flex", TypeFace.Inter to "Inter", TypeFace.SpaceGrotesk to "Space Grotesk",
     TypeFace.DmSerif to "DM Serif", TypeFace.JetBrainsMono to "JetBrains Mono", TypeFace.BodoniModa to "Bodoni", TypeFace.Unbounded to "Unbounded")
 
+/**
+ * The plate behind a clock or a date (§5.12): none, Veil (the glass chosen in Look) or one glass of its own;
+ * with a plate, how far it stretches past the text (also by its handles on Home).
+ */
+@Composable
+private fun PlateControls(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+    Chips(listOf("" to stringResource(R.string.clock_bg_none), ClockBackground.Veil.name to stringResource(R.string.look_veil),
+        ClockBackground.Crystal.name to stringResource(R.string.glass_crystal), ClockBackground.Frost.name to stringResource(R.string.glass_frost),
+        ClockBackground.Liquid.name to stringResource(R.string.glass_liquid)), item.background) { v ->
+        state.edit(item.id, "background") { it.copy(background = v) }; onChange()
+    }
+    if (item.background.isEmpty()) return
+    fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
+    Fold(stringResource(R.string.plate_title), "${item.look.padX.roundToInt()} × ${item.look.padY.roundToInt()}") {
+        SliderRow(stringResource(R.string.plate_wide), item.look.padX, 0f, TextLook.MAX_PAD, 2f, "${item.look.padX.roundToInt()} dp") { v -> edit("padX") { it.copy(padX = v) } }
+        SliderRow(stringResource(R.string.plate_tall), item.look.padY, 0f, TextLook.MAX_PAD, 2f, "${item.look.padY.roundToInt()} dp") { v -> edit("padY") { it.copy(padY = v) } }
+    }
+}
+
 /** Face and letter spacing, shared by the clock and the date. */
 @Composable
 private fun TypeControls(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
     val look = item.look
     fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
-    Chips(FACES, look.face) { v -> edit("face") { it.copy(face = v) } }
+    // Each face previewed on its own chip.
+    Chips(FACES, look.face, family = { f -> faceFamily(f, 450) }) { v -> edit("face") { it.copy(face = v) } }
     SliderRow(stringResource(R.string.type_tracking), look.tracking.toFloat(), TextLook.MIN_TRACKING.toFloat(), TextLook.MAX_TRACKING.toFloat(), 1f,
         "${look.tracking}") { v -> edit("tracking") { it.copy(tracking = v.roundToInt()) } }
 }
@@ -322,9 +446,7 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
     Toggle(stringResource(R.string.inspect_date), state.layout.items.any { it.kind == ItemKind.Date }) { on -> state.setDate(on); onChange() }
-    Chips(listOf("" to stringResource(R.string.clock_bg_none), ClockBackground.Veil.name to stringResource(R.string.look_veil)), item.background) { v ->
-        state.edit(item.id, "background") { it.copy(background = v) }; onChange()
-    }
+    PlateControls(state, item, onChange)
     val look = item.look
     fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
     Fold(stringResource(R.string.type_font), FACES.first { it.first == look.face }.second) { TypeControls(state, item, onChange) }
@@ -390,9 +512,7 @@ fun DateInspector(state: HomeEditorState, item: HomeItem, shownFy: Float?, onRem
     if (item.anchor.type == AnchorType.Bound) Fold(stringResource(R.string.date_offset)) {
         SliderRow("↔", look.dx, -TextLook.MAX_OFFSET, TextLook.MAX_OFFSET, 2f, "${look.dx.roundToInt()} dp") { v -> edit("dx") { it.copy(dx = v) } }
         SliderRow("↕", look.dy, -TextLook.MAX_OFFSET, TextLook.MAX_OFFSET, 2f, "${look.dy.roundToInt()} dp") { v -> edit("dy") { it.copy(dy = v) } }
-    } else Chips(listOf("" to stringResource(R.string.clock_bg_none), ClockBackground.Veil.name to stringResource(R.string.look_veil)), item.background) { v ->
-        state.edit(item.id, "background") { it.copy(background = v) }; onChange()
-    }
+    } else PlateControls(state, item, onChange)
     Fold(stringResource(R.string.type_font), FACES.first { it.first == look.face }.second) {
         TypeControls(state, item, onChange)
         Chips(listOf(TextCase.Auto to stringResource(R.string.tint_auto), TextCase.Upper to "ABC", TextCase.Lower to "abc"), look.case) { v ->
