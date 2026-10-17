@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -219,7 +220,10 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
             if (preview) BoxWithConstraints(Modifier.weight(PREVIEW_SHARE).fillMaxWidth().padding(bottom = 10.dp), contentAlignment = Alignment.Center) {
                 val scale = minOf(maxHeight / screenH, maxWidth / screenW)
                 val shape = RoundedCornerShape(16.dp)
-                Box(Modifier.size(screenW * scale, screenH * scale).clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)) {
+                // TalkBack hears one "Home preview", not the live time and date as if they were content.
+                val previewLabel = stringResource(R.string.home_preview)
+                Box(Modifier.size(screenW * scale, screenH * scale).clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)
+                    .clearAndSetSemantics { contentDescription = previewLabel }) {
                     // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
                     HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
                         scale = scale, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
@@ -342,7 +346,7 @@ private fun SectionRow(title: String, subtitle: String, onClick: () -> Unit) {
             Text(title, style = InkText.body.copy(fontSize = 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = InkText.small, color = ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        Text("  →", style = InkText.body, color = ink.muted)
+        Text("  →", Modifier.clearAndSetSemantics { }, style = InkText.body, color = ink.muted)
     }
 }
 

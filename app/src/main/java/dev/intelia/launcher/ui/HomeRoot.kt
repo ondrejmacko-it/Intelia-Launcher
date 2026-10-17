@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.TextLook
+import dev.intelia.launcher.data.TypeFace
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
@@ -535,7 +536,7 @@ private fun Home(
         }
 
         Box(Modifier.fillMaxSize().then(homeLayer).onPlaced { homeCoords[0] = it }) {
-        if (ed != null) EditorMarks(ed, layout)
+        if (ed != null) EditorMarks(ed, layout, iconDefault)
 
         if (clock == null) timeZone = null
         if (date == null) dateZone = null
@@ -662,6 +663,10 @@ private fun Home(
 
         // The legacy text list (preset "Vlastní").
         val stack = layout.items.filter { it.kind == ItemKind.App && it.anchor.type == AnchorType.Stack }.sortedBy { it.anchor.row }
+        // The list takes the clock's own face (Terminál: monospaced) at a smaller size; the legacy list keeps its serif.
+        val listFace = clock?.look?.face?.takeIf { it != TypeFace.Style }?.let { faceFamily(it, 400) }
+        val listStyle = if (listFace == null) InkText.item.copy(fontSize = 30.sp, lineHeight = 34.sp)
+            else InkText.item.copy(fontFamily = listFace, fontSize = 22.sp, lineHeight = 28.sp)
         if (stack.isNotEmpty()) Column(
             Modifier.align(Alignment.BottomStart).padding(start = 20.dp, end = 28.dp, bottom = bottomInset + LensLift + 64.dp)
                 .graphicsLayer { alpha = quiet },
@@ -672,7 +677,7 @@ private fun Home(
                     .combinedClickable(role = Role.Button, onLongClickLabel = stringResource(R.string.app_options),
                         onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
                     .padding(horizontal = 8.dp, vertical = 6.dp),
-                    style = InkText.item.copy(fontSize = 30.sp, lineHeight = 34.sp, shadow = homeShadow(homeInk)),
+                    style = listStyle.copy(shadow = homeShadow(homeInk)),
                     color = homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }

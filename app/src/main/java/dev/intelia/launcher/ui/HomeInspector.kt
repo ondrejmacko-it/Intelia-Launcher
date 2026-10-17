@@ -156,6 +156,17 @@ class InspectorFrame(saved: dev.intelia.launcher.data.CardFrame? = null) {
 }
 
 /**
+ * An editor card's surface: Dense with its body raised to at least [EDITOR_CARD_BODY], since it floats over a live
+ * preview (a huge poster clock must not show through its labels).
+ */
+@Composable
+fun editorVeil(): VeilTokens = veil(VeilLevel.Dense).let { t ->
+    t.copy(top = t.top.copy(alpha = maxOf(t.top.alpha, EDITOR_CARD_BODY)), bottom = t.bottom.copy(alpha = maxOf(t.bottom.alpha, EDITOR_CARD_BODY)))
+}
+
+const val EDITOR_CARD_BODY = .92f
+
+/**
  * Contextual editor on Veil Dense (§5.5): 312 dp, on the side of [target] with more room ([inspectorAbove]);
  * the edge lights from the element's side. [target] and [topLimit] are screen dp (the editor's [EditView]).
  * The spot is chosen once, when the card opens: it then stays put while its element moves or grows (a slider
@@ -213,7 +224,7 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
             scaleX = k; scaleY = k
             transformOrigin = androidx.compose.ui.graphics.TransformOrigin(fx, if (above) 1f else 0f)
         }
-        .veilSurface(veil(VeilLevel.Dense), VeilOrigin(fx, if (above) 1f else 0f))
+        .veilSurface(editorVeil(), VeilOrigin(fx, if (above) 1f else 0f))
         .pointerInput(Unit) { detectTapGestures() }) {
         Column(Modifier.animateContentSize(androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))) {
             if (title != null) CardHeader(title, frame) { delta -> frame?.pos = at + delta / d }

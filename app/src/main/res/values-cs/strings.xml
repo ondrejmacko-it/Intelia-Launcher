@@ -185,7 +185,8 @@
     <string name="layout_custom_detail">Oblíbené jako text, hodiny stranou.</string>
     <string name="reach">Dosah jednou rukou</string>
     <string name="favorites_count">Oblíbené · %1$d/%2$d</string>
-    <string name="favorites_hint">Přidáš je podržením aplikace v šuplíku. První čtyři jsou kolem LENS.</string>
+    <string name="home_preview">Náhled plochy</string>
+    <string name="favorites_hint">Přidáš je podržením aplikace v šuplíku. Stojí nahoře v šuplíku a předlohy z nich skládají plochu; tvou vlastní plochu nemění.</string>
     <string name="arc_section">ARC</string>
     <string name="arc_explain">Čím dál táhneš od LENS, tím víc možností. Pozice se nemění, takže si je ruka zapamatuje.</string>
     <string name="arc_rings">Počet prstenců</string>

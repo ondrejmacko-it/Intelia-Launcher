@@ -186,7 +186,8 @@
     <string name="layout_custom_detail">Your favourites as words, the clock to the side.</string>
     <string name="reach">One-handed reach</string>
     <string name="favorites_count">Favourites · %1$d/%2$d</string>
-    <string name="favorites_hint">Hold an app in the drawer to add it. The first four sit around LENS.</string>
+    <string name="home_preview">Home preview</string>
+    <string name="favorites_hint">Hold an app in the drawer to add it. They head the drawer and presets build Home from them; your own layout stays as it is.</string>
     <string name="arc_section">ARC</string>
     <string name="arc_explain">The further you slide from LENS, the more you reach. Positions never move, so your hand learns them.</string>
     <string name="arc_rings">Rings</string>

@@ -240,7 +240,7 @@ fun NavRow(label: String, value: String?, onClick: () -> Unit, modifier: Modifie
         verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f), style = InkText.body)
         if (value != null) Text(value, style = InkText.small.copy(fontSize = 14.sp), color = ink.muted, maxLines = 1)
-        Text("  →", style = InkText.body, color = ink.muted)
+        Text("  →", Modifier.clearAndSetSemantics { }, style = InkText.body, color = ink.muted)
     }
 }
 

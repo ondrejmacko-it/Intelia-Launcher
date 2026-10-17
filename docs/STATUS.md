@@ -17,10 +17,16 @@ Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 - Semantics tree (`uiautomator`) of the main Settings page: the decorative "→" on every row is exposed as text, and
   the miniature exposes the live time and date as content.
 
-Found, not fixed (awaiting the owner): Terminál's app list uses the legacy serif at 30 sp, not the monospaced face;
-the preset card lets Plakát's clock show through its text; edit corner ticks have a fixed 22 dp radius, so icons
-without a monochrome layer (larger) cover them; the Oblíbené note says the first four sit around LENS, which is true
-only for presets, not the owner's own layout.
+Fixed after the pass (owner approved), `:app:testDebugUnitTest :app:assembleLab` PASS (149), Lab reinstalled:
+- The named app list takes the clock's own face at 22 sp (Terminál: JetBrains Mono); the legacy list keeps its
+  30 sp serif. No schema change (app items carry no look).
+- Editor cards (`InspectorCard`) raise the Dense body to at least .92 (`EDITOR_CARD_BODY`); Plakát's clock now only
+  faintly shows behind the preset card.
+- Edit corner ticks sit just outside each icon at its own size (`iconDp / 2 + 4`); LENS keeps 22 dp. On the phone
+  all four Sklo icons, colour ones included, show their ticks.
+- Oblíbené note: they head the drawer and presets build Home from them; the own layout stays.
+- TalkBack: the "→" on Settings rows is cleared from semantics; the miniature is one node "Náhled plochy" (checked
+  with `uiautomator`).
 Not verified: real TalkBack speech; Boční / Magazín applied and saved.
 
 ## 2026-10-17 — Settings: one page per section, 50/50, distinct presets (`claude/crystal-redesign`)

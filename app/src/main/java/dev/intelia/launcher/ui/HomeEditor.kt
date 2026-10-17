@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.AnchorType
+import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.Placement
 
@@ -264,7 +265,7 @@ private fun BarIcon(glyph: Glyph, label: String, enabled: Boolean, onClick: () -
  * the accent target ring, a dashed ring where a displaced icon goes, and faint corner ticks around every icon.
  */
 @Composable
-fun EditorMarks(state: HomeEditorState, layout: LayoutSpec, modifier: Modifier = Modifier) {
+fun EditorMarks(state: HomeEditorState, layout: LayoutSpec, iconDefault: Int, modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
     val g = state.geometry
     val drag = state.drag
@@ -280,8 +281,10 @@ fun EditorMarks(state: HomeEditorState, layout: LayoutSpec, modifier: Modifier =
             if (item.id == drag?.id) return@forEach
             val p = g.position(item, layout) ?: return@forEach
             val o = px(p)
+            // Just outside the icon at its own size: a full-colour icon fills its box and would cover 22 dp ticks.
+            val tr = if (item.kind == ItemKind.Lens) 22.dp.toPx() else (item.iconDp(iconDefault) / 2f + 4f).dp.toPx()
             for (sx in listOf(-1f, 1f)) for (sy in listOf(-1f, 1f)) {
-                val corner = Offset(o.x + sx * r, o.y + sy * r)
+                val corner = Offset(o.x + sx * tr, o.y + sy * tr)
                 drawLine(c.fg2, corner, Offset(corner.x - sx * tick, corner.y), w)
                 drawLine(c.fg2, corner, Offset(corner.x, corner.y - sy * tick), w)
             }
