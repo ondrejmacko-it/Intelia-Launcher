@@ -400,4 +400,11 @@
     <string name="wall_dawn">Svítání</string>
     <string name="wall_ice">Led</string>
     <string name="wall_sage">Šalvěj</string>
+    <string name="wall_export">Nastavit jako tapetu systému</string>
+    <string name="wall_export_hint">Nahradí současnou tapetu systému. Intelia dál kreslí svou.</string>
+    <string name="wall_export_home">Plocha</string>
+    <string name="wall_export_both">Plocha i zámek</string>
+    <string name="wall_export_saving">Ukládám…</string>
+    <string name="wall_export_done">Uloženo jako tapeta systému.</string>
+    <string name="wall_export_failed">Systém tapetu nepřijal.</string>
 </resources>

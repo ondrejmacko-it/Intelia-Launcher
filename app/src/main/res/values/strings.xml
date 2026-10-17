@@ -401,4 +401,11 @@
     <string name="wall_dawn">Dawn</string>
     <string name="wall_ice">Ice</string>
     <string name="wall_sage">Sage</string>
+    <string name="wall_export">Set as system wallpaper</string>
+    <string name="wall_export_hint">Replaces the current system wallpaper. Intelia keeps drawing its own.</string>
+    <string name="wall_export_home">Home screen</string>
+    <string name="wall_export_both">Home and lock screen</string>
+    <string name="wall_export_saving">Saving…</string>
+    <string name="wall_export_done">Saved as the system wallpaper.</string>
+    <string name="wall_export_failed">The system did not accept the wallpaper.</string>
 </resources>

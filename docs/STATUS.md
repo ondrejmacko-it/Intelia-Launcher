@@ -2,6 +2,26 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — D13 ④: an own wallpaper saved as the system wallpaper (`claude/crystal-redesign`)
+
+- `android.permission.SET_WALLPAPER` (normal, install-time; D13). `ui/WallpaperExport.kt` renders the preset as Home
+  draws it (lights, the same 64 px grain, dim) at the screen's portrait size (≤ 4096 px) and calls
+  `WallpaperManager.setBitmap` off the main thread with `FLAG_SYSTEM` or `FLAG_SYSTEM | FLAG_LOCK`.
+- Editor › Vzhled › Tapeta, only with an own preset chosen: "Nastavit jako tapetu systému" → hint "Nahradí současnou
+  tapetu systému…" + Plocha / Plocha i zámek / Zrušit → "Ukládám…" → "Uloženo jako tapeta systému." (or "Systém
+  tapetu nepřijal."), a polite live region. Intelia keeps its own wallpaper selected.
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug` PASS, 126 JVM tests, 0
+failures (new `WallpaperExportTest`: portrait size, cap keeps the shape, lock screen only when asked).
+
+Verified on the Phone (3), debug Lab via `install -r`: the permission is granted at install; Zrušit returns to the
+action and changes nothing; with the owner's consent Oceán → Plocha: "Uloženo…", `dumpsys wallpaper` shows the system
+wallpaper as a static `ImageWallpaper` (`mWhich=1`, `SET_STATIC`) and the lock screen still on Nothing Atmosphere
+(`mWhich=2`); Home on the system wallpaper looks like the drawn Oceán. The test choice of Oceán in Intelia was removed
+again (the owner's other edits made meanwhile kept). The owner re-picks Atmosphere for Home by hand.
+
+Not verified: Plocha i zámek, a refusal path (device policy), TalkBack reading the result, a light preset with dim.
+
 ## 2026-10-17 — Veil 3.0 B6: motion per the prototype, gfxinfo (`claude/crystal-redesign`)
 
 - Owner's choice: Calm keeps the brisker durations; B6 adds the prototype's curve and the page motion (DESIGN_SYSTEM

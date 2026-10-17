@@ -15,6 +15,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import dev.intelia.launcher.data.WallpaperPreset
 import dev.intelia.launcher.data.Wallpapers
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -118,6 +122,7 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
             }
             SliderRow(stringResource(R.string.wallpaper_dim), settings.wallDim.toFloat(), 0f, Wallpapers.maxDim(wall).toFloat(), 5f,
                 "${settings.wallDim} %") { v -> set { it.copy(wallDim = v.toInt()) } }
+            if (wall != null) WallpaperExportRow(wall, settings.wallDim)
         }
         Fold(stringResource(R.string.theme), stringResource(themeName(settings.theme))) {
             Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
@@ -147,6 +152,40 @@ private fun WallpaperChoice(chosen: String, onPick: (String) -> Unit) {
                 if (p != null) PresetWallpaper(p, Modifier.fillMaxSize())
                 else Text(stringResource(R.string.theme_system), style = CrystalType.body.copy(fontSize = 10.sp), color = c.fg2, maxLines = 1)
             }
+        }
+    }
+}
+
+private enum class ExportStep { Idle, Ask, Saving, Done, Failed }
+
+/**
+ * D13 ④: save the chosen own wallpaper (with its dim) as the system one. Nothing happens before the owner picks
+ * Plocha or Plocha i zámek; the answer stays until the wallpaper or the dim changes.
+ */
+@Composable
+private fun WallpaperExportRow(preset: WallpaperPreset, dim: Int) {
+    val c = LocalCrystal.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var step by androidx.compose.runtime.remember(preset.id, dim) { androidx.compose.runtime.mutableStateOf(ExportStep.Idle) }
+    fun save(target: WallpaperExport.Target) {
+        step = ExportStep.Saving
+        scope.launch { step = if (WallpaperExport.save(context.applicationContext, preset, dim, target)) ExportStep.Done else ExportStep.Failed }
+    }
+    val small = CrystalType.body.copy(fontSize = 12.sp)
+    when (step) {
+        ExportStep.Ask -> {
+            Text(stringResource(R.string.wall_export_hint), Modifier.padding(top = 4.dp), style = small, color = c.fg2)
+            Action(stringResource(R.string.wall_export_home), c.acc) { save(WallpaperExport.Target.Home) }
+            Action(stringResource(R.string.wall_export_both), c.acc) { save(WallpaperExport.Target.HomeAndLock) }
+            Action(stringResource(R.string.preset_cancel), c.fg2) { step = ExportStep.Idle }
+        }
+        ExportStep.Saving -> Text(stringResource(R.string.wall_export_saving), Modifier.heightIn(min = 44.dp).padding(vertical = 12.dp),
+            style = CrystalType.body.copy(fontSize = 14.sp), color = c.fg2)
+        else -> {
+            Action(stringResource(R.string.wall_export), c.acc) { step = ExportStep.Ask }
+            if (step != ExportStep.Idle) Text(stringResource(if (step == ExportStep.Done) R.string.wall_export_done else R.string.wall_export_failed),
+                Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }, style = small, color = c.fg2)
         }
     }
 }

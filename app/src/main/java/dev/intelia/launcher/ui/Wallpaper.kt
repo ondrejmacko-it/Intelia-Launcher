@@ -65,13 +65,15 @@ fun PresetWallpaper(preset: WallpaperPreset, modifier: Modifier) {
     }) {}
 }
 
-/** 64 × 64 px of ±1.5 % white / black specks, the same every time. */
-private fun grainTile(): ImageBitmap {
+private fun grainTile(): ImageBitmap = grainBitmap().asImageBitmap()
+
+/** 64 × 64 px of ±1.5 % white / black specks, the same every time (Home and the exported system wallpaper). */
+internal fun grainBitmap(): android.graphics.Bitmap {
     val n = 64
     val rnd = Random(7)
     val px = IntArray(n * n) {
         val v = rnd.nextInt(-4, 5)
         if (v >= 0) (v shl 24) or 0xFFFFFF else (-v shl 24)
     }
-    return android.graphics.Bitmap.createBitmap(px, n, n, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap()
+    return android.graphics.Bitmap.createBitmap(px, n, n, android.graphics.Bitmap.Config.ARGB_8888)
 }

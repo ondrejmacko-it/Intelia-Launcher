@@ -169,6 +169,9 @@ Settled 2026-10-17 (owner): ARC from a side or top row opens towards the screen 
 layout (`LayoutSpec.dock`), icon disc shape is global (`LauncherSettings.iconShape`); "order of the four slots" =
 LENS first / between / last (swapping slots was already a drag). Done: ③ (DESIGN_SYSTEM §5.5.3, §5.8).
 2026-10-17 (B3): ④ drawn wallpapers done (13 presets + dim, no permission); system wallpaper export not started.
+2026-10-17: ④ export done in its own commit — `SET_WALLPAPER` added; Vzhled › Tapeta › Nastavit jako tapetu systému
+asks Plocha / Plocha i zámek / Zrušit, renders the preset with its dim at the screen's portrait size and saves it off
+the main thread. Intelia keeps drawing its own wallpaper; nothing changes before the owner picks a target.
 
 
 ## D14 — 2026-10-17 — Bundle six OFL font families for the clock and the date (follows D13)
