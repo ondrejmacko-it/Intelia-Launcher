@@ -196,3 +196,10 @@ https://claude.ai/artifact/UCthmYs5TCqSjsdSFbh9EF). Builds on D10/D12/D13; nothi
 - **Studio IA:** Vzhled · Plocha (enters the editor) · Ovládání · Akce a FLOW · Systém, with settings search that
   jumps to the exact row.
 Not decided yet: implementation order after approval (prototype's list), icon packs and custom fonts (need own entries).
+**Revision 1 (owner feedback 2026-10-17: Studio and overlays not dense enough):** depth comes from one shared
+backdrop under the open surface, not from each panel: Dense (sheets, dialogs) blurs Home 5 dp and mutes it;
+Focus (Studio, Search) blurs Home 18 dp, scales it to 97 %, darkens and tints it with the accent; inspectors leave
+Home sharp so the edited element stays visible. Home is Intelia's own layer, so the blur is real on API 31+
+(`RenderEffect`), Phone (3) included; only the wallpaper behind the window stays sharp there. Focus panel opacity
+84 % (72 % with cross-window blur), Dense 80 / 66 %, Light 64 / 48 %. The keyboard layer is Veil Focus, the old
+separate Search scrim is gone, Studio rises 22 dp with a 1.5 % scale, the status bar fades under Focus.

@@ -2,7 +2,7 @@ Pokračujeme na Intelia Launcheru (`AGENTS.md` platí). Odpovídej česky, stru�
 cíl ~150k. Žádní agenti, soubory nečti celé, výstupy filtruj (pozor: `read_console_messages` v Browser pane vrací
 celý data: URL stránky — nepoužívat).
 
-Stav (2026-10-17): větev `claude/crystal-redesign`, poslední kódový commit `aaa7da9`. Tato session udělala jen fázi A
+Stav (2026-10-17): větev `claude/crystal-redesign`. Fáze A Veil 3.0 + revize 1 (hutnější Focus vrstva, sdílené rozostření Home) — D15.
 briefu „Veil 3.0“: prototyp `docs/design/veil3-prototype.html` (artefakt https://claude.ai/artifact/UCthmYs5TCqSjsdSFbh9EF),
 záznam D15 (PROPOSED). Produkční kód beze změny, build ani telefon se tuto session nespouštěly.
 Ověřeno: `node --check` skriptu prototypu OK; stránka se vykreslila v prohlížeči (Home + panel voleb). Neověřeno:

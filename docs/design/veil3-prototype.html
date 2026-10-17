@@ -56,9 +56,19 @@ table.m th{font-weight:620;color:var(--page-dim)}
 .scr *{box-sizing:border-box}
 .wall{position:absolute;inset:0;transition:background calc(400ms*var(--d))}
 .wall::after{content:"";position:absolute;inset:0;background:#000;opacity:var(--dim,0)}
-.home{position:absolute;inset:0;transform-origin:50% 52%;transition:transform calc(320ms*var(--d)) var(--ease)}
+.home{position:absolute;inset:0;transform-origin:50% 52%;transition:transform calc(320ms*var(--d)) var(--ease),filter calc(300ms*var(--d)) var(--ease)}
 .home.editing{transform:scale(.86)}
-.home.dimmed{transform:scale(.96);filter:saturate(.9)}
+/* Depth: one backdrop rule for every overlay. Home is Intelia's own layer, so its blur is real on API 31+ (RenderEffect), Phone (3) included. */
+.scr[data-depth="dense"] .home{filter:blur(5px) saturate(.8)}
+.scr[data-depth="focus"] .home{filter:blur(18px) saturate(.7);transform:scale(.97)}
+.scr[data-depth="focus"] .home.editing{transform:scale(.84)}
+.wall{transition:filter calc(300ms*var(--d)) var(--ease),transform calc(300ms*var(--d)) var(--ease)}
+.scr.blur[data-depth="focus"] .wall{filter:blur(26px);transform:scale(1.06)}
+.scrim{position:absolute;inset:0;z-index:24;opacity:0;pointer-events:none;background:linear-gradient(rgb(var(--acc-rgb)/.08),rgb(var(--acc-rgb)/.08)),rgb(var(--base)/.52);transition:opacity calc(300ms*var(--d)) var(--ease)}
+.scr[data-depth="dense"] .scrim{opacity:.6;pointer-events:auto}
+.scr[data-depth="focus"] .scrim{opacity:1;pointer-events:auto}
+.scr[data-depth] .status{transition:opacity calc(300ms*var(--d))}
+.scr[data-depth="focus"] .status{opacity:.55}
 .status{position:absolute;left:0;right:0;top:0;height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:560;color:var(--wf);z-index:30;pointer-events:none}
 .cam{position:absolute;left:192.5px;top:9px;width:26px;height:26px;border-radius:50%;background:#000;box-shadow:0 0 0 1.5px rgba(255,255,255,.06);z-index:31}
 .nav{position:absolute;left:0;right:0;bottom:0;height:24px;display:flex;justify-content:center;align-items:center;z-index:40;cursor:pointer}
@@ -146,7 +156,8 @@ input[type=range].r{flex:1;accent-color:var(--acc);height:28px}
 
 /* Studio */
 .studio{position:absolute;inset:0;z-index:28;border-radius:0;transition:transform calc(320ms*var(--d)) var(--ease),opacity calc(220ms*var(--d))}
-.studio.hide{transform:translateY(40px);opacity:0;pointer-events:none}
+.studio.hide{transform:translateY(22px) scale(.985);opacity:0;pointer-events:none}
+.studio{transform-origin:50% 100%}
 .track{position:absolute;inset:0;display:flex;width:200%;transition:transform calc(300ms*var(--d)) var(--ease)}
 .track.deep{transform:translateX(-50%)}
 .page{width:50%;height:100%;overflow:auto;padding:44px 18px 40px;scrollbar-width:none}
@@ -169,14 +180,11 @@ input[type=range].r{flex:1;accent-color:var(--acc);height:28px}
 .prev .tb{width:92px;aspect-ratio:411/911;border-radius:12px;overflow:hidden;position:relative;flex:none;box-shadow:0 0 0 1px var(--line)}
 
 /* Search */
-.sscrim{position:absolute;inset:0;z-index:27;background:rgb(var(--base)/.0);transition:background calc(260ms*var(--d));pointer-events:none}
-.sscrim.on{background:rgb(var(--base)/.62);pointer-events:auto}
-.scr.blur .sscrim.on{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:rgb(var(--base)/.42)}
 .sfld{position:absolute;z-index:29;display:flex;align-items:center;gap:10px;overflow:hidden;border-radius:26px;transition:left calc(300ms*var(--d)) var(--ease),top calc(300ms*var(--d)) var(--ease),width calc(300ms*var(--d)) var(--ease),height calc(300ms*var(--d)) var(--ease),opacity calc(150ms*var(--d))}
 .sfld input{flex:1;min-width:0;background:none;border:0;outline:0;font:inherit;font-size:16px;color:var(--fg);opacity:0;transition:opacity calc(160ms*var(--d)) calc(140ms*var(--d))}
 .sfld.open input{opacity:1}
 .sfld .lensdot{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--fg2);flex:none;margin-left:15px}
-.kbd{position:absolute;left:0;right:0;bottom:0;height:300px;z-index:29;background:rgb(var(--base)/.97);padding:10px 4px 30px;display:flex;flex-direction:column;gap:9px;transform:translateY(100%);transition:transform calc(280ms*var(--d)) var(--ease)}
+.kbd{position:absolute;left:0;right:0;bottom:0;height:300px;z-index:29;padding:10px 4px 30px;border-radius:26px 26px 0 0;display:flex;flex-direction:column;gap:9px;transform:translateY(100%);transition:transform calc(280ms*var(--d)) var(--ease)}
 .kbd.on{transform:none}
 .kr{display:flex;gap:5px;justify-content:center}
 .kr button{flex:0 0 35px;height:48px;border-radius:9px;border:0;background:rgb(var(--hi)/.1);color:var(--fg);font:inherit;font-size:18px;cursor:pointer}
@@ -204,13 +212,13 @@ input[type=range].r{flex:1;accent-color:var(--acc);height:28px}
     <div class="status"><span>14:07</span><span>5G ▪ 78 %</span></div>
     <div class="cam"></div>
     <div class="ebar off" id="ebar"></div>
+    <div class="scrim" id="scrim"></div>
     <div class="etray vl off" id="etray"></div>
     <div class="pop vd hide" id="pop" role="dialog" aria-label="Inspektor"></div>
     <div class="sheet vd hide" id="sheet" role="dialog"></div>
-    <div class="sscrim" id="sscrim"></div>
     <div class="res" id="res"></div>
     <div class="sfld vd" id="sfld" hidden><span class="lensdot"></span><input id="sq" aria-label="Hledat" autocomplete="off"></div>
-    <div class="kbd" id="kbd"></div>
+    <div class="kbd v vf" id="kbd"></div>
     <div class="studio vf hide" id="studio"><div class="track" id="track"><div class="page" id="st1"></div><div class="page" id="st2"></div></div></div>
     <div class="toast vl" id="toast"></div>
     <div class="nav" id="nav" title="Zpět"><i></i></div>
@@ -260,10 +268,11 @@ input[type=range].r{flex:1;accent-color:var(--acc);height:28px}
     <h3>Jeden materiál, tři hustoty</h3>
     <div class="tw"><table class="m">
       <tr><th>úroveň</th><th>krytí bez blur / s blur</th><th>kde</th></tr>
-      <tr><td>Veil Light</td><td>64 % / 42 %</td><td>lišta a podnos editoru, toast, deska hodin</td></tr>
-      <tr><td>Veil Dense</td><td>82 % / 62 %</td><td>inspektory, předlohy, pole Search</td></tr>
-      <tr><td>Veil Focus</td><td>93 % / 80 %</td><td>Studio, klávesnicová vrstva Search</td></tr>
+      <tr><td>Veil Light</td><td>64 % / 48 %</td><td>lišta a podnos editoru, toast, deska hodin; Home beze změny</td></tr>
+      <tr><td>Veil Dense</td><td>80 % / 66 %</td><td>inspektory, předlohy, dialogy; listy rozostří Home o 5 dp a ztlumí ho</td></tr>
+      <tr><td>Veil Focus</td><td>84 % / 72 %</td><td>Studio, Search; Home rozostřené o 18 dp, zmenšené na 97 %, ztmavené a tónované akcentem</td></tr>
     </table></div>
+    <p>Hloubku dělá jedna sdílená vrstva pod panelem (rozostření Home + tónované ztmavení), ne každý panel zvlášť. Home je vlastní vrstva Intelie, proto se na API 31+ rozostří skutečně i na Phone (3) (<code>RenderEffect</code>). Na Phone (3) se nerozostří jen tapeta pod oknem; Atmosphere je ale sama měkká.</p>
     <p>Krystalická hrana: 1 dp, nahoře světlá, uprostřed mizí, dole lehce do akcentu. Žádný neon, žádný lesk. Krystal / Mráz / Kapka / Matné jsou presety téže plochy (mění hranu a mléčnost), ne další systémy. Phone (3): rozostření za okny není dostupné (<code>supports_background_blur=0</code>), proto platí sloupec „bez blur“ a Studio to říká.</p>
     <h3>Dědičnost nastavení</h3>
     <div class="chain"><span>Systém</span><i>→</i><span>Globální motiv</span><i>→</i><span>Předloha / rozložení</span><i>→</i><span>Prvek</span></div>
@@ -376,7 +385,7 @@ function applyVars() {
   st.setProperty('--eT', m === 'dark' ? gl[1] : Math.min(.9, gl[1] * 3));
   st.setProperty('--eB', gl[2]); st.setProperty('--eA', gl[3] * k);
   const solid = S.glass === 'matte';
-  const A = S.blur ? [.42,.62,.80] : [.64,.82,.93];
+  const A = S.blur ? [.48,.66,.72] : [.64,.80,.84];
   st.setProperty('--aL', solid ? .97 : A[0] + (m === 'light' ? .06 : 0)); st.setProperty('--aD', solid ? .99 : A[1]); st.setProperty('--aF', solid ? 1 : A[2]);
   if (m === 'light') st.setProperty('--hi', '20 23 27');
   const darkInk = wl.ink === 'light';
@@ -604,18 +613,18 @@ function renderResults() {
   r.innerHTML = rows.join('');
 }
 function openSearch(on) {
-  const f = $('sfld'), k = $('kbd'), sc = $('sscrim'), r = $('res');
+  const f = $('sfld'), k = $('kbd'), r = $('res');
   const closed = { left:LX - S.lens.size/2, top:DY - S.lens.size/2, width:S.lens.size, height:S.lens.size };
   const open = { left:16, top:H - 300 - 64, width:W - 32, height:52 };
   const set = (o) => { for (const p in o) f.style[p] = o[p] + 'px'; };
   if (on) {
     S.search = true; S.q = ''; $('sq').value = ''; f.hidden = false; set(closed); f.style.borderRadius = '50%';
     f.getBoundingClientRect();
-    requestAnimationFrame(() => { set(open); f.style.borderRadius = '26px'; f.classList.add('open'); k.classList.add('on'); sc.classList.add('on'); home.classList.add('dimmed'); });
+    requestAnimationFrame(() => { set(open); f.style.borderRadius = '26px'; f.classList.add('open'); k.classList.add('on'); depth(); });
     r.style.bottom = (300 + 64 + 12) + 'px'; r.style.opacity = 1; renderResults();
     setTimeout(() => { try { $('sq').focus({ preventScroll:true }); } catch (e) {} }, 320 * (S.reduce ? 0 : 1));
   } else {
-    S.search = false; f.classList.remove('open'); set(closed); f.style.borderRadius = '50%'; k.classList.remove('on'); sc.classList.remove('on'); home.classList.remove('dimmed'); r.style.opacity = 0;
+    S.search = false; f.classList.remove('open'); set(closed); f.style.borderRadius = '50%'; k.classList.remove('on'); depth(); r.style.opacity = 0;
     setTimeout(() => { if (!S.search) { f.hidden = true; renderResults(); } }, 300 * (S.reduce ? 0 : 1));
   }
 }
@@ -625,8 +634,9 @@ let tt;
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('on'), 1600); }
 
 /* ---------- render all ---------- */
+function depth() { scr.dataset.depth = (S.studio || S.search) ? 'focus' : (S.sheet || S.pop === 'leave') ? 'dense' : ''; }
 function render() {
-  applyVars(); renderHome(); renderEditor(); placePop(); renderSheet(); renderStudio(); renderPanel();
+  applyVars(); depth(); renderHome(); renderEditor(); placePop(); renderSheet(); renderStudio(); renderPanel();
 }
 function renderLight() { applyVars(); renderHome(); const lp = $('lookprev'); if (lp) lp.innerHTML = miniHTML(S, 92); if (S.pop) { const p = $('pop'); const keep = p.scrollTop; placePopPosOnly(); p.scrollTop = keep; } }
 function placePopPosOnly() { const html = $('pop').innerHTML; placePop(); }
@@ -688,7 +698,7 @@ function back() {
 /* ---------- pointer on home ---------- */
 let drag = null, lpT = null;
 scr.addEventListener('pointerdown', (e) => {
-  const t = e.target; if (t.closest('.pop,.sheet,.ebar,.etray,.studio,.sfld,.kbd,.res,.nav')) return;
+  const t = e.target; if (t.closest('.pop,.sheet,.ebar,.etray,.studio,.sfld,.kbd,.res,.nav,.scrim')) return;
   const itEl = t.closest('[data-item]');
   if (!S.editing) {
     if (itEl && itEl.dataset.item === 'lens' && !S.search) return;
@@ -728,7 +738,7 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('#nav')) { back(); return; }
   if (!scr.contains(e.target) || window.__justDragged) return;
   if (e.target.closest('.pop,.sheet,.ebar,.etray,.studio,.sfld,.kbd,.res')) return;
-  if (e.target.closest('#sscrim')) { openSearch(false); return; }
+  if (e.target.closest('#scrim')) { back(); return; }
   const itEl = e.target.closest('[data-item]');
   if (!S.editing) { if (itEl && itEl.dataset.item === 'lens') openSearch(true); else if (itEl && itEl.dataset.item !== 'clock') toast(`Otevírá se ${APPS[S.items.find(i => i.id === itEl.dataset.item).app][0]}`); return; }
   S.sheet = null;
@@ -788,7 +798,7 @@ function renderPanel() {
   $('c-clock').innerHTML = [['pure','Čisté (výchozí)'],['stack','Sloupec'],['plate','Deska']].map(([k,n]) => chip('panel', 'clock:' + k, n, S.clock.style === k)).join('');
   $('c-ui').innerHTML = [['sys','Systém'],['dark','Tmavý'],['light','Světlý']].map(([k,n]) => chip('panel', 'ui:' + k, n, S.ui === k)).join('')
     + Object.entries(GLASS).map(([k,[n]]) => chip('panel', 'glass:' + k, n, S.glass === k)).join('')
-    + chip('panel', 'blur:' + (S.blur ? 0 : 1), S.blur ? 'Blur: zařízení s blur' : 'Blur: Phone (3) — není', S.blur)
+    + chip('panel', 'blur:' + (S.blur ? 0 : 1), S.blur ? 'Rozostření tapety: zařízení s blur' : 'Rozostření tapety: Phone (3) — ne', S.blur)
     + chip('panel', 'reduce:' + (S.reduce ? 0 : 1), 'Omezit pohyb', S.reduce);
   const n = NOTES[S.scene]; $('note').innerHTML = `<h3>${n[0]}</h3><p>${n[1]}</p><ul>${n[2].map(x => `<li>${x}</li>`).join('')}</ul>`;
 }
