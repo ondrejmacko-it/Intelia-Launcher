@@ -2,6 +2,23 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Studio preview drawn from the active layout (`claude/crystal-redesign`)
+
+- `LayoutSpec.sketch()` (pure Kotlin, `HomeModel.kt`): the LENS row from the layout's `LensRow` items in screen
+  order (slots −2, −1, LENS, 1, 2; LENS first / last for `lensAt` Start / End; empty slots stay gaps; no slots = LENS
+  alone), the legacy text list from `Stack` items, and a free date above a free clock when its `fy` is smaller.
+- Studio's `HomePreview` takes the active layout and `HomeViewModel.entry`; it no longer uses the favourites or the
+  legacy `layout` field. A FLOW in the row draws a plain ring. Onboarding keeps the legacy path.
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` PASS, 148 JVM tests, 0
+failures (new `HomeSketchTest`, 5).
+
+Verified on the Phone (3), lab build via `install -r` + profile + `speed-profile` (screenshots): Home shows the date
+above the clock and Telefon / Zprávy / Fotoaparát / Chrome around LENS; Studio's preview now shows the same order.
+
+Not verified: `lensAt` Start / End, a vertical dock edge (the preview stays a bottom row), a Pure or legacy-list
+layout on the phone (JVM tests only). The preview still centres a free date that Home draws at its own `fx`.
+
 ## 2026-10-17 — D17: settings backup, Studio › Systém › Záloha (`claude/crystal-redesign`)
 
 - `BackupCodec` (pure Kotlin): envelope `{"format":"intelia-settings","version":1,"settings":{…}}`; reads at most
@@ -38,7 +55,7 @@ Verified on the Phone (3) (`uiautomator` + screenshots; no setting kept changed)
 - Semantics tree: the Studio search field is an EditText with the label "Hledat v nastavení"; a result row is one
   clickable, focusable node holding its title and path.
 
-Found, not changed: Studio's live preview draws the favourites ("Moje") around LENS and the clock above the date,
+Found (fixed in "Studio preview drawn from the active layout"): Studio's live preview draws the favourites ("Moje") around LENS and the clock above the date,
 while the owner's Home has the date above the clock and Telefon / Zprávy / Fotoaparát / Chrome in the LENS row.
 
 Not verified: real TalkBack speech (not switched on; it is a system accessibility setting for the owner).

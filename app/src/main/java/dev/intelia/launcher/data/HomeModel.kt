@@ -129,6 +129,36 @@ data class TextLook(
 /** LENS offset in dp from the screen centre in [this] layout; 0 when it has none yet. */
 fun LayoutSpec.lensDx(): Float = items.firstOrNull { it.kind == ItemKind.Lens }?.anchor?.dx ?: 0f
 
+/**
+ * What Studio's miniature of Home takes from a layout. [row] is the LENS row in screen order, [LENS_SLOT] marking
+ * LENS and null an empty slot; [list] the targets of the legacy text list; [dateAbove] a free date placed above the clock.
+ */
+data class HomeSketch(val dateAbove: Boolean, val row: List<HomeItem?>, val list: List<String>) {
+    companion object {
+        val LENS_SLOT = HomeItem("lens", ItemKind.Lens, Anchor.Lens)
+    }
+}
+
+fun LayoutSpec.sketch(): HomeSketch {
+    val clock = items.firstOrNull { it.kind == ItemKind.Clock }
+    val date = items.firstOrNull { it.kind == ItemKind.Date }
+    val dateAbove = clock != null && date != null && date.anchor.type == AnchorType.Free &&
+        clock.anchor.type == AnchorType.Free && date.anchor.fy < clock.anchor.fy
+    val bySlot = items.filter { it.anchor.type == AnchorType.LensRow }.associateBy { it.anchor.slot }
+    val slots = Anchor.LENS_SLOTS.map(bySlot::get)
+    val lens = HomeSketch.LENS_SLOT
+    val row = when {
+        slots.all { it == null } -> listOf(lens)
+        else -> when (dock.lensAt) {
+            LensAt.Middle -> slots.take(2) + lens + slots.drop(2)
+            LensAt.Start -> listOf(lens) + slots
+            LensAt.End -> slots + lens
+        }
+    }
+    val list = items.filter { it.kind == ItemKind.App && it.anchor.type == AnchorType.Stack }.sortedBy { it.anchor.row }.map { it.target }
+    return HomeSketch(dateAbove, row, list)
+}
+
 /** Date line formats, stored by name in [HomeItem.style]; empty = [Long]. */
 enum class DateFormat { Long, Short, Weekday, Custom }
 
