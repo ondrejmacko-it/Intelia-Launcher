@@ -504,6 +504,18 @@ decode to defaults.
 - Inspector: Písmo, Čas, Posun od hodin and Pokročilé fold open in place with a spring; the card scrolls past 58 %
   of the screen height.
 
+### 5.5.4 Settings folds (2026-10-17)
+- Every editor card, the Look panel and Studio fold their options. **One fold open at a time** per card or panel
+  (`FoldGroup`); folds inside an open fold behave the same one level down. A closed fold names its current choice.
+- Open fold: accent tint 10 % (14 % dark) on a 16 dp rounded plate, 1 dp accent outline at 45 %, title and the
+  rotated „+“ (×) in accent. Studio uses the same in Ink (9 %, 20 dp corners, 56 dp row).
+- On top, unfolded, only what is changed most: size, the date switch, the date format, LENS style.
+- **No option without an effect:** an option is shown only in combinations where it changes something — weight only
+  for faces with weights, separator only for a one-line time, clock alignment only with the date under the clock,
+  density only on glass, the accent edge only on Veil and matte, ARC ring 2/3 contents only when those rings exist.
+- **No duplicates:** look (icons, all-icon size, material, theme, colours) lives only in Vzhled; behaviour only in
+  Studio; PULSE camera calibration only from the PULSE card.
+
 ### 5.5.3 LENS row on any edge (D13 ③, 2026-10-17)
 - **Model:** `LayoutSpec.dock = DockSpec(edge = Bottom | Top | Left | Right, lensAt = Middle | Start | End)`; each
   layout has its own. Absent or unknown names decode to Bottom / Middle (the earlier look). LENS's own offset

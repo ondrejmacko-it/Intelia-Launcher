@@ -2,6 +2,24 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Settings as one-open folds, no duplicates, no dead options (`claude/crystal-redesign`, `811eae3`)
+
+Verified:
+- `.\gradlew.bat -Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process :app:testDebugUnitTest
+  :app:assembleDebug` — PASS; 111 JVM tests, 0 failures, no compiler warnings.
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up and restored, byte-identical):
+  - Vzhled opens with four closed folds (Ikony · Tónované, Panely · Veil, Motiv · Systém, Barvy · Podle míst); opening
+    Panely closed Ikony; the open fold has an accent plate, accent title and ×.
+  - Panely: „Matné“ is a fifth material; choosing it hid Hustota and kept Světelná hrana; Veil brought Hustota back.
+  - Hodiny card: only Velikost and Datum open, then Písmo / Čas / Barva a krytí / Pozadí folds. Písmo is one list
+    (styles + faces); „Strojové“ changed the clock to mono and the Tloušťka slider disappeared (no weights).
+  - LENS card: Velikost and Kroužek/Plný open; Řada LENS / Rozestupy / Poloha folded with their values.
+  - Studio: Upravit plochu, ARC (Kruhy: 3), Spravovat příkazy, PULSE (Jen na ploše), Pohyb a dotek, Skryté aplikace,
+    O aplikaci; ARC opened in place with an accent plate. Palette, material and icon style are no longer in Studio.
+Not verified: Date and PULSE cards on the phone; light theme; TalkBack on the folds.
+Open: Studio's live preview draws the clock from `settings.clockStyle`, not from Home's clock item, so it can differ
+from Home (seen: Ink preview vs Unbounded on Home). D13 ④ wallpapers not started.
+
 ## 2026-10-17 — Editor card grows upwards, one size for all icons, clock under the status bar (`claude/crystal-redesign`, `8acce00`)
 
 Verified:

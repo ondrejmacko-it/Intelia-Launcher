@@ -8,14 +8,12 @@ docs/screens/README.md; kód `ui/HomeRoot.kt` (pozadí Home, `homeInk`, `wallPla
 (`EditorBar`, `BAR_HEIGHT`), `ui/Veil.kt`, `data/LauncherSettings.kt` (`sanitized()`, `Glass`, `IconShape`),
 `data/HomeModel.kt` (`DockSpec`).
 
-Hotovo minule (`8acce00`): karta editoru nad ikonou roste nahoru a nezakryje ji; „Velikost všech ikon“ ve Vzhledu
-i v kartě ikony (vedle „Tato ikona“, smaže vlastní velikosti jedním krokem zpět); Vzhled začíná Ikonami, Panely
-a Motiv jsou sbalené; hodiny/datum hned pod stavovým řádkem (0 dp), text smí 12 dp k bočním okrajům. Na začátku se
-zeptej majitele, jestli mu vadí, že lišta editoru překrývá hodiny dané úplně nahoru (řešení: lištu při tažení
-hodin skrýt / přesunout dolů), a zda chce u řady LENS vlastní posun každého slotu.
-Build: kvůli plné paměti PC přidej `-Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process`;
-když build padá, zkontroluj `hs_err_pid*.log` („insufficient memory“) a starý Kotlin daemon (java s
-kotlin-build-tools v příkazové řádce) ukonči.
+Hotovo minule (`811eae3`): celé nastavení je v rozbalovacích sekcích, otevřená je vždy jen jedna (zvýrazněná
+akcentem); duplicity pryč (vzhled jen ve Vzhledu, chování jen ve Studiu); volby bez účinku se v dané kombinaci
+skrývají (Matné je pátý materiál, písmo hodin je jeden seznam, tloušťka jen u písem s váhami…), viz DESIGN_SYSTEM
+§5.5.4. Otevřené: náhled ve Studiu kreslí hodiny podle `settings.clockStyle`, ne podle hodin na ploše — oprav. Na
+začátku se zeptej majitele, jestli mu vadí, že lišta editoru překrývá hodiny dané úplně nahoru (řešení: lištu při
+tažení hodin skrýt / přesunout dolů), a zda chce u řady LENS vlastní posun každého slotu.
 
 Tato session (každý bod: testy → build → telefon → commit + push):
 1. Bod ④ programu D13: 10+ minimalistických rozmazaných tapet kreslených launcherem (procedurálně, bez assetů
