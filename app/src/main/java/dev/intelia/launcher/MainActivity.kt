@@ -29,9 +29,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** The repository loads once when it is created; only later returns to Home re-read the list. */
+    private var started = false
+
     override fun onStart() {
         super.onStart()
-        intelia.apps.refresh()
+        val apps = intelia.apps
+        if (started) apps.refresh()
+        started = true
     }
 
     override fun onNewIntent(intent: Intent) {

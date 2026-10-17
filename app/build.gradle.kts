@@ -43,6 +43,15 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
+        // The everyday build on the test phone (D16): release code (R8, not debuggable, AOT from the baseline
+        // profile) under the Lab package and the shared debug key, so `install -r` swaps it with debug both ways.
+        create("lab") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".lab"
+            versionNameSuffix = "-lab"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+        }
     }
 
     buildFeatures {
@@ -72,6 +81,8 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.animation)
     implementation(libs.compose.material3)
+    // Installs the baseline profile on sideloaded builds, so ART compiles the startup path ahead of time (D16).
+    implementation(libs.androidx.profileinstaller)
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)

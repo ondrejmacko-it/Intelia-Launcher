@@ -217,3 +217,13 @@ Dense 80 / 66 % unchanged. Checked in a desktop browser only: 9 scenes × dark/l
 UI × Reduced Motion (materials have a computed background, no inspector overlaps its element, Search focused),
 a real pointer drag of the clock size slider min→max, typing "rano" into Search and Esc. Not verified: phone-width
 page, Android blur, permissions, performance.
+
+## D16 — 2026-10-17 — Optimised `lab` build for everyday use, baseline profile via `profileinstaller`
+The owner runs the debug Lab as the daily home app. A debug build is `DEBUGGABLE`, not shrunk and never AOT
+compiled (`status=verify`), so Compose runs interpreted/JIT; after a reboot that competes with the whole system
+starting. New build type `lab` = release (R8, not debuggable) under the `.lab` package, signed with the shared
+debug key (D4), so `install -r` swaps it with debug either way and keeps data, HOME role and PULSE. It is an
+internal build, not a release. `androidx.profileinstaller` (Apache-2.0, no permission, no network; its receiver
+is guarded by the system DUMP permission) installs the merged baseline profile (library profiles +
+`app/src/main/baseline-prof.txt`) on sideloaded builds, so ART compiles the startup path ahead of time on any
+phone. Revert: drop the `lab` block, the dependency and the profile file.

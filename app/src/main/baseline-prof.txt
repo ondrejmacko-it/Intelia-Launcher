@@ -1,0 +1,4 @@
+# Intelia's own startup path (D16). Compose, activity and lifecycle ship their own profiles in their AARs;
+# AGP merges them with this file. Everything in the app package is small enough to compile ahead of time.
+HSPLdev/intelia/launcher/**->**(**)**
+Ldev/intelia/launcher/**;

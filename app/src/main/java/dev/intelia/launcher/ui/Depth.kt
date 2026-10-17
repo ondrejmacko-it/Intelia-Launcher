@@ -1,6 +1,7 @@
 package dev.intelia.launcher.ui
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.ContextWrapper
@@ -98,6 +99,8 @@ fun Modifier.veilBackdrop(depth: VeilDepth?, blur: Boolean): Modifier = if (dept
 fun rememberBackdropBlur(): Boolean {
     if (Build.VERSION.SDK_INT < 31 || LocalMotion.current == Motion.Off) return false
     val context = LocalContext.current
+    // A low-RAM phone keeps the plain veil: a full-screen blur costs it more GPU memory than it can spare.
+    if (remember(context) { context.getSystemService(ActivityManager::class.java)?.isLowRamDevice == true }) return false
     val power = remember(context) { context.getSystemService(PowerManager::class.java) }
     var saving by remember(power) { mutableStateOf(power?.isPowerSaveMode == true) }
     DisposableEffect(power) {

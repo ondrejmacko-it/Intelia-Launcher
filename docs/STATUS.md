@@ -2,6 +2,31 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Startup after a reboot: optimised `lab` build, package storm folded, icons at background priority (`claude/crystal-redesign`)
+
+- Found on the Phone (3) 4 min after a reboot (debug Lab as HOME): 23 s of CPU in Intelia since boot (main thread 8 s,
+  JIT 2 s), 19.7 % janky frames, p99 900 ms; the package is `DEBUGGABLE`, compile status `verify` (no AOT).
+- D16: build type `lab` (R8, not debuggable, `.lab`, shared debug key) + `profileinstaller` with the merged baseline
+  profile (`app/src/main/baseline-prof.txt` for the app package).
+- `AppRepository`: package events within 400 ms fold into one list load (a reboot or an update reports dozens);
+  the first `onStart` no longer loads the list a second time.
+- `IconCache`: drawer warm-up runs one icon at a time on one background-priority thread and stops at 7/8 of the
+  cache; the cache is ⅛ of the heap class (4–16 MB, halved on low-RAM phones); a package event redraws icons only
+  if one of its icons was cached.
+- Backdrop blur is off on low-RAM devices (`ActivityManager.isLowRamDevice`).
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug :app:assembleLab` PASS
+(lab APK 3.4 MB, debug 15.7 MB).
+
+Verified on the Phone (3), `install -r` each way, Home layout unchanged after (`uiautomator`): profile installed via
+`androidx.profileinstaller.action.INSTALL_PROFILE` → `speed-profile`. Home cold start after `am force-stop`
+(system relaunch, `Displayed`): debug 469 / 481 / 508 ms → lab 198 / 204 / 212 ms; CPU in the first ~13 s after start:
+debug 5 s → lab 1 s; total PSS at rest ~148 MB (debug) → 107 MB (lab).
+
+Not verified: a real reboot with the lab build (the 400 ms fold and the warm-up priority are not measured on a
+boot); other phones. Open: opening the drawer is GPU-bound at 120 Hz (lab, 3× swipe: 29–39 % janky, p50 25–31 ms,
+slow UI thread only 6 frames) — the backdrop blur and wallpaper, not CPU.
+
 ## 2026-10-17 — Veil 3.0 B4: Studio in five sections with search, one Look definition (`claude/crystal-redesign`)
 
 - Studio main: live preview, "Hledat v nastavení", Upravit plochu (active layout name), then Vzhled / Ovládání /
