@@ -2,6 +2,24 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Distinct glasses, PULSE by tap, fonts, clock/date typography (`claude/crystal-redesign`, `dbacc69`, `a8d71ee`, `ae92400`)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 98 JVM tests, 0 failures (new: TextLook clamped and
+  kept only on clock/date, unknown face name decodes to Auto and a document without `look` to defaults, 12 h digits,
+  own date format and case in Czech).
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up, restored, `cmp` identical):
+  - Editor → Vzhled, the four glasses side by side (dark theme): Veil with its accent edge, Krystal with a diagonal
+    facet, Mráz grey and grainy, Kapka with a lit rim round the panel — told apart at 40 % screenshot size.
+  - Editor: tap on the PULSE capsule beside the camera (status bar hidden in the editor) opens the PULSE inspector;
+    the editor bar and clock did not move when the status bar hid.
+  - Clock inspector shows Písmo / Čas folds; Čas → Pod sebou stacked the time. First try drew the date between the
+    two lines (negative spacing); fixed with trimmed line boxes — the fix is built and installed but **not seen**.
+
+Not verified: the fixed stacked layout, Šikmo, separators, 12 h, every face, the date options (Own format, case,
+vertical, offset, own Veil plate) on the phone; light theme for the new glasses; PULSE tap with PULSE everywhere on
+(service not enabled on the phone); TalkBack on the new folds.
+
 ## 2026-10-17 — Glass styles, clock accent on the wallpaper (`claude/crystal-redesign`, `31bd339`, `0a316ce`)
 
 Verified:

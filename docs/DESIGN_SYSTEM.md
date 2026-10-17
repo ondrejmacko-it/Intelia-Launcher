@@ -270,12 +270,16 @@ surface moves. ARC uses the same idea: the arc segment under the selected slot l
 
 One `Glass` setting restyles every Veil surface (panels, sheets, Studio, Search field, clock plate). `Veil` keeps the
 lit origin edge; the other three have **no outline at all** and set a panel apart by light:
-- **Crystal** — clear neutral fill, white sheen falling from the top edge (to 45 % of the height), faint accent glow.
-- **Frost** — milky base (dark `#1C1F25`, light `#FAFBFC`), +8 points density, a tiled 64 px grain @ 4–5 %.
-- **Liquid** — a bright, short sheen (22 %) at the top and the accent pooling at the bottom (bloom @ 10–12 %).
+Revised 2026-10-17 so the three read apart at a glance (owner: "they look alike"; reference: Liquid Glass sheets):
+- **Crystal** — clear, cool fill; two diagonal facet streaks (white @ 11 % dark / 55 % light) and a 1 dp lit rim along
+  the top edge only.
+- **Frost** — milky, paler body (dark `#262A31`, light `#FDFDFE`), +12–14 points density, coarse grain @ 9–11 %, even
+  sheen over the whole height; no rim.
+- **Liquid** — clear neutral fill, a 1.5 dp rim of light round the whole outline, brightest at the top-left and
+  bottom-right corners, with an 8 dp soft glow inside it; a faint accent bloom at the bottom.
 In the dark theme the edgeless fills are 6–9 points denser than Veil, since light added on top lowers the contrast
 of white text; `VeilTest` checks ≥ 4.5:1 over a white wallpaper with sheen, glow, bloom and grain included
-(density shift 0 and +5). Solid (Matné) still wins over every glass. Older documents decode as `Veil`.
+(density shift 0 and +5); streaks and the Liquid spot are included at the top. Solid (Matné) still wins over every glass. Older documents decode as `Veil`.
 
 Text drawn straight on the wallpaper (clock, date without a plate) takes the palette's variant for the wallpaper
 (`LocalWallPlaces`), not for the theme; on a Veil plate the theme's variant is used.
@@ -475,3 +479,23 @@ chips, 17-disc grid), in the clock and LENS inspectors (under Pokročilé) with 
 Light plate, radius 26 dp, padding 14/20/16 dp, behind the time and its bound date (prototype `.clock.bgv`).
 Text on it takes the theme fg without shadow; the outer margin shrinks 28 → 8 dp so the time keeps its width.
 Clock inspector: "Bez pozadí" / "Veil".
+
+### 5.12.1 Clock and date typography (2026-10-17)
+`HomeItem.look` (`TextLook`) on clock and date items; defaults draw them as before. Sanitized in
+`LauncherSettings.sanitized()` (tracking −10…40 hundredths of an em, offset ±48 dp, other kinds reset); unknown names
+decode to defaults.
+- Face: Auto (the clock style's own) · Roboto Flex · Inter · Space Grotesk · DM Serif · JetBrains Mono · Bodoni ·
+  Unbounded (D14). Weight uses the variable `wght` axis.
+- Clock: separator `:` `·` `•` `|` thin space or none (Ink styles keep the accent ring for `:`); in a row / stacked
+  (hours over minutes) / slanted (hours up-left, minutes down-right), line boxes trimmed to the figures; 12/24 h
+  (12 h without a leading zero, no AM/PM); alignment Auto (from position) / left / centre / right.
+- Date: formats Long / Short / Weekday / Own (weekday none/short/long, day, month none/number/short/long, year);
+  case Auto (caps for Long and Weekday) / ABC / abc; top to bottom; offset dx/dy when bound to the clock; its own
+  Veil plate when free.
+- Inspector: Písmo, Čas, Posun od hodin and Pokročilé fold open in place with a spring; the card scrolls past 58 %
+  of the screen height.
+
+### 5.5.1 PULSE in the editor
+Tapping the PULSE capsule at the camera (±96 dp around it, down to 40 dp below) opens the PULSE inspector. The editor
+hides the status bar (swipe brings it back), since SystemUI takes every tap there, and PULSE everywhere's lens overlay
+turns `FLAG_NOT_TOUCHABLE` while the editor is open. Layout uses `statusBarsIgnoringVisibility`, so nothing moves.

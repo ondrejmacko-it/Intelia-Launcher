@@ -1,36 +1,28 @@
-# Prompt pro další session — Intelia, část 15 (hodiny a datum: fonty, oddělovače, orientace, volný posun)
-
-Zkopíruj celý blok níže jako první zprávu nové session (pracovní složka = tento repozitář).
-
-```
 Pokračujeme na Intelia Launcheru (`AGENTS.md` platí). Odpovídej česky, stručně. Tvrdý limit 250 000 tokenů na session,
 cíl ~180k. Žádní agenti, soubory nečti celé opakovaně, výstupy příkazů filtruj. Když se blížíš ke 200k, zastav se,
 commitni hotové a napiš prompt na pokračování.
 
-Podklady: horní záznam docs/STATUS.md; docs/DECISIONS.md D11 a D13; docs/DESIGN_SYSTEM.md §5.2.1, §5.12; kód
-`data/HomeModel.kt` (`HomeItem`, `DateFormat`, `ClockBackground`), `ui/HomeRoot.kt` (hodiny ~ř. 470, `SplitClock`,
-`DateText` ~ř. 823), `ui/HomeInspector.kt` (inspektor hodin/data ~ř. 300), `ui/Crystal.kt` (`CrystalType`).
+Podklady: horní záznam docs/STATUS.md; docs/DECISIONS.md D13, D14; docs/DESIGN_SYSTEM.md §5.2.1, §5.12.1, §5.5.1;
+kód `data/HomeModel.kt` (`TextLook`), `ui/ClockText.kt`, `ui/Kit.kt` (`SplitClock`), `ui/HomeRoot.kt` (`DateText`),
+`ui/HomeInspector.kt` (`Fold`, `ClockInspector`, `DateInspector`), `ui/Veil.kt`.
 
-Hotovo minule (`31bd339`, `0a316ce`): globální styl skla Glass = Veil / Krystal / Mráz / Kapka (bez hran: sheen,
-zrno, bloom), volba v editoru → Vzhled i ve Studiu; oprava barvy hodin ve světlém motivu na tmavé tapetě
-(`LocalWallPlaces`). Majitel schválil (D13): tapety kreslené launcherem + volitelně jako systémová (SET_WALLPAPER),
-přibalit 4–6 OFL fontů. Na začátku se zeptej, jak se mu líbí tři skla v telefonu (při jeho hustotě +10 % vypadají
-podobně — případně zvýraznit rozdíly).
+Hotovo minule (`dbacc69`, `a8d71ee`, `ae92400`): skla výrazně odlišená (Krystal fasety + horní hrana, Mráz mléčný se
+zrnem, Kapka svítící obvod podle Liquid Glass předlohy majitele); PULSE se v editoru nastavuje klepnutím na kapsli
+(editor skryje stavový řádek, překryv PULSE všude nebere dotyky), položka ve Vzhledu zrušena; 6 OFL fontů (D14);
+hodiny/datum: písmo, rozestup, oddělovač, vedle sebe / pod sebou / šikmo, 12/24 h, zarovnání, vlastní formát data,
+velikost písmen, svisle, posun data, Veil pod samostatným datem; skládací sekce inspektoru s pružinou.
 
-Plán celého programu (D13): ① skla + audit (hotovo), ② hodiny a datum (tato session), ③ dok/LENS kdekoli +
-tvary ikon (squircle iOS, zaoblený čtverec macOS/Windows, kapka; pořadí 4 slotů; ukotvení dole/nahoře/vlevo/vpravo,
-na boku svisle, ARC do středu), ④ 10+ minimalistických rozmazaných tapet (procedurálně, Nothing styl) +
-"Nastavit jako tapetu", ⑤ profily vzhledu, náhodný styl, Studio náhled = Home (Veil hodiny, Tinted ikony).
+Na začátku se zeptej majitele, jak se mu líbí nová skla a PULSE klepnutím.
 
 Tato session (každý bod: testy → build → telefon → commit + push):
-1. Fonty: vybrat 4–6 OFL rodin (návrh: Inter, Space Grotesk, DM Serif Display, JetBrains Mono, Bodoni Moda,
-   Unbounded), licence do assets + D14 v DECISIONS, `res/font`; jen subset latin + latin-ext (čeština).
-2. Hodiny: oddělovač (`:` `·` `•` `|` mezera nic), orientace (vodorovně / pod sebou hodiny nad minutami / šikmo),
-   tloušťka, rozestup písmen, zarovnání (vlevo/střed/vpravo), 12/24 h. Vše v `HomeItem` (sanitizace + testy dekódu).
-3. Datum: formáty (+ vlastní: den, číslo, měsíc, rok), font, VERZÁLKY/malá, rozestup, svisle shora dolů, a posun
-   data uvnitř spojení s hodinami (offset dx/dy v dp, omezený), vlastní Veil podklad i pro samostatné datum.
-4. Inspektor hodin/data: přehledné sekce, živý náhled; proklikat každou volbu na telefonu ve světlém i tmavém
-   motivu a v každém skle, opravit, co se rozbije.
+1. Dokončit ověření ② na telefonu (nic z toho zatím neviděno): Pod sebou po opravě (trim řádků), Šikmo, všechny
+   oddělovače, 12 h, každé písmo (čeština: ěščřžýáíéůú), datum Vlastní/ABC/abc/svisle/posun/Veil. Světlý i tmavý motiv,
+   všechna 4 skla. Pozor: Python s českými texty v `uiautomator` hledání piš do souboru ve scratchpadu (inline v bashi
+   se diakritika rozbila); klepnutí na hodiny ověř přes bounds z dumpu.
+2. Plynulost inspektoru: náhled písma přímo na čipech (každý čip ve svém fontu), plynulý přechod změny rozložení
+   hodin (`animateContentSize` na sloupci hodin), případně segmentový přepínač místo čipů pro Čas.
+3. Bod ③ programu D13: dok/LENS kdekoli + tvary ikon (squircle, zaoblený čtverec, kapka), pořadí 4 slotů, ukotvení
+   dole/nahoře/vlevo/vpravo (na boku svisle, ARC do středu).
 
 Git: větev `claude/crystal-redesign`, na začátku `git fetch` a `git status`, malé commity + push, žádný merge do
 `main`. V telefonu je debug Lab (run-as funguje), HOME role = Lab. Zálohuj shared_prefs/intelia.xml (`adb exec-out
@@ -38,8 +30,7 @@ run-as dev.intelia.launcher.lab cat …`), po testu vrať (`MSYS_NO_PATHCONV=1 a
 `am force-stop`, `run-as … cp`, ověř `cmp`). Build: `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug`
 (JAVA_HOME = `C:\Users\Ondra\AppData\Local\lesnik-toolchain\jdk-17.0.20.1+1`), adb
 `C:\Users\Ondra\AppData\Local\lesnik-toolchain\sdk\platform-tools\adb.exe`. Telefon Nothing Phone (3), 1080×2392,
-LENS (540, 2193) px; editor = dlouhý stisk na prázdné ploše (540, 1300); Lab: `am start -n
-dev.intelia.launcher.lab/dev.intelia.launcher.MainActivity`. Před KAŽDÝM `input` ověř `topResumedActivity`. Texty
-přes `uiautomator dump /dev/tty`, snímky zmenšuj (PIL) na 40 %. Python skripty piš do scratchpadu. Na konci STATUS
-jen ověřená fakta, DESIGN_SYSTEM §5, nový prompt v docs/NEXT_SESSION.md, krátký report.
-```
+LENS (540, 2193) px; editor = dlouhý stisk na prázdné ploše (540, 1300); hodiny v editoru ~ (530, 560); PULSE (600, 60);
+Lab: `am start -n dev.intelia.launcher.lab/dev.intelia.launcher.MainActivity`. Před KAŽDÝM `input` ověř
+`topResumedActivity`. Texty přes `uiautomator dump /dev/tty`, snímky zmenšuj (PIL) na 40 %. Python skripty piš do
+scratchpadu. Na konci STATUS jen ověřená fakta, DESIGN_SYSTEM §5, nový prompt v docs/NEXT_SESSION.md, krátký report.
