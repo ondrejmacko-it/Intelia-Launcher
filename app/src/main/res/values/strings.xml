@@ -340,6 +340,13 @@
     <string name="inspect_move_card">Drag to move the editor</string>
     <string name="inspect_card_reset">Put the editor back</string>
     <string name="plate_title">Background</string>
+    <string name="card_size_width">Editor width</string>
+    <string name="card_size_height">Editor height</string>
+    <string name="card_size_both">Editor size</string>
+    <string name="size_bigger">Bigger</string>
+    <string name="size_smaller">Smaller</string>
+    <string name="plate_wider">Background wider</string>
+    <string name="plate_taller">Background taller</string>
     <string name="plate_wide">Stretch ↔</string>
     <string name="plate_tall">Stretch ↕</string>
     <string name="editing_now">Editing</string>

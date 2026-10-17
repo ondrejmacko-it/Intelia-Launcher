@@ -17,6 +17,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
@@ -116,7 +117,7 @@ fun ClockHandle(zone: Zone, onResize: (Float) -> Unit) {
     val label = stringResource(R.string.clock_resize)
     val c = LocalCrystal.current
     val density = LocalDensity.current
-    Box(Modifier.offset { IntOffset(((zone.right - 22f) * density.density).roundToInt(), ((zone.bottom - 22f) * density.density).roundToInt()) }
+    Box(Modifier.offset { IntOffset(((zone.right - 28f) * density.density).roundToInt(), ((zone.bottom - 28f) * density.density).roundToInt()) }
         .size(44.dp).semantics { contentDescription = label }
         .pointerInput(Unit) {
             var acc = 0f
@@ -127,34 +128,41 @@ fun ClockHandle(zone: Zone, onResize: (Float) -> Unit) {
                 if (step != 0) { acc -= step; onResize(step.toFloat()) }
             }
         }, contentAlignment = Alignment.Center) {
-        Box(Modifier.size(14.dp).clip(CircleShape).background(c.acc).border(2.dp, c.accInk, CircleShape))
+        Box(Modifier.size(9.dp).clip(CircleShape).background(c.fg.copy(alpha = .6f)).border(.5.dp, (if (c.dark) Color.Black else Color.White).copy(alpha = .35f), CircleShape))
     }
 }
 
-/** Two handles on a clock or date plate: the right edge stretches it sideways, the bottom edge down (dp). */
+/**
+ * Two faint grips on a clock or date plate, sitting on its rim: the right edge stretches it sideways, the bottom
+ * edge down (dp). A short bar, not a button, so it never competes with the editor card; TalkBack gets Bigger / Smaller.
+ */
 @Composable
 fun PlateHandles(zone: Zone, onStretch: (Float, Float) -> Unit) {
     val c = LocalCrystal.current
     val density = LocalDensity.current
-    val label = stringResource(R.string.plate_title)
+    val bigger = stringResource(R.string.size_bigger)
+    val smaller = stringResource(R.string.size_smaller)
     @Composable
-    fun handle(x: Float, y: Float, arrow: String, sideways: Boolean) {
-        Box(Modifier.offset { IntOffset(((x - 22f) * density.density).roundToInt(), ((y - 22f) * density.density).roundToInt()) }
-            .size(44.dp).semantics { contentDescription = label }
+    fun handle(x: Float, y: Float, label: String, sideways: Boolean) {
+        fun by(v: Float) = if (sideways) onStretch(v, 0f) else onStretch(0f, v)
+        Box(Modifier.offset { IntOffset(((x - 18f) * density.density).roundToInt(), ((y - 18f) * density.density).roundToInt()) }
+            .size(36.dp).semantics {
+                contentDescription = label
+                customActions = listOf(androidx.compose.ui.semantics.CustomAccessibilityAction(bigger) { by(8f); true },
+                    androidx.compose.ui.semantics.CustomAccessibilityAction(smaller) { by(-8f); true })
+            }
             .pointerInput(sideways) {
                 detectDragGestures { change, amount ->
                     change.consume()
-                    val v = (if (sideways) amount.x else amount.y) / density.density
-                    if (sideways) onStretch(v, 0f) else onStretch(0f, v)
+                    by((if (sideways) amount.x else amount.y) / density.density)
                 }
             }, contentAlignment = Alignment.Center) {
-            Box(Modifier.size(22.dp).clip(CircleShape).background(c.acc).border(2.dp, c.accInk, CircleShape), contentAlignment = Alignment.Center) {
-                Text(arrow, style = CrystalType.caption.copy(fontSize = 11.sp), color = c.accInk)
-            }
+            Box(Modifier.size(if (sideways) 4.dp else 18.dp, if (sideways) 18.dp else 4.dp).clip(CircleShape)
+                .background(c.fg.copy(alpha = .55f)).border(.5.dp, (if (c.dark) Color.Black else Color.White).copy(alpha = .35f), CircleShape))
         }
     }
-    handle(zone.right - 8f, (zone.top + zone.bottom) / 2f, "↔", true)
-    handle((zone.left + zone.right) / 2f, zone.bottom - 8f, "↕", false)
+    handle(zone.right - 7f, (zone.top + zone.bottom) / 2f, stringResource(R.string.plate_wider), true)
+    handle((zone.left + zone.right) / 2f, zone.bottom - 7f, stringResource(R.string.plate_taller), false)
 }
 
 @Composable

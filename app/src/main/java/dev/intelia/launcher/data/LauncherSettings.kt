@@ -71,6 +71,16 @@ data class Palette(
 /** Manual camera position for PULSE, in dp from the top-left of the portrait screen; [r] is the lens radius. */
 @Serializable data class PulseLens(val x: Float, val y: Float, val r: Float)
 
+/** Where the owner left the editor card, dp: top-left (null = placed by the element), width, body cap (0 = automatic). */
+@Serializable data class CardFrame(val x: Float? = null, val y: Float? = null, val w: Float = 312f, val h: Float = 0f) {
+    companion object {
+        const val MIN_W = 240f
+        const val MAX_W = 1000f
+        const val MAX_H = 2000f
+        const val MAX_POS = 3000f
+    }
+}
+
 @Serializable
 data class LauncherSettings(
     val theme: ThemeMode = ThemeMode.System,
@@ -126,6 +136,8 @@ data class LauncherSettings(
     val home: HomeLayouts = HomeLayouts(),
     /** Per-place colours; absent in older documents = unified (one accent everywhere). */
     val palette: Palette = Palette(),
+    /** The editor card as the owner last moved and sized it; null = placed by the element every time. */
+    val editorCard: CardFrame? = null,
     /** Document version; 0 = written before the Crystal design (phase B1). Migrated by [sanitized]. */
     val schema: Int = 0,
 ) {
@@ -180,6 +192,10 @@ data class LauncherSettings(
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
             veilShift = veilShift.coerceIn(-MAX_VEIL_SHIFT, MAX_VEIL_SHIFT),
             iconSize = iconSize.coerceIn(MIN_ICON, MAX_ICON),
+            editorCard = editorCard?.takeIf { f -> listOfNotNull(f.x, f.y, f.w, f.h).all(Float::isFinite) }?.let { f ->
+                CardFrame(f.x?.coerceIn(0f, CardFrame.MAX_POS), f.y?.coerceIn(0f, CardFrame.MAX_POS),
+                    f.w.coerceIn(CardFrame.MIN_W, CardFrame.MAX_W), f.h.coerceIn(0f, CardFrame.MAX_H))
+            },
             reduceMotion = false,
             // 0 → 1: nothing to rewrite; an existing user's accent (Terracotta when absent) is kept as is.
             schema = SCHEMA,

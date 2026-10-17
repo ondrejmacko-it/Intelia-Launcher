@@ -378,8 +378,8 @@ private fun Home(
     /** Editor: the item whose inspector is open, the empty spot of the Add menu, its picker, the preset strip. */
     var selected by remember { mutableStateOf<String?>(null) }
     var addPoint by remember { mutableStateOf<Pt?>(null) }
-    /** Where the owner moved and how they sized the editor card, for this editing session. */
-    val inspectorFrame = remember { InspectorFrame() }
+    /** Where the owner moved and how they sized the editor card; saved with the layout. */
+    val inspectorFrame = remember { InspectorFrame(settings.editorCard) }
     var picker by remember { mutableStateOf<ItemKind?>(null) }
     var presetsOpen by remember { mutableStateOf(false) }
     var previewKey by remember { mutableStateOf<String?>(null) }
@@ -402,7 +402,11 @@ private fun Home(
         editor = null; leaveThen = null; selected = null; addPoint = null; picker = null
         presetsOpen = false; lookOpen = false; previewKey = null; presetApplied = false; ask = null; afterSave = null; refresh()
     }
-    fun commitSave() { editor?.let { it.cancelPreview(); onSaveLayout(it.layout); it.markSaved() }; close() }
+    fun commitSave() {
+        val card = inspectorFrame.toCard()
+        if (card != settings.editorCard) set { it.copy(editorCard = card) }
+        editor?.let { it.cancelPreview(); onSaveLayout(it.layout); it.markSaved() }; close()
+    }
     /** ✓: the user's own layout is never replaced by a preset without a question. */
     fun save(then: () -> Unit = {}) {
         val ed = editor ?: return

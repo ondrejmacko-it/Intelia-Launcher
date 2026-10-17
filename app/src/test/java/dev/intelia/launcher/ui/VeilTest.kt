@@ -60,6 +60,23 @@ class VeilTest {
         }
     }
 
+    @Test fun plateGlassIsBolderAndStillLegible() {
+        for (glass in Glass.entries.filter { it != Glass.Veil }) for (dark in listOf(true, false)) for (shift in listOf(0, 5)) {
+            val panel = veilTokens(VeilLevel.Light, dark, acc, VeilPrefs(shift = shift, glass = glass))
+            val t = plateGlass(glass, dark, acc, shift)
+            assertTrue(t.edge)
+            assertTrue(t.streak.alpha >= panel.streak.alpha && t.spot.alpha >= panel.spot.alpha && t.grain >= panel.grain)
+            val wall = if (dark) Color.White else Color.Black
+            val fg = if (dark) CrystalColors.FgDark else CrystalColors.FgLight
+            val top = t.spot.compositeOver(t.streak.compositeOver(t.sheen.compositeOver(t.glow.compositeOver(t.top.compositeOver(wall)))))
+            val bottom = Color.White.copy(alpha = t.grain).compositeOver(t.bloom.compositeOver(t.bottom.compositeOver(wall)))
+            for (ground in listOf(top, bottom)) {
+                val (hi, lo) = listOf(fg.luminance(), ground.luminance()).sorted().let { it[1] to it[0] }
+                assertTrue("$glass dark=$dark shift=$shift ${(hi + .05f) / (lo + .05f)}", (hi + .05f) / (lo + .05f) >= 4.5f)
+            }
+        }
+    }
+
     @Test fun veilKeepsItsEdge() {
         assertTrue(veilTokens(VeilLevel.Dense, true, acc).edge)
     }

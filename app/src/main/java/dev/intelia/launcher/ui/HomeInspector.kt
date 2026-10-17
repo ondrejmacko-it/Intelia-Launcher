@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -127,15 +128,20 @@ fun HomeItem.tintColor(accent: Color): Color? = when (tint) {
     else -> null
 }
 
-/** Where the owner moved the editor card and how they sized it, dp; kept for the whole editing session. */
-class InspectorFrame {
+/**
+ * Where the owner moved the editor card and how they sized it, dp. Starts from the saved [CardFrame], and is
+ * written back when the layout is saved, so the card opens where the owner left it.
+ */
+class InspectorFrame(saved: dev.intelia.launcher.data.CardFrame? = null) {
     /** Top-left; null = placed by the element. */
-    var pos by mutableStateOf<Offset?>(null)
-    var width by mutableFloatStateOf(DEFAULT_W)
+    var pos by mutableStateOf(saved?.let { f -> if (f.x != null && f.y != null) Offset(f.x, f.y) else null })
+    var width by mutableFloatStateOf(saved?.w ?: DEFAULT_W)
     /** Most the body may grow before it scrolls; 0 = automatic (58 % of the screen). */
-    var maxH by mutableFloatStateOf(0f)
+    var maxH by mutableFloatStateOf(saved?.h ?: 0f)
     val moved get() = pos != null || width != DEFAULT_W || maxH != 0f
     fun reset() { pos = null; width = DEFAULT_W; maxH = 0f }
+    /** What to keep in settings; null when the card is as placed by the element. */
+    fun toCard() = if (!moved) null else dev.intelia.launcher.data.CardFrame(pos?.x, pos?.y, width, maxH)
 
     companion object {
         const val DEFAULT_W = 312f
@@ -222,11 +228,14 @@ fun InspectorCard(target: Zone, screenW: Float, topLimit: Float, avoid: Zone? = 
                 // The body is the card less its header; its cap follows the finger from what is shown now.
                 if (down) frame.maxH = (minOf(size.y, shown) + delta.y / d).coerceIn(InspectorFrame.MIN_H, room)
             }
-            ResizeHandle("↙", Alignment.BottomStart) { resize(left = true, right = false, down = true, delta = it) }
-            ResizeHandle("↘", Alignment.BottomEnd) { resize(left = false, right = true, down = true, delta = it) }
-            ResizeHandle("↔", Alignment.CenterStart) { resize(left = true, right = false, down = false, delta = it) }
-            ResizeHandle("↔", Alignment.CenterEnd) { resize(left = false, right = true, down = false, delta = it) }
-            ResizeHandle("↕", Alignment.BottomCenter) { resize(left = false, right = false, down = true, delta = it) }
+            val both = stringResource(R.string.card_size_both)
+            val wide = stringResource(R.string.card_size_width)
+            val tall = stringResource(R.string.card_size_height)
+            ResizeHandle(Alignment.BottomStart, both) { resize(left = true, right = false, down = true, delta = it) }
+            ResizeHandle(Alignment.BottomEnd, both) { resize(left = false, right = true, down = true, delta = it) }
+            ResizeHandle(Alignment.CenterStart, wide) { resize(left = true, right = false, down = false, delta = it) }
+            ResizeHandle(Alignment.CenterEnd, wide) { resize(left = false, right = true, down = false, delta = it) }
+            ResizeHandle(Alignment.BottomCenter, tall) { resize(left = false, right = false, down = true, delta = it) }
         }
     }
 }
@@ -252,15 +261,47 @@ private fun CardHeader(title: String, frame: InspectorFrame?, onDrag: (Offset) -
     }
 }
 
-/** A small arrow at a corner or side of the card: drag it to size the card that way. */
+/**
+ * A faint mark on the card's rim (a corner tick, a side or bottom bar) inside the card's own margin, so it never
+ * lies over a control: drag it to size the card that way. TalkBack gets Bigger / Smaller instead of the drag.
+ */
 @Composable
-private fun androidx.compose.foundation.layout.BoxScope.ResizeHandle(arrow: String, at: Alignment, onDrag: (Offset) -> Unit) {
+private fun androidx.compose.foundation.layout.BoxScope.ResizeHandle(at: Alignment, label: String, onDrag: (Offset) -> Unit) {
     val c = LocalCrystal.current
     val side = at == Alignment.CenterStart || at == Alignment.CenterEnd
-    Box(Modifier.align(at).size(if (side) 14.dp else 30.dp, if (side) 56.dp else 24.dp)
-        .pointerInput(Unit) { detectDragGestures { change, amount -> change.consume(); onDrag(amount) } },
-        contentAlignment = Alignment.Center) {
-        Text(arrow, style = CrystalType.caption.copy(fontSize = 13.sp), color = c.fg2)
+    val corner = at == Alignment.BottomStart || at == Alignment.BottomEnd
+    val start = at == Alignment.BottomStart || at == Alignment.CenterStart
+    val step = 40f * LocalDensity.current.density
+    val bigger = stringResource(R.string.size_bigger)
+    val smaller = stringResource(R.string.size_smaller)
+    // Growing pulls a start-side handle leftwards and an end-side or bottom one right / down.
+    fun grow(by: Float) = Offset(if (side || corner) (if (start) -by else by) else 0f, if (side) 0f else by)
+    Canvas(Modifier.align(at).size(if (side) 14.dp else if (corner) 28.dp else 56.dp, if (side) 56.dp else 18.dp)
+        .semantics {
+            contentDescription = label
+            customActions = listOf(
+                androidx.compose.ui.semantics.CustomAccessibilityAction(bigger) { onDrag(grow(step)); true },
+                androidx.compose.ui.semantics.CustomAccessibilityAction(smaller) { onDrag(grow(-step)); true },
+            )
+        }
+        .pointerInput(Unit) { detectDragGestures { change, amount -> change.consume(); onDrag(amount) } }) {
+        val ink = c.fg3.copy(alpha = c.fg3.alpha * .7f)
+        val w = 2.dp.toPx()
+        val inset = 5.dp.toPx()
+        when {
+            side -> drawLine(ink, Offset(if (start) inset else size.width - inset, size.height / 2f - 9.dp.toPx()),
+                Offset(if (start) inset else size.width - inset, size.height / 2f + 9.dp.toPx()), w, androidx.compose.ui.graphics.StrokeCap.Round)
+            corner -> {
+                // A quarter arc that follows the card's rounded corner.
+                val r = 9.dp.toPx()
+                val cx = if (start) inset + r else size.width - inset - r
+                val cy = size.height - inset - r
+                drawArc(ink, if (start) 90f else 0f, 90f, false, Offset(cx - r, cy - r), Size(2 * r, 2 * r),
+                    style = Stroke(w, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+            else -> drawLine(ink, Offset(size.width / 2f - 12.dp.toPx(), size.height - inset), Offset(size.width / 2f + 12.dp.toPx(), size.height - inset),
+                w, androidx.compose.ui.graphics.StrokeCap.Round)
+        }
     }
 }
 

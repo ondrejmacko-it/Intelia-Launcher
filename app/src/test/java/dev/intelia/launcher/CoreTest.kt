@@ -137,6 +137,13 @@ class SettingsCodecTest {
         assertFalse(decoded.reduceMotion)
     }
 
+    @Test fun editorCardIsClampedAndRoundTrips() {
+        val decoded = SettingsCodec.decode("""{"editorCard":{"x":-5,"y":120,"w":9000,"h":-3}}""")
+        assertEquals(dev.intelia.launcher.data.CardFrame(0f, 120f, dev.intelia.launcher.data.CardFrame.MAX_W, 0f), decoded.editorCard)
+        assertEquals(decoded.editorCard, SettingsCodec.decode(SettingsCodec.encode(decoded)).editorCard)
+        assertEquals(null, SettingsCodec.decode("""{}""").editorCard)
+    }
+
     @Test fun pulseLensIsClampedAndNonFiniteFallsBackToAuto() {
         val decoded = SettingsCodec.decode("""{"pulseLens":{"x":-5,"y":900,"r":0.5}}""")
         assertEquals(PulseLens(0f, LauncherSettings.MAX_LENS_Y, LauncherSettings.MIN_LENS_R), decoded.pulseLens)

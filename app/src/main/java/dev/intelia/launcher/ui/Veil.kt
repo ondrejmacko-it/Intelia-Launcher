@@ -106,7 +106,29 @@ fun plateTokens(background: String): VeilTokens {
         "Liquid" -> Glass.Liquid
         else -> null
     }
-    return veilTokens(VeilLevel.Light, c.dark, c.acc, if (glass == null) prefs else prefs.copy(solid = false, glass = glass))
+    return if (glass == null) veilTokens(VeilLevel.Light, c.dark, c.acc, prefs) else plateGlass(glass, c.dark, c.acc, prefs.shift)
+}
+
+/**
+ * A plate's own glass: the panel glass made bolder, since a plate is small and sits right on the wallpaper —
+ * brighter facets, rim and highlight, a coarser grain, and a fine light outline so the slab reads as glass, not
+ * a smudge. The fill gains body in step, so the text on it keeps ≥ 4.5:1 (a JVM test checks it).
+ */
+fun plateGlass(glass: Glass, dark: Boolean, acc: Color, shift: Int = 0): VeilTokens {
+    val t = veilTokens(VeilLevel.Light, dark, acc, VeilPrefs(shift = shift, glass = glass))
+    if (glass == Glass.Veil) return t
+    fun Color.more(k: Float, cap: Float = 1f) = copy(alpha = (alpha * k).coerceAtMost(cap))
+    fun Color.denser(by: Float) = copy(alpha = (alpha + by).coerceIn(0f, .97f))
+    val outline = if (dark) Color.White.copy(alpha = .32f) else Color.White.copy(alpha = .95f)
+    return t.copy(
+        top = t.top.denser(if (dark) .1f else .04f), bottom = t.bottom.denser(if (dark) .04f else .03f),
+        edge = true, edgeCold = outline, edgeHot = outline,
+        streak = t.streak.more(if (dark) 2.4f else 1.4f, if (dark) .27f else .85f),
+        spot = t.spot.more(if (dark) 4f else 1.6f, if (dark) .14f else .7f),
+        rim = t.rim.more(1.5f),
+        grain = (t.grain * 1.5f).coerceAtMost(.18f),
+        bloom = t.bloom.more(1.6f, .16f),
+    )
 }
 
 fun veilTokens(level: VeilLevel, dark: Boolean, acc: Color, prefs: VeilPrefs = VeilPrefs()): VeilTokens {
