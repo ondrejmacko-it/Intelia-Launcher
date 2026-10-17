@@ -15,7 +15,7 @@ enum class StudioTarget(val section: StudioSection) {
     EditHome(StudioSection.Home),
     Arc(StudioSection.Controls), Pulse(StudioSection.Controls), Motion(StudioSection.Controls),
     Flows(StudioSection.Flow), Shortcuts(StudioSection.Flow),
-    Hidden(StudioSection.System), DefaultHome(StudioSection.System), About(StudioSection.System),
+    Hidden(StudioSection.System), DefaultHome(StudioSection.System), Backup(StudioSection.System), About(StudioSection.System),
 }
 
 /** One searchable entry: what it is called, where it lives ("Vzhled › Tapeta") and words people may type instead. */

@@ -2,6 +2,28 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — D17: settings backup, Studio › Systém › Záloha (`claude/crystal-redesign`)
+
+- `BackupCodec` (pure Kotlin): envelope `{"format":"intelia-settings","version":1,"settings":{…}}`; reads at most
+  256 KB, refuses another format, a newer version or schema, damaged JSON; values go through `sanitized()`;
+  `applyTo` keeps this phone's `pulseLens` and `editorCard`, sets `onboarded`.
+- Studio › Systém › Záloha (fold, also found by search "záloha", "export", "obnovit"): Exportovat nastavení
+  (`CreateDocument`), Obnovit ze souboru (`OpenDocument`) → a question with the file's FLOW / favourite / hidden
+  counts → Nahradit nastavení; "Vrátit obnovení" until Studio closes. No permission, no network.
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` PASS, 143 JVM tests, 0
+failures (new `BackupCodecTest`, 6).
+
+Verified on the Phone (3), lab build via `install -r` (`uiautomator` + screenshots): export to Download
+(`intelia-2026-10-17.json`, 4194 B; 2 FLOW, 4 favourites, wallpaper aurora, no `pulseLens`) → "Nastavení
+exportováno."; restore of that file → question "FLOW příkazů: 2, oblíbených: 4, skrytých aplikací: 0" → "Nastavení
+obnoveno."; a second export is byte-identical to the first; a JSON that is not a backup → "Tento soubor není záloha
+Intelie." and nothing changed; Vrátit obnovení → the row goes away; Home bounds identical afterwards. The test files
+were removed from Download; the owner's backup `intelia-2026-10-17.json` stays.
+
+Not verified: a restore that really changes settings (only the same document was restored), a file from a cloud
+provider in the picker, the 256 KB limit and a newer file on the phone (JVM tests only), TalkBack.
+
 ## 2026-10-17 — Regression pass: B5 labels, Studio in the light theme (`claude/crystal-redesign`, `da70807`)
 
 Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` PASS, 137 JVM tests, 0

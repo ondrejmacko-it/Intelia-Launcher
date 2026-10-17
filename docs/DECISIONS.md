@@ -227,3 +227,32 @@ internal build, not a release. `androidx.profileinstaller` (Apache-2.0, no permi
 is guarded by the system DUMP permission) installs the merged baseline profile (library profiles +
 `app/src/main/baseline-prof.txt`) on sideloaded builds, so ART compiles the startup path ahead of time on any
 phone. Revert: drop the `lab` block, the dependency and the profile file.
+
+## D17 — 2026-10-17 — Settings backup: export and import through the system file picker (APPROVED by the owner 2026-10-17)
+Studio › Systém › Záloha (prototype row "Záloha · Export a import nastavení"). All of Intelia's state is the one
+`LauncherSettings` JSON document, so a backup is that document.
+- Export: "Exportovat nastavení" opens the system picker (`ACTION_CREATE_DOCUMENT`, `application/json`,
+  suggested name `intelia-YYYY-MM-DD.json`); Intelia writes an envelope
+  `{"format":"intelia-settings","version":1,"settings":{…}}` to the file the owner chose. Nothing else is written.
+- Import: "Obnovit ze souboru" opens `ACTION_OPEN_DOCUMENT`; the file is untrusted. Read at most 256 KB as UTF-8,
+  require the envelope `format`, refuse `version` or `settings.schema` newer than this build, decode leniently
+  (unknown keys ignored) and pass it through `LauncherSettings.sanitized()` — still the single validation gate.
+  A bad file changes nothing and says why (unlike `SettingsCodec.decode`, which falls back to fresh settings).
+- Before applying: a sheet with a short summary (FLOW commands, favourites, hidden apps, wallpaper) and
+  "Nahradit nastavení". After applying, "Vrátit import" stays in Systém until Studio closes (previous document
+  kept in memory only).
+- Kept from this phone, not imported: `pulseLens` (camera cutout) and `editorCard` (editor position) — both are
+  device geometry. `onboarded` becomes true. Apps missing on this phone stay as keys and are skipped as today.
+- No permission, no network, no background work: the Storage Access Framework grants access to one file per
+  action. `android:allowBackup` stays `false` (no silent Google auto-backup). The file is plain JSON with app
+  package names and FLOW names; where it goes (local folder, a USB drive, or a cloud provider shown in the
+  picker, such as Google Drive) is the owner's choice per export.
+- Tests: JVM `BackupCodecTest` — round trip, wrong format, garbage, oversize, newer version/schema, device fields
+  kept, out-of-range values clamped by `sanitized()`.
+- Revert: remove the Záloha fold, `BackupCodec` and the strings; stored settings are untouched.
+
+Future, not part of D17 (owner's wish 2026-10-17): a Google account with automatic sync / backup and local use of
+Google APIs. That needs its own decision: the `INTERNET` permission, an account and OAuth flow (Credential
+Manager / Google Identity), a Drive appDataFolder or similar, the licences and size of Play services libraries,
+conflict handling between phones, and what leaves the phone. D17's versioned envelope is the payload such a sync
+would carry, so nothing in D17 has to change for it.

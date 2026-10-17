@@ -440,4 +440,19 @@
     <string name="inherit_global_from_a11y">Follows %1$s</string>
     <string name="inherit_own_a11y">Own value</string>
     <string name="inherit_reset_a11y">return to the global value</string>
+    <string name="backup_title">Backup</string>
+    <string name="backup_hint">All of Intelia is one small settings file. You choose where it is saved; Intelia sends nothing anywhere.</string>
+    <string name="backup_export">Export settings</string>
+    <string name="backup_import">Restore from file</string>
+    <string name="backup_confirm">Replace all settings? The file has %1$d FLOW commands, %2$d favourites and %3$d hidden apps.</string>
+    <string name="backup_replace">Replace settings</string>
+    <string name="backup_undo">Undo the restore</string>
+    <string name="backup_saved">Settings exported.</string>
+    <string name="backup_restored">Settings restored.</string>
+    <string name="backup_err_large">The file is too large to be an Intelia backup.</string>
+    <string name="backup_err_not">This file is not an Intelia backup.</string>
+    <string name="backup_err_newer">The backup is from a newer Intelia; update the app first.</string>
+    <string name="backup_err_damaged">The backup is damaged; nothing was changed.</string>
+    <string name="backup_err_io">The file could not be read or written.</string>
+    <string name="studio_kw_backup">export import restore file save transfer phone</string>
 </resources>

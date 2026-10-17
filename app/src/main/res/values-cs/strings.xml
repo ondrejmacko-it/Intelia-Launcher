@@ -439,4 +439,19 @@
     <string name="inherit_global_from_a11y">Řídí se: %1$s</string>
     <string name="inherit_own_a11y">Vlastní hodnota</string>
     <string name="inherit_reset_a11y">vrátit globální hodnotu</string>
+    <string name="backup_title">Záloha</string>
+    <string name="backup_hint">Celá Intelia je jeden malý soubor s nastavením. Kam se uloží, volíte vy; Intelia nic nikam neposílá.</string>
+    <string name="backup_export">Exportovat nastavení</string>
+    <string name="backup_import">Obnovit ze souboru</string>
+    <string name="backup_confirm">Nahradit celé nastavení? V souboru je FLOW příkazů: %1$d, oblíbených: %2$d, skrytých aplikací: %3$d.</string>
+    <string name="backup_replace">Nahradit nastavení</string>
+    <string name="backup_undo">Vrátit obnovení</string>
+    <string name="backup_saved">Nastavení exportováno.</string>
+    <string name="backup_restored">Nastavení obnoveno.</string>
+    <string name="backup_err_large">Soubor je na zálohu Intelie příliš velký.</string>
+    <string name="backup_err_not">Tento soubor není záloha Intelie.</string>
+    <string name="backup_err_newer">Záloha je z novější verze Intelie; nejdřív aplikaci aktualizujte.</string>
+    <string name="backup_err_damaged">Záloha je poškozená; nic se nezměnilo.</string>
+    <string name="backup_err_io">Soubor nešlo přečíst ani zapsat.</string>
+    <string name="studio_kw_backup">export import obnovit soubor uložit přenos telefon záloha</string>
 </resources>

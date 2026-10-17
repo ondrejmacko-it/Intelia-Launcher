@@ -79,6 +79,16 @@ import dev.intelia.launcher.data.Motion
 import dev.intelia.launcher.data.ThemeMode
 import java.time.LocalDateTime
 import kotlin.math.roundToInt
+import java.time.LocalDate
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import dev.intelia.launcher.data.BackupRead
+import dev.intelia.launcher.data.BackupError
+import dev.intelia.launcher.data.BackupCodec
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 
 /** Main, the five section pages (Home has none: it opens the editor) and their sub-pages; [depth] drives the slide. */
 private enum class StudioPane(val depth: Int) { Main(1), Look(2), Controls(2), Flow(2), System(2), Shortcuts(3), Hidden(3), Lens(3) }
@@ -104,6 +114,8 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     var focus by rememberSaveable { mutableStateOf<StudioTarget?>(null) }
     /** Shortcuts are reached from ARC (Ovládání) and from Akce a FLOW; Back returns to whichever it was. */
     var shortcutsBack by rememberSaveable { mutableStateOf(StudioPane.Flow) }
+    /** Settings before a restore from a backup file (D17); offered back until Studio closes, never stored. */
+    var beforeRestore by remember { mutableStateOf<LauncherSettings?>(null) }
     // The page's scroll and open part survive a deeper page too, so Back lands on the same row (Veil 3.0 motion).
     val panes = rememberSaveableStateHolder()
     val ms = motionMs(VeilMotion.PAGE_MS)
@@ -134,7 +146,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
             FlowPage(settings, onFlows, onShortcuts = { shortcuts(StudioPane.Flow) })
         }
         StudioPane.System -> StudioFrame(settings, model, stringResource(R.string.studio_system), ::up) {
-            SystemPage(model, focus, onHidden = { pane = StudioPane.Hidden })
+            SystemPage(model, focus, beforeRestore, { beforeRestore = it }, onHidden = { pane = StudioPane.Hidden })
         }
         StudioPane.Shortcuts -> ShortcutPicker(model, settings, onBack = ::up)
         StudioPane.Hidden -> HiddenApps(model, onBack = ::up)
@@ -204,6 +216,7 @@ private fun studioEntries(): List<StudioEntry> {
             StudioTarget.Shortcuts -> Triple(R.string.arc_ring_shortcuts, flow, R.string.studio_kw_shortcuts)
             StudioTarget.Hidden -> Triple(R.string.hidden_manage, system, R.string.studio_kw_hidden)
             StudioTarget.DefaultHome -> Triple(R.string.default_home_section, system, R.string.studio_kw_default_home)
+            StudioTarget.Backup -> Triple(R.string.backup_title, system, R.string.studio_kw_backup)
             StudioTarget.About -> Triple(R.string.about_title, system, R.string.studio_kw_about)
         }
         val name = stringResource(label)
@@ -287,6 +300,7 @@ private fun StudioTarget?.partTitle(): Int? = when (this) {
     StudioTarget.Arc -> R.string.arc_section
     StudioTarget.Pulse -> R.string.pulse
     StudioTarget.Motion -> R.string.motion_section
+    StudioTarget.Backup -> R.string.backup_title
     StudioTarget.About -> R.string.about_title
     else -> null
 }
@@ -364,9 +378,10 @@ private fun FlowPage(settings: LauncherSettings, onFlows: () -> Unit, onShortcut
     NavRow(stringResource(R.string.shortcuts_pick), "${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}", onShortcuts)
 }
 
-/** Systém: default home, hidden apps, about and licences. */
+/** Systém: default home, hidden apps, the settings backup (D17), about and licences. */
 @Composable
-private fun SystemPage(model: HomeViewModel, focus: StudioTarget?, onHidden: () -> Unit) {
+private fun SystemPage(model: HomeViewModel, focus: StudioTarget?, beforeRestore: LauncherSettings?,
+    onRestored: (LauncherSettings?) -> Unit, onHidden: () -> Unit) {
     val hidden by model.hiddenApps.collectAsStateWithLifecycle()
     val role = rememberHomeRole()
     var open by rememberSaveable { mutableStateOf(focus.partTitle()) }
@@ -377,9 +392,78 @@ private fun SystemPage(model: HomeViewModel, focus: StudioTarget?, onHidden: () 
         Capsule(stringResource(R.string.default_home), role.request, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
     }
     NavRow(stringResource(R.string.hidden_manage), hidden.size.toString(), onHidden)
+    StudioFold(stringResource(R.string.backup_title), null, open == R.string.backup_title, { open = if (it) R.string.backup_title else null }) {
+        BackupPart(model, beforeRestore, onRestored)
+    }
     StudioFold(stringResource(R.string.about_title), null, open == R.string.about_title, { open = if (it) R.string.about_title else null }) {
         if (role.held) Hint(stringResource(R.string.default_home_active))
         About()
+    }
+}
+
+/**
+ * Export and restore of the one settings document through the system file picker (D17): no permission, one file
+ * per action. A restore asks first, keeps this phone's geometry and can be undone until Studio closes.
+ */
+@Composable
+private fun BackupPart(model: HomeViewModel, beforeRestore: LauncherSettings?, onRestored: (LauncherSettings?) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var message by remember { mutableStateOf<Int?>(null) }
+    var pending by remember { mutableStateOf<LauncherSettings?>(null) }
+    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val text = BackupCodec.encode(model.settings.value)
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) } != null
+                }.getOrDefault(false)
+            }
+            message = if (ok) R.string.backup_saved else R.string.backup_err_io
+        }
+    }
+    val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val read = withContext(Dispatchers.IO) {
+                // null = the file could not be opened or read; a too long file reads as null text → TooLarge.
+                runCatching { context.contentResolver.openInputStream(uri)?.use { BackupCodec.decode(BackupCodec.readBounded(it)) } }
+                    .getOrNull()
+            }
+            when (read) {
+                null -> message = R.string.backup_err_io
+                is BackupRead.Ok -> { message = null; pending = read.settings }
+                is BackupRead.Failed -> message = when (read.error) {
+                    BackupError.TooLarge -> R.string.backup_err_large
+                    BackupError.NotABackup -> R.string.backup_err_not
+                    BackupError.Newer -> R.string.backup_err_newer
+                    BackupError.Damaged -> R.string.backup_err_damaged
+                }
+            }
+        }
+    }
+    Hint(stringResource(R.string.backup_hint))
+    NavRow(stringResource(R.string.backup_export), null, { export.launch("intelia-${LocalDate.now()}.json") })
+    NavRow(stringResource(R.string.backup_import), null, {
+        restore.launch(arrayOf("application/json", "text/*", "application/octet-stream"))
+    })
+    if (beforeRestore != null) {
+        Quiet(stringResource(R.string.backup_undo), {
+            model.updateSettings { beforeRestore }
+            onRestored(null)
+            message = null
+        }, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+    }
+    message?.let { Hint(stringResource(it)) }
+    pending?.let { file ->
+        ConfirmDialog(stringResource(R.string.backup_confirm, file.aliases.size, file.favorites.size, file.hidden.size),
+            stringResource(R.string.backup_replace), onConfirm = {
+                onRestored(model.settings.value)
+                model.updateSettings { BackupCodec.applyTo(it, file) }
+                pending = null
+                message = R.string.backup_restored
+            }, onDismiss = { pending = null })
     }
 }
 
