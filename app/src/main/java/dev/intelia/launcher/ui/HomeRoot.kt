@@ -191,7 +191,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     }
     /** Studio → "Upravit plochu" opens the editor on Home; PULSE → "Poloha čočky" opens Studio's calibration. */
     var editOnHome by remember { mutableStateOf(false) }
-    var studioLens by remember { mutableStateOf(false) }
+    var studioStart by remember { mutableStateOf(StudioStart.Main) }
     fun goHome() {
         pages.removeState(Page.Studio.name); pages.removeState(Page.Flows.name)
         page = Page.Home; model.query.value = ""; options = null; editing = null; focus.clearFocus(); keyboard?.hide()
@@ -260,7 +260,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     flowSteps = steps,
                     onSearch = { openSearch(true) },
                     onDrawer = ::openDrawer,
-                    onPulseLens = { studioLens = true; page = Page.Studio },
+                    onPulseLens = { studioStart = StudioStart.Lens; page = Page.Studio },
+                    onLook = { studioStart = StudioStart.Look; page = Page.Studio },
                     startEditing = editOnHome,
                     onEditingStarted = { editOnHome = false },
                     set = model::updateSettings,
@@ -325,8 +326,9 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     )
                 }
                 Page.Studio -> AccentScope(PaletteTarget.Studio) {
-                    Studio(model, settings, onBack = { studioLens = false; goHome() }, onFlows = { flowsBack = Page.Studio; page = Page.Flows },
-                        onEditHome = { studioLens = false; editOnHome = true; pages.removeState(Page.Studio.name); page = Page.Home }, lensFirst = studioLens)
+                    Studio(model, settings, onBack = { studioStart = StudioStart.Main; goHome() }, onFlows = { flowsBack = Page.Studio; page = Page.Flows },
+                        onEditHome = { studioStart = StudioStart.Main; editOnHome = true; pages.removeState(Page.Studio.name); page = Page.Home },
+                        start = studioStart)
                 }
             }
         } }
@@ -370,6 +372,7 @@ private fun Home(
     onSearch: () -> Unit,
     onDrawer: () -> Unit,
     onPulseLens: () -> Unit,
+    onLook: () -> Unit,
     startEditing: Boolean,
     onEditingStarted: () -> Unit,
     set: SettingsEdit,
@@ -399,7 +402,6 @@ private fun Home(
     var dateZone by remember { mutableStateOf<Zone?>(null) }
     /** The editor's scaled Home layer, which zones are measured in (not state: read only in callbacks). */
     val homeCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
-    var lookOpen by remember { mutableStateOf(false) }
     if (startEditing) { onEditingStarted(); openRequested = true }
     /** Editor: the item whose inspector is open, the empty spot of the Add menu, its picker, the preset strip. */
     var selected by remember { mutableStateOf<String?>(null) }
@@ -426,7 +428,7 @@ private fun Home(
     fun refresh() { tick++ }
     fun close() {
         editor = null; leaveThen = null; selected = null; addPoint = null; picker = null
-        presetsOpen = false; lookOpen = false; previewKey = null; presetApplied = false; ask = null; afterSave = null; refresh()
+        presetsOpen = false; previewKey = null; presetApplied = false; ask = null; afterSave = null; refresh()
     }
     fun commitSave() {
         val card = inspectorFrame.toCard()
@@ -696,7 +698,6 @@ private fun Home(
                         val onCamera = view.toScreen(p).let { q -> abs(q.x - camera.x) <= 96f && q.y <= camera.y + 40f }
                         val hit = hitItem(ed, p, timeZone, dateZone) ?: ed.lensId()?.takeIf { onLens } ?: PULSE_ID.takeIf { onCamera }
                         when {
-                            lookOpen && hit == null -> lookOpen = false
                             hit != null -> { selected = hit.takeIf { it != selected }; addPoint = null }
                             selected != null || addPoint != null -> { selected = null; addPoint = null }
                             presetsOpen -> { ed.cancelPreview(); presetsOpen = false; previewKey = null }
@@ -781,23 +782,21 @@ private fun Home(
             EditorBar(ed.canUndo, ed.canRedo, editing = editingTitle, onCancel = { leave {} }, onUndo = { ed.undo(); refresh() },
                 onRedo = { ed.redo(); refresh() }, onDone = { save() }, modifier = Modifier.align(Alignment.TopCenter))
             // The tray steps aside while a card is open: cards may reach down to the navigation bar.
-            val cardOpen = presetsOpen || lookOpen || addPoint != null || (selected != null && drag == null && ed.lensDrag == null)
+            val cardOpen = presetsOpen || addPoint != null || (selected != null && drag == null && ed.lensDrag == null)
             androidx.compose.animation.AnimatedVisibility(!cardOpen && drag == null && ed.lensDrag == null, Modifier.align(Alignment.BottomCenter),
                 enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
-                EditorTray(placementLabel(ed.layout), presetsOpen, lookOpen,
+                EditorTray(placementLabel(ed.layout), presetsOpen,
                     onAdd = { selected = null; addPoint = Pt(geometry.lensX, geometry.areaTop + geometry.areaH / 2f); refresh() },
                     onPresets = {
                         if (presetsOpen) { ed.cancelPreview(); previewKey = null }
-                        presetsOpen = !presetsOpen; lookOpen = false; selected = null; addPoint = null; refresh()
+                        presetsOpen = !presetsOpen; selected = null; addPoint = null; refresh()
                     },
                     onPlacement = { ed.setPlacement(Placement.entries[(ed.layout.placement.ordinal + 1) % Placement.entries.size]); refresh() },
-                    onLook = {
-                        if (presetsOpen) { ed.cancelPreview(); previewKey = null; presetsOpen = false }
-                        lookOpen = !lookOpen; selected = null; addPoint = null; refresh()
-                    })
+                    // Vzhled lives in Studio only: unsaved edits are asked about first, as for PULSE calibration.
+                    onLook = { leave(onLook) })
             }
 
-            /** The LENS row as a target: the Look and Presets cards open just above it. */
+            /** The LENS row as a target: the Presets card opens just above it. */
             val lensRowZone = view.toScreen(geometry.rowZone)
             if (presetsOpen) {
                 val start = ed.previewOf ?: ed.layout
@@ -820,8 +819,6 @@ private fun Home(
                 } }
             }
 
-            if (lookOpen) key("look") { InspectorCard(lensRowZone, maxWidth.value, barBottom + EDIT_LABEL, null,
-                stringResource(R.string.look), inspectorFrame) { LookPanel(settings, ed, set, ::refresh) } }
             if (selected == PULSE_ID && drag == null) {
                 val r = hole.radius / density.density + 10f
                 // Below the editor bar: the camera sits under the status bar, the card hangs from the bar.

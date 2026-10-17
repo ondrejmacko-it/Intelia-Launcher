@@ -128,6 +128,20 @@ class HomeModelTest {
         assertEquals(2, again.layouts.size)
     }
 
+    @Test fun studioIconChangesTouchOnlyIconsAndSaveLikeTheEditor() {
+        val user = LayoutSpec("mine", "Moje", items = listOf(HomeItem("clock", ItemKind.Clock, Anchor.free(.5f, 0f)),
+            HomeItem("a", target = "a/A", anchor = Anchor.cell(0, 0), sizeDp = 56), HomeItem("b", target = "b/B", anchor = Anchor.cell(1, 0))))
+        val home = HomeLayouts("mine", listOf(user))
+        val named = home.withIcons { it.copy(label = true, sizeDp = 0) }.activeLayout()
+        assertTrue(named.items.filter { it.kind == ItemKind.App }.all { it.label && it.sizeDp == 0 })
+        assertFalse(named.items.first { it.kind == ItemKind.Clock }.label)
+        // No icon changes → the document stays as it was.
+        assertTrue(home.withIcons { it } === home)
+        // On the linked preset a real change becomes the own copy, as the editor's ✓ does.
+        val s = LauncherSettings(favorites = listOf("a/A"), schema = 2).sanitized()
+        assertEquals(HomeLayouts.USER_ID, s.home.withIcons { it.copy(label = true) }.active)
+    }
+
     @Test fun itemLookIsClampedAndUnknownValuesFallBack() {
         val bad = LayoutSpec("mine", items = listOf(
             HomeItem("clock", ItemKind.Clock, Anchor.free(.5f, 0f), sizeDp = 999, style = "Comic", weight = 5000, tint = "Neon", alpha = Float.NaN),

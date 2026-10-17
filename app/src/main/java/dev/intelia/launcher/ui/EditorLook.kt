@@ -22,7 +22,6 @@ import kotlinx.coroutines.launch
 import dev.intelia.launcher.data.WallpaperPreset
 import dev.intelia.launcher.data.Wallpapers
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -46,7 +45,7 @@ import dev.intelia.launcher.data.ThemeMode
 /** Changes the stored settings at once (not part of the layout's undo history). */
 typealias SettingsEdit = ((LauncherSettings) -> LauncherSettings) -> Unit
 
-/** The icon style for all of Home, Search, drawer and ARC; in the Look panel, the icon inspector and Studio. */
+/** The icon style for all of Home, Search, drawer and ARC (Studio › Vzhled › Ikony). */
 @Composable
 fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
     Chips(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink),
@@ -85,25 +84,6 @@ fun MaterialChips(settings: LauncherSettings, set: SettingsEdit) {
     }
 }
 
-/**
- * The editor's Look panel (Vzhled): the shared [LookSettings] plus what belongs to the edited layout (icon sizes and
- * names, through undo). Settings apply immediately.
- */
-@Composable
-fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsEdit, onChange: () -> Unit,
-    modifier: Modifier = Modifier) {
-    val c = LocalCrystal.current
-    // The body of the editor card (InspectorCard): it brings the glass, the header, the scroll and the handles.
-    Column(modifier.fillMaxWidth()) {
-        LookSettings(settings, set) {
-            AllIconsSize(settings, state, set, onChange)
-            val icons = state.layout.items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
-            Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on -> state.setLabels(on); onChange() }
-        }
-        Text(stringResource(R.string.look_hint), Modifier.padding(vertical = 8.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
-    }
-}
-
 /** The fold title each Look part is keyed by; Studio's search opens a part by it. */
 @Composable
 fun lookFoldTitle(target: StudioTarget): String? = when (target) {
@@ -116,15 +96,18 @@ fun lookFoldTitle(target: StudioTarget): String? = when (target) {
 }
 
 /**
- * The look of the whole launcher — icons, panels, wallpaper, theme, colours — as one definition drawn by both the
- * editor's Vzhled panel and Studio › Vzhled (Veil 3.0 B4), so the two never differ. [iconsExtra] adds the editor's
- * per-layout rows to the Icons part.
+ * The look of the whole launcher — icons, panels, wallpaper, theme, colours — in one place, Studio › Vzhled (the
+ * editor's Vzhled button opens it). The icon size and names apply to the active layout at once.
  */
 @Composable
-fun LookSettings(settings: LauncherSettings, set: SettingsEdit, iconsExtra: @Composable () -> Unit = {}) {
+fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
     Fold(stringResource(R.string.icons), stringResource(iconStyleName(settings.iconStyle))) {
         IconStyleChips(settings, set)
-        iconsExtra()
+        AllIconsSize(settings, set)
+        val icons = settings.home.activeLayout().items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
+        Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on ->
+            set { it.copy(home = it.home.withIcons { i -> i.copy(label = on) }) }
+        }
     }
     Fold(stringResource(R.string.look_material), stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass))) {
         MaterialChips(settings, set)
@@ -237,16 +220,12 @@ private fun iconStyleName(s: IconStyle) = when (s) {
     IconStyle.Tinted -> R.string.icons_tinted
 }
 
-/**
- * One size for every app and FLOW icon on Home: moving it drops each icon's own size (one undo step), so all of them
- * really follow it; in the Look panel and in every icon's inspector.
- */
+/** One size for every app and FLOW icon on Home: moving it drops each icon's own size, so all of them really follow it. */
 @Composable
-fun AllIconsSize(settings: LauncherSettings, state: HomeEditorState, set: SettingsEdit, onChange: () -> Unit) {
+private fun AllIconsSize(settings: LauncherSettings, set: SettingsEdit) {
     SliderRow(stringResource(R.string.icons_all_size), settings.iconSize.toFloat(), LauncherSettings.MIN_ICON.toFloat(),
         LauncherSettings.MAX_ICON.toFloat(), 2f, "${settings.iconSize} dp") { v ->
-        set { it.copy(iconSize = v.toInt()) }
-        state.resetIconSizes(); onChange()
+        set { it.copy(iconSize = v.toInt(), home = it.home.withIcons { i -> i.copy(sizeDp = 0) }) }
     }
 }
 

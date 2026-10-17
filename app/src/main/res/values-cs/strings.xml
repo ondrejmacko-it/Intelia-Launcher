@@ -138,7 +138,6 @@
     <string name="studio_home_sub">%1$s · upravuje se přímo na ploše</string>
     <string name="studio_flow_sub">Příkazy: %1$d · zkratky: %2$d</string>
     <string name="studio_hidden_sub">Skryté aplikace: %1$d</string>
-    <string name="studio_look_editor">Velikost ikon a popisky patří k rozložení: mění se v editoru plochy.</string>
     <string name="studio_kw_icons">styl tvar barevné mono tónované veil kruh squircle</string>
     <string name="studio_kw_material">materiál sklo veil krystal mráz kapka matné hustota hrana rozostření</string>
     <string name="studio_kw_wallpaper">pozadí ztmavení systémová tapeta oceán noc</string>
@@ -317,7 +316,6 @@
     <string name="look_density">Hustota</string>
     <string name="look_edge">Světelná hrana</string>
     <string name="look_labels">Popisky pod ikonami</string>
-    <string name="look_hint">Roztažením nebo stažením dvou prstů změníš velikost prvku. Klepnutím na PULSE u kamery otevřeš jeho nastavení.</string>
     <string name="studio_pulse_moved">Vzhled kapsle a události: v editoru plochy klepni na kroužek u kamery.</string>
     <string name="accent_rose">Růžová</string>
     <string name="accent_coral">Korál</string>

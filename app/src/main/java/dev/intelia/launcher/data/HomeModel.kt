@@ -235,6 +235,16 @@ data class HomeLayouts(val active: String = LINKED_ID, val layouts: List<LayoutS
         return HomeLayouts(own.id, kept + own)
     }
 
+    /**
+     * Studio › Vzhled: one change to every app and FLOW icon of the active layout (names on or off, own sizes
+     * dropped), saved as the editor's ✓ would; nothing is saved when no icon changes.
+     */
+    fun withIcons(transform: (HomeItem) -> HomeItem): HomeLayouts {
+        val layout = activeLayout()
+        val items = layout.items.map { if (it.kind == ItemKind.App || it.kind == ItemKind.Flow) transform(it) else it }
+        return if (items == layout.items) this else save(layout.copy(items = items))
+    }
+
     companion object {
         const val LINKED_ID = "preset"
         const val USER_ID = "mine"

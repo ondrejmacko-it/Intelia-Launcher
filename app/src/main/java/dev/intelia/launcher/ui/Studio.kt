@@ -104,15 +104,23 @@ private fun StudioSection.pane() = when (this) {
     StudioSection.Home -> StudioPane.Main
 }
 
+/** Where Studio opens: its main page, Vzhled from the editor's tray (Back returns to the editor) or PULSE calibration. */
+enum class StudioStart { Main, Look, Lens }
+
 /**
  * Studio (Veil 3.0 B4): a live preview on the wallpaper, a search over every setting and five sections — Vzhled,
- * Plocha, Ovládání, Akce a FLOW, Systém — each a page that slides in; Back returns to the same row. Vzhled draws the
- * same [LookSettings] as the editor's Vzhled panel. Changes apply immediately and persist through SettingsStore.
+ * Plocha, Ovládání, Akce a FLOW, Systém — each a page that slides in; Back returns to the same row. Vzhled is the
+ * only place for the launcher's look; the editor's Vzhled button opens it. Changes apply immediately and persist
+ * through SettingsStore.
  */
 @Composable
 fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onFlows: () -> Unit, onEditHome: () -> Unit,
-    lensFirst: Boolean = false) {
-    var pane by rememberSaveable { mutableStateOf(if (lensFirst) StudioPane.Lens else StudioPane.Main) }
+    start: StudioStart = StudioStart.Main) {
+    var pane by rememberSaveable(start) { mutableStateOf(when (start) {
+        StudioStart.Main -> StudioPane.Main
+        StudioStart.Look -> StudioPane.Look
+        StudioStart.Lens -> StudioPane.Lens
+    }) }
     /** The part a search result asked for; the page opens with it unfolded. */
     var focus by rememberSaveable { mutableStateOf<StudioTarget?>(null) }
     /** Shortcuts are reached from ARC (Ovládání) and from Akce a FLOW; Back returns to whichever it was. */
@@ -123,6 +131,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     val panes = rememberSaveableStateHolder()
     val ms = motionMs(VeilMotion.PAGE_MS)
     fun up() {
+        if (pane == StudioPane.Look && start == StudioStart.Look) { onEditHome(); return }
         pane = when (pane) {
             StudioPane.Shortcuts -> shortcutsBack
             StudioPane.Hidden -> StudioPane.System
@@ -140,7 +149,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     }, label = "studio-pane") { shown -> panes.SaveableStateProvider(shown.name) { when (shown) {
         StudioPane.Main -> StudioMain(model, settings, onBack, onEditHome, ::open)
         StudioPane.Look -> StudioFrame(settings, model, stringResource(R.string.look), ::up, preview = true) {
-            LookPage(settings, focus, onEditHome) { model.updateSettings(it) }
+            LookPage(settings, focus) { model.updateSettings(it) }
         }
         StudioPane.Controls -> StudioFrame(settings, model, stringResource(R.string.studio_controls), ::up) {
             ControlsPage(model, settings, focus, onShortcuts = { shortcuts(StudioPane.Controls) })
@@ -161,8 +170,8 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
 }
 
 /**
- * One Studio page: the wallpaper at the top — with the live Home preview on Main and Vzhled — and a Veil Focus sheet
- * below it that scrolls. The header names the page and goes back.
+ * One Studio page: the header on the wallpaper and a Veil Focus sheet below it that scrolls. On Main and Vzhled the
+ * live Home miniature takes 60 % of the room under the header and the sheet 40 %; elsewhere the sheet takes it all.
  */
 @Composable
 private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title: String, onBack: () -> Unit, preview: Boolean = false,
@@ -175,22 +184,22 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
         val screenW = maxWidth
         val screenH = maxHeight
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 12.dp)) {
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    IconAction(Glyph.Back, stringResource(R.string.back), onBack, tint = homeInk)
-                    Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
-                }
-                // Home as a true miniature of the screen beside the title: every size and distance at one scale.
-                if (preview) {
-                    val shape = RoundedCornerShape(10.dp)
-                    Box(Modifier.size(screenW * PREVIEW_SCALE, screenH * PREVIEW_SCALE).clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)) {
-                        // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
-                        HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
-                            scale = PREVIEW_SCALE, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
-                    }
+            Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                IconAction(Glyph.Back, stringResource(R.string.back), onBack, tint = homeInk)
+                Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
+            }
+            // Home as a true miniature of the screen: every size and distance at one scale, fitted to its share.
+            if (preview) BoxWithConstraints(Modifier.weight(PREVIEW_SHARE).fillMaxWidth().padding(bottom = 12.dp), contentAlignment = Alignment.Center) {
+                val scale = minOf(maxHeight / screenH, maxWidth / screenW)
+                val shape = RoundedCornerShape(16.dp)
+                Box(Modifier.size(screenW * scale, screenH * scale).clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)) {
+                    // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
+                    HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
+                        scale = scale, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
                 }
             }
-            Column(Modifier.weight(1f).fillMaxWidth()
+            Column(Modifier.weight(if (preview) 1f - PREVIEW_SHARE else 1f).fillMaxWidth()
                 .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Top, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .verticalScroll(rememberScrollState()).navigationBarsPadding().padding(top = 8.dp, bottom = 24.dp), content = content)
         }
@@ -289,16 +298,14 @@ private fun StudioSearchField(query: String, onChange: (String) -> Unit) {
     }
 }
 
-/** Vzhled: the editor's Look definition, unfolded at the part a search asked for. */
+/** Vzhled: the launcher's look, unfolded at the part a search asked for. */
 @Composable
-private fun LookPage(settings: LauncherSettings, focus: StudioTarget?, onEditHome: () -> Unit, set: SettingsEdit) {
+private fun LookPage(settings: LauncherSettings, focus: StudioTarget?, set: SettingsEdit) {
     val first = focus?.let { lookFoldTitle(it) }
     val group = remember { FoldGroup().also { it.open = first } }
     CompositionLocalProvider(LocalFoldGroup provides group) {
         Column(Modifier.padding(horizontal = 14.dp)) { LookSettings(settings, set) }
     }
-    Hint(stringResource(R.string.studio_look_editor))
-    NavRow(stringResource(R.string.edit_home), null, onEditHome)
 }
 
 /** The Studio fold a search target opens on its page. */
@@ -677,8 +684,8 @@ fun HomePreview(
     }
 }
 
-/** Studio's Home miniature: the screen at this scale, so the clock, LENS row and gaps keep their real proportions. */
-private const val PREVIEW_SCALE = .22f
+/** The share of the room under Studio's header that the Home miniature takes; the settings sheet gets the rest. */
+private const val PREVIEW_SHARE = .6f
 
 /** Lays the content out [k] times larger than the room and draws it scaled by [k] from the top start. */
 private fun Modifier.shrink(k: Float) = layout { m, c ->

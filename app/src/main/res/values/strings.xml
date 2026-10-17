@@ -139,7 +139,6 @@
     <string name="studio_home_sub">%1$s · edited right on Home</string>
     <string name="studio_flow_sub">Commands: %1$d · shortcuts: %2$d</string>
     <string name="studio_hidden_sub">Hidden apps: %1$d</string>
-    <string name="studio_look_editor">Icon size and names belong to the layout: change them in the Home editor.</string>
     <string name="studio_kw_icons">style shape colour mono tinted veil circle squircle</string>
     <string name="studio_kw_material">material glass veil crystal frost drop matte density edge blur</string>
     <string name="studio_kw_wallpaper">background dim system wallpaper ocean night</string>
@@ -318,7 +317,6 @@
     <string name="look_density">Density</string>
     <string name="look_edge">Lit edge</string>
     <string name="look_labels">Labels under icons</string>
-    <string name="look_hint">Pinch any element to resize it. Tap PULSE at the camera to set it up.</string>
     <string name="studio_pulse_moved">Capsule look and events: tap the camera ring in the Home editor.</string>
     <string name="accent_rose">Rose</string>
     <string name="accent_coral">Coral</string>

@@ -2,6 +2,24 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Studio 60/40, Vzhled only in Studio (`claude/crystal-redesign`)
+
+- Studio Main and Vzhled: under the header the live Home miniature takes 60 % of the room (scale fitted to it, about
+  .5 on the Phone (3) instead of .22) and the settings sheet 40 %; the other pages keep the full sheet.
+- The editor's Vzhled card is gone: the tray button asks about unsaved edits (as PULSE calibration does) and opens
+  Studio › Vzhled; Back there returns to the editor. `StudioStart` (Main / Look / Lens) replaces `lensFirst`.
+- Everything the card had now lives in Studio › Vzhled › Ikony: icon size for all (drops own sizes) and names under
+  icons, applied to the active layout through `HomeLayouts.withIcons` (saved like the editor's ✓; on the linked
+  preset a real change becomes the own copy). Removed the duplicate "Upravit plochu" row and hint from Vzhled, the
+  editor-only `setLabels` / `resetIconSizes` and the strings `look_hint`, `studio_look_editor`.
+
+`./gradlew :app:testDebugUnitTest :app:assembleLab` PASS (148 JVM tests: −1 editor test, +1 `withIcons` test).
+Phone (Nothing Phone (3), lab build, `install -r`): Studio Main and Vzhled at 60/40 by screenshot; editor tray
+Vzhled → Studio › Vzhled → Ikony open (style, size, names) → Back → the editor again.
+
+Not verified: moving the icon-size slider and the names switch from Studio on the phone (owner's settings left as
+they were), the unsaved-edits question on the way to Studio, TalkBack, the light theme at 60/40.
+
 ## 2026-10-17 — Studio preview drawn from the active layout (`claude/crystal-redesign`)
 
 - `LayoutSpec.sketch()` (pure Kotlin, `HomeModel.kt`): the LENS row from the layout's `LensRow` items in screen

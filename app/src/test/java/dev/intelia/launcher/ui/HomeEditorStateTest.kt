@@ -228,18 +228,6 @@ class HomeEditorStateTest {
         assertNull(e.item("clock"))
     }
 
-    @Test fun labelsAndIconSizesChangeAsOneStep() {
-        val e = HomeEditorState(withText(app("a", Anchor.cell(0, 0)).copy(sizeDp = 56), app("b", Anchor.cell(1, 0))), geo)
-        e.setLabels(true)
-        assertTrue(e.layout.items.filter { it.kind == ItemKind.App }.all { it.label })
-        assertFalse(e.item("clock")!!.label)
-        e.resetIconSizes()
-        assertEquals(0, e.item("a")!!.sizeDp)
-        e.undo(); e.undo()
-        assertEquals(56, e.item("a")!!.sizeDp)
-        assertFalse(e.item("b")!!.label)
-    }
-
     @Test fun lensDragsSidewaysSnapsToTheCentreAndUndoesInOneStep() {
         val e = HomeEditorState(layout(), geo)
         e.startLensDrag()

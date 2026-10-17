@@ -367,18 +367,6 @@ class HomeEditorState(
         return true
     }
 
-    /** Labels under every app and FLOW on or off, as one undo step. */
-    fun setLabels(on: Boolean) {
-        val next = layout.items.map { if (it.kind == ItemKind.App || it.kind == ItemKind.Flow) it.copy(label = on) else it }
-        if (next != layout.items) commit(layout.copy(items = next))
-    }
-
-    /** Clears every icon's own size so the global icon size applies, as one undo step. */
-    fun resetIconSizes() {
-        val next = layout.items.map { if (it.kind == ItemKind.App || it.kind == ItemKind.Flow) it.copy(sizeDp = 0) else it }
-        if (next != layout.items) commit(layout.copy(items = next))
-    }
-
     /**
      * Adds an app or FLOW where Home was tapped: the same snapping as a drop, but nothing is pushed aside;
      * a taken or blocked spot falls back to the nearest free cell. False if it is already on Home or nothing is free.
