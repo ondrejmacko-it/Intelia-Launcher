@@ -324,11 +324,13 @@ internal fun Title(text: String, trailing: (@Composable () -> Unit)? = null) {
 
 /** Label and value above, then − slider + : the buttons move exactly one [step] for fine tuning. */
 @Composable
-internal fun SliderRow(label: String, value: Float, min: Float, max: Float, step: Float, valueText: String, onChange: (Float) -> Unit) {
+internal fun SliderRow(label: String, value: Float, min: Float, max: Float, step: Float, valueText: String,
+                       inherit: (@Composable () -> Unit)? = null, onChange: (Float) -> Unit) {
     val c = LocalCrystal.current
     fun snap(v: Float) = (((v - min) / step).roundToInt() * step + min).coerceIn(min, max)
     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2, maxLines = 1)
+        if (inherit != null) Box(Modifier.padding(end = 8.dp)) { inherit() }
         Text(valueText, style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg, maxLines = 1)
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -337,6 +339,38 @@ internal fun SliderRow(label: String, value: Float, min: Float, max: Float, step
             track = c.fg)
         StepButton("+", stringResource(R.string.step_more, label), value < max) { onChange(snap(value + step)) }
     }
+}
+
+/**
+ * B5: the inheritance label of [prop] on [item] — "Globální" while it follows the global value, "Vlastní ↺" once the
+ * element has its own; a tap on Vlastní returns the global value as one undo step.
+ */
+@Composable
+internal fun InheritChip(prop: ItemProp, state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+    val c = LocalCrystal.current
+    val own = prop.isOwn(item)
+    val source = prop.source(item.kind)?.let { t -> lookFoldTitle(t)?.let { stringResource(R.string.look) + " › " + it } }
+    val spoken = when {
+        own -> stringResource(R.string.inherit_own_a11y)
+        source != null -> stringResource(R.string.inherit_global_from_a11y, source)
+        else -> stringResource(R.string.inherit_global_a11y)
+    }
+    val shape = RoundedCornerShape(14.dp)
+    val tap = if (own) Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.inherit_reset_a11y)) {
+        if (state.inherit(item.id, prop)) onChange()
+    } else Modifier
+    Box(Modifier.heightIn(min = 28.dp).clip(shape).border(1.dp, if (own) c.acc else c.fg3, shape).then(tap)
+        .semantics { contentDescription = spoken }
+        .padding(horizontal = 9.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
+        Text(stringResource(if (own) R.string.inherit_own else R.string.inherit_global), Modifier.clearAndSetSemantics { },
+            style = CrystalType.body.copy(fontSize = 11.sp, lineHeight = 14.sp), color = if (own) c.acc else c.fg2, maxLines = 1)
+    }
+}
+
+/** [InheritChip] on its own line, at the top of a fold whose choices it covers (font, colour). */
+@Composable
+internal fun InheritLine(prop: ItemProp, state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End) { InheritChip(prop, state, item, onChange) }
 }
 
 @Composable
@@ -514,7 +548,8 @@ fun ItemInspector(state: HomeEditorState, item: HomeItem, iconDefault: Int, onMo
             .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.acc)
     }
     val size = item.iconDp(iconDefault)
-    SliderRow(stringResource(R.string.icon_this_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp") { v ->
+    SliderRow(stringResource(R.string.icon_this_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp",
+        inherit = { InheritChip(ItemProp.Size, state, item, onChange) }) { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
     Toggle(stringResource(R.string.inspect_label), item.label) { on -> state.edit(item.id, "label") { it.copy(label = on) }; onChange() }
@@ -529,7 +564,8 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
     val look = item.look
     fun edit(key: String, f: (TextLook) -> TextLook) { state.edit(item.id, key) { it.copy(look = f(it.look)) }; onChange() }
     val size = if (item.sizeDp == 0) ItemSizes.CLOCK else item.sizeDp.coerceIn(ItemSizes.CLOCK_MIN, ItemSizes.CLOCK_MAX)
-    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.CLOCK_MIN.toFloat(), ItemSizes.CLOCK_MAX.toFloat(), 2f, "$size") { v ->
+    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.CLOCK_MIN.toFloat(), ItemSizes.CLOCK_MAX.toFloat(), 2f, "$size",
+        inherit = { InheritChip(ItemProp.Size, state, item, onChange) }) { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
     Toggle(stringResource(R.string.inspect_date), state.layout.items.any { it.kind == ItemKind.Date }) { on -> state.setDate(on); onChange() }
@@ -537,6 +573,7 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
         ClockStyle.Grotesk to stringResource(R.string.clock_grotesk), ClockStyle.Mono to stringResource(R.string.clock_mono)))
     val key = clockFontKey(style, look.face)
     Fold(stringResource(R.string.type_font), fonts.first { it.first == key }.second) {
+        InheritLine(ItemProp.Font, state, item, onChange)
         Chips(fonts, key, family = ::clockFontFamily) { v ->
             val name = v.substring(2)
             state.edit(item.id, "font") {
@@ -547,7 +584,8 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
         }
         if (hasWeights(style, look.face)) {
             val weight = if (item.weight == 0) defaultWeight(style) else item.weight
-            SliderRow(stringResource(R.string.inspect_weight), weight.toFloat(), 100f, 700f, 50f, "$weight") { v ->
+            SliderRow(stringResource(R.string.inspect_weight), weight.toFloat(), 100f, 700f, 50f, "$weight",
+                inherit = { InheritChip(ItemProp.Weight, state, item, onChange) }) { v ->
                 state.edit(item.id, "weight") { it.copy(weight = v.roundToInt()) }; onChange()
             }
         }
@@ -577,6 +615,7 @@ fun ClockInspector(state: HomeEditorState, item: HomeItem, fallback: ClockStyle,
 /** Colour (auto, the palette's accent for this place, light, dark) and opacity; the accent itself is chosen in Look › Colours. */
 @Composable
 private fun TintAndOpacity(state: HomeEditorState, item: HomeItem, onChange: () -> Unit) {
+    InheritLine(ItemProp.Tint, state, item, onChange)
     Chips(listOf("" to stringResource(R.string.tint_auto), ItemTint.Accent.name to stringResource(R.string.tint_accent),
         ItemTint.Light.name to stringResource(R.string.tint_light), ItemTint.Dark.name to stringResource(R.string.tint_dark)), item.tint) { v ->
         state.edit(item.id, "tint") { it.copy(tint = v) }; onChange()
@@ -607,7 +646,8 @@ fun DateInspector(state: HomeEditorState, item: HomeItem, shownFy: Float?, onRem
         Toggle(stringResource(R.string.date_year), look.year) { v -> edit("year") { it.copy(year = v) } }
     }
     val size = item.dateSp()
-    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.DATE_MIN.toFloat(), ItemSizes.DATE_MAX.toFloat(), 1f, "$size") { v ->
+    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.DATE_MIN.toFloat(), ItemSizes.DATE_MAX.toFloat(), 1f, "$size",
+        inherit = { InheritChip(ItemProp.Size, state, item, onChange) }) { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
     val bound = item.anchor.type == AnchorType.Bound
@@ -619,6 +659,7 @@ fun DateInspector(state: HomeEditorState, item: HomeItem, shownFy: Float?, onRem
         }
     }
     Fold(stringResource(R.string.type_font), FACES.first { it.first == look.face }.second) {
+        InheritLine(ItemProp.Font, state, item, onChange)
         Chips(FACES, look.face, family = { f -> faceFamily(f, 450) }) { v -> edit("face") { it.copy(face = v) } }
         TrackingRow(state, item, onChange)
         Chips(listOf(TextCase.Auto to stringResource(R.string.tint_auto), TextCase.Upper to "ABC", TextCase.Lower to "abc"), look.case) { v ->
@@ -639,7 +680,8 @@ fun defaultWeight(style: ClockStyle) = if (style == ClockStyle.Crystal) 220 else
 fun LensInspector(state: HomeEditorState, item: HomeItem, dock: DockSpec, onChange: () -> Unit) {
     val c = LocalCrystal.current
     val size = item.lensDp()
-    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.LENS_MIN.toFloat(), ItemSizes.LENS_MAX.toFloat(), 2f, "$size dp") { v ->
+    SliderRow(stringResource(R.string.inspect_size), size.toFloat(), ItemSizes.LENS_MIN.toFloat(), ItemSizes.LENS_MAX.toFloat(), 2f, "$size dp",
+        inherit = { InheritChip(ItemProp.Size, state, item, onChange) }) { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
     val style = LensStyle.entries.firstOrNull { it.name == item.style } ?: LensStyle.Ring

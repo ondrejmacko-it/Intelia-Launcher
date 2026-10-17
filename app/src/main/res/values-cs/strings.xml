@@ -432,4 +432,11 @@
     <string name="wall_export_saving">Ukládám…</string>
     <string name="wall_export_done">Uloženo jako tapeta systému.</string>
     <string name="wall_export_failed">Systém tapetu nepřijal.</string>
+    <!-- Veil 3.0 B5: štítek dědičnosti v inspektorech -->
+    <string name="inherit_global">Globální</string>
+    <string name="inherit_own">Vlastní ↺</string>
+    <string name="inherit_global_a11y">Řídí se globální hodnotou</string>
+    <string name="inherit_global_from_a11y">Řídí se: %1$s</string>
+    <string name="inherit_own_a11y">Vlastní hodnota</string>
+    <string name="inherit_reset_a11y">vrátit globální hodnotu</string>
 </resources>

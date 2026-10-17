@@ -2,6 +2,29 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Veil 3.0 B5: Globální / Vlastní in the inspectors (`claude/crystal-redesign`)
+
+- One definition, `ItemProp` (`ui/Inheritance.kt`, pure Kotlin): Size, Font, Weight, Tint — where an element keeps
+  its own value (`sizeDp`, clock `style` + `look.face` / date `look.face`, `weight`, `tint`), how it is dropped and
+  where the global value is set (`StudioTarget.Icons` for app and FLOW icon size, else the kind's default).
+  `HomeEditorState.inherit` returns it as its own undo step (key `…/inherit`, never merged with a slider drag).
+- Inspectors draw it as one label (`InheritChip`): "Globální", or "Vlastní ↺" in the accent, which a tap returns to
+  the global value. In the size row of app/FLOW icons, the clock, the date and LENS; the clock's weight row; at the
+  top of the Font fold (clock, date) and the Colour fold (clock, date). TalkBack: "Řídí se: Vzhled › Ikony" /
+  "Řídí se globální hodnotou" / "Vlastní hodnota, vrátit globální hodnotu".
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` PASS, 137 JVM tests, 0
+failures (new `InheritanceTest`, 6).
+
+Verified on the Phone (3), lab build via `install -r` (`uiautomator` + one screenshot): editor → Telefon → "Tato ikona"
+shows Globální ("Řídí se: Vzhled › Ikony", 64 dp); − → 62 dp, label "Vlastní ↺" in the accent; tap on it → 64 dp,
+Globální; − then Zpět → 64 dp; leaving the editor kept Home unchanged (Telefon bounds identical before and after).
+
+Not verified: the labels on the clock, date and LENS inspectors on the phone, real TalkBack speech. Not done: the
+editor tray "Vzhled" still opens the editor's own Look card, not Studio › Vzhled — that card carries the per-layout
+rows (all-icons size, names, through the editor's undo) that Studio does not have, and leaving the editor mid-edit
+needs the save/discard question; left for an owner decision.
+
 ## 2026-10-17 — Startup after a reboot: optimised `lab` build, package storm folded, icons at background priority (`claude/crystal-redesign`)
 
 - Found on the Phone (3) 4 min after a reboot (debug Lab as HOME): 23 s of CPU in Intelia since boot (main thread 8 s,

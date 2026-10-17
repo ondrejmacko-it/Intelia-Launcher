@@ -433,4 +433,11 @@
     <string name="wall_export_saving">Saving…</string>
     <string name="wall_export_done">Saved as the system wallpaper.</string>
     <string name="wall_export_failed">The system did not accept the wallpaper.</string>
+    <!-- Veil 3.0 B5: inheritance label in the inspectors -->
+    <string name="inherit_global">Global</string>
+    <string name="inherit_own">Own ↺</string>
+    <string name="inherit_global_a11y">Follows the global value</string>
+    <string name="inherit_global_from_a11y">Follows %1$s</string>
+    <string name="inherit_own_a11y">Own value</string>
+    <string name="inherit_reset_a11y">return to the global value</string>
 </resources>
