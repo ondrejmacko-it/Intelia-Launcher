@@ -482,7 +482,7 @@ Clock inspector: "Bez pozadí" / "Veil".
 
 ### 5.12.1 Clock and date typography (2026-10-17)
 `HomeItem.look` (`TextLook`) on clock and date items; defaults draw them as before. Sanitized in
-`LauncherSettings.sanitized()` (tracking −10…40 hundredths of an em, offset ±48 dp, other kinds reset); unknown names
+`LauncherSettings.sanitized()` (tracking −10…40 hundredths of an em, offset ±96 dp, plate stretch 0…96 dp, other kinds reset); unknown names
 decode to defaults.
 - Face: Auto (the clock style's own) · Roboto Flex · Inter · Space Grotesk · DM Serif · JetBrains Mono · Bodoni ·
   Unbounded (D14). Weight uses the variable `wght` axis.
@@ -491,9 +491,26 @@ decode to defaults.
   (12 h without a leading zero, no AM/PM); alignment Auto (from position) / left / centre / right.
 - Date: formats Long / Short / Weekday / Own (weekday none/short/long, day, month none/number/short/long, year);
   case Auto (caps for Long and Weekday) / ABC / abc; top to bottom; offset dx/dy when bound to the clock; its own
-  Veil plate when free.
+  plate when free.
+- Plate (clock, free date): none / Veil (the glass chosen in Look) / Krystal / Mráz / Kapka pinned to the plate;
+  stretched past the text by `padX`/`padY` — handles ↔ (right edge) and ↕ (bottom edge) on Home, or sliders under
+  Pozadí.
 - Inspector: Písmo, Čas, Posun od hodin and Pokročilé fold open in place with a spring; the card scrolls past 58 %
   of the screen height.
+
+### 5.5.2 Editor card: placement, header, moving and sizing (2026-10-17)
+- Placed once when it opens (above the element when it fits whole, else below; when neither side takes it, the
+  roomier side with the body capped to it) and then **stays put** while its element moves or grows, so a slider
+  never runs away under the finger. Always kept whole between the editor bar (+40 dp name label) and the top of the
+  navigation bar.
+- Header: grip bar + the element's name (Hodiny, Datum, PULSE, LENS, app/FLOW label); the same name sits in a Light
+  Veil pill under the editor bar. Drag the header to move the card; arrows ↙ ↘ ↕ ↔ at its corners and sides size it
+  (width 240 dp … screen − 24 dp, body 140 dp … room); ⟲ in the header puts it back. Position and size hold for the
+  editing session (`InspectorFrame`), not saved.
+- Chips wrap (FlowRow), never scroll sideways; font chips are set in their own face.
+- Clock and free date are positioned by their **centre** at `fx` across the editor area (the point the editor
+  drags), kept whole 28 dp (8 dp with a plate) inside the screen.
+- Home is locked to the natural orientation (`screenOrientation="nosensor"`).
 
 ### 5.5.1 PULSE in the editor
 Tapping the PULSE capsule at the camera (±96 dp around it, down to 40 dp below) opens the PULSE inspector. The editor

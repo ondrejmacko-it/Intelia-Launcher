@@ -2,6 +2,29 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Editor card that stays put, moves and sizes; 1:1 text drag; glass plates; screenshots (`claude/crystal-redesign`, `b856da0` + follow-up)
+
+Verified:
+- `.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug` — PASS; 98 JVM tests, 0 failures (sanitizer: plate
+  stretch clamped, glass plate names kept, unknown dropped).
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up, restored after every sweep,
+  byte-identical). Screens in `docs/screens/v0.1.0-2026-10-17/` (66 shots):
+  - Dragging the free date: the text now follows the finger 1:1 (centre at the drop point, ±0 px after the first
+    drag); before, it moved ~2/3 of the finger's way and jumped.
+  - Date → Font → Svisle: the card stays whole on screen above the navigation bar (before, half of it fell off the
+    bottom); the card picks the roomier side and caps its height.
+  - Card header names the element (Hodiny, Datum, PULSE, LENS, app label), also under the editor bar; dragging the
+    header moved the card, the ↘ arrow widened and lengthened it, ⟲ put it back.
+  - Clock plate: Veil / Krystal / Mráz / Kapka chips, stretched sideways by its ↔ handle (52 dp) and by sliders.
+  - Seen: Pod sebou (no date between lines), Šikmo, all six separators (— = none), 12 h, alignment chips, every
+    face incl. Unbounded (font chips each in their own face), date Dlouhé/Krátké/Den/Vlastní, ABC/abc, svisle,
+    pinned under the clock with Posun od hodin, date plates Veil and Kapka; light and dark theme × four glasses.
+
+Not verified: Home locked to natural orientation (`nosensor`) — phone not rotated; Czech letters ěščřž in the fonts
+(the date only shows í); Studio (unsaved-changes dialog in the way); TalkBack on the card header and handles.
+Changed behaviour: clock and free date are placed by their centre, so the owner's clock (fx 0.107) sits 25 dp further
+left than before.
+
 ## 2026-10-17 — Distinct glasses, PULSE by tap, fonts, clock/date typography (`claude/crystal-redesign`, `dbacc69`, `a8d71ee`, `ae92400`)
 
 Verified:
