@@ -370,8 +370,10 @@ style  = App(component, iconOverride?, label: Boolean, labelText?, action: Actio
 - **Customisation lives on Home (owner, 2026-10-16):** Studio no longer styles anything; it links to the editor.
   Bar pill **Vzhled** = Look panel (Veil Dense, above the LENS row): Panely Veil / Matné (= Solid), Hustota −10…+10
   percent points on every Veil level, Světelná hrana on/off (off = neutral 12 % hairline), Motiv, accent, Ikony
-  Barevné / Mono / Veil (§5.8 disc + ring), global icon size 32–64 dp (an item's own size wins; "Stejná velikost"
-  clears them), popisky for all, entry to PULSE. Settings in the panel apply at once; labels/sizes are layout edits
+  Barevné / Mono / Veil (§5.8 disc + ring), "Velikost všech ikon" 32–64 dp (also in every icon's inspector next
+  to "Tato ikona"; moving it clears every icon's own size in one undo step), popisky for all, entry to PULSE.
+  Since 2026-10-17 the panel opens on Ikony; Panely (material) and Motiv (theme + accents) are folds showing the
+  current choice. Settings in the panel apply at once; labels/sizes are layout edits
   with undo. Every slider has − / + buttons of one step. Pinch with two fingers resizes the element under them
   (or the selected one), coalesced into one undo step. Date is its own element: format Dlouhé / Krátké / Den,
   size 9–32 sp, pinned under the clock or free (dragged like the clock), colour, opacity, hide. Clock: Skrýt hodiny;
@@ -528,7 +530,10 @@ decode to defaults.
   slots share the rest evenly (≥ 46 dp). Inspector: „Rozprostřít po hraně“, „Odstup od LENS“, „Rozestup aplikací“;
   one slider run = one undo step.
 - **Editor bar (2026-10-17):** one 40 dp row below the status bar, 32 dp Veil Light pills; the edited element's name
-  sits in the middle of the bar. Clock and free text start 44 dp below the status bar (was 92 dp).
+  sits in the middle of the bar. Clock and free text start right under the status bar (0 dp; was 44, before that
+  92 dp); in the editor the bar floats over a clock placed at the very top.
+- **Editor card placement (2026-10-17):** a card opened above its element keeps its bottom edge and grows upwards
+  when a fold opens, its body capped to the room above, so the edited icon stays visible.
 
 ### 5.5.2 Editor card: placement, header, moving and sizing (2026-10-17)
 - Placed once when it opens (above the element when it fits whole, else below; when neither side takes it, the
@@ -549,7 +554,7 @@ decode to defaults.
   inside the plate rim (right edge ↔, bottom edge ↕). All with Větší / Menší for TalkBack.
 - Chips wrap (FlowRow), never scroll sideways; font chips are set in their own face.
 - Clock and free date are positioned by their **centre** at `fx` across the editor area (the point the editor
-  drags), kept whole 28 dp (8 dp with a plate) inside the screen.
+  drags), kept whole 12 dp (8 dp with a plate; 28 dp before 2026-10-17) inside the screen.
 - Home is locked to the natural orientation (`screenOrientation="nosensor"`); verified: forced rotation 1 leaves it at ROTATION_0.
 - A one-line date never wraps: too wide for its room (JetBrains Mono, long weekday + month), it steps down in size
   until whole. Every bundled face covers Czech (ěščřžýáíéůúťďňó, upper case too; JVM test).

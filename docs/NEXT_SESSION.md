@@ -4,14 +4,18 @@ commitni hotové a napiš prompt na pokračování.
 
 Podklady: horní záznam docs/STATUS.md; docs/DECISIONS.md D13 (tapety: kreslené launcherem bez oprávnění + volitelně
 jako systémová tapeta s `SET_WALLPAPER` ve vlastním commitu); docs/DESIGN_SYSTEM.md §5.2, §5.5.3, §5.12;
-docs/screens/README.md; kód `ui/HomeRoot.kt` (pozadí Home, `homeInk`, `wallPlaces`, `TEXT_TOP`), `ui/HomeEditor.kt`
+docs/screens/README.md; kód `ui/HomeRoot.kt` (pozadí Home, `homeInk`, `wallPlaces`, `TEXT_TOP`, `TEXT_EDGE`), `ui/HomeEditor.kt`
 (`EditorBar`, `BAR_HEIGHT`), `ui/Veil.kt`, `data/LauncherSettings.kt` (`sanitized()`, `Glass`, `IconShape`),
 `data/HomeModel.kt` (`DockSpec`).
 
-Hotovo minule (`6e60c45`, `11f3f1d`): řada LENS — „Odstup od LENS“ (52–140 dp), „Rozestup aplikací“ (46–140 dp),
-„Rozprostřít po hraně“; kompaktní jednořádková lišta editoru (32 dp) a hodiny/datum 44 dp pod stavovým řádkem
-(dřív 92). Na začátku se zeptej majitele, jak mu sedí rozestupy a nová lišta / výška hodin, a zda chce u řady
-ještě volnější posun jednotlivých aplikací (např. vlastní posun každého slotu podél hrany) — chtěl „víc přizpůsobitelné“.
+Hotovo minule (`8acce00`): karta editoru nad ikonou roste nahoru a nezakryje ji; „Velikost všech ikon“ ve Vzhledu
+i v kartě ikony (vedle „Tato ikona“, smaže vlastní velikosti jedním krokem zpět); Vzhled začíná Ikonami, Panely
+a Motiv jsou sbalené; hodiny/datum hned pod stavovým řádkem (0 dp), text smí 12 dp k bočním okrajům. Na začátku se
+zeptej majitele, jestli mu vadí, že lišta editoru překrývá hodiny dané úplně nahoru (řešení: lištu při tažení
+hodin skrýt / přesunout dolů), a zda chce u řady LENS vlastní posun každého slotu.
+Build: kvůli plné paměti PC přidej `-Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process`;
+když build padá, zkontroluj `hs_err_pid*.log` („insufficient memory“) a starý Kotlin daemon (java s
+kotlin-build-tools v příkazové řádce) ukonči.
 
 Tato session (každý bod: testy → build → telefon → commit + push):
 1. Bod ④ programu D13: 10+ minimalistických rozmazaných tapet kreslených launcherem (procedurálně, bez assetů

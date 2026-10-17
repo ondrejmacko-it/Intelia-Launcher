@@ -2,6 +2,24 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Editor card grows upwards, one size for all icons, clock under the status bar (`claude/crystal-redesign`, `8acce00`)
+
+Verified:
+- `.\gradlew.bat -Dorg.gradle.jvmargs=-Xmx2g -Pkotlin.compiler.execution.strategy=in-process :app:testDebugUnitTest
+  :app:assembleDebug` — PASS; 111 JVM tests, 0 failures. Without the smaller heap the daemon died: the PC's commit
+  charge was full (31.5 / 32.5 GB) and a stale Kotlin daemon held 2.3 GB (`hs_err`: "insufficient memory").
+- Phone (Nothing Phone (3), debug Lab via `install -r`; owner's `intelia.xml` backed up and restored, byte-identical):
+  - Bug found: an icon card in the LENS row opened above the icon, then grew downwards when Pokročilé opened and
+    covered the edited icon. Fixed: with Pokročilé open, Fotoaparát stays visible below the card.
+  - Icon card: „Tato ikona“ and „Velikost všech ikon“; Vzhled: „Velikost všech ikon“ 48 → 56 dp by four taps on +
+    made all four row icons the same 56 dp (Zprávy, which had its own size, followed).
+  - Styles Barevné / Mono / Veil / Tónované and shape Slza applied to the row icons.
+  - Vzhled opens on Ikony; Panely (Veil) and Motiv (Systém) are folds; Motiv opens with theme and accents.
+  - Home: the date/clock now start right under the status bar (date top at 136 px, before 251 px).
+Not verified: clock text 12 dp from the side edges with a left/right fx (only the plate case was on screen); light
+theme; TalkBack labels of the new sliders.
+Open: D13 ④ wallpapers (not started); in the editor the bar overlaps a clock placed at the very top.
+
 ## 2026-10-17 — LENS row spacing, compact editor bar, text higher (`claude/crystal-redesign`, `6e60c45`, `11f3f1d`)
 
 Verified:
