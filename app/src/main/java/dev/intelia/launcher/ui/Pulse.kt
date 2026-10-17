@@ -31,6 +31,7 @@ import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,6 +86,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import dev.intelia.launcher.R
+import dev.intelia.launcher.action.Gesture
+import dev.intelia.launcher.action.Trigger
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
 import dev.intelia.launcher.data.PulseLens
@@ -173,7 +176,7 @@ internal fun torchCamera(manager: CameraManager): String? = try {
  * without echo or panel, so opacity can be tuned live.
  */
 @Composable
-fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false) {
+fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false, onGesture: (Gesture) -> Boolean = { false }) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val ink = LocalInk.current
@@ -256,10 +259,19 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         // [TARGET_BELOW] under the status bar, where a finger aiming at the camera usually lands.
         val targetTop = hy - 24.dp
         // With PULSE everywhere on (D9) the service owns the lens; Lab draws no second target under it.
+        // M3: tap opens the panel unless the owner bound it; double tap and hold exist only when bound, so an
+        // unbound capsule never waits for a second tap.
+        val controls = settings.controls
+        val double = controls.bound(Trigger.Pulse(Gesture.DoubleTap)) != null
+        val hold = controls.bound(Trigger.Pulse(Gesture.Hold)) != null
         if (!preview && !expanded && !global) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
             .size(64.dp, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
-                role = Role.Button) { expanded = true }
+            .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
+                role = Role.Button,
+                onLongClick = if (hold) ({ onGesture(Gesture.Hold) }) else null,
+                onDoubleClick = if (double) ({ onGesture(Gesture.DoubleTap) }) else null) {
+                if (!onGesture(Gesture.Tap)) expanded = true
+            }
             .semantics { contentDescription = label; if (restState.isNotEmpty()) stateDescription = restState })
 
         if (expanded) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() },

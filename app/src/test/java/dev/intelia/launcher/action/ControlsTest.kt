@@ -79,4 +79,22 @@ class ControlsTest {
         assertEquals(c, Json.decodeFromString(Controls.serializer(), text))
         assertEquals(true, text.contains(""""trigger":{"type":"key","code":287,"gesture":"DoubleTap"}"""))
     }
+
+    @Test fun pulseBindingsReplaceAndUnbind() {
+        val tap = Trigger.Pulse(Gesture.Tap)
+        val hold = Trigger.Pulse(Gesture.Hold)
+        val c = Controls().bind(tap, Action.Torch).bind(hold, Action.Lock).bind(tap, Action.Media(MediaKey.PlayPause))
+        assertEquals(Action.Media(MediaKey.PlayPause), c.bound(tap))
+        assertEquals(Action.Lock, c.bound(hold))
+        assertEquals(2, c.bindings.size)
+        assertNull(c.bind(tap, null).bound(tap))
+        assertNull(c.bound(Trigger.Pulse(Gesture.DoubleTap)))
+        assertEquals(c, c.bind(Trigger.ArcSlot(Controls.MAIN_SET, 0), Action.Torch))
+    }
+
+    @Test fun onlySystemActionsRunOutsideHome() {
+        assertEquals(true, Action.Torch.outsideHome && Action.Lock.outsideHome && Action.SystemPanel(PanelKind.Wifi).outsideHome)
+        assertEquals(false, Action.App("a/A").outsideHome || Action.Flow("f").outsideHome || Action.Search.outsideHome ||
+            Action.Shortcut("p", "s").outsideHome || Action.Card("c").outsideHome)
+    }
 }

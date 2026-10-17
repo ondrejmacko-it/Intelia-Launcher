@@ -2,6 +2,23 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Control System V1: M3 PULSE gestures (`feat/control-system-v1`)
+- `Trigger.Pulse(Tap | DoubleTap | Hold)` → `Controls.bound` → Home's `perform` (`Pulse.kt`, `combinedClickable`):
+  an unbound tap still opens the panel; double tap and hold exist only when bound, so tap never waits.
+- `PulseAccessibilityService`: the lens view takes the same three gestures. With Home resumed it hands the action
+  to Home (`PulseAccessibilityService.home`); elsewhere only `Action.outsideHome` (media, torch, screenshot, sound,
+  panels, lock) runs through an `AndroidActionHost` without Home's model; apps, FLOWs, Search, shortcuts and cards
+  show "runs from PULSE only on Home". Double tap waits the system double-tap time only when bound.
+- Studio › Ovládání › PULSE › Gesta kapsle: three rows with the shared `ActionPicker`, remove/reset per row.
+- `Controls.bind` (replace/unbind, ARC slots refused) and `Action.outsideHome`, both unit tested.
+- `./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r`.
+- Phone (Nothing Phone (3)): Studio row shows "Podržení · Svítilna" after picking via the picker; on Home a hold
+  under the camera turned the torch on and a second hold off (`dumpsys media.camera`); an unbound tap opened
+  the panel. ARC at font scale 1.3: arrow labels fit, no overlap.
+- Not verified: the service path (PULSE everywhere was off on the phone and is the owner's switch), double tap on
+  the phone, TalkBack for the new gestures (double tap has no TalkBack action), ARC with LENS on a side edge on
+  the phone (geometry only covered by `ArcBowTest`). The phone keeps Hold → torch bound from this test.
+
 ## 2026-10-18 — Control System V1: wide ARC, set arrows, set by taps (`feat/control-system-v1`)
 
 - ARC is one flat arc just above LENS (middle slot 80/96/116 dp above the LENS centre for S/M/L; the circle's

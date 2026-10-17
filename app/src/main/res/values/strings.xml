@@ -530,4 +530,14 @@
     <string name="arc_slot_choose">Choose for this slot</string>
     <string name="arc_set_add">Add a set</string>
     <string name="arc_release_run">release to run</string>
+    <string name="pulse_needs_home">This action runs from PULSE only on Home.</string>
+    <string name="pulse_gestures">Capsule gestures</string>
+    <string name="pulse_gestures_hint">Outside Intelia PULSE runs only system actions (torch, media, panels, lock); apps and FLOWs run from it on Home.</string>
+    <string name="pulse_gesture_tap">Tap</string>
+    <string name="pulse_gesture_double">Double tap</string>
+    <string name="pulse_gesture_hold">Hold</string>
+    <string name="pulse_gesture_menu">Opens the menu</string>
+    <string name="pulse_gesture_none">Nothing</string>
+    <string name="pulse_gesture_choose">Choose an action</string>
+    <string name="pulse_gesture_reset">Reset</string>
 </resources>

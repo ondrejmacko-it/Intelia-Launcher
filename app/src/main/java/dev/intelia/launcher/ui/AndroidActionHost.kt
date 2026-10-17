@@ -29,7 +29,8 @@ import dev.intelia.launcher.flow.FlowAlias
  */
 class AndroidActionHost(
     private val context: Context,
-    private val model: HomeViewModel,
+    /** Null in the PULSE service outside Home: apps, FLOWs and shortcuts then report missing (M3). */
+    private val model: HomeViewModel?,
     private val onSearch: () -> Boolean,
 ) : ActionHost {
     private val camera = context.getSystemService(CameraManager::class.java)
@@ -40,22 +41,22 @@ class AndroidActionHost(
         override fun onTorchModeChanged(cameraId: String, enabled: Boolean) { if (cameraId == torchId) torchOn = enabled }
     }
 
-    override fun hasApp(component: String) = model.entry(component)?.suspended == false
-    override fun findFlow(id: String): FlowAlias? = model.settings.value.aliases.firstOrNull { it.id == id }
+    override fun hasApp(component: String) = model?.entry(component)?.suspended == false
+    override fun findFlow(id: String): FlowAlias? = model?.settings?.value?.aliases?.firstOrNull { it.id == id }
     override fun isDefaultHome(): Boolean = if (Build.VERSION.SDK_INT >= 29)
         context.getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
     else context.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
         ?.activityInfo?.packageName == context.packageName
-    override fun hasShortcut(pkg: String, id: String) = model.shortcuts.value.any { it.packageName == pkg && it.id == id }
+    override fun hasShortcut(pkg: String, id: String) = model?.shortcuts?.value.orEmpty().any { it.packageName == pkg && it.id == id }
     override fun hasTorch() = torchId != null
     override fun hasPulseService() = PulseAccessibilityService.running.value
     override fun hasCard(id: String) = false
 
-    override fun launchApp(component: String): Boolean = model.entry(component)?.let(model::launch) ?: false
-    override fun runFlow(flow: FlowAlias) = model.runFlow(flow) == FlowRun.Launched
+    override fun launchApp(component: String): Boolean = model?.let { m -> m.entry(component)?.let(m::launch) } ?: false
+    override fun runFlow(flow: FlowAlias) = model?.runFlow(flow) == FlowRun.Launched
     override fun openSearch() = onSearch()
     override fun startShortcut(pkg: String, id: String): Boolean =
-        model.shortcuts.value.firstOrNull { it.packageName == pkg && it.id == id }?.let(model::launch) ?: false
+        model?.let { m -> m.shortcuts.value.firstOrNull { it.packageName == pkg && it.id == id }?.let(m::launch) } ?: false
 
     override fun sendMedia(key: MediaKey): Boolean {
         val audio = context.getSystemService(AudioManager::class.java) ?: return false

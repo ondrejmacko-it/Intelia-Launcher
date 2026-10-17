@@ -70,6 +70,15 @@ sealed interface Action {
         else -> Requirement.None
     }
 
+    /**
+     * Runs from PULSE outside Home (M3): system actions only, which need nothing from Intelia's own screens.
+     * Apps, FLOWs, Search, shortcuts and cards stay on Home, where FLOW keeps its preview and Search its sheet.
+     */
+    val outsideHome: Boolean get() = when (this) {
+        is Media, Torch, Screenshot, SoundMode, is SystemPanel, Lock -> true
+        is App, is Flow, Search, is Shortcut, is Card -> false
+    }
+
     /** Structural check for restored data; availability on this device is [unavailableReason]. */
     fun wellFormed(): Boolean = when (this) {
         is App -> wellFormed(component)

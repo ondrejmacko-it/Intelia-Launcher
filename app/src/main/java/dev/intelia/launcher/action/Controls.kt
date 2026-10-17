@@ -131,6 +131,13 @@ data class Controls(
         else -> bindings.firstOrNull { it.trigger == trigger }?.action
     }
 
+    /** Binds [action] to [trigger], replacing what it had; null unbinds. ARC slots are edited with [setSlot]. */
+    fun bind(trigger: Trigger, action: Action?): Controls {
+        if (trigger is Trigger.ArcSlot) return this
+        val rest = bindings.filterNot { it.trigger == trigger }
+        return copy(bindings = if (action == null) rest else (rest + Binding(trigger, action)).takeLast(MAX_BINDINGS))
+    }
+
     /** The single validation gate for restored data: drops malformed actions, caps sizes, one binding per trigger. */
     fun sanitized(flowIds: Set<String>): Controls {
         fun ok(a: Action): Boolean = a.wellFormed() && (a !is Action.Flow || a.id in flowIds)

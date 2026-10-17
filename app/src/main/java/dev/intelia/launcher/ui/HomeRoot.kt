@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.action.ActionResult
 import dev.intelia.launcher.action.Reason
+import dev.intelia.launcher.action.Trigger
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -113,6 +114,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -230,6 +232,12 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     fun edit(alias: FlowAlias?, from: Page) { editBack = from; editing = alias?.id ?: ""; focus.clearFocus(); keyboard?.hide(); page = Page.FlowEdit }
     val steps: (FlowAlias) -> List<String?> = { alias -> alias.targets.map { model.entry(it)?.label } }
 
+    // PULSE everywhere (M3): while Home is in front the service hands bound gestures here, so FLOW, Search
+    // and apps behave exactly as from ARC.
+    LifecycleResumeEffect(Unit) {
+        PulseAccessibilityService.home = { perform(it) }
+        onPauseOrDispose { PulseAccessibilityService.home = null }
+    }
     LaunchedEffect(homeSignal) { if (homeSignal > 0) goHome() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { model.refreshShortcuts() }
     // Search is a paper surface; never leave it behind for Recents or the next return Home.
@@ -532,7 +540,7 @@ private fun Home(
         val camera = Pt(hole.x / density.density, hole.y / density.density)
         if (ed != null) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
         // PULSE stays at the camera, outside the editor's scaled Home.
-        if (settings.pulse && ed == null) Pulse(settings)
+        if (settings.pulse && ed == null) Pulse(settings, onGesture = { g -> settings.controls.bound(Trigger.Pulse(g))?.let { onAction(it); true } ?: false })
         if (ed != null) {
             if (settings.pulse) Pulse(settings, preview = true)
             CameraMark(camera, selected == PULSE_ID)

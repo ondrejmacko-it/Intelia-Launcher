@@ -529,4 +529,14 @@
     <string name="arc_slot_choose">Vybrat pro tento slot</string>
     <string name="arc_set_add">Přidat sadu</string>
     <string name="arc_release_run">pusť a spustí se</string>
+    <string name="pulse_needs_home">Tahle akce se z PULSE spouští jen na Home.</string>
+    <string name="pulse_gestures">Gesta kapsle</string>
+    <string name="pulse_gestures_hint">Mimo Intelii PULSE spouští jen systémové akce (svítilna, média, panely, zámek); aplikace a FLOW z něj běží na Home.</string>
+    <string name="pulse_gesture_tap">Klepnutí</string>
+    <string name="pulse_gesture_double">Dvojí klepnutí</string>
+    <string name="pulse_gesture_hold">Podržení</string>
+    <string name="pulse_gesture_menu">Otevře menu</string>
+    <string name="pulse_gesture_none">Nic</string>
+    <string name="pulse_gesture_choose">Vyber akci</string>
+    <string name="pulse_gesture_reset">Obnovit výchozí</string>
 </resources>

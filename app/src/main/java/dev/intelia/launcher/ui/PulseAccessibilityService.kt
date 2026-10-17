@@ -22,7 +22,9 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
+import android.widget.Toast
 import android.view.accessibility.AccessibilityEvent
 import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedVisibility
@@ -90,6 +92,11 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dev.intelia.launcher.InteliaApp
 import dev.intelia.launcher.R
+import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.ActionResult
+import dev.intelia.launcher.action.Gesture
+import dev.intelia.launcher.action.Reason
+import dev.intelia.launcher.action.Trigger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -109,11 +116,17 @@ class PulseAccessibilityService : AccessibilityService() {
     private var lens: View? = null
     private var menu: View? = null
     private var owner: OverlayOwner? = null
+    /** System actions only: without Home's model, apps and FLOWs report missing and stay on Home (M3). */
+    private var host: AndroidActionHost? = null
+    private var pendingTap: Runnable? = null
 
     override fun onServiceConnected() {
         windows = getSystemService(WindowManager::class.java)
         _running.value = true
         instance = this
+        host = AndroidActionHost(this, null) { false }.also { h ->
+            getSystemService(CameraManager::class.java)?.registerTorchCallback(h.torchCallback, main)
+        }
         placeLens()
         relayout = { main.post { if (lens != null) placeLens() } }
     }
@@ -141,6 +154,10 @@ class PulseAccessibilityService : AccessibilityService() {
         closeMenu()
         lens?.let { runCatching { windows.removeView(it) } }
         lens = null
+        pendingTap?.let(main::removeCallbacks)
+        pendingTap = null
+        host?.let { h -> getSystemService(CameraManager::class.java)?.unregisterTorchCallback(h.torchCallback) }
+        host = null
         relayout = null
         _running.value = false
         if (instance === this) instance = null
@@ -205,7 +222,20 @@ class PulseAccessibilityService : AccessibilityService() {
             contentDescription = getString(R.string.pulse)
             setOnClickListener {
                 performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                openMenu()
+                // An unbound double tap never delays the tap; a bound one waits the system double-tap time.
+                val waiting = pendingTap
+                when {
+                    bound(Gesture.DoubleTap) == null -> gesture(Gesture.Tap)
+                    waiting != null -> { main.removeCallbacks(waiting); pendingTap = null; gesture(Gesture.DoubleTap) }
+                    else -> pendingTap = Runnable { pendingTap = null; gesture(Gesture.Tap) }
+                        .also { main.postDelayed(it, ViewConfiguration.getDoubleTapTimeout().toLong()) }
+                }
+            }
+            setOnLongClickListener {
+                if (bound(Gesture.Hold) == null) return@setOnLongClickListener false
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                gesture(Gesture.Hold)
+                true
             }
         }
         if (lens == null) {
@@ -215,6 +245,22 @@ class PulseAccessibilityService : AccessibilityService() {
             windows.updateViewLayout(view, params)
         }
     }
+
+    private fun bound(g: Gesture): Action? = (application as InteliaApp).settings.state.value.controls.bound(Trigger.Pulse(g))
+
+    /**
+     * M3: a bound gesture runs its action; an unbound tap opens the menu as before. With Home in front Home runs
+     * it (FLOW keeps its preview rules there); elsewhere only system actions run, the rest says it needs Home.
+     */
+    private fun gesture(g: Gesture) {
+        val action = bound(g) ?: return if (g == Gesture.Tap) openMenu() else Unit
+        home?.let { it(action); return }
+        if (!action.outsideHome) return toast(R.string.pulse_needs_home)
+        val result = action.run(host ?: return)
+        if (result is ActionResult.Unavailable) toast(if (result.reason == Reason.Unsupported) R.string.action_unsupported else R.string.launch_failed)
+    }
+
+    private fun toast(text: Int) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
     private fun openMenu() {
         if (menu != null) return
@@ -279,6 +325,9 @@ class PulseAccessibilityService : AccessibilityService() {
         val running: StateFlow<Boolean> = _running.asStateFlow()
 
         @Volatile private var editing = false
+
+        /** Set by Home while it is resumed: bound PULSE gestures then run through Home's Action Engine entry. */
+        @Volatile var home: ((Action) -> Unit)? = null
         @Volatile private var instance: PulseAccessibilityService? = null
 
         /**

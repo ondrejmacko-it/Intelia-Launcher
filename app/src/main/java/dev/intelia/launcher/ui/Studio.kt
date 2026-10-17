@@ -66,6 +66,8 @@ import dev.intelia.launcher.R
 import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.action.ArcLook
 import dev.intelia.launcher.action.Controls
+import dev.intelia.launcher.action.Gesture
+import dev.intelia.launcher.action.Trigger
 import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.HomeItem
@@ -175,7 +177,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         }
         StudioPane.Flow -> StudioFrame(settings, model, stringResource(R.string.flow), ::up) { FlowPage(settings, onFlows) }
         StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up, preview = true) {
-            PulsePage(settings, set, onLens = { pane = StudioPane.Lens })
+            PulsePage(model, settings, set, onLens = { pane = StudioPane.Lens })
         }
         StudioPane.Gestures -> StudioFrame(settings, model, stringResource(R.string.gestures_title), ::up) { GesturesPage() }
         StudioPane.Motion -> StudioFrame(settings, model, stringResource(R.string.motion_section), ::up) { MotionPage(settings, set) }
@@ -506,13 +508,68 @@ private fun FlowPage(settings: LauncherSettings, onFlows: () -> Unit) {
 
 /** PULSE: the capsule, its events and calibration, and whether it works outside Intelia (D9). */
 @Composable
-private fun PulsePage(settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit) {
+private fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit) {
     val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
     val context = LocalContext.current
     CrystalBody { PulseInspector(settings, set, onLens) }
     // D9: the switch only mirrors the service; Android settings are where it is turned on or off.
     if (settings.pulse) ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
         detail = stringResource(R.string.pulse_everywhere_detail))
+    if (settings.pulse) PulseGestures(model, settings)
+}
+
+/** M3: what tap, double tap and hold on the capsule do; picked with the shared [ActionPicker], nothing runs here. */
+@Composable
+private fun PulseGestures(model: HomeViewModel, settings: LauncherSettings) {
+    val ink = LocalInk.current
+    val apps by model.visibleApps.collectAsStateWithLifecycle()
+    val all by model.allApps.collectAsStateWithLifecycle()
+    val shortcuts by model.shortcuts.collectAsStateWithLifecycle()
+    val role = rememberHomeRole()
+    val host = rememberActionHost(model) { }
+    var picking by remember { mutableStateOf<Gesture?>(null) }
+    fun entry(a: Action): ArcEntry? = when (a) {
+        is Action.App -> apps.firstOrNull { it.key == a.component }?.let { ArcEntry(a, app = it) }
+        is Action.Flow -> settings.aliases.firstOrNull { it.id == a.id }?.let { ArcEntry(a, flow = it) }
+        is Action.Shortcut -> shortcuts.firstOrNull { it.packageName == a.pkg && it.id == a.id }?.let { ArcEntry(a, shortcut = it) }
+        else -> ArcEntry(a)
+    }
+
+    Section(R.string.pulse_gestures)
+    Hint(stringResource(R.string.pulse_gestures_hint))
+    listOf(Gesture.Tap to R.string.pulse_gesture_tap, Gesture.DoubleTap to R.string.pulse_gesture_double,
+        Gesture.Hold to R.string.pulse_gesture_hold).forEach { (gesture, name) ->
+        val raw = settings.controls.bound(Trigger.Pulse(gesture))
+        val shown = raw?.let(::entry)
+        val detail = when {
+            shown != null -> slotLabel(shown)
+            raw != null -> stringResource(R.string.arc_slot_unavailable)
+            gesture == Gesture.Tap -> stringResource(R.string.pulse_gesture_menu)
+            else -> stringResource(R.string.pulse_gesture_none)
+        }
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button,
+            onClickLabel = stringResource(R.string.pulse_gesture_choose)) { picking = gesture }
+            .padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (shown != null) ActionIcon(shown.action, detail, 28.dp, ink.ink, app = shown.app, shortcut = shown.shortcut)
+            else HomeGlyph(Glyph.Plus, null, tint = ink.faint, size = 22.dp)
+            Column(Modifier.padding(start = 14.dp).weight(1f)) {
+                Text(stringResource(name), style = InkText.body)
+                Text(detail, style = InkText.small, color = if (shown != null) ink.muted else ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (raw != null) IconAction(Glyph.Close, stringResource(if (gesture == Gesture.Tap) R.string.pulse_gesture_reset else R.string.remove),
+                { model.editControls { it.bind(Trigger.Pulse(gesture), null) } }, tint = ink.muted)
+        }
+    }
+
+    picking?.let { gesture ->
+        val names = remember(all) { all.filter { it.mainProfile }.associate { it.component.packageName to it.label } }
+        ActionPicker(stringResource(R.string.pulse_gesture_choose),
+            apps = apps.sortedBy { it.label.lowercase() }, flows = settings.aliases, shortcuts = shortcuts, system = SystemActions,
+            host = host, appNames = names,
+            shortcutsNote = stringResource(if (role.held) R.string.shortcuts_none else R.string.shortcuts_need_home),
+            onPick = { action -> model.editControls { it.bind(Trigger.Pulse(gesture), action) }; picking = null },
+            onDismiss = { picking = null })
+    }
 }
 
 /** Gesta: what each gesture does, so nobody has to guess; they are fixed. */
