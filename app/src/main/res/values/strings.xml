@@ -372,6 +372,7 @@
     <string name="icons_all_size">Size for all icons</string>
     <string name="icon_this_size">This icon</string>
     <string name="fold_colour">Colour and opacity</string>
+    <string name="tray_cycle">Change</string>
     <string name="fold_place">Placement</string>
     <string name="date_under_clock">Under the clock</string>
     <string name="date_free">Free</string>

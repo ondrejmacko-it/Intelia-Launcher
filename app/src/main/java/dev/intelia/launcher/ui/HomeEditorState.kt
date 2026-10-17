@@ -22,6 +22,10 @@ data class Pt(val x: Float, val y: Float) {
 
 data class Zone(val left: Float, val top: Float, val right: Float, val bottom: Float) {
     operator fun contains(p: Pt) = p.x in left..right && p.y in top..bottom
+
+    /** This zone's centre lies in [other] shrunk by [inset] dp: a free date placed over the clock's plate. */
+    fun centredIn(other: Zone, inset: Float) =
+        (left + right) / 2f in other.left + inset..other.right - inset && (top + bottom) / 2f in other.top + inset..other.bottom - inset
 }
 
 /**

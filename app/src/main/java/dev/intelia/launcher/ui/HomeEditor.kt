@@ -115,21 +115,27 @@ fun EditorTray(placement: String, presetsOpen: Boolean, lookOpen: Boolean, onAdd
     Row(modifier.padding(horizontal = 16.dp).padding(bottom = TRAY_BOTTOM.dp).fillMaxWidth().height(TRAY_HEIGHT.dp)
         .veilSurface(veil(VeilLevel.Light), VeilOrigin.Bottom, RoundedCornerShape(28.dp)).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        TrayButton(Glyph.Plus, stringResource(R.string.edit_add), false, onAdd)
+        TrayButton(Glyph.Plus, stringResource(R.string.edit_add), null, onAdd)
         TrayButton(Glyph.Layers, stringResource(R.string.presets), presetsOpen, onPresets)
-        TrayButton(Glyph.Grid, placement, false, onPlacement)
+        TrayButton(Glyph.Grid, placement, null, onPlacement, spoken = stringResource(R.string.fold_place) + ": " + placement,
+            clickLabel = stringResource(R.string.tray_cycle))
         TrayButton(Glyph.Studio, stringResource(R.string.look), lookOpen, onLook)
     }
 }
 
 @Composable
-private fun RowScope.TrayButton(glyph: Glyph, label: String, open: Boolean, onClick: () -> Unit) {
+private fun RowScope.TrayButton(glyph: Glyph, label: String, open: Boolean?, onClick: () -> Unit,
+                                 spoken: String? = null, clickLabel: String? = null) {
+    // [open] null = a plain button (TalkBack must not call it a switch); otherwise the panel it toggles.
     val c = LocalCrystal.current
     Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(22.dp))
-        .then(if (open) Modifier.background(c.acc.copy(alpha = .16f)) else Modifier)
-        .toggleable(open, role = Role.Button) { onClick() }, horizontalAlignment = Alignment.CenterHorizontally,
+        .then(if (open == true) Modifier.background(c.acc.copy(alpha = .16f)) else Modifier)
+        .then(if (open == null) Modifier.clickable(onClickLabel = clickLabel, role = Role.Button, onClick = onClick)
+            else Modifier.toggleable(open, role = Role.Button) { onClick() })
+        .then(if (spoken != null) Modifier.semantics(mergeDescendants = true) { contentDescription = spoken } else Modifier),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center) {
-        HomeGlyph(glyph, null, tint = if (open) c.acc else c.fg, size = 20.dp)
+        HomeGlyph(glyph, null, tint = if (open == true) c.acc else c.fg, size = 20.dp)
         Text(label, style = CrystalType.body.copy(fontSize = 11.5.sp, lineHeight = 13.sp), color = c.fg, maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }

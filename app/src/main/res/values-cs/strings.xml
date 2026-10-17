@@ -371,6 +371,7 @@
     <string name="icons_all_size">Velikost všech ikon</string>
     <string name="icon_this_size">Tato ikona</string>
     <string name="fold_colour">Barva a krytí</string>
+    <string name="tray_cycle">Změnit</string>
     <string name="fold_place">Umístění</string>
     <string name="date_under_clock">Pod hodinami</string>
     <string name="date_free">Volně</string>

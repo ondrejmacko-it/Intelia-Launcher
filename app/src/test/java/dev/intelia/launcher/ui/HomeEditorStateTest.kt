@@ -338,5 +338,12 @@ class HomeEditorStateTest {
         // Fits nowhere whole: the roomier side.
         assertTrue(inspectorAbove(Zone(100f, 500f, 160f, 560f), 600f, topLimit = 100f, screenH = 880f))
     }
-}
 
+    @Test fun aFreeDateOverThePlateIsOnIt() {
+        val plate = Zone(60f, 120f, 260f, 360f)
+        assertTrue(Zone(80f, 320f, 200f, 340f).centredIn(plate, 8f))
+        // Hanging off the plate's bottom edge, or beside it: on the wallpaper.
+        assertFalse(Zone(80f, 345f, 200f, 380f).centredIn(plate, 8f))
+        assertFalse(Zone(270f, 200f, 360f, 220f).centredIn(plate, 8f))
+    }
+}

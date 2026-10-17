@@ -556,12 +556,15 @@ private fun Home(
                 if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: clockInk, accent,
                     (if (clock.sizeDp == 0) (if (compact) 64 else ItemSizes.CLOCK) else clock.sizeDp).sp,
                     Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, shadow = !plate, weight = clock.weight, look = clock.look)
-                if (date != null && freeDate == null) DateText(date, now, clockInk, textAccent, Modifier.offset(date.look.dx.dp, date.look.dy.dp).onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
+                if (date != null && freeDate == null) DateText(date, now, clockInk, textAccent, onPlate = plate, modifier = Modifier.offset(date.look.dx.dp, date.look.dy.dp).onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
             }
         } else clockZone = null
         if (freeDate != null) {
             // An unpinned date: placed like the clock (§5.5), by its own free point.
-            DateText(freeDate, now, homeInk, wallPlaces[PaletteTarget.Text], Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
+            // Moved over the clock's plate, it reads in the plate's ink instead of the wallpaper's.
+            val onPlate = !clock?.background.isNullOrEmpty() && clockZone?.let { dateZone?.centredIn(it, 8f) } == true
+            DateText(freeDate, now, if (onPlate) LocalCrystal.current.fg else homeInk, (if (onPlate) places else wallPlaces)[PaletteTarget.Text],
+                onPlate = onPlate, modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
                 .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp)
                 .atFx(freeDate.anchor.fx, geometry.areaLeft, geometry.areaW, TEXT_EDGE).graphicsLayer { alpha = quiet }
                 .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
@@ -961,14 +964,19 @@ private fun Modifier.atFx(fx: Float, areaLeft: Float, areaW: Float, margin: Floa
     layout(w, p.height) { p.place((centre - p.width / 2).coerceIn(edge, maxOf(edge, w - edge - p.width)), 0) }
 }
 
+/** Opacity of the date on a plate: full, as the dark Veil over a white wallpaper has no margin below it (VeilTest). */
+internal const val PLATE_TEXT_ALPHA = 1f
+
 /** The date line in its own format, size, colour and opacity; 4.2 default: 12 sp caps, +2.2 tracking, fg2 (62 %). */
 @Composable
-internal fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent: Color, modifier: Modifier) {
+internal fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent: Color, modifier: Modifier, onPlate: Boolean = false) {
     val size = item.dateSp()
     val look = item.look
     val text = dateText(now, item.dateFormat(), look)
-    val plate = item.anchor.type != AnchorType.Bound && item.background.isNotEmpty()
-    val ink = if (plate) LocalCrystal.current.fg else homeInk
+    val ownPlate = item.anchor.type != AnchorType.Bound && item.background.isNotEmpty()
+    // On its own plate or on the clock's: the plate's ink, no wallpaper shadow, the plate's text opacity.
+    val plate = ownPlate || onPlate
+    val ink = if (ownPlate) LocalCrystal.current.fg else homeInk
     val family = faceFamily(look.face, if (item.weight == 0) 450 else item.weight) ?: CrystalType.date.fontFamily
     // One line never wraps: a wide face (Mono, Unbounded) would push the last word onto a hidden second line.
     // Too wide for the room, the line steps down in size until it fits whole.
@@ -981,9 +989,9 @@ internal fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent
         textAlign = if (look.vertical) TextAlign.Center else TextAlign.Unspecified)
     Text(if (look.vertical) text.toList().joinToString("\n") else text,
         modifier.graphicsLayer { alpha = item.alpha }
-            .then(if (plate) Modifier.veilSurface(plateTokens(item.background), VeilOrigin.Top, RoundedCornerShape(18.dp))
+            .then(if (ownPlate) Modifier.veilSurface(plateTokens(item.background), VeilOrigin.Top, RoundedCornerShape(18.dp))
                 .padding(horizontal = (16f + look.padX).dp, vertical = (10f + look.padY).dp) else Modifier),
-        style = style, color = item.tintColor(accent) ?: ink.copy(alpha = if (plate) .8f else .62f), maxLines = if (look.vertical) 40 else 1,
+        style = style, color = item.tintColor(accent) ?: ink.copy(alpha = if (plate) PLATE_TEXT_ALPHA else .62f), maxLines = if (look.vertical) 40 else 1,
         softWrap = look.vertical, onTextLayout = { if (!look.vertical && it.didOverflowWidth && fit > .5f) fit *= .92f })
 }
 

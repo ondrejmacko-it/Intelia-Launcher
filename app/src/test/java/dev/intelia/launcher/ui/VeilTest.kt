@@ -78,15 +78,24 @@ class VeilTest {
         assertEquals(27, backdropBlurPx(.5f, 0f, 3f))
     }
 
+    @Test fun dateOnAPlateStaysLegible() {
+        for (glass in Glass.entries) for (dark in listOf(true, false)) for (shift in listOf(0, 5)) {
+            val t = if (glass == Glass.Veil) veilTokens(VeilLevel.Light, dark, acc, VeilPrefs(shift = shift, glass = glass))
+                else plateGlass(glass, dark, acc, shift)
+            assertLegible(t, dark, "date $glass dark=$dark shift=$shift", PLATE_TEXT_ALPHA)
+        }
+    }
+
     /** ≥ 4.5:1 at the worst point of each fill: the sheen and facets at the top, the grain's white specks and the inner glow anywhere. */
-    private fun assertLegible(t: VeilTokens, dark: Boolean, what: String) {
+    private fun assertLegible(t: VeilTokens, dark: Boolean, what: String, textAlpha: Float = 1f) {
         val wall = if (dark) Color.White else Color.Black
         val fg = if (dark) CrystalColors.FgDark else CrystalColors.FgLight
         val body = t.glow.compositeOver(t.top.compositeOver(wall))
         val lit = t.innerGlow.compositeOver(t.streak.compositeOver(t.sheen.compositeOver(body)))
         val speck = Color.White.copy(alpha = t.grain).compositeOver(lit)
         for (ground in listOf(body, lit, speck)) {
-            val (hi, lo) = listOf(fg.luminance(), ground.luminance()).sorted().let { it[1] to it[0] }
+            val ink = fg.copy(alpha = textAlpha).compositeOver(ground)
+            val (hi, lo) = listOf(ink.luminance(), ground.luminance()).sorted().let { it[1] to it[0] }
             assertTrue("$what ${(hi + .05f) / (lo + .05f)}", (hi + .05f) / (lo + .05f) >= 4.5f)
         }
     }
