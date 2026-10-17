@@ -23,8 +23,12 @@ Verified on the Phone (3), `install -r` each way, Home layout unchanged after (`
 (system relaunch, `Displayed`): debug 469 / 481 / 508 ms → lab 198 / 204 / 212 ms; CPU in the first ~13 s after start:
 debug 5 s → lab 1 s; total PSS at rest ~148 MB (debug) → 107 MB (lab).
 
-Not verified: a real reboot with the lab build (the 400 ms fold and the warm-up priority are not measured on a
-boot); other phones. Open: opening the drawer is GPU-bound at 120 Hz (lab, 3× swipe: 29–39 % janky, p50 25–31 ms,
+Reboot (`adb reboot`, lab, 4 min of uptime, same moment as the debug snapshot above): Intelia CPU since boot 3 s
+(debug 23 s), flat from minute 1 to 4; 245 frames, 6.1 % janky, p50 17 ms, p90 23 ms, p99 200 ms, slow UI thread 9
+(debug 689 frames, 19.7 %, p99 900 ms, slow UI 122 — the owner used the phone more then, so frames compare only
+roughly); compile status survives the reboot (`speed-profile`); PSS 153 MB with 71 MB swapped under boot pressure.
+
+Not verified: other phones; the 400 ms fold and warm-up priority are not measured separately from the build change. Open: opening the drawer is GPU-bound at 120 Hz (lab, 3× swipe: 29–39 % janky, p50 25–31 ms,
 slow UI thread only 6 frames) — the backdrop blur and wallpaper, not CPU.
 
 ## 2026-10-17 — Veil 3.0 B4: Studio in five sections with search, one Look definition (`claude/crystal-redesign`)
