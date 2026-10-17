@@ -175,19 +175,19 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
         val screenW = maxWidth
         val screenH = maxHeight
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp, bottom = if (preview) 0.dp else 12.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                IconAction(Glyph.Back, stringResource(R.string.back), onBack, tint = homeInk)
-                Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
-            }
-            // Home as a true miniature of the screen: every size and distance at one scale, inside a phone outline.
-            if (preview) {
-                val shape = RoundedCornerShape(12.dp)
-                Box(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp).size(screenW * PREVIEW_SCALE, screenH * PREVIEW_SCALE)
-                    .clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)) {
-                    // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
-                    HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
-                        scale = PREVIEW_SCALE, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
+            Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 12.dp)) {
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    IconAction(Glyph.Back, stringResource(R.string.back), onBack, tint = homeInk)
+                    Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
+                }
+                // Home as a true miniature of the screen beside the title: every size and distance at one scale.
+                if (preview) {
+                    val shape = RoundedCornerShape(10.dp)
+                    Box(Modifier.size(screenW * PREVIEW_SCALE, screenH * PREVIEW_SCALE).clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)) {
+                        // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
+                        HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
+                            scale = PREVIEW_SCALE, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
+                    }
                 }
             }
             Column(Modifier.weight(1f).fillMaxWidth()
@@ -678,7 +678,7 @@ fun HomePreview(
 }
 
 /** Studio's Home miniature: the screen at this scale, so the clock, LENS row and gaps keep their real proportions. */
-private const val PREVIEW_SCALE = .26f
+private const val PREVIEW_SCALE = .22f
 
 /** Lays the content out [k] times larger than the room and draws it scaled by [k] from the top start. */
 private fun Modifier.shrink(k: Float) = layout { m, c ->

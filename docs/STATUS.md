@@ -9,8 +9,8 @@ Only verified facts. Format: `date | branch/commit | evidence | change | open`.
   alone), the legacy text list from `Stack` items, and a free date above a free clock when its `fy` is smaller.
 - Studio's `HomePreview` takes the active layout and `HomeViewModel.entry`; it no longer uses the favourites or the
   legacy `layout` field. A FLOW in the row draws a plain ring. Onboarding keeps the legacy path.
-- Follow-up: the preview is a true miniature, the screen at 0.26 inside a phone outline under the page title
-  (was a 300 dp band at 0.78 with the clock cropped large). Clock and date are drawn at Home's size and shrunk as a
+- Follow-up: the preview is a true miniature, the screen at 0.22 inside a phone outline to the right of the page
+  title (was a 300 dp band at 0.78 with the clock cropped large). Clock and date are drawn at Home's size and shrunk as a
   picture (the date's size floor kept it large before); LENS 48 dp, icons 32 dp, row ~67 dp above the bottom edge.
 
 Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` PASS, 148 JVM tests, 0
@@ -19,7 +19,8 @@ failures (new `HomeSketchTest`, 5).
 Verified on the Phone (3), lab build via `install -r` + profile + `speed-profile` (screenshots): Home shows the date
 above the clock and Telefon / Zprávy / Fotoaparát / Chrome around LENS; Studio's preview now shows the same order,
 and side by side with a Home screenshot the miniature keeps the clock and date widths (~78 % of the width) and the
-date above the clock. The Studio sheet now starts at ~38 % of the screen height instead of ~46 %.
+date above the clock. The Studio sheet now starts at ~29 % of the screen height instead of ~33 % (a first try at
+0.26 under the title, `4c13339`, pushed it down to ~38 %; corrected in the next commit).
 
 Not verified: `lensAt` Start / End, a vertical dock edge (the preview stays a bottom row), a Pure or legacy-list
 layout on the phone (JVM tests only). The preview still centres a free date that Home draws at its own `fx`.
