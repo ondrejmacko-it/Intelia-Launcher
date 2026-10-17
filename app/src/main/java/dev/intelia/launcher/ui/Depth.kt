@@ -31,7 +31,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import dev.intelia.launcher.data.Motion
 import java.util.function.Consumer
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
@@ -73,9 +72,18 @@ private const val FOCUS_SCALE = .97f
 /** The scrim's strength under Dense; Focus draws it whole. */
 const val DENSE_SCRIM = .6f
 
-/** Blur radius in px for the backdrop, whole pixels so an animation does not build a new effect per sub-pixel. */
-internal fun backdropBlurPx(focus: Float, dense: Float, density: Float): Int =
-    (max(FOCUS_BLUR_DP * focus, DENSE_BLUR_DP * dense) * density).roundToInt()
+/**
+ * Blur radius in px for the backdrop: the level's full radius as soon as a surface starts to open, nothing once it
+ * has closed. The radius is not animated — a new radius each frame rebuilds the blur each frame; the surface's own
+ * scrim and fade carry the transition.
+ */
+internal fun backdropBlurPx(focus: Float, dense: Float, density: Float): Int = when {
+    focus > OPEN_EPS -> (FOCUS_BLUR_DP * density).roundToInt()
+    dense > OPEN_EPS -> (DENSE_BLUR_DP * density).roundToInt()
+    else -> 0
+}
+
+private const val OPEN_EPS = .001f
 
 /**
  * Home under an open surface: blurred ([blur]), and scaled back a little under Focus; the scrim is the surface's own.

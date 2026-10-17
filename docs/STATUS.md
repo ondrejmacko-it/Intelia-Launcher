@@ -18,8 +18,11 @@ Drawer open/close, 5 × swipe up on LENS + Back, two runs each, lab build, Phone
 Every janky frame is "slow issue draw commands" (render thread / GPU), not the UI thread. Settled PSS 123 MB (was
 107 MB; the picture is 10 MB at 1080 × 2392). Home looks the same (screenshot).
 
-Open: the backdrop blur (D15) still costs ~10 points of janky frames on the drawer at 120 Hz — an owner decision
-(e.g. a fixed radius instead of an animated one, or no blur under the drawer).
+Follow-up on the owner's request: the backdrop blur radius is no longer animated — the level's full radius from the
+first frame a surface opens, 0 once closed; the surface's scrim and fade carry the transition (`backdropBlurPx`,
+`VeilTest`). Same drawer test: **16.9 / 17.1 % janky**, p50 19 / 19 ms, p90 30 / 32 ms, GPU p50 11 ms (was
+20.9–23.1 %, p50 22–23 ms). A frame captured 280 ms into the opening shows the drawer almost fully in; the blur's jump
+at the very start sits under the fading surface and was not judged frame by frame (no screen recording).
 
 B5 on the phone: the clock's and the date's size rows show the label ("Vlastní hodnota" — the owner's own sizes);
 editor left unchanged. Not checked: LENS inspector, Font and Colour folds.

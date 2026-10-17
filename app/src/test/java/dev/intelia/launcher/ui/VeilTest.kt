@@ -75,7 +75,8 @@ class VeilTest {
         assertEquals(0, backdropBlurPx(0f, 0f, 3f))
         assertEquals(15, backdropBlurPx(0f, 1f, 3f))
         assertEquals(54, backdropBlurPx(1f, 1f, 3f)) // a sheet over Search does not add a second blur
-        assertEquals(27, backdropBlurPx(.5f, 0f, 3f))
+        assertEquals(54, backdropBlurPx(.5f, 0f, 3f)) // fixed radius while it opens
+        assertEquals(15, backdropBlurPx(0f, .2f, 3f))
     }
 
     @Test fun dateOnAPlateStaysLegible() {
