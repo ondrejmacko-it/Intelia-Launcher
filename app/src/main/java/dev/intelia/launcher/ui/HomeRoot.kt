@@ -346,8 +346,7 @@ private fun Home(
 ) {
     val homeInk = LocalHomeInk.current
     val places = LocalPlaces.current
-    val accent = places[PaletteTarget.Clock]
-    val textAccent = places[PaletteTarget.Text]
+    val wallPlaces = LocalWallPlaces.current
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val now by rememberNow()
@@ -472,6 +471,10 @@ private fun Home(
             // §5.12 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
             val plate = clock?.background == ClockBackground.Veil.name
             val clockInk = if (plate) LocalCrystal.current.fg else homeInk
+            // On a plate the theme's accent variant is right; straight on the wallpaper, the wallpaper's.
+            val onClock = if (plate) places else wallPlaces
+            val accent = onClock[PaletteTarget.Clock]
+            val textAccent = onClock[PaletteTarget.Text]
             // The plate's 20 dp inset comes out of the 28 dp margin, so the time keeps its width.
             Column(
                 Modifier.fillMaxWidth().statusBarsPadding().padding(top = topPad).padding(horizontal = if (plate) 8.dp else 28.dp)
@@ -491,7 +494,7 @@ private fun Home(
         if (freeDate != null) {
             // An unpinned date: placed like the clock (§5.5), by its own free point.
             val bias = (freeDate.anchor.fx * 2f - 1f).coerceIn(-1f, 1f)
-            DateText(freeDate, now, homeInk, textAccent, Modifier.fillMaxWidth().statusBarsPadding()
+            DateText(freeDate, now, homeInk, wallPlaces[PaletteTarget.Text], Modifier.fillMaxWidth().statusBarsPadding()
                 .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp).padding(horizontal = 28.dp)
                 .wrapContentWidth(BiasAlignment.Horizontal(bias)).graphicsLayer { alpha = quiet }
                 .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })

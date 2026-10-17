@@ -172,6 +172,13 @@ class PlaceColors(private val colors: Map<PaletteTarget, Color>, val main: Color
 val LocalPlaces = staticCompositionLocalOf { PlaceColors(emptyMap(), Color(0xFFA84B29)) }
 
 /**
+ * The palette resolved for text drawn straight on the wallpaper (clock and date without a plate): the accent's
+ * variant follows the wallpaper like [LocalHomeInk], not the theme, so a Light theme over a dark wallpaper does
+ * not paint a dark clock on it.
+ */
+val LocalWallPlaces = staticCompositionLocalOf { PlaceColors(emptyMap(), Color(0xFFA84B29)) }
+
+/**
  * Re-provides the theme (Ink, Crystal and Material primary) with [target]'s colour, so everything inside —
  * texts, switches, sliders — follows that place of the palette. A no-op while it equals the current accent.
  */
@@ -233,7 +240,10 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
     val ink = inkPalette(dark, accentColor(settings.accent, dark))
     val places = PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), dark) }, ink.accent)
     // Home type follows the wallpaper, not the theme: Crystal fg light on light wallpapers (4.1).
-    val homeInk = if (rememberWallpaperWantsDarkText()) CrystalColors.FgLight else CrystalColors.FgDark
+    val wallLight = rememberWallpaperWantsDarkText()
+    val homeInk = if (wallLight) CrystalColors.FgLight else CrystalColors.FgDark
+    val wallPlaces = if (wallLight == !dark) places
+        else PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), !wallLight) }, accentColor(settings.accent, !wallLight))
     val base = if (dark) darkColorScheme() else lightColorScheme()
     val scheme = base.copy(
         primary = ink.accent, onPrimary = ink.onAccent, background = ink.paper, surface = ink.paper,
@@ -247,9 +257,10 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
             LocalInk provides ink,
             LocalPlaces provides places,
             LocalHomeInk provides homeInk,
+            LocalWallPlaces provides wallPlaces,
             LocalMotion provides settings.motion,
             LocalIconStyle provides settings.iconStyle,
-            LocalVeil provides VeilPrefs(settings.veilSolid, settings.veilShift, settings.veilEdge),
+            LocalVeil provides VeilPrefs(settings.veilSolid, settings.veilShift, settings.veilEdge, settings.glass),
             LocalInkHaptics provides settings.haptics,
             LocalContentColor provides ink.ink,
             LocalTextStyle provides InkText.body.copy(color = ink.ink),
