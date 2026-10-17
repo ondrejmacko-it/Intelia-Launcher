@@ -86,6 +86,7 @@ import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -465,8 +466,10 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, state: LazyL
                         onLongClickLabel = stringResource(R.string.app_options), onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
                         .padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AppIcon(app, Modifier.size(44.dp))
-                        Text(app.label, Modifier.padding(top = 6.dp), style = CrystalType.caption.copy(fontSize = 11.sp, lineHeight = 14.sp),
-                            color = ink.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // A 4 dp gutter each side: at 130 % text, neighbouring names end in an ellipsis instead of touching.
+                        Text(app.label, Modifier.fillMaxWidth().padding(top = 6.dp, start = 4.dp, end = 4.dp),
+                            style = CrystalType.caption.copy(fontSize = 11.sp, lineHeight = 14.sp), color = ink.muted, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                     }
                 }
             }

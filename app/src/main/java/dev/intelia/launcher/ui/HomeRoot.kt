@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -519,6 +520,16 @@ private fun Home(
         if (ed != null) {
             if (settings.pulse) Pulse(settings, preview = true)
             CameraMark(camera, selected == PULSE_ID)
+            // Home (and its tap layer) is scaled to 86 % around the middle, so the camera sits above it: PULSE gets
+            // its own target here, in screen coordinates.
+            val pulseLabel = stringResource(R.string.pulse)
+            Box(Modifier.offset(x = (camera.x - CAMERA_HALF_W).dp, y = 0.dp).size((CAMERA_HALF_W * 2).dp, (camera.y + CAMERA_BELOW).dp)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Button,
+                    onClickLabel = pulseLabel) {
+                    if (presetsOpen) { ed.cancelPreview(); presetsOpen = false; previewKey = null }
+                    selected = PULSE_ID.takeIf { selected != PULSE_ID }; addPoint = null
+                    refresh()
+                })
             // The status bar would take every tap near the camera, so the editor hides it (swipe brings it back)
             // and PULSE everywhere's lens lets taps through: tapping the capsule opens its inspector.
             val rootView = androidx.compose.ui.platform.LocalView.current
@@ -957,6 +968,8 @@ private fun hitItem(state: HomeEditorState, p: Pt, timeZone: Zone?, dateZone: Zo
 
 /** Id of the PULSE pseudo-element in the editor (it is a setting, not a layout item). */
 private const val PULSE_ID = "#pulse"
+private const val CAMERA_HALF_W = 96f
+private const val CAMERA_BELOW = 24f
 /** How far one TalkBack "move LENS" action shifts it (dp). */
 private const val LENS_A11Y_STEP = 24f
 

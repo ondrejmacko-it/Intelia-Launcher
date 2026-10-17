@@ -1,6 +1,9 @@
 package dev.intelia.launcher.ui
 
 import androidx.compose.foundation.Canvas
+import dev.intelia.launcher.search.AppSearch
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.height
@@ -761,10 +764,14 @@ fun AddPicker(title: String, apps: List<AppEntry>, flows: List<FlowAlias>, onApp
         Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Bottom)
             .padding(vertical = 12.dp)) {
             Text(title, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
-            if (apps.isEmpty() && flows.isEmpty()) Text(stringResource(R.string.pick_none), Modifier.padding(20.dp),
+            var filter by remember { mutableStateOf("") }
+            if (apps.size + flows.size > PICKER_FILTER_FROM) PickerFilter(filter) { filter = it }
+            val shownApps = if (filter.isBlank()) apps else AppSearch.rank(apps, filter) { it.searchKey }
+            val shownFlows = if (filter.isBlank()) flows else AppSearch.rank(flows, filter) { AppSearch.fold(it.name) }
+            if (shownApps.isEmpty() && shownFlows.isEmpty()) Text(stringResource(R.string.pick_none), Modifier.padding(20.dp),
                 style = CrystalType.body.copy(fontSize = 14.sp), color = c.fg2)
             LazyColumn {
-                items(apps, key = { "a" + it.key }) { app ->
+                items(shownApps, key = { "a" + it.key }) { app ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onApp(app) }.padding(horizontal = 20.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         AppIcon(app, Modifier.size(32.dp), tint = c.fg)
@@ -772,7 +779,7 @@ fun AddPicker(title: String, apps: List<AppEntry>, flows: List<FlowAlias>, onApp
                             overflow = TextOverflow.Ellipsis)
                     }
                 }
-                items(flows, key = { "f" + it.id }) { flow ->
+                items(shownFlows, key = { "f" + it.id }) { flow ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onFlow(flow) }.padding(horizontal = 20.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         HomeGlyph(Glyph.Flow, null, tint = c.fg, size = 24.dp)
@@ -781,6 +788,25 @@ fun AddPicker(title: String, apps: List<AppEntry>, flows: List<FlowAlias>, onApp
                 }
             }
         }
+    }
+}
+
+private const val PICKER_FILTER_FROM = 8
+
+/** The picker's filter row: diacritics-insensitive, the same ranking as Search; never runs anything. */
+@Composable
+private fun PickerFilter(value: String, onChange: (String) -> Unit) {
+    val c = LocalCrystal.current
+    val label = stringResource(R.string.flow_find_app)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp).heightIn(min = 48.dp).clip(CircleShape)
+        .background(c.fg.copy(alpha = 0.06f)).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 18.dp)
+        BasicTextField(value, onChange, Modifier.weight(1f).padding(start = 10.dp).semantics { contentDescription = label }, singleLine = true,
+            cursorBrush = SolidColor(c.acc), textStyle = CrystalType.body.copy(fontSize = 15.sp, color = c.fg),
+            decorationBox = { inner ->
+                if (value.isEmpty()) Text(label, style = CrystalType.body.copy(fontSize = 15.sp), color = c.fg3)
+                inner()
+            })
     }
 }
 
