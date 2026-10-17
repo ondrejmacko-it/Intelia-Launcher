@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.Glass
 import dev.intelia.launcher.data.IconStyle
+import dev.intelia.launcher.data.IconShape
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.ThemeMode
@@ -30,6 +31,11 @@ fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
     Chips(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink),
         IconStyle.Veil to stringResource(R.string.look_veil), IconStyle.Tinted to stringResource(R.string.icons_tinted)),
         settings.iconStyle) { v -> set { it.copy(iconStyle = v) } }
+    if (settings.iconStyle == IconStyle.Veil || settings.iconStyle == IconStyle.Tinted) {
+        Chips(listOf(IconShape.Circle to stringResource(R.string.shape_circle), IconShape.Squircle to stringResource(R.string.shape_squircle),
+            IconShape.Rounded to stringResource(R.string.shape_rounded), IconShape.Drop to stringResource(R.string.shape_drop)),
+            settings.iconShape) { v -> set { it.copy(iconShape = v) } }
+    }
 }
 
 /** The panel glass (§5.2) for every surface; in the Look panel and Studio. */

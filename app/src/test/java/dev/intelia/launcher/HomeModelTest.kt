@@ -4,6 +4,7 @@ import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.GridSpec
 import dev.intelia.launcher.data.HomeItem
+import dev.intelia.launcher.data.IconShape
 import dev.intelia.launcher.data.HomeLayout
 import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.ItemKind
@@ -236,5 +237,12 @@ class HomeModelTest {
         assertEquals("17. 10. 2026", dev.intelia.launcher.ui.dateText(now, DateFormat.Custom, own, cs))
         assertEquals("SOBOTA 17. ŘÍJNA", dev.intelia.launcher.ui.dateText(now, DateFormat.Long, TextLook(), cs))
         assertEquals("sobota", dev.intelia.launcher.ui.dateText(now, DateFormat.Weekday, TextLook(case = TextCase.Lower), cs))
+    }
+
+    @Test fun iconShapeDefaultsToCircleAndUnknownNamesFallBack() {
+        assertEquals(IconShape.Circle, SettingsCodec.decode("{\"schema\":2}").iconShape)
+        assertEquals(IconShape.Circle, SettingsCodec.decode("{\"schema\":2,\"iconShape\":\"Blob\"}").iconShape)
+        val drop = LauncherSettings.fresh().copy(iconShape = IconShape.Drop)
+        assertEquals(IconShape.Drop, SettingsCodec.decode(SettingsCodec.encode(drop)).iconShape)
     }
 }

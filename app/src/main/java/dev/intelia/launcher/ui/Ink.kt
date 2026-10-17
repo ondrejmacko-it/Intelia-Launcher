@@ -40,6 +40,7 @@ import androidx.core.view.WindowCompat
 import dev.intelia.launcher.data.Accent
 import dev.intelia.launcher.data.AccentColors
 import dev.intelia.launcher.data.Haptics
+import dev.intelia.launcher.data.IconShape
 import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
@@ -109,6 +110,7 @@ val LocalInk = staticCompositionLocalOf { inkPalette(false, Color(0xFFA84B29)) }
 val LocalHomeInk = staticCompositionLocalOf { Color.White }
 val LocalMotion = staticCompositionLocalOf { Motion.Calm }
 val LocalIconStyle = staticCompositionLocalOf { IconStyle.System }
+val LocalIconShape = staticCompositionLocalOf { IconShape.Circle }
 val LocalInkHaptics = staticCompositionLocalOf { Haptics.Soft }
 
 /** Duration scaled by the Motion setting; 0 disables the animation. */
@@ -260,6 +262,7 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
             LocalWallPlaces provides wallPlaces,
             LocalMotion provides settings.motion,
             LocalIconStyle provides settings.iconStyle,
+            LocalIconShape provides settings.iconShape,
             LocalVeil provides VeilPrefs(settings.veilSolid, settings.veilShift, settings.veilEdge, settings.glass),
             LocalInkHaptics provides settings.haptics,
             LocalContentColor provides ink.ink,

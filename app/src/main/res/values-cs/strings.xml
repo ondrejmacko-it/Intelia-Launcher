@@ -351,4 +351,8 @@
     <string name="plate_wide">Roztažení ↔</string>
     <string name="plate_tall">Roztažení ↕</string>
     <string name="editing_now">Upravuješ</string>
+    <string name="shape_circle">Kruh</string>
+    <string name="shape_squircle">Squircle</string>
+    <string name="shape_rounded">Zaoblený čtverec</string>
+    <string name="shape_drop">Kapka</string>
 </resources>
