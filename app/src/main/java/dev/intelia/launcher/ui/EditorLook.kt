@@ -92,7 +92,6 @@ private fun Kick(text: String) {
 @Composable
 fun PulseInspector(settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit) {
     val c = LocalCrystal.current
-    Title(stringResource(R.string.pulse))
     Toggle(stringResource(R.string.pulse_toggle), settings.pulse) { v -> set { it.copy(pulse = v) } }
     if (!settings.pulse) return
     SliderRow(stringResource(R.string.pulse_opacity), settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, 5f,

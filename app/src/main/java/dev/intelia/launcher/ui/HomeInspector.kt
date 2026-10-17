@@ -257,7 +257,7 @@ private fun CardHeader(title: String, frame: InspectorFrame?, onDrag: (Offset) -
 private fun androidx.compose.foundation.layout.BoxScope.ResizeHandle(arrow: String, at: Alignment, onDrag: (Offset) -> Unit) {
     val c = LocalCrystal.current
     val side = at == Alignment.CenterStart || at == Alignment.CenterEnd
-    Box(Modifier.align(at).size(if (side) 22.dp else 30.dp, if (side) 56.dp else 24.dp)
+    Box(Modifier.align(at).size(if (side) 14.dp else 30.dp, if (side) 56.dp else 24.dp)
         .pointerInput(Unit) { detectDragGestures { change, amount -> change.consume(); onDrag(amount) } },
         contentAlignment = Alignment.Center) {
         Text(arrow, style = CrystalType.caption.copy(fontSize = 13.sp), color = c.fg2)
@@ -305,8 +305,10 @@ private fun StepButton(sign: String, label: String, enabled: Boolean, onClick: (
 internal fun <T> Chips(options: List<Pair<T, String>>, selected: T, family: (T) -> androidx.compose.ui.text.font.FontFamily? = { null },
                        onSelect: (T) -> Unit) {
     val c = LocalCrystal.current
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    // Wrapped, never scrolled sideways: every option stays in sight however narrow the card is.
+    @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+    androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().selectableGroup().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { (value, label) ->
             val on = value == selected
             Text(label, Modifier.clip(CircleShape).then(if (on) Modifier.background(c.acc) else Modifier.border(1.dp, c.fg3, CircleShape))
@@ -411,11 +413,12 @@ private fun TypeControls(state: HomeEditorState, item: HomeItem, onChange: () ->
 
 /** App or FLOW on Home: size, label, remove from Home (never uninstall). */
 @Composable
-fun ItemInspector(state: HomeEditorState, item: HomeItem, title: String, iconDefault: Int, settings: LauncherSettings, set: SettingsEdit,
+fun ItemInspector(state: HomeEditorState, item: HomeItem, iconDefault: Int, settings: LauncherSettings, set: SettingsEdit,
     onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
     val c = LocalCrystal.current
-    Title(title) {
-        if (onMore != null) Text(stringResource(R.string.inspect_more), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onMore)
+    // The card's header names the app; its options link sits on the right.
+    if (onMore != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Text(stringResource(R.string.inspect_more), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onMore)
             .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.acc)
     }
     val size = item.iconDp(iconDefault)
