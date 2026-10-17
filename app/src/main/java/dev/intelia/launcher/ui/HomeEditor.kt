@@ -53,8 +53,9 @@ import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.Placement
 
 /**
- * Home Editor chrome (§5.5 as approved): left = editing history and placement, right = Studio and ✓.
- * Veil Light pills below the status bar, clear of the camera and of the clock (which starts ≥ 72 dp lower).
+ * Home Editor chrome (§5.5): left = presets, look and history, middle = what is edited, right = Studio and ✓.
+ * One compact row of 32 dp Veil Light pills right below the status bar, [BAR_HEIGHT] in all, so the clock can
+ * start just under it.
  */
 @Composable
 fun EditorBar(
@@ -76,31 +77,33 @@ fun EditorBar(
     val ink = LocalInk.current
     val c = LocalCrystal.current
     val veil = veil(VeilLevel.Light)
-    Column(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility), horizontalAlignment = Alignment.CenterHorizontally) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+    Row(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically) {
         BarPill(stringResource(R.string.presets), presetsOpen, onPresets)
-        BarPill(stringResource(R.string.look), lookOpen, onLook, Modifier.padding(start = 8.dp))
-        Row(Modifier.padding(start = 8.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
+        BarPill(stringResource(R.string.look), lookOpen, onLook, Modifier.padding(start = 6.dp))
+        Row(Modifier.padding(start = 6.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Glyph.Undo, stringResource(R.string.edit_undo), canUndo, onUndo)
             BarIcon(Glyph.Redo, stringResource(R.string.edit_redo), canRedo, onRedo)
         }
-        Box(Modifier.weight(1f))
+        // What is edited now, in the free middle of the bar.
+        Box(Modifier.weight(1f).padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
+            androidx.compose.animation.AnimatedVisibility(editing != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+                Text(editing.orEmpty(), Modifier.veilSurface(veil, VeilOrigin.Top, CircleShape).padding(horizontal = 10.dp, vertical = 6.dp),
+                    style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+        }
         Box(Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape)) {
             BarIcon(Glyph.Studio, stringResource(R.string.studio), true, onStudio)
         }
-        Box(Modifier.padding(start = 8.dp).size(40.dp).clip(CircleShape).background(ink.accent)
+        Box(Modifier.padding(start = 6.dp).size(32.dp).clip(CircleShape).background(ink.accent)
             .clickable(role = Role.Button, onClick = onDone), contentAlignment = Alignment.Center) {
-            HomeGlyph(Glyph.Check, stringResource(R.string.edit_done), tint = c.accInk, size = 20.dp)
+            HomeGlyph(Glyph.Check, stringResource(R.string.edit_done), tint = c.accInk, size = 16.dp)
         }
     }
-    // What is edited now, under the bar.
-    androidx.compose.animation.AnimatedVisibility(editing != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
-        Text(editing.orEmpty(), Modifier.veilSurface(veil, VeilOrigin.Top, CircleShape).padding(horizontal = 14.dp, vertical = 7.dp),
-            style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-    }
-    }
 }
+
+/** Height of [EditorBar] below the status bar, dp. */
+const val BAR_HEIGHT = 40f
 
 @Composable
 fun placementLabel(layout: LayoutSpec): String {
@@ -179,11 +182,11 @@ fun PlateHandles(zone: Zone, onStretch: (Float, Float) -> Unit) {
 @Composable
 private fun BarPill(label: String, open: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalCrystal.current
-    Text(label, modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Bottom, CircleShape).heightIn(min = 40.dp)
+    Text(label, modifier.veilSurface(veil(VeilLevel.Light), VeilOrigin.Bottom, CircleShape).heightIn(min = 32.dp)
         .then(if (open) Modifier.border(1.dp, c.acc, CircleShape) else Modifier)
         .toggleable(open, role = Role.Button) { onClick() }
-        .padding(horizontal = 13.dp, vertical = 11.dp),
-        style = CrystalType.date.copy(fontSize = 13.sp, letterSpacing = .2.sp), color = c.fg)
+        .padding(horizontal = 11.dp, vertical = 7.dp),
+        style = CrystalType.date.copy(fontSize = 12.sp, letterSpacing = .2.sp), color = c.fg)
 }
 
 /**
@@ -225,8 +228,8 @@ suspend fun androidx.compose.ui.input.pointer.PointerInputScope.pinchToResize(
 @Composable
 private fun BarIcon(glyph: Glyph, label: String, enabled: Boolean, onClick: () -> Unit) {
     val c = LocalCrystal.current
-    Box(Modifier.size(40.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-        HomeGlyph(glyph, label, tint = if (enabled) c.fg else c.fg3, size = 20.dp)
+    Box(Modifier.size(32.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+        HomeGlyph(glyph, label, tint = if (enabled) c.fg else c.fg3, size = 16.dp)
     }
 }
 

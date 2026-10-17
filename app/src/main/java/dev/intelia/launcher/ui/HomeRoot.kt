@@ -465,7 +465,7 @@ private fun Home(
         /** Where free text (fy = 0) starts below the status bar. */
         // A LENS row on the top edge pushes all text down by its band.
         val dockTop = if (dock.edge == DockEdge.Top) (geometry.areaTop - statusTop.value - 24f).dp else 0.dp
-        val textTop = (if (compact) 24.dp else 92.dp) + dockTop
+        val textTop = (if (compact) 24.dp else TEXT_TOP.dp) + dockTop
         val freeDate = date?.takeIf { it.anchor.type == AnchorType.Free }
         val iconDefault = settings.iconSize
         fun zoneOf(c: androidx.compose.ui.layout.LayoutCoordinates, pad: Float): Zone {
@@ -476,7 +476,7 @@ private fun Home(
         val listLayout = layout.items.any { it.anchor.type == AnchorType.Stack }
         val lensItem = layout.items.firstOrNull { it.kind == ItemKind.Lens }
         val lensPt = Pt(geometry.lensX, geometry.lensY)
-        val barBottom = statusTop.value + 56f
+        val barBottom = statusTop.value + BAR_HEIGHT
 
         if (ed != null) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
@@ -488,7 +488,7 @@ private fun Home(
         if (clock != null || (date != null && freeDate == null)) {
             val a = clock?.anchor ?: Anchor.free(if (listLayout) 0f else .5f, 0f)
             val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
-            val topPad = (if (compact) 24.dp else if (listLayout) 72.dp else 92.dp) + dockTop + (geometry.areaH * a.fy).dp
+            val topPad = (if (compact) 24.dp else TEXT_TOP.dp) + dockTop + (geometry.areaH * a.fy).dp
             // §5.12 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
             val plate = !clock?.background.isNullOrEmpty()
             val clockInk = if (plate) LocalCrystal.current.fg else homeInk
@@ -907,7 +907,9 @@ private const val PULSE_ID = "#pulse"
 private const val LENS_A11Y_STEP = 24f
 
 /** Room under the editor bar for the name of what is edited, dp. */
-private const val EDIT_LABEL = 40f
+private const val EDIT_LABEL = 8f
+/** Where the clock and free text start below the status bar, dp: just under the editor bar. */
+private const val TEXT_TOP = BAR_HEIGHT + 4f
 
 /**
  * Places a clock or an unpinned date so that its centre sits at [fx] across the editor's area, the very point
