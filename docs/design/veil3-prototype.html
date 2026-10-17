@@ -272,7 +272,7 @@ input[type=range].r{flex:1;accent-color:var(--acc);height:28px}
       <tr><th>úroveň</th><th>krytí bez blur / s blur</th><th>kde</th></tr>
       <tr><td>Veil Light</td><td>64 % / 48 %</td><td>lišta a podnos editoru, toast, deska hodin; Home beze změny</td></tr>
       <tr><td>Veil Dense</td><td>80 % / 66 %</td><td>inspektory, předlohy, dialogy; listy rozostří Home o 5 dp a ztlumí ho</td></tr>
-      <tr><td>Veil Focus</td><td>84 % / 72 %</td><td>Studio, Search; Home rozostřené o 18 dp, zmenšené na 97 %, ztmavené a tónované akcentem</td></tr>
+      <tr><td>Veil Focus</td><td>74 % / 60 %</td><td>Studio, Search; Home rozostřené o 18 dp, zmenšené na 97 %, ztmavené a tónované akcentem</td></tr>
     </table></div>
     <p>Hloubku dělá jedna sdílená vrstva pod panelem (rozostření Home + tónované ztmavení), ne každý panel zvlášť. Home je vlastní vrstva Intelie, proto se na API 31+ rozostří skutečně i na Phone (3) (<code>RenderEffect</code>). Na Phone (3) se nerozostří jen tapeta pod oknem; Atmosphere je ale sama měkká.</p>
     <p>Krystalická hrana: 1 dp, nahoře světlá, uprostřed mizí, dole lehce do akcentu. Žádný neon, žádný lesk. Krystal / Mráz / Kapka / Matné jsou presety téže plochy (mění hranu a mléčnost), ne další systémy. Phone (3): rozostření za okny není dostupné (<code>supports_background_blur=0</code>), proto platí sloupec „bez blur“ a Studio to říká.</p>

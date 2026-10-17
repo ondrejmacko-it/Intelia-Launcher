@@ -13,21 +13,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import dev.intelia.launcher.data.Glass
 import kotlin.math.max
 
 /**
- * Density of a Veil surface (D12 as approved, DESIGN_SYSTEM §5.2): matte, calm, sharp text.
- * Light = small controls, Dense = contextual editors and sheets, Focus = Studio.
- * Not a blur: the Nothing Phone (3) has no cross-window blur, so density is what keeps text legible.
+ * Density of the one Veil material (D15): Light = editor bar, tray, toast, clock plate; Dense = inspectors, sheets,
+ * dialogs; Focus = Studio, Search, the drawer. Depth under an open surface comes from the shared backdrop
+ * ([veilBackdrop]), not from each panel.
  */
 enum class VeilLevel { Light, Dense, Focus }
 
@@ -44,44 +44,88 @@ data class VeilOrigin(val fx: Float, val fy: Float) {
 data class VeilTokens(
     val top: Color,
     val bottom: Color,
-    /** Edge far from the origin. */
-    val edgeCold: Color,
-    /** Edge at the origin: the accent, softened. */
-    val edgeHot: Color,
+    /** The crystal edge (1 dp): light at the top, fading by the middle, a faint accent at the bottom. */
+    val edgeTop: Color,
+    val edgeMid: Color,
+    val edgeBottom: Color,
     /** Inner light at the origin; very faint. */
     val glow: Color,
-    /** False: no outline at all (the edgeless glasses); the panel is set apart by [sheen], [bloom] and [grain]. */
-    val edge: Boolean = true,
-    /** Specular light falling from the top edge, fading out by [sheenReach] of the height. */
+    /** Milky light from the top edge, fading out by [sheenReach] of the height (Frost). */
     val sheen: Color = Color.Transparent,
-    val sheenReach: Float = .4f,
-    /** Accent light pooling at the edge opposite the top (Liquid). */
-    val bloom: Color = Color.Transparent,
+    val sheenReach: Float = 1f,
     /** Opacity of the fine frosted grain (Frost); 0 = none. */
     val grain: Float = 0f,
-    /** Diagonal specular streaks across the panel (Crystal's facets). */
+    /** Diagonal facet streaks across the panel (Crystal). */
     val streak: Color = Color.Transparent,
-    /** A rounded highlight near the top-left corner, like light caught in a drop (Liquid). */
-    val spot: Color = Color.Transparent,
-    /** A hairline of light along the top edge only, inside the panel (Crystal, Liquid). */
-    val rim: Color = Color.Transparent,
-    /** The rim runs round the whole outline, lit at two opposite corners (Liquid), instead of the top only. */
-    val rimAround: Boolean = false,
+    /** A soft glow just inside the outline (Liquid). */
+    val innerGlow: Color = Color.Transparent,
 )
 
 /**
- * Fill opacity per level (Clean Veil, §5.2): Light 62–68 %, Dense 77–83 %, Focus 88–93 % (top → bottom).
- * Text stays ≥ 4.5:1 on Light even over a white (dark theme) or black (light theme) wallpaper; a JVM test checks it.
+ * Body opacity per density (D15 revision 2). The no-blur column is the default: the Nothing Phone (3) has no
+ * cross-window blur. [blurred] only where the system really blurs the wallpaper behind the window.
+ * Text stays ≥ 4.5:1 on Light over a white (dark theme) or black (light theme) wallpaper; a JVM test checks it.
  */
-internal fun veilAlpha(level: VeilLevel): Pair<Float, Float> = when (level) {
-    VeilLevel.Light -> .62f to .68f
-    VeilLevel.Dense -> .77f to .83f
-    VeilLevel.Focus -> .88f to .93f
+internal fun veilAlpha(level: VeilLevel, blurred: Boolean = false): Float = when (level) {
+    VeilLevel.Light -> if (blurred) .48f else .64f
+    VeilLevel.Dense -> if (blurred) .66f else .80f
+    VeilLevel.Focus -> if (blurred) .60f else .74f
 }
 
-/** The owner's Veil choices from the editor's Look panel (§5.2): Solid panels, density shift, origin edge. */
+/** Accent tint laid over the body per density; quieter as the surface grows. */
+private fun veilTint(level: VeilLevel): Float = when (level) {
+    VeilLevel.Light -> .05f
+    VeilLevel.Dense -> .045f
+    VeilLevel.Focus -> .035f
+}
+
+/**
+ * A preset of the one surface (D15): Veil, Crystal, Frost, Liquid and Matte change only how the crystal edge is lit
+ * and how milky the body is, never the material. Edge alphas are for the dark theme; the light theme lifts the top
+ * light, since white on a pale body needs more to show.
+ */
 @Immutable
-data class VeilPrefs(val solid: Boolean = false, val shift: Int = 0, val edge: Boolean = true, val glass: Glass = Glass.Veil)
+internal data class VeilPreset(
+    val edgeTop: Float,
+    val edgeMid: Float,
+    val edgeAccent: Float,
+    /** Extra body opacity. */
+    val body: Float = 0f,
+    val milk: Float = 0f,
+    val grain: Float = 0f,
+    val facets: Float = 0f,
+    val innerGlow: Float = 0f,
+)
+
+internal fun veilPreset(glass: Glass, matte: Boolean): VeilPreset = if (matte) VeilPreset(.08f, .04f, .06f) else when (glass) {
+    Glass.Veil -> VeilPreset(.16f, .035f, .24f)
+    Glass.Crystal -> VeilPreset(.30f, .05f, .16f, facets = .07f)
+    Glass.Frost -> VeilPreset(.12f, .06f, .10f, body = .05f, milk = .05f, grain = .05f)
+    Glass.Liquid -> VeilPreset(.24f, .16f, .14f, innerGlow = .06f)
+}
+
+/** Any light a preset adds over a dark body lowers the contrast of white text, so the body grows by as much. */
+private fun lift(p: VeilPreset, dark: Boolean): Float = if (dark) 2f * (p.facets + p.innerGlow + p.milk) else 0f
+
+/** Matte (the "Solid panels" choice): near-opaque per density. */
+private fun matteAlpha(level: VeilLevel): Float = when (level) {
+    VeilLevel.Light -> .97f
+    VeilLevel.Dense -> .99f
+    VeilLevel.Focus -> 1f
+}
+
+/**
+ * The owner's Veil choices: Matte panels, density shift, the accent at the bottom of the edge, the preset.
+ * [blurred] is set by the backdrop only while the system blurs the wallpaper behind the window.
+ */
+@Immutable
+data class VeilPrefs(
+    val solid: Boolean = false,
+    val shift: Int = 0,
+    val edge: Boolean = true,
+    val glass: Glass = Glass.Veil,
+    val blurred: Boolean = false,
+)
 
 val LocalVeil = staticCompositionLocalOf { VeilPrefs() }
 
@@ -94,7 +138,7 @@ fun veil(level: VeilLevel): VeilTokens {
 
 /**
  * A clock or date plate (§5.12): [background] is a [dev.intelia.launcher.data.ClockBackground] name; Veil follows
- * the glass chosen in Look, the others pin their own glass to the plate.
+ * the preset chosen in Look, the others pin their own preset to the plate.
  */
 @Composable
 fun plateTokens(background: String): VeilTokens {
@@ -110,96 +154,46 @@ fun plateTokens(background: String): VeilTokens {
 }
 
 /**
- * A plate's own glass: the panel glass made bolder, since a plate is small and sits right on the wallpaper —
- * brighter facets, rim and highlight, a coarser grain, and a fine light outline so the slab reads as glass, not
- * a smudge. The fill gains body in step, so the text on it keeps ≥ 4.5:1 (a JVM test checks it).
+ * A plate's own preset: the same surface made bolder, since a plate is small and sits right on the wallpaper —
+ * brighter edge and facets, a coarser grain, a denser body. Text on it keeps ≥ 4.5:1 (a JVM test checks it).
  */
 fun plateGlass(glass: Glass, dark: Boolean, acc: Color, shift: Int = 0): VeilTokens {
     val t = veilTokens(VeilLevel.Light, dark, acc, VeilPrefs(shift = shift, glass = glass))
     if (glass == Glass.Veil) return t
     fun Color.more(k: Float, cap: Float = 1f) = copy(alpha = (alpha * k).coerceAtMost(cap))
     fun Color.denser(by: Float) = copy(alpha = (alpha + by).coerceIn(0f, .97f))
-    val outline = if (dark) Color.White.copy(alpha = .32f) else Color.White.copy(alpha = .95f)
     return t.copy(
-        top = t.top.denser(if (dark) .1f else .04f), bottom = t.bottom.denser(if (dark) .04f else .03f),
-        edge = true, edgeCold = outline, edgeHot = outline,
-        streak = t.streak.more(if (dark) 2.4f else 1.4f, if (dark) .27f else .85f),
-        spot = t.spot.more(if (dark) 4f else 1.6f, if (dark) .14f else .7f),
-        rim = t.rim.more(1.5f),
-        grain = (t.grain * 1.5f).coerceAtMost(.18f),
-        bloom = t.bloom.more(1.6f, .16f),
+        top = t.top.denser(.06f), bottom = t.bottom.denser(.06f),
+        edgeTop = t.edgeTop.more(1.6f, .95f), edgeMid = t.edgeMid.more(1.5f),
+        streak = t.streak.more(2f, .2f), innerGlow = t.innerGlow.more(2f, .2f),
+        grain = (t.grain * 1.5f).coerceAtMost(.12f),
     )
 }
 
+/** The one material: body + accent tint + crystal edge, then the preset's light. */
 fun veilTokens(level: VeilLevel, dark: Boolean, acc: Color, prefs: VeilPrefs = VeilPrefs()): VeilTokens {
-    if (prefs.solid) {
-        // §5.2 Solid: opaque matte fill, 1 dp white @ 15 % (black in light), accent only at the origin.
-        val solid = if (dark) Color(0xFF16181C) else Color(0xFFF5F6F7)
-        val edge = if (dark) Color.White.copy(alpha = .15f) else Color.Black.copy(alpha = .15f)
-        return VeilTokens(solid, solid, edge, if (prefs.edge) lerp(acc, edge, .3f) else edge, Color.Transparent)
-    }
+    val p = veilPreset(prefs.glass, prefs.solid)
     val shift = prefs.shift.coerceIn(-10, 10) / 100f
-    val (aTop, aBottom) = veilAlpha(level).let { (t, b) -> (t + shift).coerceIn(.5f, 1f) to (b + shift).coerceIn(.5f, 1f) }
-    // Clean Veil: deeper, purer neutral bases with only a trace (3 %) of the accent, so the wallpaper shows through
-    // as itself rather than under a grey film; a brighter cold edge keeps the panel's outline crisp.
-    val base = if (dark) Color(0xFF101216) else Color(0xFFF7F8F9)
-    val deep = if (dark) Color(0xFF0B0C0F) else Color(0xFFF0F2F4)
-    val tinted = lerp(base, acc, .03f)
-    if (prefs.glass != Glass.Veil) return edgeless(prefs.glass, dark, acc, aTop, aBottom, tinted, deep)
+    val a = if (prefs.solid) matteAlpha(level)
+        else (veilAlpha(level, prefs.blurred) + (if (!dark && level == VeilLevel.Light) .06f else 0f) + p.body + lift(p, dark) + shift).coerceIn(.45f, 1f)
+    val base = if (dark) Color(0xFF0D0F12) else Color(0xFFF7F8FA)
+    // The accent at [t] over the body at [a], as one colour: alpha t + a(1 - t), accent share t / alpha.
+    val t = if (prefs.solid) 0f else veilTint(level)
+    val alpha = t + a * (1f - t)
+    val body = lerp(base, acc, t / alpha).copy(alpha = alpha)
+    val hi = Color.White
     return VeilTokens(
-        top = tinted.copy(alpha = aTop),
-        bottom = deep.copy(alpha = aBottom),
-        edgeCold = if (dark) Color.White.copy(alpha = .14f) else Color.Black.copy(alpha = .10f),
-        edgeHot = if (prefs.edge) lerp(acc, if (dark) Color.White else Color.Black, .35f).copy(alpha = if (dark) .55f else .45f)
-            else if (dark) Color.White.copy(alpha = .18f) else Color.Black.copy(alpha = .14f),
-        glow = acc.copy(alpha = if (dark) .06f else .04f),
+        top = body, bottom = body,
+        edgeTop = hi.copy(alpha = if (dark) p.edgeTop else minOf(.9f, p.edgeTop * 3f)),
+        edgeMid = hi.copy(alpha = p.edgeMid),
+        edgeBottom = if (prefs.edge) acc.copy(alpha = p.edgeAccent) else hi.copy(alpha = p.edgeMid),
+        glow = if (prefs.solid) Color.Transparent else acc.copy(alpha = if (dark) .05f else .035f),
+        sheen = hi.copy(alpha = p.milk),
+        grain = p.grain,
+        streak = hi.copy(alpha = p.facets),
+        innerGlow = hi.copy(alpha = p.innerGlow),
     )
 }
-
-/**
- * The edgeless glasses (§5.2). Without an outline a panel needs a little more body in the dark theme, where any
- * light added on top lowers the contrast of white text, so the fill is denser there; a JVM test checks ≥ 4.5:1
- * over a white wallpaper with the sheen and bloom included.
- */
-private fun edgeless(glass: Glass, dark: Boolean, acc: Color, aTop: Float, aBottom: Float, top: Color, deep: Color): VeilTokens {
-    val none = Color.Transparent
-    fun a(v: Float) = v.coerceIn(.5f, .97f)
-    return when (glass) {
-        // Clear and cool: lighter body, two diagonal facet streaks and a lit top rim; no colour of its own.
-        Glass.Crystal -> {
-            val ice = if (dark) Color(0xFF0E1218) else Color(0xFFF4F7FA)
-            VeilTokens(
-                top = ice.copy(alpha = a(aTop + if (dark) .14f else -.04f)), bottom = deep.copy(alpha = a(aBottom + if (dark) .04f else -.04f)),
-                edgeCold = none, edgeHot = none, glow = none, edge = false,
-                sheen = Color.White.copy(alpha = if (dark) .04f else .45f), sheenReach = .3f,
-                streak = Color.White.copy(alpha = if (dark) .11f else .55f),
-                rim = Color.White.copy(alpha = if (dark) .6f else 1f),
-            )
-        }
-        // Milky: an opaque, paler body with a coarse visible grain; light spread evenly, no rim, no colour.
-        Glass.Frost -> {
-            val milk = if (dark) Color(0xFF262A31) else Color(0xFFFDFDFE)
-            VeilTokens(
-                top = milk.copy(alpha = a(aTop + .14f)), bottom = lerp(milk, deep, .35f).copy(alpha = a(aBottom + .12f)),
-                edgeCold = none, edgeHot = none, glow = none, edge = false,
-                sheen = Color.White.copy(alpha = if (dark) .03f else .3f), sheenReach = 1f, grain = if (dark) .11f else .09f,
-            )
-        }
-        // Liquid glass: clear and neutral, a rim of light running round the whole outline, brightest at the
-        // top-left and bottom-right corners, with a soft glow just inside it; a trace of the accent at the bottom.
-        Glass.Liquid -> VeilTokens(
-            top = top.copy(alpha = a(aTop + if (dark) .10f else -.02f)), bottom = deep.copy(alpha = a(aBottom + if (dark) .08f else -.02f)),
-            edgeCold = none, edgeHot = none, glow = none, edge = false,
-            sheen = Color.White.copy(alpha = if (dark) .03f else .35f), sheenReach = .25f,
-            bloom = acc.copy(alpha = if (dark) .07f else .08f),
-            spot = Color.White.copy(alpha = if (dark) .03f else .4f),
-            rim = Color.White.copy(alpha = if (dark) .75f else 1f), rimAround = true,
-        )
-        Glass.Veil -> error("Veil has an edge")
-    }
-}
-
-private fun Color.luminanceIsDark() = .2126f * red + .7152f * green + .0722f * blue < .5f
 
 /** A 64 px tile of white and black specks, made once; tiled at [VeilTokens.grain] it reads as frosted glass. */
 private val grainTile: ImageBitmap by lazy {
@@ -216,8 +210,8 @@ private val grainTile: ImageBitmap by lazy {
 }
 
 /**
- * The Veil material: a vertical fill, a 1 dp edge lit gently only near [origin], and a faint inner glow there.
- * Static; brushes are rebuilt only when the size changes. Clips content to [shape].
+ * The Veil surface: body, the crystal edge, a faint glow at [origin] and the preset's light. Static; brushes are
+ * rebuilt only when the size changes. Clips content to [shape].
  */
 fun Modifier.veilSurface(
     tokens: VeilTokens,
@@ -225,51 +219,35 @@ fun Modifier.veilSurface(
     shape: Shape = RoundedCornerShape(CrystalDims.radiusSheet),
 ): Modifier = clip(shape).drawWithCache {
     val outline = shape.createOutline(size, layoutDirection, this)
-    val fill = Brush.verticalGradient(listOf(tokens.top, tokens.bottom))
+    val fill = if (tokens.top == tokens.bottom) SolidColor(tokens.top) else Brush.verticalGradient(listOf(tokens.top, tokens.bottom))
     val o = Offset(origin.fx * size.width, origin.fy * size.height)
-    val reach = max(150.dp.toPx(), 1f)
-    val edge = Brush.radialGradient(listOf(tokens.edgeHot, tokens.edgeCold), center = o, radius = reach)
-    val glow = Brush.radialGradient(listOf(tokens.glow, Color.Transparent), center = o, radius = 1.6f * reach)
-    val stroke = Stroke(1.dp.toPx())
-    val sheen = if (tokens.sheen.alpha > 0f) Brush.verticalGradient(listOf(tokens.sheen, Color.Transparent), 0f, tokens.sheenReach * size.height) else null
-    val bloom = if (tokens.bloom.alpha > 0f) Brush.radialGradient(listOf(tokens.bloom, Color.Transparent),
-        center = Offset(size.width / 2f, size.height * 1.1f), radius = max(size.width * .7f, 1f)) else null
+    val glow = if (tokens.glow.alpha > 0f) Brush.radialGradient(listOf(tokens.glow, Color.Transparent), center = o,
+        radius = max(240.dp.toPx(), 1f)) else null
+    val edge = Brush.verticalGradient(0f to tokens.edgeTop, .45f to tokens.edgeMid, 1f to tokens.edgeBottom)
+    val stroke = Stroke(2.dp.toPx()) // half clipped by the shape: a 1 dp edge just inside
+    val sheen = if (tokens.sheen.alpha > 0f) Brush.verticalGradient(listOf(tokens.sheen, tokens.sheen.copy(alpha = tokens.sheen.alpha * .4f)),
+        0f, max(tokens.sheenReach * size.height, 1f)) else null
     val grain = if (tokens.grain > 0f) ShaderBrush(ImageShader(grainTile, TileMode.Repeated, TileMode.Repeated)) else null
     val streak = if (tokens.streak.alpha > 0f) {
-        // Two facets across the whole diagonal: a broad one near the top-left, a thin fainter one past the middle.
+        // Two facets across the diagonal: a broad one before the middle, a thin fainter one after it.
         val c = tokens.streak; val t = Color.Transparent
-        Brush.linearGradient(0f to t, .12f to c, .26f to t, .56f to t, .62f to c.copy(alpha = c.alpha * .6f), .68f to t, 1f to t,
+        Brush.linearGradient(0f to t, .28f to t, .36f to c, .44f to t, .62f to t, .68f to c.copy(alpha = c.alpha * .6f), .74f to t, 1f to t,
             start = Offset.Zero, end = Offset(size.width, size.height))
     } else null
-    val spot = if (tokens.spot.alpha > 0f) Brush.radialGradient(listOf(tokens.spot, Color.Transparent),
-        center = Offset(size.width * .18f, size.height * .12f), radius = max(minOf(size.width, size.height) * .45f, 1f)) else null
-    val rim = when {
-        tokens.rim.alpha <= 0f -> null
-        tokens.rimAround -> {
-            val r = tokens.rim; val t = Color.Transparent
-            Brush.linearGradient(0f to r, .28f to r.copy(alpha = r.alpha * .25f), .5f to t, .72f to r.copy(alpha = r.alpha * .2f), 1f to r.copy(alpha = r.alpha * .8f),
-                start = Offset.Zero, end = Offset(size.width, size.height))
-        }
-        else -> Brush.horizontalGradient(listOf(Color.Transparent, tokens.rim, Color.Transparent))
-    }
-    val rimStroke = Stroke(if (tokens.rimAround) 1.5.dp.toPx() else 1.dp.toPx())
-    // Twice as wide as the outline and half clipped by the shape: a soft glow just inside the rim.
-    val rimGlow = Stroke(8.dp.toPx())
+    val innerGlow = if (tokens.innerGlow.alpha > 0f) Stroke(28.dp.toPx()) else null
+    val innerCore = Stroke(12.dp.toPx())
     onDrawWithContent {
         drawOutline(outline, fill)
-        drawOutline(outline, glow)
-        bloom?.let { drawOutline(outline, it) }
+        glow?.let { drawOutline(outline, it) }
         grain?.let { drawOutline(outline, it, alpha = tokens.grain) }
         sheen?.let { drawOutline(outline, it) }
         streak?.let { drawOutline(outline, it) }
-        spot?.let { drawOutline(outline, it) }
-        rim?.let {
-            if (tokens.rimAround) {
-                drawOutline(outline, it, alpha = if (tokens.top.luminanceIsDark()) .10f else .35f, style = rimGlow)
-                drawOutline(outline, it, style = rimStroke)
-            } else clipRect(bottom = 1.5.dp.toPx()) { drawOutline(outline, it, style = rimStroke) }
+        innerGlow?.let {
+            // Two half-clipped bands, 14 dp and 6 dp inside: light thickening toward the outline.
+            drawOutline(outline, tokens.innerGlow, alpha = .5f, style = it)
+            drawOutline(outline, tokens.innerGlow, alpha = .5f, style = innerCore)
         }
         drawContent()
-        if (tokens.edge) drawOutline(outline, edge, style = stroke)
+        drawOutline(outline, edge, style = stroke)
     }
 }

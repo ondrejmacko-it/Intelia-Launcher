@@ -2,6 +2,33 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Veil 3.0 B1: one material, shared depth backdrop (`claude/crystal-redesign`)
+
+Change: `ui/Veil.kt` computes every panel from one formula (body + accent tint + 1 dp crystal edge light at the top →
+accent at the bottom); Veil / Crystal / Frost / Liquid / Matte are `VeilPreset` data, not separate drawings. Opacity
+Light 64 / Dense 80 / Focus 74 % (48 / 66 / 60 % only while the system blurs the wallpaper). New `ui/Depth.kt`: Home
+under Search and the drawer is blurred 18 dp (`RenderEffect`), scaled to 97 % and covered by the tinted theme scrim;
+the app options sheet over Home blurs it 5 dp with the scrim at 60 %. Blur is never stacked (one radius, the stronger).
+Cross-window wallpaper blur is used only where `isCrossWindowBlurEnabled`. No settings change, no migration.
+Verified:
+- `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug` — PASS; 112 JVM tests, 0 failures
+  (VeilTest rewritten: approved opacities, one material across presets, ≥ 4.5:1 over the worst wallpaper on Light and
+  Focus for every preset with its light included, plates, scrim, single blur radius).
+- Phone (Nothing Phone (3), debug Lab via `install -r`; `intelia.xml` backed up, byte-identical after the tests):
+  - `ro.surface_flinger.supports_background_blur=0`, `wm disable-blur` → "Blur supported on device: false": no
+    cross-window blur, the no-blur opacities apply.
+  - Search: Home behind is really blurred and scaled (screenshot), results card and field legible.
+  - Drawer (Focus 74 %): legible over blurred Home, edge visible at the top.
+  - Bug found and fixed: the app options sheet over the drawer let the rows below show through (74 % + scrim). Over a
+    text layer the sheet now takes the Matte preset; screenshot shows no ghost text.
+  - Studio panel (Focus 74 % straight over the wallpaper): legible.
+  - `dumpsys gfxinfo`, 5× open/close Search (keyboard included): with blur 474 frames, janky 12.0 %, p50 13 / p90 25 /
+    p95 34 / p99 61 ms; same build without blur 481 frames, 9.4 %, 13 / 21 / 27 / 48 ms; slow UI thread 34 both. The
+    cost is GPU during the transition only, so blur is skipped in battery saver and with Reduce motion (scrim only).
+Not verified: light theme, Reduce motion and battery-saver fallback on the phone, the Dense sheet over Home (Home's
+long-press opens the editor), a device with cross-window blur, TalkBack.
+Open: B2 (Home + Editor).
+
 ## 2026-10-17 — Settings as one-open folds, no duplicates, no dead options (`claude/crystal-redesign`, `811eae3`)
 
 Verified:

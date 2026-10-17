@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -88,20 +90,30 @@ fun AppOptionsSheet(
     level: VeilLevel = VeilLevel.Dense,
 ) {
     val ink = LocalInk.current
+    val state = rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded))
+    // Over Home the sheet softens it through the shared Dense depth; over Search or the drawer, Home is already in Focus.
+    if (level == VeilLevel.Dense) {
+        val open by animateFloatAsState(if (state.targetValue == SheetValue.Expanded) 1f else 0f, tween(motionMs(300)), label = "depth")
+        VeilDepthSource(VeilLevel.Dense) { open }
+    }
+    val scrim = veilScrim()
+    // Over Search or the drawer the rows below are text, which showed through a 74 % sheet on the Phone (3):
+    // there the sheet takes the Matte preset of the same material. Legibility first.
+    val c = LocalCrystal.current
+    val tokens = if (level == VeilLevel.Focus) veilTokens(level, c.dark, c.acc, LocalVeil.current.copy(solid = true)) else veil(level)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded)),
+        sheetState = state,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = Color.Transparent,
         contentColor = ink.ink,
-        // Over Search or the drawer (Focus) the rows below are bright text: a deeper scrim keeps them out of the sheet.
-        scrimColor = Color.Black.copy(alpha = if (level == VeilLevel.Focus) .60f else .40f),
+        scrimColor = if (level == VeilLevel.Focus) scrim else scrim.copy(alpha = scrim.alpha * DENSE_SCRIM),
         tonalElevation = 0.dp,
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0) },
     ) {
         // Veil Dense (§5.2; Focus over a layer): the sheet rises from the icon row at the bottom, so its edge is lit there.
-        Column(Modifier.fillMaxWidth().veilSurface(veil(level), VeilOrigin(.5f, 1.15f),
+        Column(Modifier.fillMaxWidth().veilSurface(tokens, VeilOrigin(.5f, 1.15f),
             RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).navigationBarsPadding().padding(bottom = 12.dp)) {
             Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp, bottom = 6.dp).size(28.dp, 3.dp)
                 .clip(RoundedCornerShape(2.dp)).background(ink.line))

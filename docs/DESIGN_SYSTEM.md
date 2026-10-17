@@ -260,6 +260,16 @@ white @ 14 % (black @ 10 % light), plain edge 18 % / 14 %, glow 6 % / 4 %. `Veil
 Veil Light over a white wallpaper (dark theme) and a black one (light theme). Every card, sheet, pill and
 inspector draws through `veilTokens`, so the change is uniform.
 
+**Veil 3.0 material (D15, B1, 2026-10-17)** — supersedes the values above. One formula in `veilTokens`: base
+`#0D0F12` dark / `#F7F8FA` light at Light 64 % (+6 % in the light theme), Dense 80 %, Focus 74 % (48 / 66 / 60 % only
+while the system blurs the wallpaper), accent tint 5 / 4.5 / 3.5 % over it; 1 dp crystal edge, white at the top →
+faint by 45 % → accent at the bottom. Presets (`VeilPreset`) only change edge light and milkiness: Veil 16/3.5/24 %,
+Crystal 30/5/16 % + facets 7 %, Frost 12/6/10 % + 5 % body, milk and grain, Liquid 24/16/14 % + inner glow 6 %,
+Matte 8/4/6 % near-opaque. In the dark theme a preset's added light grows the body by twice as much (white text
+contrast). Depth (`ui/Depth.kt`): Home under Focus blurs 18 dp (`RenderEffect`, API 31+), scales to 97 %, theme scrim
+base 52 % + accent 8 %; under a Dense sheet 5 dp and the scrim at 60 %; the stronger radius wins, never two blurs. No
+blur in battery saver or with Reduce motion. A sheet over a text layer (Search, drawer) takes Matte.
+
 **Origin edge (the Veil signature).** A 1 dp outline whose colour is a radial gradient: `acc` mixed 78 % with
 white at the point the surface came from (LENS for Search, the selected element for an inspector, the camera
 for PULSE, the button for a menu), fading to white @ 8 % within ~150 dp. Plus an inner glow `acc @ 15 %` over

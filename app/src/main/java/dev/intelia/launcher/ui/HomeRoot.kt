@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -215,11 +216,19 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     // Studio sets its own: its top is the wallpaper.
     if (page != Page.Studio) SystemBarIcons(darkIcons = when (page) {
         Page.Home -> homeInk.luminance() < .5f
-        Page.Search, Page.Drawer -> false // over the dimmed Home
+        Page.Search, Page.Drawer -> !ink.dark // over the depth scrim, which follows the theme
         else -> !ink.dark
     })
     // Search and the drawer are layers over Home: Home stays composed and visible under them.
     val surface = if (page == Page.Search || page == Page.Drawer) Page.Home else page
+    // D15 depth: one backdrop under the open surface. The wallpaper behind the window blurs only where the system offers it.
+    val depth = remember { VeilDepth() }
+    val crossBlur = rememberCrossWindowBlur()
+    val backdropBlur = rememberBackdropBlur()
+    val focusOpen = page == Page.Search || page == Page.Drawer
+    if (crossBlur) WindowBackdropBlur(focusOpen, with(LocalDensity.current) { 26.dp.roundToPx() })
+    val overlayVeil = LocalVeil.current.let { if (crossBlur) it.copy(blurred = true) else it }
+    CompositionLocalProvider(LocalVeilDepth provides depth) {
     val enter = motionMs(140)
     val exit = motionMs(100)
     Box(Modifier.fillMaxSize()) {
@@ -227,7 +236,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
             label = "page") { target ->
             when (target) {
                 Page.Home -> Box(Modifier.fillMaxSize()) {
-                Home(
+                Box(Modifier.fillMaxSize().veilBackdrop(depth, backdropBlur)) { Home(
                     settings = settings,
                     apps = remember(favorites, visible) { (visible + favorites).associateBy { it.key } },
                     arc = remember(arcApps, arcFlows, arcShortcuts, settings.arcRings) {
@@ -250,8 +259,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                         model.updateSettings { it.copy(home = it.home.save(edited)) }
                         message(R.string.edit_saved)
                     },
-                )
-                if (page == Page.Search) AccentScope(PaletteTarget.Search) { SearchOverlay(
+                ) }
+                if (page == Page.Search) AccentScope(PaletteTarget.Search, overlayVeil) { SearchOverlay(
                     model = model,
                     settings = settings,
                     fromLens = searchFromLens,
@@ -264,7 +273,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                 // The drawer is composed once Home has rested, then kept, so a swipe up only animates it.
                 var drawerReady by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) { delay(700); drawerReady = true }
-                if (drawerReady || page == Page.Drawer) AccentScope(PaletteTarget.Search) { DrawerOverlay(
+                if (drawerReady || page == Page.Drawer) AccentScope(PaletteTarget.Search, overlayVeil) { DrawerOverlay(
                     model = model,
                     open = page == Page.Drawer,
                     onBack = ::goHome,
@@ -327,6 +336,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
             // Over Search or the drawer the sheet covers rows of text: Focus density keeps them from showing through.
             level = if (page == Page.Search || page == Page.Drawer) VeilLevel.Focus else VeilLevel.Dense,
         )
+    }
     }
 }
 

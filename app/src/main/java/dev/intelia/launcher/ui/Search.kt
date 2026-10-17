@@ -108,8 +108,6 @@ private const val RAIL = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 private fun indexLetter(label: String): Char =
     AppSearch.fold(label).firstOrNull()?.uppercaseChar()?.takeIf { it in 'A'..'Z' } ?: '#'
 
-/** Home under Search and the drawer: dimmed, never replaced (§5.6). */
-private val Scrim = Color.Black.copy(alpha = .42f)
 
 /** The paper-ink kit (rows, rail) re-coloured for text on a Veil surface of the current theme. */
 @Composable
@@ -182,8 +180,10 @@ fun SearchOverlay(
         }
     }
 
+    // Home under Search: the shared Focus depth (blurred, scaled, tinted), never replaced (§5.6, D15).
+    VeilDepthSource(VeilLevel.Focus) { morph.value }
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = morph.value }.background(Scrim)
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = morph.value }.background(veilScrim())
             .pointerInput(Unit) { detectTapGestures { leave() } })
         Box(Modifier.fillMaxSize()) {
             val nav = WindowInsets.navigationBars
@@ -230,8 +230,8 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
             clipRect(left, top, right, bottom) { this@drawWithContent.drawContent() }
             if (tokens.sheen.alpha > 0f) drawRoundRect(Brush.verticalGradient(listOf(tokens.sheen, Color.Transparent), top, top + (bottom - top) * tokens.sheenReach),
                 at, box, corner, alpha = m)
-            // An edgeless glass keeps the LENS ring only while it morphs; the open field has no outline.
-            val ring = if (tokens.edge) lerp(homeInk.copy(alpha = .88f), tokens.edgeHot, m) else homeInk.copy(alpha = .88f * (1f - m))
+            // The LENS ring turns into the field's crystal edge as it opens.
+            val ring = lerp(homeInk.copy(alpha = .88f), tokens.edgeTop, m)
             drawRoundRect(ring, at, box, corner, style = Stroke(if (m < 1f) 1.5.dp.toPx() else 1.dp.toPx()))
         }
         .padding(start = 18.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -388,10 +388,11 @@ fun DrawerOverlay(
     }
     BackHandler(enabled = open) { leave() }
 
+    VeilDepthSource(VeilLevel.Focus) { shown.value }
     // Parked: off-screen, not drawn, out of the accessibility tree and of hit testing, so Home works as if absent.
     Box(Modifier.fillMaxSize().then(if (parked) Modifier.offset { IntOffset(0, 100_000) }.graphicsLayer { alpha = 0f }
         .clearAndSetSemantics { } else Modifier)) {
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown.value }.background(Scrim)
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown.value }.background(veilScrim())
             .pointerInput(Unit) { detectTapGestures { leave() } })
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(8.dp)
             // Alpha per draw op: no full-screen offscreen layer while the sheet fades.

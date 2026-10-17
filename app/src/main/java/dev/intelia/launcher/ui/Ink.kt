@@ -195,6 +195,12 @@ fun AccentScope(target: PaletteTarget, content: @Composable () -> Unit) {
     }
 }
 
+/** [AccentScope] with the Veil choices of an overlay (e.g. the lighter blurred column while the system blurs the wallpaper). */
+@Composable
+fun AccentScope(target: PaletteTarget, veil: VeilPrefs, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalVeil provides veil) { AccentScope(target, content) }
+}
+
 /** True when the system wallpaper wants dark text; follows wallpaper changes while composed. */
 @Composable
 fun rememberWallpaperWantsDarkText(): Boolean {
