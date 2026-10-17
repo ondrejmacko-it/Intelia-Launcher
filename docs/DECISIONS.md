@@ -180,7 +180,7 @@ Unbounded (wght). Files in `res/font/`, licences in `assets/licenses/<Family>-OF
 Subsetting is a modification under the OFL; none of the families' names is a Reserved Font Name (DM Serif Display
 reserves only "Source"), so the names stay. Used only for the clock and the date (owner's choice per item).
 
-## D15 — 2026-10-17 — Intelia Veil 3.0 (PROPOSED, awaiting owner approval)
+## D15 — 2026-10-17 — Intelia Veil 3.0 (APPROVED by the owner 2026-10-17, after revision 2)
 Phase A of the owner's "Veil 3.0" brief. Prototype `docs/design/veil3-prototype.html` (private artifact
 https://claude.ai/artifact/UCthmYs5TCqSjsdSFbh9EF). Builds on D10/D12/D13; nothing that exists is rebuilt.
 - **One material, three densities** (Veil Light / Dense / Focus); one crystal edge (1 dp, light at the top, fading,
@@ -203,3 +203,13 @@ Home sharp so the edited element stays visible. Home is Intelia's own layer, so 
 (`RenderEffect`), Phone (3) included; only the wallpaper behind the window stays sharp there. Focus panel opacity
 84 % (72 % with cross-window blur), Dense 80 / 66 %, Light 64 / 48 %. The keyboard layer is Veil Focus, the old
 separate Search scrim is gone, Studio rises 22 dp with a 1.5 % scale, the status bar fades under Focus.
+**Revision 2 (owner test of the prototype, 2026-10-17):** every material surface carries the base `v` class
+(the density classes alone drew no surface); the Search field is fully drawn with a placeholder and takes focus
+while it unfolds (no 320 ms delay); inspectors are placed from the element's settled position (after the editor's
+86 % scale), on the side with more room, and keep still while a slider is dragged (they move only if the element
+would grow under them); sliders update value and preview without rebuilding the inspector. Focus opacity lowered to
+74 % (60 % with cross-window blur) so it stays faintly crystalline over the shared Focus backdrop; Light 64 / 48 %,
+Dense 80 / 66 % unchanged. Checked in a desktop browser only: 9 scenes × dark/light/colour wallpaper × dark/light
+UI × Reduced Motion (materials have a computed background, no inspector overlaps its element, Search focused),
+a real pointer drag of the clock size slider min→max, typing "rano" into Search and Esc. Not verified: phone-width
+page, Android blur, permissions, performance.

@@ -108,7 +108,8 @@ table.m th{font-weight:620;color:var(--page-dim)}
 .etray{position:absolute;left:16px;right:16px;bottom:34px;height:56px;border-radius:28px;display:flex;align-items:stretch;padding:4px;gap:2px;z-index:20;transition:opacity calc(200ms*var(--d)),transform calc(260ms*var(--d)) var(--ease)}
 .off{opacity:0;pointer-events:none;transform:translateY(-8px)}
 .etray.off{transform:translateY(10px)}
-.pbtn{font:inherit;color:var(--fg);border:0;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;min-width:48px;border-radius:24px;font-size:14px;font-weight:540}
+.pbtn{font:inherit;color:var(--fg);border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;min-width:48px;border-radius:24px;font-size:14px;font-weight:540}
+.pbtn:not(.v){background:none}
 .pbtn.pill{height:40px;min-height:40px;padding:0 14px}
 .pbtn.round{width:44px;height:44px;min-height:44px;min-width:44px;padding:0}
 .pbtn.acc{background:var(--acc);color:var(--acc-ink)}
@@ -181,7 +182,8 @@ input[type=range].r{flex:1;accent-color:var(--acc);height:28px}
 
 /* Search */
 .sfld{position:absolute;z-index:29;display:flex;align-items:center;gap:10px;overflow:hidden;border-radius:26px;transition:left calc(300ms*var(--d)) var(--ease),top calc(300ms*var(--d)) var(--ease),width calc(300ms*var(--d)) var(--ease),height calc(300ms*var(--d)) var(--ease),opacity calc(150ms*var(--d))}
-.sfld input{flex:1;min-width:0;background:none;border:0;outline:0;font:inherit;font-size:16px;color:var(--fg);opacity:0;transition:opacity calc(160ms*var(--d)) calc(140ms*var(--d))}
+.sfld input{flex:1;min-width:0;background:none;border:0;outline:0;font:inherit;font-size:16px;color:var(--fg);opacity:0;transition:opacity calc(160ms*var(--d))}
+.sfld input::placeholder{color:var(--fg2)}
 .sfld.open input{opacity:1}
 .sfld .lensdot{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--fg2);flex:none;margin-left:15px}
 .kbd{position:absolute;left:0;right:0;bottom:0;height:300px;z-index:29;padding:10px 4px 30px;border-radius:26px 26px 0 0;display:flex;flex-direction:column;gap:9px;transform:translateY(100%);transition:transform calc(280ms*var(--d)) var(--ease)}
@@ -213,14 +215,14 @@ input[type=range].r{flex:1;accent-color:var(--acc);height:28px}
     <div class="cam"></div>
     <div class="ebar off" id="ebar"></div>
     <div class="scrim" id="scrim"></div>
-    <div class="etray vl off" id="etray"></div>
-    <div class="pop vd hide" id="pop" role="dialog" aria-label="Inspektor"></div>
-    <div class="sheet vd hide" id="sheet" role="dialog"></div>
+    <div class="etray v vl off" id="etray"></div>
+    <div class="pop v vd hide" id="pop" role="dialog" aria-label="Inspektor"></div>
+    <div class="sheet v vd hide" id="sheet" role="dialog"></div>
     <div class="res" id="res"></div>
-    <div class="sfld vd" id="sfld" hidden><span class="lensdot"></span><input id="sq" aria-label="Hledat" autocomplete="off"></div>
+    <div class="sfld v vd" id="sfld" hidden><span class="lensdot"></span><input id="sq" aria-label="Hledat" placeholder="Hledat aplikace a FLOW" autocomplete="off"></div>
     <div class="kbd v vf" id="kbd"></div>
-    <div class="studio vf hide" id="studio"><div class="track" id="track"><div class="page" id="st1"></div><div class="page" id="st2"></div></div></div>
-    <div class="toast vl" id="toast"></div>
+    <div class="studio v vf hide" id="studio"><div class="track" id="track"><div class="page" id="st1"></div><div class="page" id="st2"></div></div></div>
+    <div class="toast v vl" id="toast"></div>
     <div class="nav" id="nav" title="Zpět"><i></i></div>
   </div></div></div>
 
@@ -385,7 +387,7 @@ function applyVars() {
   st.setProperty('--eT', m === 'dark' ? gl[1] : Math.min(.9, gl[1] * 3));
   st.setProperty('--eB', gl[2]); st.setProperty('--eA', gl[3] * k);
   const solid = S.glass === 'matte';
-  const A = S.blur ? [.48,.66,.72] : [.64,.80,.84];
+  const A = S.blur ? [.48,.66,.6] : [.64,.80,.74];
   st.setProperty('--aL', solid ? .97 : A[0] + (m === 'light' ? .06 : 0)); st.setProperty('--aD', solid ? .99 : A[1]); st.setProperty('--aF', solid ? 1 : A[2]);
   if (m === 'light') st.setProperty('--hi', '20 23 27');
   const darkInk = wl.ink === 'light';
@@ -437,8 +439,8 @@ const selName = () => S.sel === 'clock' ? 'Hodiny' : S.sel === 'lens' ? 'LENS' :
 function renderEditor() {
   const eb = $('ebar'), tr = $('etray');
   eb.classList.toggle('off', !S.editing || !!S.studio); tr.classList.toggle('off', !S.editing || !!S.studio || !!S.sheet);
-  eb.innerHTML = `<button class="pbtn round vl" data-act="cancel" aria-label="Zrušit úpravy">${svg('x',20)}</button>
-    <div class="vl" style="display:flex;border-radius:22px"><button class="pbtn round" data-act="undo" aria-label="Zpět o krok" ${hist.length ? '' : 'disabled'}>${svg('undo',20)}</button><button class="pbtn round" data-act="redo" aria-label="Znovu" ${fut.length ? '' : 'disabled'}>${svg('redo',20)}</button></div>
+  eb.innerHTML = `<button class="pbtn round v vl" data-act="cancel" aria-label="Zrušit úpravy">${svg('x',20)}</button>
+    <div class="v vl" style="display:flex;border-radius:22px"><button class="pbtn round" data-act="undo" aria-label="Zpět o krok" ${hist.length ? '' : 'disabled'}>${svg('undo',20)}</button><button class="pbtn round" data-act="redo" aria-label="Znovu" ${fut.length ? '' : 'disabled'}>${svg('redo',20)}</button></div>
     <div class="ename" style="color:var(--wf2);text-shadow:var(--wsh)">${selName()}</div>
     <button class="pbtn pill acc" data-act="save">${svg('ok',18,2)} Hotovo</button>`;
   const mode = { grid:'Mřížka', free:'Volně', hybrid:'Hybrid' }[S.mode];
@@ -483,14 +485,27 @@ function placePop() {
   const p = $('pop');
   if (!S.pop) { p.classList.add('hide'); return; }
   p.innerHTML = popHTML(); p.classList.remove('hide');
-  if (S.pop === 'leave') { p.style.left = '40px'; p.style.top = '330px'; p.style.bottom = ''; p.style.transformOrigin = '50% 50%'; return; }
+  positionPop();
+}
+// Where the item will sit once Home has settled: undo Home's current (maybe mid-transition) scale, apply the target one.
+function settledRect(el) {
+  const sr = scr.getBoundingClientRect(), s = sr.width / W, hr = home.getBoundingClientRect(), k = hr.width / sr.width, r = el.getBoundingClientRect();
+  const lx = (r.left - hr.left) / (s * k), ly = (r.top - hr.top) / (s * k), lw = r.width / (s * k), lh = r.height / (s * k);
+  const t = S.editing ? .86 : 1, ox = W * .5, oy = H * .52;
+  return { x: ox + (lx - ox) * t, y: oy + (ly - oy) * t, w: lw * t, h: lh * t };
+}
+// Inspector grows from the item on the side with more room, so the edited item stays visible.
+const POP_TOP = 96, POP_BOTTOM = H - 100;
+function positionPop() {
+  const p = $('pop');
+  if (S.pop === 'leave') { Object.assign(p.style, { left:'40px', top:'330px', bottom:'', maxHeight:'' }); p.style.transformOrigin = '50% 50%'; return; }
   const el = home.querySelector(`[data-item="${S.sel}"]`); if (!el) return;
-  const sr = scr.getBoundingClientRect(), r = el.getBoundingClientRect(), s = sr.width / W;
-  const x = (r.left - sr.left) / s, y = (r.top - sr.top) / s, w = r.width / s, h = r.height / s;
-  const left = Math.max(12, Math.min(W - 342, x + w/2 - 165));
+  const { x, y, w, h } = settledRect(el);
+  const left = Math.max(12, Math.min(W - 342, x + w/2 - 165)), ax = Math.max(24, Math.min(306, x + w/2 - left));
+  const above = y - 12 - POP_TOP, below = POP_BOTTOM - (y + h + 12);
   p.style.left = left + 'px';
-  if (y + h/2 > H * .5) { p.style.top = ''; p.style.bottom = (H - y + 16) + 'px'; p.style.maxHeight = (y - 16 - 96) + 'px'; p.style.transformOrigin = `${x + w/2 - left}px 100%`; }
-  else { p.style.bottom = ''; p.style.top = (y + h + 16) + 'px'; p.style.maxHeight = (H - (y + h + 16) - 100) + 'px'; p.style.transformOrigin = `${x + w/2 - left}px 0`; }
+  if (above > below) { p.style.bottom = (H - y + 12) + 'px'; p.style.top = ''; p.style.maxHeight = above + 'px'; p.style.transformOrigin = `${ax}px 100%`; }
+  else { p.style.bottom = ''; p.style.top = (y + h + 12) + 'px'; p.style.maxHeight = below + 'px'; p.style.transformOrigin = `${ax}px 0`; }
 }
 function sheetHTML() {
   if (S.sheet === 'presets') {
@@ -608,7 +623,7 @@ function renderResults() {
   const { apps, flow } = results();
   const rows = apps.map((a,i) => `<button class="rrow${i===0 && !flow ? ' first' : ''}" data-act="open" data-v="${a}">${iconHTML(a, 36, S.icon.style, S.icon.shape)}<span>${APPS[a][0]}</span>${i===0 && !flow ? '<span class="hint">Enter</span>' : ''}</button>`);
   if (!S.q) rows.push(`<div class="info" style="padding:0 12px 4px">Nedávné · zkuste „ráno“ (FLOW) nebo „kalendar“ bez háčků</div>`);
-  if (flow) rows.unshift(`<div class="flowc vd"><span style="flex:1"><span style="font-size:15px;font-weight:600">FLOW · ${flow[0]}</span><span style="display:flex;gap:6px;margin-top:6px;align-items:center;color:var(--fg2);font-size:12px">${flow[1].map((a,i) => `${i+1} ${iconHTML(a, 26, 'veil', 'circle')}`).join('')}</span></span><button class="pbtn pill acc" data-act="runflow">Spustit</button></div>`);
+  if (flow) rows.unshift(`<div class="flowc v vd"><span style="flex:1"><span style="font-size:15px;font-weight:600">FLOW · ${flow[0]}</span><span style="display:flex;gap:6px;margin-top:6px;align-items:center;color:var(--fg2);font-size:12px">${flow[1].map((a,i) => `${i+1} ${iconHTML(a, 26, 'veil', 'circle')}`).join('')}</span></span><button class="pbtn pill acc" data-act="runflow">Spustit</button></div>`);
   if (!apps.length && !flow) rows.push(`<div class="info" style="padding:8px 12px">Žádná aplikace ani příkaz „${S.q}“.</div>`);
   r.innerHTML = rows.join('');
 }
@@ -622,7 +637,8 @@ function openSearch(on) {
     f.getBoundingClientRect();
     requestAnimationFrame(() => { set(open); f.style.borderRadius = '26px'; f.classList.add('open'); k.classList.add('on'); depth(); });
     r.style.bottom = (300 + 64 + 12) + 'px'; r.style.opacity = 1; renderResults();
-    setTimeout(() => { try { $('sq').focus({ preventScroll:true }); } catch (e) {} }, 320 * (S.reduce ? 0 : 1));
+    // Ready to type at once: focus runs alongside the unfold, never after it.
+    try { $('sq').focus({ preventScroll:true }); } catch (e) {}
   } else {
     S.search = false; f.classList.remove('open'); set(closed); f.style.borderRadius = '50%'; k.classList.remove('on'); depth(); r.style.opacity = 0;
     setTimeout(() => { if (!S.search) { f.hidden = true; renderResults(); } }, 300 * (S.reduce ? 0 : 1));
@@ -639,7 +655,13 @@ function render() {
   applyVars(); depth(); renderHome(); renderEditor(); placePop(); renderSheet(); renderStudio(); renderPanel();
 }
 function renderLight() { applyVars(); renderHome(); const lp = $('lookprev'); if (lp) lp.innerHTML = miniHTML(S, 92); if (S.pop) { const p = $('pop'); const keep = p.scrollTop; placePopPosOnly(); p.scrollTop = keep; } }
-function placePopPosOnly() { const html = $('pop').innerHTML; placePop(); }
+// While a slider is dragged the inspector stays put (the thumb must not move under the finger); it moves only if the item would grow under it.
+function placePopPosOnly() {
+  const el = S.pop !== 'leave' && home.querySelector(`[data-item="${S.sel}"]`); if (!el) return;
+  const sr = scr.getBoundingClientRect(), s = sr.width / W, pr = $('pop').getBoundingClientRect(), r = settledRect(el);
+  const py = (pr.top - sr.top) / s, ph = pr.height / s;
+  if (r.y < py + ph + 4 && r.y + r.h > py - 4) positionPop();
+}
 
 /* ---------- actions ---------- */
 function enterEdit() { closeAll(); S.editing = true; entry = snap(); hist = []; fut = []; cur = entry; S.sel = null; render(); }
