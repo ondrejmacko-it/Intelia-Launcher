@@ -59,6 +59,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.PaletteTarget
+import dev.intelia.launcher.data.AnchorType
+import dev.intelia.launcher.data.HomeItem
+import dev.intelia.launcher.data.ItemKind
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.layout
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.Haptics
@@ -112,7 +117,11 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll:
         Column(Modifier.fillMaxSize()) {
             // Live preview on the real wallpaper: nothing is drawn behind it.
             Box(Modifier.fillMaxWidth().height(300.dp)) {
-                HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize().statusBarsPadding(), scale = .78f, onWallpaper = true)
+                // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
+                val items = settings.home.activeLayout().items
+                HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize().statusBarsPadding(),
+                    scale = .78f, onWallpaper = true, home = HomeText(items.firstOrNull { it.kind == ItemKind.Clock },
+                        items.firstOrNull { it.kind == ItemKind.Date }))
                 Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconAction(Glyph.Back, stringResource(R.string.home), onBack, tint = homeInk)
                     Text(stringResource(R.string.studio_live).uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
@@ -355,14 +364,20 @@ fun HomePreview(
     modifier: Modifier = Modifier,
     scale: Float = 1f,
     onWallpaper: Boolean = false,
+    home: HomeText? = null,
 ) {
     val custom = settings.layout == HomeLayout.Custom
     fun d(v: Float): Dp = (v * scale).dp
     BoxWithConstraints(modifier.semantics(mergeDescendants = true) { }) {
+        val textRoom = maxHeight - d(64f) - d(84f)
         Column(Modifier.fillMaxWidth().padding(top = d(64f), start = d(28f), end = d(28f)),
             horizontalAlignment = if (custom) Alignment.Start else Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(d(8f))) {
-            if (settings.showClock) SplitClock(now.toLocalTime(), settings.clockStyle, ink, accent, (84f * scale).sp, shadow = onWallpaper)
-            if (settings.showDate) Text(dateLine(now), style = InkText.label.copy(fontSize = (11f * scale).coerceAtLeast(8f).sp,
+            // A big or stacked clock is shrunk as a whole to the room above LENS, so it never runs into the row.
+            if (home != null) Box(Modifier.fitHeight(textRoom, if (custom) 0f else .5f)) {
+                HomeClockPreview(home, settings, now, ink, accent, scale)
+            }
+            else if (settings.showClock) SplitClock(now.toLocalTime(), settings.clockStyle, ink, accent, (84f * scale).sp, shadow = onWallpaper)
+            if (home == null && settings.showDate) Text(dateLine(now), style = InkText.label.copy(fontSize = (11f * scale).coerceAtLeast(8f).sp,
                 letterSpacing = (2.2f * scale).sp, shadow = if (onWallpaper) homeShadow(ink) else null), color = ink.copy(alpha = .8f), maxLines = 1)
         }
         if (custom) Column(Modifier.align(Alignment.BottomStart).padding(start = d(28f), bottom = d(92f))) {
@@ -380,6 +395,47 @@ fun HomePreview(
             LensMark(ink, ring = d(44f))
             slots.drop(2).forEach { PreviewSlot(it, ink, scale) }
         }
+    }
+}
+
+/** Measures the content at its full height and, when taller than [max], draws it scaled down from the top. */
+private fun Modifier.fitHeight(max: Dp, originX: Float) = layout { m, c ->
+    val p = m.measure(c.copy(maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
+    val limit = max.roundToPx().coerceAtLeast(1)
+    val k = if (p.height > limit) limit.toFloat() / p.height else 1f
+    layout(p.width, minOf(p.height, limit)) {
+        p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(originX, 0f) }
+    }
+}
+
+/** Home's clock and date items for the Studio preview; either may be missing (hidden on Home). */
+data class HomeText(val clock: HomeItem?, val date: HomeItem?)
+
+/** The clock with its bound date, drawn with the item's own face, size, weight, colour, opacity and plate, scaled. */
+@Composable
+private fun HomeClockPreview(home: HomeText, settings: LauncherSettings, now: LocalDateTime, ink: Color, accent: Color, scale: Float) {
+    val clock = home.clock
+    val date = home.date
+    val bound = date?.takeIf { it.anchor.type == AnchorType.Bound }
+    // A free date has its own place on Home; in the miniature it simply follows the clock.
+    val free = date?.takeIf { it.anchor.type != AnchorType.Bound }
+    fun scaled(d: HomeItem) = d.copy(sizeDp = (d.dateSp() * scale).roundToInt().coerceAtLeast(8),
+        look = d.look.copy(padX = d.look.padX * scale, padY = d.look.padY * scale))
+    val plate = !clock?.background.isNullOrEmpty()
+    val clockInk = if (plate) LocalCrystal.current.fg else ink
+    Column(verticalArrangement = Arrangement.spacedBy((10f * scale).dp)) {
+        if (clock != null || bound != null) Column(Modifier.then(if (plate) Modifier.veilSurface(plateTokens(clock.background), VeilOrigin.Top,
+                RoundedCornerShape((26f * scale).dp)).padding(horizontal = ((20f + clock.look.padX) * scale).dp,
+                vertical = ((15f + clock.look.padY) * scale).dp) else Modifier),
+            verticalArrangement = Arrangement.spacedBy((10f * scale).dp)) {
+            if (clock != null) {
+                val size = if (clock.sizeDp == 0) ItemSizes.CLOCK else clock.sizeDp
+                SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: clockInk, accent, (size * scale).sp,
+                    Modifier.graphicsLayer { alpha = clock.alpha }, shadow = !plate, weight = clock.weight, look = clock.look)
+            }
+            if (bound != null) DateText(scaled(bound), now, clockInk, accent, Modifier.offset((bound.look.dx * scale).dp, (bound.look.dy * scale).dp))
+        }
+        if (free != null) DateText(scaled(free), now, ink, accent, Modifier)
     }
 }
 

@@ -928,7 +928,7 @@ private fun Modifier.atFx(fx: Float, areaLeft: Float, areaW: Float, margin: Floa
 
 /** The date line in its own format, size, colour and opacity; 4.2 default: 12 sp caps, +2.2 tracking, fg2 (62 %). */
 @Composable
-private fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent: Color, modifier: Modifier) {
+internal fun DateText(item: HomeItem, now: LocalDateTime, homeInk: Color, accent: Color, modifier: Modifier) {
     val size = item.dateSp()
     val look = item.look
     val text = dateText(now, item.dateFormat(), look)

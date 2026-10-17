@@ -17,8 +17,10 @@ Verified:
   - Studio: Upravit plochu, ARC (Kruhy: 3), Spravovat příkazy, PULSE (Jen na ploše), Pohyb a dotek, Skryté aplikace,
     O aplikaci; ARC opened in place with an accent plate. Palette, material and icon style are no longer in Studio.
 Not verified: Date and PULSE cards on the phone; light theme; TalkBack on the folds.
-Open: Studio's live preview draws the clock from `settings.clockStyle`, not from Home's clock item, so it can differ
-from Home (seen: Ink preview vs Unbounded on Home). D13 ④ wallpapers not started.
+- Follow-up: Studio's live preview now draws Home's own clock and date items (face, size, weight, colour, plate;
+  a free date follows the clock) and shrinks them to the room above LENS. Phone: the preview showed the stacked
+  Unbounded clock on its Veil plate with „SO 17. 10.“, as on Home; before it showed an Ink clock. Build PASS, 111 tests.
+Open: D13 ④ wallpapers not started.
 
 ## 2026-10-17 — Editor card grows upwards, one size for all icons, clock under the status bar (`claude/crystal-redesign`, `8acce00`)
 

@@ -11,7 +11,7 @@ docs/screens/README.md; kód `ui/HomeRoot.kt` (pozadí Home, `homeInk`, `wallPla
 Hotovo minule (`811eae3`): celé nastavení je v rozbalovacích sekcích, otevřená je vždy jen jedna (zvýrazněná
 akcentem); duplicity pryč (vzhled jen ve Vzhledu, chování jen ve Studiu); volby bez účinku se v dané kombinaci
 skrývají (Matné je pátý materiál, písmo hodin je jeden seznam, tloušťka jen u písem s váhami…), viz DESIGN_SYSTEM
-§5.5.4. Otevřené: náhled ve Studiu kreslí hodiny podle `settings.clockStyle`, ne podle hodin na ploše — oprav. Na
+§5.5.4. Náhled ve Studiu kreslí hodiny a datum z plochy. Na
 začátku se zeptej majitele, jestli mu vadí, že lišta editoru překrývá hodiny dané úplně nahoru (řešení: lištu při
 tažení hodin skrýt / přesunout dolů), a zda chce u řady LENS vlastní posun každého slotu.
 
