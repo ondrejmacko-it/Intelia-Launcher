@@ -59,14 +59,14 @@ fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
     }
 }
 
-private fun glassName(g: Glass) = when (g) {
+internal fun glassName(g: Glass) = when (g) {
     Glass.Veil -> R.string.look_veil
     Glass.Crystal -> R.string.glass_crystal
     Glass.Frost -> R.string.glass_frost
     Glass.Liquid -> R.string.glass_liquid
 }
 
-private fun themeName(t: ThemeMode) = when (t) {
+internal fun themeName(t: ThemeMode) = when (t) {
     ThemeMode.System -> R.string.theme_system
     ThemeMode.Light -> R.string.theme_light
     ThemeMode.Dark -> R.string.theme_dark
@@ -86,8 +86,8 @@ fun MaterialChips(settings: LauncherSettings, set: SettingsEdit) {
 }
 
 /**
- * The editor's Look panel (Vzhled): everything that styles the whole Home and every panel, each part folded and
- * naming its current choice, one open at a time. Settings apply immediately; labels and icon sizes go through undo.
+ * The editor's Look panel (Vzhled): the shared [LookSettings] plus what belongs to the edited layout (icon sizes and
+ * names, through undo). Settings apply immediately.
  */
 @Composable
 fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsEdit, onChange: () -> Unit,
@@ -95,43 +95,66 @@ fun LookPanel(settings: LauncherSettings, state: HomeEditorState, set: SettingsE
     val c = LocalCrystal.current
     // The body of the editor card (InspectorCard): it brings the glass, the header, the scroll and the handles.
     Column(modifier.fillMaxWidth()) {
-        Fold(stringResource(R.string.icons), stringResource(iconStyleName(settings.iconStyle))) {
-            IconStyleChips(settings, set)
+        LookSettings(settings, set) {
             AllIconsSize(settings, state, set, onChange)
             val icons = state.layout.items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
             Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on -> state.setLabels(on); onChange() }
         }
-        Fold(stringResource(R.string.look_material), stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass))) {
-            MaterialChips(settings, set)
-            if (!settings.veilSolid) {
-                val shift = settings.veilShift
-                SliderRow(stringResource(R.string.look_density), shift.toFloat(), -LauncherSettings.MAX_VEIL_SHIFT.toFloat(),
-                    LauncherSettings.MAX_VEIL_SHIFT.toFloat(), 1f, (if (shift > 0) "+" else "") + "$shift %") { v ->
-                    set { it.copy(veilShift = v.toInt()) }
-                }
-            }
-            // The accent edge exists on Veil and on matte panels; the other glasses have no outline to light.
-            if (settings.veilSolid || settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v ->
-                set { it.copy(veilEdge = v) }
-            }
-        }
-        val wall = Wallpapers.byId(settings.wallpaper)
-        Fold(stringResource(R.string.wallpaper), stringResource(wallName(wall?.id))) {
-            WallpaperChoice(settings.wallpaper) { id ->
-                set { it.copy(wallpaper = id, wallDim = it.wallDim.coerceAtMost(Wallpapers.maxDim(Wallpapers.byId(id)))) }
-            }
-            SliderRow(stringResource(R.string.wallpaper_dim), settings.wallDim.toFloat(), 0f, Wallpapers.maxDim(wall).toFloat(), 5f,
-                "${settings.wallDim} %") { v -> set { it.copy(wallDim = v.toInt()) } }
-            if (wall != null) WallpaperExportRow(wall, settings.wallDim)
-        }
-        Fold(stringResource(R.string.theme), stringResource(themeName(settings.theme))) {
-            Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
-                ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
-        }
-        Fold(stringResource(R.string.palette_section), stringResource(if (settings.palette.unified) R.string.palette_one else R.string.palette_places)) {
-            PaletteEditor(settings, set)
-        }
         Text(stringResource(R.string.look_hint), Modifier.padding(vertical = 8.dp), style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg2)
+    }
+}
+
+/** The fold title each Look part is keyed by; Studio's search opens a part by it. */
+@Composable
+fun lookFoldTitle(target: StudioTarget): String? = when (target) {
+    StudioTarget.Icons -> stringResource(R.string.icons)
+    StudioTarget.Material -> stringResource(R.string.look_material)
+    StudioTarget.Wallpaper -> stringResource(R.string.wallpaper)
+    StudioTarget.Theme -> stringResource(R.string.theme)
+    StudioTarget.Colors -> stringResource(R.string.palette_section)
+    else -> null
+}
+
+/**
+ * The look of the whole launcher — icons, panels, wallpaper, theme, colours — as one definition drawn by both the
+ * editor's Vzhled panel and Studio › Vzhled (Veil 3.0 B4), so the two never differ. [iconsExtra] adds the editor's
+ * per-layout rows to the Icons part.
+ */
+@Composable
+fun LookSettings(settings: LauncherSettings, set: SettingsEdit, iconsExtra: @Composable () -> Unit = {}) {
+    Fold(stringResource(R.string.icons), stringResource(iconStyleName(settings.iconStyle))) {
+        IconStyleChips(settings, set)
+        iconsExtra()
+    }
+    Fold(stringResource(R.string.look_material), stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass))) {
+        MaterialChips(settings, set)
+        if (!settings.veilSolid) {
+            val shift = settings.veilShift
+            SliderRow(stringResource(R.string.look_density), shift.toFloat(), -LauncherSettings.MAX_VEIL_SHIFT.toFloat(),
+                LauncherSettings.MAX_VEIL_SHIFT.toFloat(), 1f, (if (shift > 0) "+" else "") + "$shift %") { v ->
+                set { it.copy(veilShift = v.toInt()) }
+            }
+        }
+        // The accent edge exists on Veil and on matte panels; the other glasses have no outline to light.
+        if (settings.veilSolid || settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v ->
+            set { it.copy(veilEdge = v) }
+        }
+    }
+    val wall = Wallpapers.byId(settings.wallpaper)
+    Fold(stringResource(R.string.wallpaper), stringResource(wallName(wall?.id))) {
+        WallpaperChoice(settings.wallpaper) { id ->
+            set { it.copy(wallpaper = id, wallDim = it.wallDim.coerceAtMost(Wallpapers.maxDim(Wallpapers.byId(id)))) }
+        }
+        SliderRow(stringResource(R.string.wallpaper_dim), settings.wallDim.toFloat(), 0f, Wallpapers.maxDim(wall).toFloat(), 5f,
+            "${settings.wallDim} %") { v -> set { it.copy(wallDim = v.toInt()) } }
+        if (wall != null) WallpaperExportRow(wall, settings.wallDim)
+    }
+    Fold(stringResource(R.string.theme), stringResource(themeName(settings.theme))) {
+        Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
+            ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
+    }
+    Fold(stringResource(R.string.palette_section), stringResource(if (settings.palette.unified) R.string.palette_one else R.string.palette_places)) {
+        PaletteEditor(settings, set)
     }
 }
 
@@ -190,7 +213,7 @@ private fun WallpaperExportRow(preset: WallpaperPreset, dim: Int) {
     }
 }
 
-private fun wallName(id: String?) = when (id) {
+internal fun wallName(id: String?) = when (id) {
     "night" -> R.string.wall_night
     "ocean" -> R.string.wall_ocean
     "forest" -> R.string.wall_forest

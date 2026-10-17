@@ -2,6 +2,31 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-17 — Veil 3.0 B4: Studio in five sections with search, one Look definition (`claude/crystal-redesign`)
+
+- Studio main: live preview, "Hledat v nastavení", Upravit plochu (active layout name), then Vzhled / Ovládání /
+  Akce a FLOW / Systém, each with its current state as the subtitle; Plocha is the editor (no copy of Home settings).
+  Each section is a page that slides in (B6 motion); Back keeps the main page's query and scroll.
+- One definition: `LookSettings` (Ikony, Panely, Tapeta, Motiv, Barvy) is drawn by both the editor's Vzhled panel and
+  Studio › Vzhled; the editor adds only the per-layout rows (icon size, names, through undo).
+- Search: `StudioIndex` over `StudioTarget` entries (name, "Sekce › Část", keywords cs/en), diacritics-insensitive via
+  `AppSearch`, name hits first; a result opens its page with that part unfolded, only on a tap.
+- Ovládání = ARC, PULSE, Pohyb a dotek; Akce a FLOW = Spravovat příkazy, Vybrat zkratky (Back returns to the page it
+  came from); Systém = default home (only when not held), Skryté aplikace, O aplikaci a licence.
+
+Commands: `./gradlew -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug` PASS, 131 JVM tests, 0
+failures (new `StudioIndexTest`).
+
+Verified on the Phone (3), debug Lab via `install -r` (`uiautomator` + two screenshots; settings byte-identical
+after): main shows the five rows with live subtitles; "ztmaveni" → one result "Vzhled › Tapeta" → Vzhled with Tapeta
+open (swatches, Ztmavení, Nastavit jako tapetu systému); Back → main with the query kept; Ovládání shows ARC / PULSE /
+Pohyb a dotek; Akce a FLOW → Spravovat příkazy → Back returns to Akce a FLOW; Systém shows Skryté aplikace and
+O aplikaci a licence.
+
+Not verified: TalkBack in the search field and rows, the editor tray "Vzhled" opening Studio › Vzhled (the tray still
+opens the editor's own Look card, which draws the same definition), Studio in the light theme. Not done: the
+Globální / Vlastní inheritance (B5), Systém › záloha and přístupnost rows from the prototype (no such features yet).
+
 ## 2026-10-17 — D13 ④: an own wallpaper saved as the system wallpaper (`claude/crystal-redesign`)
 
 - `android.permission.SET_WALLPAPER` (normal, install-time; D13). `ui/WallpaperExport.kt` renders the preset as Home

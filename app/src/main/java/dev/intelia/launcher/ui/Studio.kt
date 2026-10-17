@@ -1,5 +1,7 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.ColumnScope
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -78,27 +80,64 @@ import dev.intelia.launcher.data.ThemeMode
 import java.time.LocalDateTime
 import kotlin.math.roundToInt
 
-private enum class StudioPane { Main, Shortcuts, Hidden, Lens }
+/** Main, the five section pages (Home has none: it opens the editor) and their sub-pages; [depth] drives the slide. */
+private enum class StudioPane(val depth: Int) { Main(1), Look(2), Controls(2), Flow(2), System(2), Shortcuts(3), Hidden(3), Lens(3) }
+
+private fun StudioSection.pane() = when (this) {
+    StudioSection.Look -> StudioPane.Look
+    StudioSection.Controls -> StudioPane.Controls
+    StudioSection.Flow -> StudioPane.Flow
+    StudioSection.System -> StudioPane.System
+    StudioSection.Home -> StudioPane.Main
+}
 
 /**
- * Studio replaces the settings sheet: a live preview drawn straight on the wallpaper at the top,
- * every choice on paper below it. Changes apply immediately and persist through SettingsStore.
+ * Studio (Veil 3.0 B4): a live preview on the wallpaper, a search over every setting and five sections — Vzhled,
+ * Plocha, Ovládání, Akce a FLOW, Systém — each a page that slides in; Back returns to the same row. Vzhled draws the
+ * same [LookSettings] as the editor's Vzhled panel. Changes apply immediately and persist through SettingsStore.
  */
 @Composable
 fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onFlows: () -> Unit, onEditHome: () -> Unit,
     lensFirst: Boolean = false) {
     var pane by rememberSaveable { mutableStateOf(if (lensFirst) StudioPane.Lens else StudioPane.Main) }
-    // Hoisted so coming back from a sub-page lands where you left the list.
-    val scroll = rememberScrollState()
-    // The open section survives a detail page too, so Back lands on the same row (Veil 3.0 motion).
+    /** The part a search result asked for; the page opens with it unfolded. */
+    var focus by rememberSaveable { mutableStateOf<StudioTarget?>(null) }
+    /** Shortcuts are reached from ARC (Ovládání) and from Akce a FLOW; Back returns to whichever it was. */
+    var shortcutsBack by rememberSaveable { mutableStateOf(StudioPane.Flow) }
+    // The page's scroll and open part survive a deeper page too, so Back lands on the same row (Veil 3.0 motion).
     val panes = rememberSaveableStateHolder()
     val ms = motionMs(VeilMotion.PAGE_MS)
-    BackHandler(enabled = pane != StudioPane.Main) { pane = StudioPane.Main }
-    AnimatedContent(pane, transitionSpec = { VeilMotion.page(if (targetState == StudioPane.Main) -1 else 1, ms) },
-        label = "studio-pane") { shown -> panes.SaveableStateProvider(shown.name) { when (shown) {
-        StudioPane.Main -> StudioMain(model, settings, scroll, onBack, onFlows, onEditHome, onPane = { pane = it })
-        StudioPane.Shortcuts -> ShortcutPicker(model, settings, onBack = { pane = StudioPane.Main })
-        StudioPane.Hidden -> HiddenApps(model, onBack = { pane = StudioPane.Main })
+    fun up() {
+        pane = when (pane) {
+            StudioPane.Shortcuts -> shortcutsBack
+            StudioPane.Hidden -> StudioPane.System
+            else -> { panes.removeState(pane.name); focus = null; StudioPane.Main }
+        }
+    }
+    fun open(section: StudioSection, target: StudioTarget?) {
+        if (section == StudioSection.Home) { onEditHome(); return }
+        focus = target; panes.removeState(section.pane().name); pane = section.pane()
+    }
+    fun shortcuts(from: StudioPane) { shortcutsBack = from; pane = StudioPane.Shortcuts }
+    BackHandler(enabled = pane != StudioPane.Main) { up() }
+    AnimatedContent(pane, transitionSpec = {
+        VeilMotion.page(if (targetState.depth >= initialState.depth) 1 else -1, ms)
+    }, label = "studio-pane") { shown -> panes.SaveableStateProvider(shown.name) { when (shown) {
+        StudioPane.Main -> StudioMain(model, settings, onBack, onEditHome, ::open)
+        StudioPane.Look -> StudioFrame(settings, model, stringResource(R.string.look), ::up, preview = true) {
+            LookPage(settings, focus, onEditHome) { model.updateSettings(it) }
+        }
+        StudioPane.Controls -> StudioFrame(settings, model, stringResource(R.string.studio_controls), ::up) {
+            ControlsPage(model, settings, focus, onShortcuts = { shortcuts(StudioPane.Controls) })
+        }
+        StudioPane.Flow -> StudioFrame(settings, model, stringResource(R.string.studio_flow), ::up) {
+            FlowPage(settings, onFlows, onShortcuts = { shortcuts(StudioPane.Flow) })
+        }
+        StudioPane.System -> StudioFrame(settings, model, stringResource(R.string.studio_system), ::up) {
+            SystemPage(model, focus, onHidden = { pane = StudioPane.Hidden })
+        }
+        StudioPane.Shortcuts -> ShortcutPicker(model, settings, onBack = ::up)
+        StudioPane.Hidden -> HiddenApps(model, onBack = ::up)
         StudioPane.Lens -> LensCalibration(settings.pulseLens, onSave = { lens ->
             model.updateSettings { it.copy(pulseLens = lens) }
             pane = StudioPane.Main
@@ -106,117 +145,241 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     } } }
 }
 
+/**
+ * One Studio page: the wallpaper at the top — with the live Home preview on Main and Vzhled — and a Veil Focus sheet
+ * below it that scrolls. The header names the page and goes back.
+ */
 @Composable
-private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, scroll: ScrollState, onBack: () -> Unit, onFlows: () -> Unit, onEditHome: () -> Unit,
-    onPane: (StudioPane) -> Unit) {
-    val ink = LocalInk.current
+private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title: String, onBack: () -> Unit, preview: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit) {
     val homeInk = LocalHomeInk.current
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
-    val arcApps by model.arcApps.collectAsStateWithLifecycle()
-    val hidden by model.hiddenApps.collectAsStateWithLifecycle()
     val now by rememberNow()
-    val role = rememberHomeRole()
-    fun set(transform: (LauncherSettings) -> LauncherSettings) = model.updateSettings(transform)
     SystemBarIcons(darkIcons = homeInk.luminance() < .5f)
-
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // Live preview on the real wallpaper: nothing is drawn behind it.
-            Box(Modifier.fillMaxWidth().height(300.dp)) {
+            Box(Modifier.fillMaxWidth().then(if (preview) Modifier.height(300.dp) else Modifier)) {
                 // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
-                val items = settings.home.activeLayout().items
-                HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize().statusBarsPadding(),
-                    scale = .78f, onWallpaper = true, home = HomeText(items.firstOrNull { it.kind == ItemKind.Clock },
-                        items.firstOrNull { it.kind == ItemKind.Date }))
-                Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconAction(Glyph.Back, stringResource(R.string.home), onBack, tint = homeInk)
-                    Text(stringResource(R.string.studio_live).uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
+                if (preview) {
+                    val items = settings.home.activeLayout().items
+                    HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize().statusBarsPadding(),
+                        scale = .78f, onWallpaper = true, home = HomeText(items.firstOrNull { it.kind == ItemKind.Clock },
+                            items.firstOrNull { it.kind == ItemKind.Date }))
+                }
+                Row(Modifier.statusBarsPadding().padding(start = 8.dp, top = 4.dp, bottom = if (preview) 0.dp else 12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    IconAction(Glyph.Back, stringResource(R.string.back), onBack, tint = homeInk)
+                    Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk)
                 }
             }
             Column(Modifier.weight(1f).fillMaxWidth()
                 .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Top, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .verticalScroll(scroll).navigationBarsPadding().padding(bottom = 24.dp)) {
-                // Everything that changes how Home looks is edited on Home itself (owner, 2026-10-16); Studio keeps behaviour.
-                Hint(stringResource(R.string.studio_look_moved))
-                NavRow(stringResource(R.string.edit_home), null, onEditHome)
-                // One section open at a time (owner, 2026-10-17): each names its state while closed.
-                var open by rememberSaveable { mutableStateOf<Int?>(null) }
-                @Composable
-                fun Part(title: Int, summary: String?, content: @Composable () -> Unit) =
-                    StudioFold(stringResource(title), summary, open == title, { open = if (it) title else null }, content)
+                .verticalScroll(rememberScrollState()).navigationBarsPadding().padding(top = 8.dp, bottom = 24.dp), content = content)
+        }
+        // Live capsule at the real camera while PULSE is on: width and opacity change as you drag.
+        if (preview && settings.pulse) Pulse(settings, preview = true)
+    }
+}
 
-                Part(R.string.arc_section, stringResource(R.string.arc_rings_count, settings.arcRings)) {
-                    Hint(stringResource(R.string.arc_explain))
-                    ChoiceRow(stringResource(R.string.arc_rings)) {
-                        Segments(listOf(1 to "1", 2 to "2", 3 to "3"), settings.arcRings, { v -> set { it.copy(arcRings = v) } })
-                    }
-                    Kicker("1 · " + stringResource(R.string.arc_ring_apps) + " · ${settings.arc.size}/${LauncherSettings.ARC_SLOTS}",
-                        Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-                    val ringApps = arcApps.filterNotNull()
-                    if (ringApps.isEmpty()) Hint(stringResource(R.string.arc_apps_hint))
-                    ringApps.forEachIndexed { index, app -> OrderedAppRow(app, index, onUp = null, onRemove = { model.toggleArc(app) }) }
-                    // Rings beyond the chosen count are never drawn, so their contents are only shown when in use.
-                    if (settings.arcRings >= 2) {
-                        Kicker("2 · " + stringResource(R.string.flow) + " · ${settings.arcFlows.size}/${LauncherSettings.ARC_FLOW_SLOTS}",
-                            Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-                        if (settings.aliases.isEmpty()) Hint(stringResource(R.string.flow_empty))
-                        settings.aliases.forEach { alias ->
-                            val on = alias.id in settings.arcFlows
-                            val full = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS
-                            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(on, enabled = on || !full, role = Role.Switch) {
-                                model.toggleArcFlow(alias.id, it)
-                            }.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(alias.name, Modifier.weight(1f), style = InkText.item.copy(fontStyle = FontStyle.Italic), maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis, color = if (on || !full) ink.ink else ink.faint)
-                                RingToggle(on)
-                            }
-                        }
-                    }
-                    if (settings.arcRings >= 3) {
-                        Kicker("3 · " + stringResource(R.string.arc_ring_shortcuts) + " · ${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}",
-                            Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
-                        NavRow(stringResource(R.string.shortcuts_pick), null, { onPane(StudioPane.Shortcuts) })
-                    }
-                }
-                NavRow(stringResource(R.string.flow_manage), settings.aliases.size.toString(), onFlows)
+/** Every searchable part, in the owner's language. */
+@Composable
+private fun studioEntries(): List<StudioEntry> {
+    val look = stringResource(R.string.look)
+    val home = stringResource(R.string.studio_home)
+    val controls = stringResource(R.string.studio_controls)
+    val flow = stringResource(R.string.studio_flow)
+    val system = stringResource(R.string.studio_system)
+    return StudioTarget.entries.map { t ->
+        val (label, section, kw) = when (t) {
+            StudioTarget.Icons -> Triple(R.string.icons, look, R.string.studio_kw_icons)
+            StudioTarget.Material -> Triple(R.string.look_material, look, R.string.studio_kw_material)
+            StudioTarget.Wallpaper -> Triple(R.string.wallpaper, look, R.string.studio_kw_wallpaper)
+            StudioTarget.Theme -> Triple(R.string.theme, look, R.string.studio_kw_theme)
+            StudioTarget.Colors -> Triple(R.string.palette_section, look, R.string.studio_kw_colors)
+            StudioTarget.EditHome -> Triple(R.string.edit_home, home, R.string.studio_kw_edit_home)
+            StudioTarget.Arc -> Triple(R.string.arc_section, controls, R.string.studio_kw_arc)
+            StudioTarget.Pulse -> Triple(R.string.pulse, controls, R.string.studio_kw_pulse)
+            StudioTarget.Motion -> Triple(R.string.motion_section, controls, R.string.studio_kw_motion)
+            StudioTarget.Flows -> Triple(R.string.flow_manage, flow, R.string.studio_kw_flows)
+            StudioTarget.Shortcuts -> Triple(R.string.arc_ring_shortcuts, flow, R.string.studio_kw_shortcuts)
+            StudioTarget.Hidden -> Triple(R.string.hidden_manage, system, R.string.studio_kw_hidden)
+            StudioTarget.DefaultHome -> Triple(R.string.default_home_section, system, R.string.studio_kw_default_home)
+            StudioTarget.About -> Triple(R.string.about_title, system, R.string.studio_kw_about)
+        }
+        val name = stringResource(label)
+        StudioEntry(t, name, "$section › $name", stringResource(kw))
+    }
+}
 
-                // D9: the switch only mirrors the service; Android settings are where it is turned on or off.
-                val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
-                val context = LocalContext.current
-                Part(R.string.pulse, stringResource(if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only)) {
-                    Hint(stringResource(R.string.studio_pulse_moved))
-                    ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
-                        detail = stringResource(R.string.pulse_everywhere_detail))
-                }
+@Composable
+private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onEditHome: () -> Unit,
+    onOpen: (StudioSection, StudioTarget?) -> Unit) {
+    val ink = LocalInk.current
+    val hidden by model.hiddenApps.collectAsStateWithLifecycle()
+    val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+    var query by rememberSaveable { mutableStateOf("") }
+    val entries = studioEntries()
+    val hits = remember(query, entries) { StudioIndex.search(entries, query) }
+    StudioFrame(settings, model, stringResource(R.string.studio_live), onBack, preview = true) {
+        StudioSearchField(query) { query = it }
+        if (query.isNotBlank()) {
+            if (hits.isEmpty()) Hint(stringResource(R.string.studio_no_results))
+            // A result only opens on a tap; typing never navigates.
+            hits.forEach { e -> SectionRow(e.label, e.path) { onOpen(e.target.section, e.target) } }
+        } else {
+            SectionRow(stringResource(R.string.edit_home), stringResource(R.string.studio_home_sub, settings.home.activeLayout().name), onEditHome)
+            Hairline(Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+            SectionRow(stringResource(R.string.look), listOf(stringResource(themeName(settings.theme)),
+                stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass)),
+                stringResource(wallName(settings.wallpaper.ifEmpty { null }))).joinToString(" · ")) { onOpen(StudioSection.Look, null) }
+            SectionRow(stringResource(R.string.studio_controls), "ARC " + stringResource(R.string.arc_rings_count, settings.arcRings) + " · PULSE " +
+                stringResource(if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only)) { onOpen(StudioSection.Controls, null) }
+            SectionRow(stringResource(R.string.studio_flow), stringResource(R.string.studio_flow_sub, settings.aliases.size, settings.arcShortcuts.size)) {
+                onOpen(StudioSection.Flow, null)
+            }
+            SectionRow(stringResource(R.string.studio_system), stringResource(R.string.studio_hidden_sub, hidden.size)) { onOpen(StudioSection.System, null) }
+            Text(stringResource(R.string.local_only), Modifier.padding(horizontal = 24.dp, vertical = 12.dp), style = InkText.small, color = ink.faint)
+        }
+    }
+}
 
-                Part(R.string.motion_section, null) {
-                    Stacked(stringResource(R.string.motion)) {
-                        Segments(listOf(Motion.Calm to stringResource(R.string.motion_calm), Motion.Brisk to stringResource(R.string.motion_brisk),
-                            Motion.Off to stringResource(R.string.off)), settings.motion, { v -> set { it.copy(motion = v) } })
-                    }
-                    Stacked(stringResource(R.string.haptics)) {
-                        Segments(listOf(Haptics.Soft to stringResource(R.string.haptics_soft), Haptics.Strong to stringResource(R.string.haptics_strong),
-                            Haptics.Off to stringResource(R.string.off)), settings.haptics, { v -> set { it.copy(haptics = v) } })
-                    }
-                }
+/** A section or a search result: its name and, below, its state or where it lives. */
+@Composable
+private fun SectionRow(title: String, subtitle: String, onClick: () -> Unit) {
+    val ink = LocalInk.current
+    Row(Modifier.fillMaxWidth().heightIn(min = 68.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 24.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = InkText.body.copy(fontSize = 17.sp))
+            Text(subtitle, style = InkText.small, color = ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        Text("  →", style = InkText.body, color = ink.muted)
+    }
+}
 
-                // Only while Intelia is not the default home is there something to do here; it stays in sight.
-                if (!role.held) {
-                    Section(R.string.default_home_section)
-                    Hint(stringResource(R.string.default_home_why))
-                    Capsule(stringResource(R.string.default_home), role.request, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-                }
+@Composable
+private fun StudioSearchField(query: String, onChange: (String) -> Unit) {
+    val ink = LocalInk.current
+    val hint = stringResource(R.string.studio_search)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).heightIn(min = 52.dp).clip(RoundedCornerShape(26.dp))
+        .background(ink.ink.copy(alpha = .07f)).padding(start = 18.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.foundation.text.BasicTextField(query, onChange, Modifier.weight(1f).semantics { contentDescription = hint },
+            singleLine = true, textStyle = InkText.body.copy(color = ink.ink), cursorBrush = androidx.compose.ui.graphics.SolidColor(ink.accent),
+            decorationBox = { inner -> Box { if (query.isEmpty()) Text(hint, style = InkText.body, color = ink.muted); inner() } })
+        if (query.isNotEmpty()) IconAction(Glyph.Close, stringResource(R.string.studio_search_clear), { onChange("") }, tint = ink.muted)
+    }
+}
 
-                NavRow(stringResource(R.string.hidden_manage), hidden.size.toString(), { onPane(StudioPane.Hidden) })
+/** Vzhled: the editor's Look definition, unfolded at the part a search asked for. */
+@Composable
+private fun LookPage(settings: LauncherSettings, focus: StudioTarget?, onEditHome: () -> Unit, set: SettingsEdit) {
+    val first = focus?.let { lookFoldTitle(it) }
+    val group = remember { FoldGroup().also { it.open = first } }
+    CompositionLocalProvider(LocalFoldGroup provides group) {
+        Column(Modifier.padding(horizontal = 14.dp)) { LookSettings(settings, set) }
+    }
+    Hint(stringResource(R.string.studio_look_editor))
+    NavRow(stringResource(R.string.edit_home), null, onEditHome)
+}
 
-                Part(R.string.about_title, null) {
-                    if (role.held) Hint(stringResource(R.string.default_home_active))
-                    About()
+/** The Studio fold a search target opens on its page. */
+private fun StudioTarget?.partTitle(): Int? = when (this) {
+    StudioTarget.Arc -> R.string.arc_section
+    StudioTarget.Pulse -> R.string.pulse
+    StudioTarget.Motion -> R.string.motion_section
+    StudioTarget.About -> R.string.about_title
+    else -> null
+}
+
+/** Ovládání: ARC, PULSE, motion and touch; one part open at a time. */
+@Composable
+private fun ControlsPage(model: HomeViewModel, settings: LauncherSettings, focus: StudioTarget?, onShortcuts: () -> Unit) {
+    val ink = LocalInk.current
+    val arcApps by model.arcApps.collectAsStateWithLifecycle()
+    var open by rememberSaveable { mutableStateOf(focus.partTitle()) }
+    fun set(transform: (LauncherSettings) -> LauncherSettings) = model.updateSettings(transform)
+    @Composable
+    fun Part(title: Int, summary: String?, content: @Composable () -> Unit) =
+        StudioFold(stringResource(title), summary, open == title, { open = if (it) title else null }, content)
+
+    Part(R.string.arc_section, stringResource(R.string.arc_rings_count, settings.arcRings)) {
+        Hint(stringResource(R.string.arc_explain))
+        ChoiceRow(stringResource(R.string.arc_rings)) {
+            Segments(listOf(1 to "1", 2 to "2", 3 to "3"), settings.arcRings, { v -> set { it.copy(arcRings = v) } })
+        }
+        Kicker("1 · " + stringResource(R.string.arc_ring_apps) + " · ${settings.arc.size}/${LauncherSettings.ARC_SLOTS}",
+            Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
+        val ringApps = arcApps.filterNotNull()
+        if (ringApps.isEmpty()) Hint(stringResource(R.string.arc_apps_hint))
+        ringApps.forEachIndexed { index, app -> OrderedAppRow(app, index, onUp = null, onRemove = { model.toggleArc(app) }) }
+        // Rings beyond the chosen count are never drawn, so their contents are only shown when in use.
+        if (settings.arcRings >= 2) {
+            Kicker("2 · " + stringResource(R.string.flow) + " · ${settings.arcFlows.size}/${LauncherSettings.ARC_FLOW_SLOTS}",
+                Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
+            if (settings.aliases.isEmpty()) Hint(stringResource(R.string.flow_empty))
+            settings.aliases.forEach { alias ->
+                val on = alias.id in settings.arcFlows
+                val full = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS
+                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(on, enabled = on || !full, role = Role.Switch) {
+                    model.toggleArcFlow(alias.id, it)
+                }.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(alias.name, Modifier.weight(1f), style = InkText.item.copy(fontStyle = FontStyle.Italic), maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, color = if (on || !full) ink.ink else ink.faint)
+                    RingToggle(on)
                 }
             }
         }
-        // Live capsule at the real camera while PULSE is on: width and opacity change as you drag.
-        if (settings.pulse) Pulse(settings, preview = true)
+        if (settings.arcRings >= 3) {
+            Kicker("3 · " + stringResource(R.string.arc_ring_shortcuts) + " · ${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}",
+                Modifier.padding(start = 24.dp, top = 14.dp, bottom = 4.dp), color = ink.muted)
+            NavRow(stringResource(R.string.shortcuts_pick), null, onShortcuts)
+        }
+    }
+
+    // D9: the switch only mirrors the service; Android settings are where it is turned on or off.
+    val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    Part(R.string.pulse, stringResource(if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only)) {
+        Hint(stringResource(R.string.studio_pulse_moved))
+        ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
+            detail = stringResource(R.string.pulse_everywhere_detail))
+    }
+
+    Part(R.string.motion_section, null) {
+        Stacked(stringResource(R.string.motion)) {
+            Segments(listOf(Motion.Calm to stringResource(R.string.motion_calm), Motion.Brisk to stringResource(R.string.motion_brisk),
+                Motion.Off to stringResource(R.string.off)), settings.motion, { v -> set { it.copy(motion = v) } })
+        }
+        Stacked(stringResource(R.string.haptics)) {
+            Segments(listOf(Haptics.Soft to stringResource(R.string.haptics_soft), Haptics.Strong to stringResource(R.string.haptics_strong),
+                Haptics.Off to stringResource(R.string.off)), settings.haptics, { v -> set { it.copy(haptics = v) } })
+        }
+    }
+}
+
+/** Akce a FLOW: the commands and the app shortcuts ARC can hold. */
+@Composable
+private fun FlowPage(settings: LauncherSettings, onFlows: () -> Unit, onShortcuts: () -> Unit) {
+    NavRow(stringResource(R.string.flow_manage), settings.aliases.size.toString(), onFlows)
+    NavRow(stringResource(R.string.shortcuts_pick), "${settings.arcShortcuts.size}/${LauncherSettings.ARC_SHORTCUT_SLOTS}", onShortcuts)
+}
+
+/** Systém: default home, hidden apps, about and licences. */
+@Composable
+private fun SystemPage(model: HomeViewModel, focus: StudioTarget?, onHidden: () -> Unit) {
+    val hidden by model.hiddenApps.collectAsStateWithLifecycle()
+    val role = rememberHomeRole()
+    var open by rememberSaveable { mutableStateOf(focus.partTitle()) }
+    // Only while Intelia is not the default home is there something to do here; it stays in sight.
+    if (!role.held) {
+        Section(R.string.default_home_section)
+        Hint(stringResource(R.string.default_home_why))
+        Capsule(stringResource(R.string.default_home), role.request, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+    }
+    NavRow(stringResource(R.string.hidden_manage), hidden.size.toString(), onHidden)
+    StudioFold(stringResource(R.string.about_title), null, open == R.string.about_title, { open = if (it) R.string.about_title else null }) {
+        if (role.held) Hint(stringResource(R.string.default_home_active))
+        About()
     }
 }
 
