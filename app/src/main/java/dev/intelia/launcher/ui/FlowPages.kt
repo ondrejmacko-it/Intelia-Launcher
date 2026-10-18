@@ -131,8 +131,9 @@ fun FlowEditor(
     }) {
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
             item {
-                Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp)) {
-                    Kicker(stringResource(R.string.flow_name), color = ink.muted)
+                // S4.4: the name and the steps are captioned like every Veil group; the steps stay a plain list.
+                VeilCaption(stringResource(R.string.flow_name))
+                Column(Modifier.padding(start = 24.dp, end = 24.dp)) {
                     val label = stringResource(R.string.flow_name)
                     BasicTextField(name, { name = it; error = null }, Modifier.fillMaxWidth().padding(top = 4.dp)
                         .semantics { contentDescription = label }

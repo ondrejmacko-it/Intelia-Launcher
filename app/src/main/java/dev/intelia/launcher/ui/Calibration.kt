@@ -145,9 +145,11 @@ fun LensCalibration(saved: PulseLens?, savedHit: PulseHit, onSave: (PulseLens?, 
                     Modifier.clip(RoundedCornerShape(10.dp)).background(if (changed) ink.accent.copy(alpha = .22f) else ink.ink.copy(alpha = .07f))
                         .padding(horizontal = 10.dp, vertical = 3.dp), style = InkText.label, color = if (changed) ink.ink else ink.muted)
             }
-            Text(stringResource(R.string.pulse_calib_body), Modifier.padding(horizontal = 20.dp), style = InkText.small, color = ink.muted)
+            // S4.4: the explanation belongs to the touch area it explains, inside its group like every Studio note.
+            if (x < 0f) Text(stringResource(R.string.pulse_calib_body), Modifier.padding(horizontal = 20.dp), style = InkText.small, color = ink.muted)
             if (x >= 0f) {
                 VeilGroup(stringResource(R.string.pulse_hit_group)) {
+                    GroupNote(stringResource(R.string.pulse_calib_body))
                     val sizes = listOf(40f, 48f, 56f, 64f)
                     ChoiceSetting(stringResource(R.string.pulse_hit_size), (sizes + listOfNotNull(hitSize.takeIf { it !in sizes })).sorted()
                         .map { it to "${it.toInt()} dp" }, hitSize, { hitSize = it })
