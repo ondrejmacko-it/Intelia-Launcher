@@ -163,11 +163,18 @@ data class Controls(
         else -> bindings.firstOrNull { it.trigger == trigger }?.action
     }
 
-    /** Binds [action] to [trigger], replacing what it had; null unbinds. ARC slots are edited with [setSlot]. */
+    /** What [trigger] runs: its binding, else its built-in default (Home: swipe up = drawer, hold = editor). */
+    fun effective(trigger: Trigger): Action? = bound(trigger) ?: defaultOf(trigger)
+
+    /**
+     * Binds [action] to [trigger], replacing what it had; null unbinds (a gesture with a default goes back to it, so
+     * binding the default itself stores nothing). ARC slots are edited with [setSlot].
+     */
     fun bind(trigger: Trigger, action: Action?): Controls {
         if (trigger is Trigger.ArcSlot || (action is Action.Arc && !opensArc(trigger))) return this
         val rest = bindings.filterNot { it.trigger == trigger }
-        return copy(bindings = if (action == null) rest else (rest + Binding(trigger, action)).takeLast(MAX_BINDINGS))
+        val kept = action?.takeIf { it != defaultOf(trigger) }
+        return copy(bindings = if (kept == null) rest else (rest + Binding(trigger, kept)).takeLast(MAX_BINDINGS))
     }
 
     /** Every trigger [action] is bound to (ARC slots included), for "where else is this" hints and the global search. */
@@ -219,6 +226,11 @@ data class Controls(
         const val MAX_KEYS = 8
         /** What a hardware key can carry (M6): press, double press, hold. */
         val KEY_GESTURES = listOf(Gesture.Tap, Gesture.DoubleTap, Gesture.Hold)
+
+        /** Home gestures that do something while unbound; rebinding replaces it, unbinding brings it back. */
+        val HOME_DEFAULTS: Map<Gesture, Action> = mapOf(Gesture.SwipeUp to Action.Drawer, Gesture.Hold to Action.EditHome)
+
+        fun defaultOf(trigger: Trigger): Action? = (trigger as? Trigger.Home)?.let { HOME_DEFAULTS[it.gesture] }
 
         /** Global ARC follows the finger after a hold, so only the held PULSE gestures can open it (M3.3). */
         fun opensArc(trigger: Trigger): Boolean =

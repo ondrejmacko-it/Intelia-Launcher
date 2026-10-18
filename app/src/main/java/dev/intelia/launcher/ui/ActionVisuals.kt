@@ -68,7 +68,7 @@ class ArcContent(val sets: List<ArcSetView>, val look: ArcLook, val global: Glob
 
 /** System actions offered in pickers, in the order shown. */
 val SystemActions: List<Action> = listOf(
-    Action.Search, Action.Torch, Action.Media(MediaKey.PlayPause), Action.Media(MediaKey.Next), Action.Media(MediaKey.Previous),
+    Action.Search, Action.Drawer, Action.EditHome, Action.Torch, Action.Media(MediaKey.PlayPause), Action.Media(MediaKey.Next), Action.Media(MediaKey.Previous),
     Action.SoundMode, Action.SystemPanel(PanelKind.Internet), Action.SystemPanel(PanelKind.Wifi), Action.SystemPanel(PanelKind.Bluetooth),
     Action.SystemPanel(PanelKind.Sound), Action.SystemPanel(PanelKind.Display), Action.SystemPanel(PanelKind.Notifications),
     Action.SystemPanel(PanelKind.QuickSettings), Action.Screenshot, Action.Lock,
@@ -96,6 +96,8 @@ fun systemActionLabel(action: Action): String = stringResource(when (action) {
     }
     Action.Screenshot -> R.string.act_screenshot
     Action.Lock -> R.string.pulse_lock
+    Action.Drawer -> R.string.act_drawer
+    Action.EditHome -> R.string.act_edit_home
     is Action.Arc -> R.string.global_arc
     is Action.App, is Action.Flow, is Action.Shortcut, is Action.Card -> R.string.act_unknown
 })
@@ -154,6 +156,8 @@ private fun glyphOf(action: Action): Glyph? = when (action) {
     }
     Action.Screenshot -> Glyph.Grid
     is Action.Arc -> Glyph.Apps
+    Action.Drawer -> Glyph.Up
+    Action.EditHome -> Glyph.Layers
     else -> null
 }
 

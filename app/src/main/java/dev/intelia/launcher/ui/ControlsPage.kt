@@ -1,7 +1,7 @@
 package dev.intelia.launcher.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -20,10 +20,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.intelia.launcher.R
@@ -42,11 +40,11 @@ private class ControlLine(val name: String, val trigger: Trigger? = null, val fi
 private class ControlGroup(val id: String, val title: String, val lines: List<ControlLine>, val hint: String? = null, val key: Int? = null)
 
 /**
- * Studio › Ovládání (M5): every gesture of every surface in one place, grouped by where it happens (PULSE capsule,
- * Home, LENS, ARC, hardware keys), each group foldable with how many gestures are bound. A line is gesture → action:
- * tap picks with the shared [ActionPicker], the cross unbinds. Pillar gestures are shown locked, never rebindable.
- * The search on top filters gestures, surfaces and bound actions alike ("svítilna" → everywhere it is). Nothing runs
- * on this page.
+ * Studio › Gesta a tlačítka (Veil 3.0): every gesture of every surface, grouped by where it happens (PULSE capsule,
+ * Home, LENS, ARC, hardware keys) on one [VeilGroup] each. One gesture is one [GestureRow]: the action's icon, the
+ * gesture, what it does; tap picks with the shared [ActionPicker], the cross unbinds (or brings a default back).
+ * Unused gestures wait under "Další gesta". Only the LENS pillars are locked; Home's swipe up and hold have defaults
+ * (drawer, editor) and can be rebound. The search on top filters gestures, surfaces and actions alike. Nothing runs here.
  */
 @Composable
 internal fun ControlsPage(model: HomeViewModel, settings: LauncherSettings, onArc: () -> Unit, onKeys: () -> Unit) {
@@ -63,7 +61,7 @@ internal fun ControlsPage(model: HomeViewModel, settings: LauncherSettings, onAr
     LaunchedEffect(controls.keys, controls.keysEverywhere, controls.bindings) { PulseAccessibilityService.refreshKeys() }
     var picking by remember { mutableStateOf<Trigger?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
-    var folded by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var opened by rememberSaveable { mutableStateOf(listOf<String>()) }
 
     fun entry(a: Action): ArcEntry? = when (a) {
         is Action.App -> apps.firstOrNull { it.key == a.component }?.let { ArcEntry(a, app = it) }
@@ -74,10 +72,12 @@ internal fun ControlsPage(model: HomeViewModel, settings: LauncherSettings, onAr
 
     val groups = controlGroups(settings)
     val fq = AppSearch.fold(query.trim())
-    val labels = groups.flatMap { it.lines }.mapNotNull { l -> l.trigger?.let { t -> controls.bound(t)?.let { a ->
+    val labels = groups.flatMap { it.lines }.mapNotNull { l -> l.trigger?.let { t -> controls.effective(t)?.let { a ->
         if (a is Action.Arc) t to arcActionLabel(controls, a) else entry(a)?.let { t to slotLabel(it) } } } }.toMap()
     fun matches(g: ControlGroup, l: ControlLine) = fq.isEmpty() ||
         listOfNotNull(g.title, l.name, l.fixed, l.trigger?.let(labels::get)).any { AppSearch.fold(it).contains(fq) }
+    val pick: (Trigger) -> Unit = { picking = it }
+    val unbind: (Trigger) -> Unit = { t -> model.editControls { it.bind(t, null) } }
 
     PickerFilter(query, stringResource(R.string.controls_find)) { query = it }
     Hint(stringResource(R.string.controls_hint))
@@ -86,29 +86,32 @@ internal fun ControlsPage(model: HomeViewModel, settings: LauncherSettings, onAr
         val lines = g.lines.filter { matches(g, it) }
         if (lines.isEmpty() && fq.isNotEmpty()) return@forEach
         anything = true
-        val count = g.lines.count { l -> l.trigger?.let(controls::bound) != null }
-        val open = fq.isNotEmpty() || g.id !in folded
-        GroupHeader(g.title, count, open) { folded = if (g.id in folded) folded - g.id else folded + g.id }
-        if (!open) return@forEach
-        g.hint?.let { Hint(it) }
-        lines.forEach { l ->
-            if (l.fixed != null) FixedLine(l.name, l.fixed)
-            else l.trigger?.let { t -> BoundLine(l.name, t, controls, ::entry, { picking = t }) { model.editControls { it.bind(t, null) } } }
-        }
-        when (g.id) {
-            ARC -> NavRow(stringResource(R.string.controls_arc_sets), stringResource(R.string.controls_arc_count,
-                controls.arcSets.sumOf { s -> s.slots.count { it != null } }), onArc)
-            KEYS -> {
-                ToggleRow(stringResource(R.string.keys_everywhere), controls.keysEverywhere && service,
-                    { on -> if (on && !service) PulseAccessibilityService.openSettings(context) else model.editControls { it.copy(keysEverywhere = on) } },
-                    detail = stringResource(if (service) R.string.keys_everywhere_detail else R.string.keys_everywhere_needs_service))
-                NavRow(stringResource(R.string.keys_add), null, onKeys)
+        // Unused gestures wait under "Další gesta"; a search shows every match at once.
+        fun used(l: ControlLine) = l.fixed != null || g.key != null || l.trigger == Trigger.Pulse(Gesture.Tap) ||
+            l.trigger?.let(controls::effective) != null
+        val (main, extra) = if (fq.isNotEmpty()) lines to emptyList() else lines.partition(::used)
+        val more = g.id in opened
+        VeilGroup(g.title) {
+            g.hint?.let { GroupNote(it) }
+            main.forEach { Line(it, controls, ::entry, pick, unbind) }
+            if (extra.isNotEmpty()) {
+                if (more) extra.forEach { Line(it, controls, ::entry, pick, unbind) }
+                MoreRow(extra.size, more) { opened = if (more) opened - g.id else opened + g.id }
             }
-        }
-        g.key?.let { code ->
-            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.keys_forget_hint), Modifier.weight(1f), style = InkText.small, color = ink.faint)
-                IconAction(Glyph.Close, stringResource(R.string.keys_forget), { model.editControls { it.withoutKey(code) } }, tint = ink.muted)
+            when (g.id) {
+                ARC -> SettingRow(stringResource(R.string.controls_arc_sets), stringResource(R.string.controls_arc_count,
+                    controls.arcSets.sumOf { s -> s.slots.count { it != null } }), onArc, glyph = Glyph.Arc)
+                KEYS -> {
+                    SwitchRow(stringResource(R.string.keys_everywhere), controls.keysEverywhere && service,
+                        { on -> if (on && !service) PulseAccessibilityService.openSettings(context) else model.editControls { it.copy(keysEverywhere = on) } },
+                        detail = stringResource(if (service) R.string.keys_everywhere_detail else R.string.keys_everywhere_needs_service))
+                    SettingRow(stringResource(R.string.keys_add), null, onKeys, glyph = Glyph.Key)
+                }
+            }
+            g.key?.let { code ->
+                SettingRow(stringResource(R.string.keys_forget), stringResource(R.string.keys_forget_hint), null) {
+                    IconAction(Glyph.Close, stringResource(R.string.keys_forget), { model.editControls { it.withoutKey(code) } }, tint = ink.muted)
+                }
             }
         }
     }
@@ -154,15 +157,16 @@ private fun controlGroups(settings: LauncherSettings): List<ControlGroup> {
             ControlLine(left, Trigger.Pulse(Gesture.SwipeLeft)), ControlLine(right, Trigger.Pulse(Gesture.SwipeRight))),
         hint = stringResource(if (settings.pulse) R.string.pulse_gestures_hint else R.string.controls_pulse_off))
     val home = ControlGroup(HOME, stringResource(R.string.controls_home), listOf(
-        ControlLine(up, fixed = stringResource(R.string.gesture_swipe_up_detail)),
-        ControlLine(hold, fixed = stringResource(R.string.gesture_hold_home_edit_detail)),
+        ControlLine(up, Trigger.Home(Gesture.SwipeUp)), ControlLine(hold, Trigger.Home(Gesture.Hold)),
         ControlLine(double, Trigger.Home(Gesture.DoubleTap)), ControlLine(down, Trigger.Home(Gesture.SwipeDown)),
-        ControlLine(left, Trigger.Home(Gesture.SwipeLeft)), ControlLine(right, Trigger.Home(Gesture.SwipeRight))))
+        ControlLine(left, Trigger.Home(Gesture.SwipeLeft)), ControlLine(right, Trigger.Home(Gesture.SwipeRight))),
+        hint = stringResource(R.string.controls_home_hint))
     val lens = ControlGroup(LENS, stringResource(R.string.controls_lens), listOf(
         ControlLine(tap, fixed = stringResource(R.string.gesture_tap_lens_detail)),
         ControlLine(up, fixed = stringResource(R.string.gesture_swipe_up_detail)),
         ControlLine(hold, fixed = stringResource(R.string.gesture_hold_lens_detail)),
-        ControlLine(left, Trigger.Lens(Gesture.SwipeLeft)), ControlLine(right, Trigger.Lens(Gesture.SwipeRight))))
+        ControlLine(left, Trigger.Lens(Gesture.SwipeLeft)), ControlLine(right, Trigger.Lens(Gesture.SwipeRight))),
+        hint = stringResource(R.string.controls_lens_locked))
     val arc = ControlGroup(ARC, stringResource(R.string.arc_section), emptyList(), hint = stringResource(R.string.controls_arc_hint))
     val keys = ControlGroup(KEYS, stringResource(R.string.keys_title), emptyList(), hint = stringResource(R.string.keys_bind_hint))
     val perKey = settings.controls.keys.map { code ->
@@ -173,63 +177,57 @@ private fun controlGroups(settings: LauncherSettings): List<ControlGroup> {
     return listOf(pulse, home, lens, arc, keys) + perKey
 }
 
+/** "Další gesta": shows or hides the unused gestures of a group. */
 @Composable
-private fun GroupHeader(title: String, count: Int, open: Boolean, onToggle: () -> Unit) {
+private fun MoreRow(count: Int, open: Boolean, onToggle: () -> Unit) {
     val ink = LocalInk.current
     val state = stringResource(if (open) R.string.controls_open else R.string.controls_closed)
-    Column(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onToggle)
-        .semantics(mergeDescendants = true) { heading(); stateDescription = state }
-        .padding(start = 24.dp, end = 16.dp, top = 22.dp, bottom = 6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Kicker(title, Modifier.weight(1f), color = ink.accent)
-            Text(if (count == 0) stringResource(R.string.controls_none_bound) else stringResource(R.string.controls_bound, count),
-                Modifier.padding(end = 8.dp), style = InkText.small, color = ink.muted)
-            HomeGlyph(Glyph.Up, null, Modifier.rotate(if (open) 0f else 180f), tint = ink.muted, size = 18.dp)
-        }
-        Hairline(Modifier.padding(top = 6.dp))
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onToggle)
+        .semantics(mergeDescendants = true) { stateDescription = state }
+        .padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.controls_more), Modifier.weight(1f), style = InkText.body, color = ink.accent)
+        Text(stringResource(R.string.controls_more_count, count), Modifier.padding(end = 8.dp), style = InkText.small, color = ink.muted)
+        HomeGlyph(Glyph.Up, null, Modifier.rotate(if (open) 0f else 180f), tint = ink.muted, size = 18.dp)
     }
 }
 
+/** One gesture of a group: a locked pillar, or gesture → action with remove (or reset to its default). */
 @Composable
-private fun FixedLine(name: String, does: String) {
+private fun Line(line: ControlLine, controls: Controls, entry: (Action) -> ArcEntry?, onPick: (Trigger) -> Unit, onRemove: (Trigger) -> Unit) {
     val ink = LocalInk.current
-    val fixed = stringResource(R.string.controls_fixed)
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) { stateDescription = fixed }
-        .padding(start = 24.dp, end = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
-            Text(name, style = InkText.body, color = ink.muted)
-            Text(does, style = InkText.small, color = ink.faint, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    if (line.fixed != null) {
+        val fixed = stringResource(R.string.controls_fixed)
+        Box(Modifier.semantics(mergeDescendants = true) { stateDescription = fixed }) {
+            GestureRow(line.name, line.fixed, { HomeGlyph(Glyph.Shield, null, tint = ink.faint, size = 20.dp) }, null, quiet = true) {
+                Kicker(fixed, Modifier.padding(end = 10.dp), color = ink.faint)
+            }
         }
-        Kicker(fixed, Modifier.padding(start = 12.dp), color = ink.faint)
+        return
     }
-}
-
-@Composable
-private fun BoundLine(name: String, trigger: Trigger, controls: Controls, entry: (Action) -> ArcEntry?, onPick: () -> Unit, onRemove: () -> Unit) {
-    val ink = LocalInk.current
+    val trigger = line.trigger ?: return
     val menu = trigger == Trigger.Pulse(Gesture.Tap)
     val raw = controls.bound(trigger)
-    val shown = raw?.let(entry)
+    val default = Controls.defaultOf(trigger)
+    val action = raw ?: default
+    val shown = action?.let(entry)
     val elsewhere = raw?.let { controls.triggersOf(it).size - 1 } ?: 0
     val detail = when {
-        raw is Action.Arc -> arcActionLabel(controls, raw)
+        action is Action.Arc -> arcActionLabel(controls, action)
         shown != null -> slotLabel(shown)
-        raw != null -> stringResource(R.string.arc_slot_unavailable)
+        action != null -> stringResource(R.string.arc_slot_unavailable)
         menu -> stringResource(R.string.pulse_gesture_menu)
         else -> stringResource(R.string.pulse_gesture_none)
     }
-    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button,
-        onClickLabel = stringResource(R.string.pulse_gesture_choose), onClick = onPick)
-        .padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    val note = when {
+        raw == null && (default != null || menu) -> stringResource(R.string.controls_default)
+        elsewhere > 0 -> stringResource(R.string.controls_elsewhere, elsewhere)
+        else -> null
+    }
+    GestureRow(line.name, detail, {
         if (shown != null) ActionIcon(shown.action, detail, 28.dp, ink.ink, app = shown.app, shortcut = shown.shortcut)
-        else HomeGlyph(Glyph.Plus, null, tint = ink.faint, size = 22.dp)
-        Column(Modifier.padding(start = 14.dp).weight(1f)) {
-            Text(name, style = InkText.body)
-            Text(detail, style = InkText.small, color = if (shown != null) ink.muted else ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            // Informative only: one gesture has one action, but an action may hang on several gestures.
-            if (elsewhere > 0) Text(stringResource(R.string.controls_elsewhere, elsewhere), style = InkText.small, color = ink.faint)
-        }
-        if (raw != null) IconAction(Glyph.Close, stringResource(if (menu) R.string.pulse_gesture_reset else R.string.remove),
-            onRemove, tint = ink.muted)
+        else HomeGlyph(if (menu) Glyph.Pulse else Glyph.Plus, null, tint = if (menu) ink.ink else ink.faint, size = 22.dp)
+    }, { onPick(trigger) }, clickLabel = stringResource(R.string.pulse_gesture_choose), note = note, quiet = action == null && !menu) {
+        if (raw != null) IconAction(Glyph.Close, stringResource(if (menu || default != null) R.string.pulse_gesture_reset else R.string.remove),
+            { onRemove(trigger) }, tint = ink.muted)
     }
 }

@@ -215,11 +215,13 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
             FlowRun.Failed -> message(R.string.launch_failed)
         }
     }
-    val actionHost = rememberActionHost(model) { openSearch(fromLens = true) }
+    fun editHome() { studioStart = StudioStart.Main; editOnHome = true; pages.removeState(Page.Studio.name); page = Page.Home }
+    val actionHost = rememberActionHost(model, onDrawer = ::openDrawer, onEditHome = ::editHome) { openSearch(fromLens = true) }
     /** The Action Engine entry for every trigger: run, go Home when something opened, otherwise say why. */
     fun perform(action: Action) {
         when (val result = action.run(actionHost)) {
-            ActionResult.Opened -> if (action != Action.Search) goHome()
+            // Search, the drawer and the editor are Home's own screens: they stay open.
+            ActionResult.Opened -> if (action != Action.Search && action != Action.Drawer && action != Action.EditHome) goHome()
             ActionResult.Done -> Unit
             is ActionResult.Unavailable -> message(when (result.reason) {
                 Reason.AppMissing -> R.string.action_app_missing
@@ -359,7 +361,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                 }
                 Page.Studio -> AccentScope(PaletteTarget.Studio) {
                     Studio(model, settings, onBack = { studioStart = StudioStart.Main; goHome() }, onFlows = { flowsBack = Page.Studio; page = Page.Flows },
-                        onEditHome = { studioStart = StudioStart.Main; editOnHome = true; pages.removeState(Page.Studio.name); page = Page.Home },
+                        onEditHome = ::editHome,
                         start = studioStart)
                 }
             }
@@ -494,9 +496,15 @@ private fun Home(
     val homeDown by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeDown)))
     val homeLeft by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeLeft)))
     val homeRight by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeRight)))
+    // Veil 3.0: swipe up and hold carry the drawer and the editor by default, but can be rebound.
+    val homeUp by rememberUpdatedState(settings.controls.effective(Trigger.Home(Gesture.SwipeUp)))
+    val homeHold = settings.controls.effective(Trigger.Home(Gesture.Hold))
+    fun runHome(a: Action) { when (a) { Action.Drawer -> onDrawer(); Action.EditHome -> openRequested = true; else -> onAction(a) } }
     val homeLabels = listOf(stringResource(R.string.gesture_home_double), stringResource(R.string.gesture_home_down),
-        stringResource(R.string.gesture_home_left), stringResource(R.string.gesture_home_right))
-    val homeActions = listOf(homeDouble, homeDown, homeLeft, homeRight).mapIndexedNotNull { i, bound ->
+        stringResource(R.string.gesture_home_left), stringResource(R.string.gesture_home_right), stringResource(R.string.gesture_home_up))
+    val homeHoldLabel = stringResource(R.string.gesture_home_hold)
+    // A rebound swipe up is offered to TalkBack too; the drawer stays one LENS swipe away.
+    val homeActions = listOf(homeDouble, homeDown, homeLeft, homeRight, homeUp?.takeIf { it != Action.Drawer }).mapIndexedNotNull { i, bound ->
         bound?.let { a -> CustomAccessibilityAction(homeLabels[i]) { onAction(a); true } }
     }
     val lensLabels = listOf(stringResource(R.string.gesture_lens_left), stringResource(R.string.gesture_lens_right))
@@ -510,7 +518,7 @@ private fun Home(
             detectVerticalDragGestures(onDragStart = { drag = 0f }, onVerticalDrag = { _, amount -> drag += amount },
                 onDragEnd = {
                     if (editor != null) return@detectVerticalDragGestures
-                    if (drag < -swipe) onDrawer() else if (drag > swipe) homeDown?.let(onAction)
+                    if (drag < -swipe) homeUp?.let(::runHome) else if (drag > swipe) homeDown?.let(onAction)
                 })
         }
         .pointerInput(Unit) {
@@ -526,9 +534,10 @@ private fun Home(
                         else -> Unit
                     }
                 })
-        }.combinedClickable(interactionSource = null, indication = null, onLongClickLabel = editLabel, onClick = {},
+        }.combinedClickable(interactionSource = null, indication = null,
+            onLongClickLabel = if (homeHold == Action.EditHome) editLabel else homeHoldLabel, onClick = {},
             onDoubleClick = if (homeDouble != null && editor == null) ({ onAction(homeDouble) }) else null,
-            onLongClick = { if (editor == null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openRequested = true } })
+            onLongClick = { if (editor == null) homeHold?.let { haptic.performHapticFeedback(HapticFeedbackType.LongPress); runHome(it) } })
         .semantics { if (homeActions.isNotEmpty() && editor == null) customActions = homeActions }) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
         val statusTop = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp() }

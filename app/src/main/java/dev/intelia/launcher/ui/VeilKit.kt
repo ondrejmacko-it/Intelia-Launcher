@@ -230,3 +230,31 @@ fun ResetDefaults(what: String, onReset: () -> Unit) {
     if (asking) ConfirmDialog(what, androidx.compose.ui.res.stringResource(dev.intelia.launcher.R.string.reset_defaults_do),
         onConfirm = { asking = false; onReset() }, onDismiss = { asking = false })
 }
+
+/**
+ * One gesture → one action (Veil 3.0, after Essential Key Remapper): the action's icon, the gesture's name, what it
+ * does now and an optional note (default, also elsewhere), then [trailing] (remove / reset, or a lock).
+ */
+@Composable
+fun GestureRow(name: String, action: String, icon: @Composable () -> Unit, onClick: (() -> Unit)?, clickLabel: String? = null,
+    note: String? = null, quiet: Boolean = false, anchor: String? = null, trailing: (@Composable () -> Unit)? = null) {
+    val ink = LocalInk.current
+    Row(Modifier.fillMaxWidth().settingAnchor(anchor).heightIn(min = 56.dp)
+        .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClickLabel = clickLabel, onClick = onClick) else Modifier)
+        .padding(start = 14.dp, end = 6.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) { icon() }
+        Column(Modifier.weight(1f).padding(start = 12.dp, end = 6.dp)) {
+            Text(name, style = InkText.body.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium), color = if (quiet) ink.muted else ink.ink,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(action, style = InkText.small, color = if (quiet) ink.faint else ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (note != null) Text(note, style = InkText.small, color = ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        trailing?.invoke()
+    }
+}
+
+/** A quiet note inside a group, at the rows' margins. */
+@Composable
+fun GroupNote(text: String) {
+    Text(text, Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), style = InkText.small, color = LocalInk.current.muted)
+}

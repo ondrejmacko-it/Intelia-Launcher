@@ -558,7 +558,7 @@
     <string name="key_camera">Fotoaparát</string>
     <string name="key_media">Tlačítko médií / sluchátek</string>
     <string name="controls_find">Hledej gesto nebo akci</string>
-    <string name="controls_hint">Klepni na gesto a vyber akci, křížek ji odebere. Pevná gesta drží LENS, ARC a Home pohromadě a měnit nejdou.</string>
+    <string name="controls_hint">Jedno gesto, jedna akce. Klepnutím na řádek ji vybereš, křížek ji odebere nebo vrátí výchozí.</string>
     <string name="controls_pulse">PULSE kapsle</string>
     <string name="controls_pulse_off">PULSE je vypnutý. Zapneš ho ve Studiu › PULSE.</string>
     <string name="controls_home">Home</string>
@@ -649,4 +649,13 @@
     <string name="studio_kw_keys">tlačítka klávesy hlasitost hardware essential přemapování</string>
     <string name="studio_kw_haptics">haptika vibrace odezva dotek</string>
     <string name="studio_kw_permissions">oprávnění přístupnost služba přístup k oznámením</string>
+    <string name="act_drawer">Šuplík aplikací</string>
+    <string name="act_edit_home">Upravit plochu</string>
+    <string name="gesture_home_up">Tah nahoru na ploše</string>
+    <string name="gesture_home_hold">Podržení na ploše</string>
+    <string name="controls_default">Výchozí</string>
+    <string name="controls_more">Další gesta</string>
+    <string name="controls_more_count">Nevyužitá: %1$d</string>
+    <string name="controls_lens_locked">Pilíře LENS jsou pevné, aby čočka vždy znamenala hledání, šuplík a ARC. Švihnutí do stran jsou volná.</string>
+    <string name="controls_home_hint">Tah nahoru a podržení mohou dělat něco jiného; šuplík zůstává na LENS a editor ve Studiu › Plocha.</string>
 </resources>

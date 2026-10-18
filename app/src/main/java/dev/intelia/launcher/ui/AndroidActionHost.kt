@@ -40,6 +40,9 @@ class AndroidActionHost(
      */
     private val model: HomeViewModel?,
     private val onSearch: () -> Boolean,
+    /** Home's drawer and editor; the service outside Home has neither. */
+    private val onDrawer: () -> Boolean = { false },
+    private val onEditHome: () -> Boolean = { false },
 ) : ActionHost {
     private val camera = context.getSystemService(CameraManager::class.java)
     private val torchId: String? by lazy { camera?.let(::torchCamera) }
@@ -76,6 +79,8 @@ class AndroidActionHost(
     override fun runFlow(flow: FlowAlias) = model?.let { it.runFlow(flow) == FlowRun.Launched }
         ?: Flow.resolve(flow) { key -> app(key)?.takeIf { !it.suspended } }?.all(repo::launch) ?: false
     override fun openSearch() = onSearch()
+    override fun openDrawer() = onDrawer()
+    override fun editHome() = onEditHome()
     override fun startShortcut(pkg: String, id: String): Boolean =
         shortcutList.firstOrNull { it.packageName == pkg && it.id == id }?.let { model?.launch(it) ?: repo.startShortcut(it) } ?: false
 
@@ -145,10 +150,14 @@ class AndroidActionHost(
 
 /** One host per Home; the torch listener lives exactly as long as it (no polling). */
 @Composable
-fun rememberActionHost(model: HomeViewModel, onSearch: () -> Unit): AndroidActionHost {
+fun rememberActionHost(model: HomeViewModel, onDrawer: (() -> Unit)? = null, onEditHome: (() -> Unit)? = null,
+    onSearch: () -> Unit): AndroidActionHost {
     val context = LocalContext.current
     val search by rememberUpdatedState(onSearch)
-    val host = remember(model) { AndroidActionHost(context.applicationContext, model) { search(); true } }
+    val drawer by rememberUpdatedState(onDrawer)
+    val edit by rememberUpdatedState(onEditHome)
+    val host = remember(model) { AndroidActionHost(context.applicationContext, model, { search(); true },
+        { drawer?.invoke() != null }, { edit?.invoke() != null }) }
     DisposableEffect(host) {
         val camera = context.getSystemService(CameraManager::class.java)
         camera?.registerTorchCallback(host.torchCallback, null)

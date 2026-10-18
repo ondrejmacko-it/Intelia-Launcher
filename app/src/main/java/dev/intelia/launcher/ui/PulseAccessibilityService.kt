@@ -162,7 +162,7 @@ class PulseAccessibilityService : AccessibilityService() {
         windows = getSystemService(WindowManager::class.java)
         _running.value = true
         instance = this
-        host = AndroidActionHost(this, null) { openOnHome(Action.Search) }.also { h ->
+        host = AndroidActionHost(this, null, onSearch = { openOnHome(Action.Search) }).also { h ->
             getSystemService(CameraManager::class.java)?.registerTorchCallback(h.torchCallback, main)
         }
         locked = getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true

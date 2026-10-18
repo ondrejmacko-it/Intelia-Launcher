@@ -36,6 +36,12 @@ sealed interface Action {
 
     @Serializable @SerialName("lock") data object Lock : Action
 
+    /** The app drawer; Home's default for a swipe up, which can now carry something else (Veil 3.0). */
+    @Serializable @SerialName("drawer") data object Drawer : Action
+
+    /** Home's editor; the default for holding Home. Studio › Upravit plochu always reaches it as well. */
+    @Serializable @SerialName("edit_home") data object EditHome : Action
+
     /**
      * Global ARC (M3.3): a held PULSE gesture opens ARC set [set] under the camera; the finger slides to a slot and
      * release runs it. Only hold gestures can carry it ([opensArc]); the surface draws it, so [run] never does.
@@ -67,6 +73,7 @@ sealed interface Action {
         is SystemPanel -> null
         is Card -> if (wellFormed(id) && host.hasCard(id)) null else Reason.CardMissing
         Lock -> if (host.hasPulseService()) null else Reason.NeedsPulseService
+        Drawer, EditHome -> null
         is Arc -> if (wellFormed(set)) null else Reason.Invalid
     }
 
@@ -83,7 +90,7 @@ sealed interface Action {
      */
     val outsideHome: Boolean get() = when (this) {
         is Media, Torch, Screenshot, SoundMode, is SystemPanel, Lock, is Arc -> true
-        is App, is Flow, Search, is Shortcut, is Card -> false
+        is App, is Flow, Search, is Shortcut, is Card, Drawer, EditHome -> false
     }
 
     /** Structural check for restored data; availability on this device is [unavailableReason]. */
@@ -116,6 +123,8 @@ sealed interface Action {
             is SystemPanel -> return opened(host.openPanel(kind))
             is Card -> return opened(host.openCard(id))
             Lock -> host.lockScreen()
+            Drawer -> return opened(host.openDrawer())
+            EditHome -> return opened(host.editHome())
             // Drawn and tracked by the surface that recognised the hold; reaching here means no surface can.
             is Arc -> return ActionResult.Unavailable(Reason.Unsupported)
         }
@@ -175,6 +184,9 @@ interface ActionHost {
     fun openPanel(kind: PanelKind): Boolean
     fun openCard(id: String): Boolean
     fun lockScreen(): Boolean
+    /** Home's own screens; a host without Home (the PULSE service outside it) cannot open them. */
+    fun openDrawer(): Boolean = false
+    fun editHome(): Boolean = false
 }
 
 /** Exact FLOW lookup shared by hosts: same normalisation as Search, never a prefix match. */

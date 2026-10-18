@@ -2,6 +2,27 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Studio Veil 3.0, step 3: gestures as rows, Home swipe up / hold rebindable (`feat/control-system-v1`)
+- Step 1 leftovers checked on the phone (Lab from `d962d83`): Plocha page (preview, Upravit plochu, Oblíbené 5 z 7,
+  grid steppers); Systém a data (default home ✓, PULSE service „Povoleno“ — right after a `uiautomator dump` it reads
+  „Vypnuto“ for a moment, the known rebind), notification access, hidden apps, backup, about; Vzhled › Obnovit
+  výchozí dialog says what it restores, Zrušit leaves everything; editor camera tap → Studio › PULSE, Back → editor.
+- `Action.Drawer` / `Action.EditHome` (`ActionHost.openDrawer` / `editHome`, default false: the service outside
+  Home cannot open them), offered among system actions. `Controls.HOME_DEFAULTS` (swipe up = drawer, hold = editor),
+  `defaultOf` / `effective`; binding a default stores nothing, unbinding brings it back. Global ARC still only on held
+  PULSE gestures. Home runs `effective` for both; a rebound swipe up is also a TalkBack custom action.
+- `VeilKit`: `GestureRow` (action icon, gesture, action, note „Výchozí“ / „i jinde“, remove or reset), `GroupNote`.
+  Gesta a tlačítka rebuilt on it: one `VeilGroup` per surface, unused gestures under „Další gesta · Nevyužitá: N“
+  (search shows all matches), LENS tap / swipe up / hold locked with an explanation, Home hint says where the drawer
+  and the editor stay reachable.
+- Tests: `ControlsTest` +1 (defaults, rebind, unbind → default, JSON + sanitize).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab`, no warnings.
+- Phone (Lab `install -r`), verified: page renders (PULSE: Klepnutí = menu Výchozí, Dvojí = Spotify, Podržení =
+  Global ARC · Hlavní, Klepnutí a podržení = Svítilna; Home: Tah nahoru = Šuplík Výchozí, Podržení = Upravit plochu
+  Výchozí); hold on Home opens the editor. Home Tah nahoru temporarily → Upravit plochu: swipe up opened the editor;
+  reset (cross „Obnovit výchozí“) → row back to Šuplík Výchozí and swipe up opened the drawer.
+- NOT verified: hold rebound to another action, TalkBack custom actions, light theme, 130 % text.
+
 ## 2026-10-18 — Studio Veil 3.0, step 1: five areas, shared kit, search to the row (`feat/control-system-v1`)
 - Owner approved the tree: Vzhled · Plocha · Ovládání (PULSE, ARC, Gesta a tlačítka, Animace a haptika) · Akce a FLOW ·
   Systém a data. Fixed gestures: only the LENS pillars stay locked (to be applied in the gestures step).

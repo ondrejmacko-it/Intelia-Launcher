@@ -168,4 +168,22 @@ class ControlsTest {
         assertEquals(GlobalArcLook(), old.globalArc)
         assertEquals(6, old.arc.slots)
     }
+
+    @Test fun homeSwipeUpAndHoldHaveDefaultsThatCanBeRebound() {
+        val up = Trigger.Home(Gesture.SwipeUp)
+        val hold = Trigger.Home(Gesture.Hold)
+        val c = Controls()
+        assertEquals(Action.Drawer, c.effective(up))
+        assertEquals(Action.EditHome, c.effective(hold))
+        assertNull(c.effective(Trigger.Home(Gesture.DoubleTap)))
+        val torch = c.bind(up, Action.Torch)
+        assertEquals(Action.Torch, torch.effective(up))
+        // Unbinding brings the default back; binding the default itself stores nothing.
+        assertEquals(Action.Drawer, torch.bind(up, null).effective(up))
+        assertTrue(c.bind(hold, Action.EditHome).bindings.isEmpty())
+        // Global ARC still only on held PULSE gestures.
+        assertEquals(c, c.bind(hold, Action.Arc()))
+        val json = Json.encodeToString(Controls.serializer(), torch.bind(hold, Action.Drawer))
+        assertEquals(Action.Drawer, Json.decodeFromString(Controls.serializer(), json).sanitized(emptySet()).effective(hold))
+    }
 }
