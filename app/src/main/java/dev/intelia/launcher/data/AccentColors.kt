@@ -33,6 +33,69 @@ object AccentColors {
         return (if (dark) pale else deep).toInt()
     }
 
+    /**
+     * D25: the colour drawn for an owner-made [base] in one theme. Hue and saturation are kept; lightness moves (up in
+     * the dark theme, down in the light one) until the accent has [MIN_CONTRAST] against that theme's Veil base and
+     * the text on it ([INK_LIGHT] on pale accents, white on deep ones, as `inkPalette` picks at luminance .3) has it too.
+     */
+    fun derive(base: Int, dark: Boolean): Int {
+        val (h, s, l0) = hsl(base or OPAQUE)
+        fun ok(c: Int): Boolean = if (dark) contrast(c, VEIL_DARK) >= MIN_CONTRAST && luminance(c) > PALE_LUMINANCE &&
+            contrast(c, INK_LIGHT) >= MIN_CONTRAST
+        else contrast(c, VEIL_LIGHT) >= MIN_CONTRAST && contrast(c, WHITE) >= MIN_CONTRAST && luminance(c) <= PALE_LUMINANCE
+        var l = l0
+        repeat(101) {
+            val c = fromHsl(h, s, l)
+            if (ok(c)) return c
+            l = (if (dark) l + .01f else l - .01f).coerceIn(0f, 1f)
+        }
+        // Saturated hues that never pass (rare): fall back to the theme's ink-like extreme of the same hue.
+        return fromHsl(h, s * .5f, if (dark) .85f else .25f).takeIf(::ok) ?: if (dark) INK_DARK else INK_LIGHT
+    }
+
+    /** Hue 0–360, saturation and lightness 0–1 of an ARGB colour. */
+    fun hsl(argb: Int): Triple<Float, Float, Float> {
+        val r = (argb shr 16 and 0xFF) / 255f
+        val g = (argb shr 8 and 0xFF) / 255f
+        val b = (argb and 0xFF) / 255f
+        val max = maxOf(r, g, b)
+        val min = minOf(r, g, b)
+        val l = (max + min) / 2f
+        if (max == min) return Triple(0f, 0f, l)
+        val d = max - min
+        val s = if (l > .5f) d / (2f - max - min) else d / (max + min)
+        val h = when (max) {
+            r -> (g - b) / d + (if (g < b) 6f else 0f)
+            g -> (b - r) / d + 2f
+            else -> (r - g) / d + 4f
+        } * 60f
+        return Triple(h, s, l)
+    }
+
+    /** Opaque ARGB from hue 0–360, saturation and lightness 0–1. */
+    fun fromHsl(h: Float, s: Float, l: Float): Int {
+        val c = (1f - kotlin.math.abs(2f * l - 1f)) * s
+        val hp = ((h % 360f + 360f) % 360f) / 60f
+        val x = c * (1f - kotlin.math.abs(hp % 2f - 1f))
+        val (r, g, b) = when (hp.toInt()) {
+            0 -> Triple(c, x, 0f)
+            1 -> Triple(x, c, 0f)
+            2 -> Triple(0f, c, x)
+            3 -> Triple(0f, x, c)
+            4 -> Triple(x, 0f, c)
+            else -> Triple(c, 0f, x)
+        }
+        val m = l - c / 2f
+        fun ch(v: Float) = ((v + m) * 255f + .5f).toInt().coerceIn(0, 255)
+        return OPAQUE or (ch(r) shl 16) or (ch(g) shl 8) or ch(b)
+    }
+
+    const val OPAQUE = 0xFF000000.toInt()
+    const val WHITE = 0xFFFFFFFF.toInt()
+    const val MIN_CONTRAST = 4.5
+    /** Above this luminance `inkPalette` puts dark ink on the accent, at or below it white. */
+    const val PALE_LUMINANCE = .3
+
     /** WCAG relative luminance of an opaque ARGB colour. */
     fun luminance(argb: Int): Double {
         fun channel(shift: Int): Double {

@@ -2,6 +2,34 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — M2 step 2: haptic strength (D24) and a custom accent (D25) (`feat/control-system-v1`)
+- Owner approved D24 = B (`VIBRATE`) with automatic fallback to A, and D25 = one custom accent first, architecture
+  ready for full palettes (see `DECISIONS.md`).
+- Haptics: `data/HapticPrefs.kt` — `HapticPrefs(strength, per)` in settings `haptic`, pure `Haptic.level/step/plan`;
+  `ui/HapticEngine.kt` plays a one-shot amplitude pulse (`USAGE_TOUCH`) where `Vibrator.hasAmplitudeControl`, else the
+  system effect of one of four stops; Android's `HAPTIC_FEEDBACK_ENABLED` off = silent. Used by `InkHaptics` (LENS ARC
+  = Arc, Pulse.kt = Pulse, Search = global) and the PULSE service (keys, Global ARC, PULSE gestures — before always
+  on, now they follow the strength and the system switch). Animace a haptika: slider 0–100 % or the four stops, each
+  change plays once; a note says when Android's touch feedback is off. Old `haptics` maps onto its stop (Jemná 25,
+  Výrazná 85) and is written back with every change.
+- Colour: `data/CustomColors.kt` (`custom.accent`, opaque ARGB, hex parse/format); `AccentColors.derive` keeps hue and
+  saturation and moves lightness to 4.5:1 against the theme's Veil base and for text on the accent; `mainAccent` /
+  `placeAccent` in `Ink.kt` are the single resolver. Palette › Vlastní barva: hue / saturation / lightness, hex, dark and
+  light preview, „Zpět na předvolbu“. A preset swatch or Obnovit výchozí (Vzhled) clears it; the preset under it is kept.
+- PASS: `./gradlew -q --max-workers=1 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (235 tests; new `HapticAndCustomColorTest` 7 tests: legacy mapping, clamps, plan paths, hex, round trip, contrast over a
+  hue × saturation × lightness grid). `install -r` 23:46; `dumpsys package`: VIBRATE granted.
+- Phone (3), top activity checked before every input: the motor reports no amplitude control (`vibrator_manager`
+  capabilities `[ON_CALLBACK]`), so Studio shows the four stops — the fallback path. The first build showed the owner's
+  Jemná as Střední (35 was in the middle third); fixed (Jemná = 25), the owner's choice now shows Jemná. Android touch
+  feedback is off on this phone (`haptic_feedback_enabled` 0): the page says so and nothing vibrates; not changed.
+  Vlastní barva: hue tap → #8CE3F7 applied at once to Studio, the sheet and PULSE, both theme previews legible; „Zpět na
+  předvolbu“ restored the preset (Coral ringed, sliders back at 14°).
+- Observed: the accent was Orchid at 23:16 and Coral at 23:42 while the owner was using the phone (other settings
+  unchanged); this session only changed it inside the custom-colour test above and restored it.
+- Not verified: the continuous slider and amplitude pulses (no device with amplitude control), any felt vibration
+  (system feedback off), hex typing on the device, TalkBack speech, a light-theme run.
+
 ## 2026-10-18 — M1 follow-ups and M2 step 1: caption counters, Motiv tiles (`feat/control-system-v1`)
 - ARC page: the LENS ARC / Global ARC tab is hoisted to Studio; `PreviewPlan.kind(section, globalArc)` → new
   `PreviewKind.GlobalArc`, drawn as PULSE's stage in its ARC state (Global ARC under the camera, owner's hold set).

@@ -3,6 +3,8 @@
 
     <!-- D13 ④: only to save one of Intelia's own wallpapers as the system one, on explicit confirmation. Normal permission. -->
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- D24: touch feedback at the strength chosen in Studio (amplitude control); nothing else. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <queries>
         <intent>

@@ -206,6 +206,10 @@
     <string name="haptics">Haptika</string>
     <string name="haptics_soft">Jemná</string>
     <string name="haptics_strong">Výrazná</string>
+    <string name="haptics_medium">Střední</string>
+    <string name="haptics_detail_amplitude">Plynulá síla pro celý launcher. Řídí se systémovou hmatovou odezvou; 0 = vypnuto.</string>
+    <string name="haptics_detail_steps">Tento telefon neumí plynulou sílu, proto čtyři systémové stupně. Řídí se systémovou hmatovou odezvou.</string>
+    <string name="haptics_system_off">Hmatová odezva je v Androidu vypnutá, Intelia proto nevibruje.</string>
     <string name="default_home_section">Výchozí plocha</string>
     <string name="default_home">Nastavit Intelia jako plochu</string>
     <string name="default_home_active">Intelia je tvoje plocha.</string>
@@ -336,6 +340,15 @@
     <string name="palette_unified">Jedna barva všude</string>
     <string name="palette_main">Hlavní</string>
     <string name="palette_follow">Hlavní barva</string>
+    <string name="palette_custom">Vlastní barva</string>
+    <string name="palette_custom_none">Žádná — klepni a namíchej si ji</string>
+    <string name="palette_hue">Odstín</string>
+    <string name="palette_saturation">Sytost</string>
+    <string name="palette_lightness">Jas</string>
+    <string name="palette_hex">HEX</string>
+    <string name="palette_custom_preview">Tmavý a světlý motiv</string>
+    <string name="palette_custom_detail">V každém motivu se jas upraví tak, aby text na barvě i barva na pozadí zůstaly čitelné.</string>
+    <string name="palette_custom_clear">Zpět na předvolbu</string>
     <string name="place_clock">Hodiny</string>
     <string name="place_text">Text</string>
     <string name="place_icons">Ikony</string>

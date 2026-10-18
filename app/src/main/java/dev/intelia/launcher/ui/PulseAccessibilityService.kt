@@ -1,5 +1,7 @@
 package dev.intelia.launcher.ui
 
+import dev.intelia.launcher.data.Haptic
+import dev.intelia.launcher.data.HapticSurface
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.os.PowerManager
@@ -27,7 +29,6 @@ import android.os.SystemClock
 import android.provider.AlarmClock
 import android.provider.Settings
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -197,6 +198,10 @@ class PulseAccessibilityService : AccessibilityService() {
 
     private fun controls() = (application as InteliaApp).settings.state.value.controls
 
+    /** D24: touch feedback at the owner's strength for [surface], on the lens view. */
+    private fun buzz(surface: HapticSurface, kind: Haptic.Kind) =
+        HapticEngine.of(this).play(lens, (application as InteliaApp).settings.state.value.hapticLevel(surface), kind)
+
     /** D20: the key filter is requested only while the owner has it on and a key is bound; otherwise no key passes us. */
     private fun applyKeyFilter() {
         val c = controls()
@@ -229,7 +234,7 @@ class PulseAccessibilityService : AccessibilityService() {
     private fun keyEffects(effects: List<KeyRemap.Effect>): Unit = effects.forEach { e ->
         when (e) {
             is KeyRemap.Effect.Run -> controls().bound(Trigger.Key(e.code, e.gesture))?.let { a ->
-                lens?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                buzz(HapticSurface.Keys, Haptic.Kind.Confirm)
                 runBound(a)
             }
             is KeyRemap.Effect.Replay -> replay(e.code)
@@ -484,13 +489,13 @@ class PulseAccessibilityService : AccessibilityService() {
         when (e.actionMasked) {
             MotionEvent.ACTION_MOVE -> if (gestures.holding) {
                 val next = GlobalArcGeometry.pick(ui.bow, ui.camera, x, y, ui.content.filled(ui.set), ui.pick)
-                if (next != null && next != ui.pick && ui.content.globalLook.haptics) lens?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                if (next != null && next != ui.pick && ui.content.globalLook.haptics) buzz(HapticSurface.Arc, Haptic.Kind.Tick)
                 arcUi.value = ui.copy(pick = next)
             }
             MotionEvent.ACTION_UP -> {
                 val chosen = ui.pick?.let { ui.content.sets.getOrNull(ui.set)?.slots?.getOrNull(it) }
                 closeArc()
-                chosen?.let { lens?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); runFromArc(it.action) }
+                chosen?.let { buzz(HapticSurface.Arc, Haptic.Kind.Confirm); runFromArc(it.action) }
             }
             MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> closeArc()
         }
@@ -597,8 +602,7 @@ class PulseAccessibilityService : AccessibilityService() {
             out.timer?.let { main.postDelayed(gestureTimer, it) }
         }
         val g = out.run ?: return
-        lens?.performHapticFeedback(if (g == Gesture.Hold || g == Gesture.DoubleTapHold) HapticFeedbackConstants.LONG_PRESS
-            else HapticFeedbackConstants.VIRTUAL_KEY)
+        buzz(HapticSurface.Pulse, if (g == Gesture.Hold || g == Gesture.DoubleTapHold) Haptic.Kind.Confirm else Haptic.Kind.Tick)
         gesture(g)
     }
 

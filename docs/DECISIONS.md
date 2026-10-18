@@ -336,23 +336,30 @@ hold → torch**, everything rebindable. Scope:
   Akce a FLOW (FLOWs run from Search by exact name; the sample query is the owner's first FLOW name). Each preview shows
   only the strip it is about (`PreviewPlan.stripTop`).
 
-## D24 — 2026-10-18 — M2 order; haptic strength slider: PROPOSED, needs the owner
+## D24 — 2026-10-18 — APPROVED by the owner: haptic strength (B, VIBRATE) with automatic fallback to A
 M2 order: (1) counters in binding-group captions and (2) Motiv preview tiles need no decision (built 2026-10-18);
-(3) haptic slider and (4) free colour picker wait for D24 / D25.
-Haptics today go through `View.performHapticFeedback` (no permission), which has no strength: only the system's
-fixed effects. Two ways to a 0–100 % slider:
-- **A (recommended, no permission):** the slider snaps to 4 stops — Vypnuto / Jemná / Střední / Silná — mapped to
-  system effects (`CLOCK_TICK`, `KEYBOARD_TAP`, `CONFIRM`/`LONG_PRESS`). Honest steps, follows the system haptics switch.
-  Settings: `haptics` enum gains `Medium`; old documents keep their value.
-- **B:** a true amplitude slider through `Vibrator`/`VibrationEffect.createOneShot(ms, amplitude)`. Needs
-  `android.permission.VIBRATE` (normal, auto-granted, but a new permission under AGENTS.md) and ignores the system
-  haptics switch unless we read it ourselves. Amplitude control depends on the motor (`hasAmplitudeControl`).
-Nothing is built until the owner picks A or B.
+(3) haptic strength and (4) a custom colour follow D24 / D25.
+The owner chose B with a fallback: maximum control without losing compatibility. Scope:
+- New permission `android.permission.VIBRATE` (normal, granted at install). Used only for touch feedback Intelia
+  already gives (ARC, PULSE, LENS, Search, Studio preview of the strength); never for notifications or patterns.
+- Model `HapticPrefs` (settings `haptic`): one global `strength` 0–100 (null = taken from the old `haptics` choice on its
+  stop: Off 0, Jemná 25, Výrazná 85, so nothing changes for an existing install) and a `per` map for ARC, PULSE, gestures and
+  keys — sanitized now, no UI yet (later step). Every write of `strength` also writes the old `haptics` enum, so an
+  older build or backup reader keeps a close value.
+- Device with amplitude control (`Vibrator.hasAmplitudeControl`): a continuous slider, one-shot pulses whose
+  amplitude follows the strength. Without it: four stops (Vypnuto / Jemná / Střední / Silná) mapped to the system's
+  own effects through `View.performHapticFeedback`. `Haptic.plan` (pure, JVM tested) picks the path.
+- The system setting wins: with Android's touch feedback off nothing vibrates on either path (the amplitude path
+  reads `HAPTIC_FEEDBACK_ENABLED` and vibrates with `USAGE_TOUCH`, which follows the touch-intensity setting).
+  Strength 0 is off. Global ARC's own on/off switch stays.
 
-## D25 — 2026-10-18 — Free colour picker: PROPOSED, needs the owner
-Today every colour is an `Accent` enum value (`AccentColors`), per place in `Palette`. A free colour needs a data
-change: `Accent.Custom` plus one stored `customArgb` (main accent; per-place customs later), validated in
-`LauncherSettings.sanitized()` (opaque, and lightness clamped so ink on it and it on paper keep 4.5:1 in both themes;
-the dark-theme variant derived by the same rule as the presets). UI: hue ring + one lightness/saturation track,
-a hex field, preview on the existing swatch; no eyedropper (would need screen capture). No permission, no network.
-Open for the owner: one custom colour for the whole launcher first (recommended), or per place at once.
+## D25 — 2026-10-18 — APPROVED by the owner: one custom accent colour, architecture ready for full palettes
+Step 1 is one owner-made accent for the whole launcher. Scope:
+- Settings `custom: CustomColors` — today only `accent` (opaque ARGB, null = none). It is the main accent while set
+  and overrides the preset `accent`, which is kept untouched, so choosing a preset again (or clearing the custom
+  colour) restores the old look exactly. Places of a per-place palette that follow the main colour follow it too.
+- Later steps extend `CustomColors` (per-place colours, component colours, whole themes, a Design Lab) without
+  touching the preset enum: every renderer gets colours through one resolver (`mainAccent` in `Ink.kt`).
+- The stored colour is the owner's base; what is drawn is derived per theme by `AccentColors.derive` (pure, JVM
+  tested): the hue and saturation are kept, lightness moves until it reaches 4.5:1 against the Veil base of that theme
+  and the text on the accent keeps 4.5:1 too. No eyedropper (would need screen capture), no permission, no network.

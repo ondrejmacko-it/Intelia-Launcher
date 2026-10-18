@@ -1,5 +1,7 @@
 package dev.intelia.launcher.ui
 
+import dev.intelia.launcher.data.Haptic
+import androidx.compose.ui.platform.LocalView
 import dev.intelia.launcher.data.pulseMode
 import dev.intelia.launcher.pulse.MediaWatch
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -230,7 +232,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
 /** Vzhled back to a new install's look: theme, accent and palette, material, wallpaper, text size and icons. */
 private fun LauncherSettings.withLookDefaults(): LauncherSettings {
     val d = LauncherSettings.fresh()
-    return copy(theme = d.theme, accent = d.accent, palette = d.palette, glass = d.glass, veilSolid = d.veilSolid, veilShift = d.veilShift,
+    return copy(theme = d.theme, accent = d.accent, custom = d.custom, palette = d.palette, glass = d.glass, veilSolid = d.veilSolid, veilShift = d.veilShift,
         veilEdge = d.veilEdge, wallpaper = d.wallpaper, wallDim = d.wallDim, textScale = d.textScale, iconStyle = d.iconStyle,
         iconShape = d.iconShape, iconSize = d.iconSize)
 }
@@ -380,7 +382,7 @@ private fun ControlsArea(settings: LauncherSettings, onPage: (StudioPane) -> Uni
         SettingRow(stringResource(R.string.gestures_title), stringResource(R.string.studio_gestures_sub, controls.bindings.size, controls.keys.size),
             { onPage(StudioPane.Gestures) }, glyph = Glyph.Touch)
         SettingRow(stringResource(R.string.motion_section), stringResource(motionName(settings.motion)) + " · " +
-            stringResource(hapticsName(settings.haptics)), { onPage(StudioPane.Motion) }, glyph = Glyph.Wave)
+            hapticSummary(settings), { onPage(StudioPane.Motion) }, glyph = Glyph.Wave)
     }
 }
 
@@ -610,14 +612,52 @@ private fun MotionPage(settings: LauncherSettings, set: SettingsEdit) {
         ChoiceSetting(stringResource(R.string.motion), listOf(Motion.Calm to stringResource(R.string.motion_calm),
             Motion.Brisk to stringResource(R.string.motion_brisk), Motion.Off to stringResource(R.string.off)), settings.motion,
             { v -> set { it.copy(motion = v) } }, detail = stringResource(R.string.motion_detail), anchor = StudioTarget.Motion.anchor)
-        ChoiceSetting(stringResource(R.string.haptics), listOf(Haptics.Soft to stringResource(R.string.haptics_soft),
-            Haptics.Strong to stringResource(R.string.haptics_strong), Haptics.Off to stringResource(R.string.off)), settings.haptics,
-            { v -> set { it.copy(haptics = v) } }, detail = stringResource(R.string.haptics_detail), anchor = StudioTarget.Haptics.anchor)
+        HapticStrength(settings, set)
     }
     ResetDefaults(stringResource(R.string.reset_motion_what)) {
         val d = LauncherSettings.fresh()
-        set { it.copy(motion = d.motion, haptics = d.haptics) }
+        set { it.copy(motion = d.motion, haptics = d.haptics, haptic = d.haptic) }
     }
+}
+
+/**
+ * D24: one strength for the whole launcher. A motor with amplitude control gets a continuous slider; any other phone
+ * the four system stops. Each change plays the new strength once, the way a gesture will feel. With Android's touch
+ * feedback off a note says so (Intelia then stays silent).
+ */
+@Composable
+private fun HapticStrength(settings: LauncherSettings, set: SettingsEdit) {
+    val view = LocalView.current
+    val engine = remember(view) { HapticEngine.of(view.context) }
+    var systemOn by remember { mutableStateOf(engine.systemOn()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { systemOn = engine.systemOn() }
+    val level = settings.hapticLevel()
+    fun choose(v: Int) {
+        set { it.withHapticLevel(v) }
+        engine.play(view, v, Haptic.Kind.Confirm)
+    }
+    SettingBlock(StudioTarget.Haptics.anchor) {
+        if (engine.amplitudeControl) {
+            SliderRow(stringResource(R.string.haptics), level.toFloat(), 0f, Haptic.MAX.toFloat(), 5f,
+                if (level == 0) stringResource(R.string.off) else "$level %") { v -> if (v.toInt() != level) choose(v.toInt()) }
+        }
+    }
+    if (!engine.amplitudeControl) ChoiceSetting(stringResource(R.string.haptics), Haptic.Step.entries.map { it to stringResource(hapticStepName(it)) },
+        Haptic.step(level), { v -> choose(v.level) })
+    GroupNote(stringResource(when {
+        !systemOn -> R.string.haptics_system_off
+        engine.amplitudeControl -> R.string.haptics_detail_amplitude
+        else -> R.string.haptics_detail_steps
+    }))
+}
+
+/** "Jemná · 35 %" on a phone with amplitude control, the stop's name elsewhere. */
+@Composable
+private fun hapticSummary(settings: LauncherSettings): String {
+    val context = LocalContext.current
+    val level = settings.hapticLevel()
+    val step = stringResource(hapticStepName(Haptic.step(level)))
+    return if (level > 0 && HapticEngine.of(context).amplitudeControl) "$step · $level %" else step
 }
 
 private fun motionName(m: Motion) = when (m) {
@@ -626,10 +666,11 @@ private fun motionName(m: Motion) = when (m) {
     Motion.Off -> R.string.off
 }
 
-private fun hapticsName(h: Haptics) = when (h) {
-    Haptics.Soft -> R.string.haptics_soft
-    Haptics.Strong -> R.string.haptics_strong
-    Haptics.Off -> R.string.off
+private fun hapticStepName(step: Haptic.Step) = when (step) {
+    Haptic.Step.Off -> R.string.off
+    Haptic.Step.Light -> R.string.haptics_soft
+    Haptic.Step.Medium -> R.string.haptics_medium
+    Haptic.Step.Strong -> R.string.haptics_strong
 }
 
 /**

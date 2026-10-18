@@ -2,6 +2,7 @@
 
 package dev.intelia.launcher.ui
 
+import dev.intelia.launcher.data.HapticSurface
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import android.app.AlarmManager
@@ -207,7 +208,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
     var arcAssisted by remember { mutableStateOf(false) }
     /** The set last shown, so the slots stay while Global ARC fades out. */
     var arcShown by remember { mutableStateOf(0) }
-    val haptics = rememberInkHaptics()
+    val haptics = rememberInkHaptics(HapticSurface.Pulse)
     fun closeArc() { arcSet = null; arcPick = null; arcAssisted = false }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { closeArc() }
     BackHandler(enabled = arcSet != null) { closeArc() }

@@ -207,6 +207,10 @@
     <string name="haptics">Haptics</string>
     <string name="haptics_soft">Soft</string>
     <string name="haptics_strong">Strong</string>
+    <string name="haptics_medium">Medium</string>
+    <string name="haptics_detail_amplitude">Continuous strength for the whole launcher. Follows the system touch feedback; 0 = off.</string>
+    <string name="haptics_detail_steps">This phone has no continuous strength, so four system steps. Follows the system touch feedback.</string>
+    <string name="haptics_system_off">Touch feedback is off in Android, so Intelia does not vibrate.</string>
     <string name="default_home_section">Home screen</string>
     <string name="default_home">Use Intelia as home screen</string>
     <string name="default_home_active">Intelia is your home screen.</string>
@@ -337,6 +341,15 @@
     <string name="palette_unified">One colour everywhere</string>
     <string name="palette_main">Main</string>
     <string name="palette_follow">Main colour</string>
+    <string name="palette_custom">Custom colour</string>
+    <string name="palette_custom_none">None — tap to mix one</string>
+    <string name="palette_hue">Hue</string>
+    <string name="palette_saturation">Saturation</string>
+    <string name="palette_lightness">Lightness</string>
+    <string name="palette_hex">HEX</string>
+    <string name="palette_custom_preview">Dark and light theme</string>
+    <string name="palette_custom_detail">Each theme adjusts the lightness so text on the colour and the colour on the background stay legible.</string>
+    <string name="palette_custom_clear">Back to the preset</string>
     <string name="place_clock">Clock</string>
     <string name="place_text">Text</string>
     <string name="place_icons">Icons</string>

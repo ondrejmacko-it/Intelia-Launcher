@@ -197,8 +197,8 @@ fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
 @Composable
 private fun ThemeTiles(chosen: ThemeMode, settings: LauncherSettings, onPick: (ThemeMode) -> Unit) {
     val ink = LocalInk.current
-    val light = inkPalette(false, accentColor(settings.accent, false))
-    val dark = inkPalette(true, accentColor(settings.accent, true))
+    val light = inkPalette(false, mainAccent(settings, false))
+    val dark = inkPalette(true, mainAccent(settings, true))
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         listOf(ThemeMode.System to R.string.theme_system, ThemeMode.Light to R.string.theme_light, ThemeMode.Dark to R.string.theme_dark)
             .forEach { (mode, name) ->

@@ -137,6 +137,10 @@ data class LauncherSettings(
     val clockStyle: ClockStyle = ClockStyle.Serif,
     val motion: Motion = Motion.Calm,
     val haptics: Haptics = Haptics.Soft,
+    /** D24: strength 0–100 and later per-surface levels; absent = taken from [haptics]. */
+    val haptic: HapticPrefs = HapticPrefs(),
+    /** D25: owner-made colours (step 1: one main accent); absent = presets only. */
+    val custom: CustomColors = CustomColors(),
     /** D18: extra text size on top of the system font scale; 1 = as the system sets it. */
     val textScale: Float = 1f,
     val iconStyle: IconStyle = IconStyle.System,
@@ -233,6 +237,16 @@ data class LauncherSettings(
     /** The accent that colours [target]: its own palette colour unless the palette is unified or unset there. */
     fun accentFor(target: PaletteTarget): Accent = palette.takeUnless { it.unified }?.get(target) ?: accent
 
+    /** The preset of [target] when it has its own, null when it follows the main colour (which may be custom, D25). */
+    fun ownAccent(target: PaletteTarget): Accent? = palette.takeUnless { it.unified }?.get(target)
+
+    /** D24: the haptic level 0–100 for [surface] (null = global). */
+    fun hapticLevel(surface: HapticSurface? = null): Int = Haptic.level(haptic, haptics, surface)
+
+    /** D24: sets the global level and keeps the old three-way choice close for older readers. */
+    fun withHapticLevel(level: Int): LauncherSettings =
+        level.coerceIn(0, Haptic.MAX).let { copy(haptic = haptic.copy(strength = it), haptics = Haptic.toLegacy(it)) }
+
     /** Bounded and self-consistent; applied on every read and write, including restores. */
     fun sanitized(): LauncherSettings {
         val accepted = mutableListOf<FlowAlias>()
@@ -251,6 +265,8 @@ data class LauncherSettings(
             pulseLens = pulseLens?.takeIf { it.x.isFinite() && it.y.isFinite() && it.r.isFinite() }
                 ?.let { PulseLens(it.x.coerceIn(0f, MAX_LENS_X), it.y.coerceIn(0f, MAX_LENS_Y), it.r.coerceIn(MIN_LENS_R, MAX_LENS_R)) },
             pulseHit = pulseHit.sanitized(),
+            haptic = haptic.sanitized(),
+            custom = custom.sanitized(),
             pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
             textScale = TEXT_SCALES.minBy { kotlin.math.abs(it - (if (textScale.isFinite()) textScale else 1f)) },
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),

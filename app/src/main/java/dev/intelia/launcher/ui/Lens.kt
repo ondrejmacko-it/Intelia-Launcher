@@ -2,6 +2,7 @@
 
 package dev.intelia.launcher.ui
 
+import dev.intelia.launcher.data.HapticSurface
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
@@ -155,7 +156,7 @@ fun LensArc(
     val selectLabel = stringResource(R.string.a11y_select)
     val ink = LocalInk.current
     val accent = ink.accent
-    val haptics = rememberInkHaptics()
+    val haptics = rememberInkHaptics(HapticSurface.Arc)
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
     var open by remember { mutableStateOf(shown && preview) }
