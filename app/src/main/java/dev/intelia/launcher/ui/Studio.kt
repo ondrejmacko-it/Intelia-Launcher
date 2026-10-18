@@ -437,10 +437,10 @@ private fun HomePage(settings: LauncherSettings, set: SettingsEdit, onEditHome: 
 private fun FavoritesPage(model: HomeViewModel, settings: LauncherSettings) {
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
     Hint(stringResource(R.string.favorites_hint))
-    Kicker(stringResource(R.string.favorites_count, settings.favorites.size, LauncherSettings.MAX_FAVORITES),
-        Modifier.padding(start = 24.dp, top = 8.dp, bottom = 4.dp), color = LocalInk.current.muted)
-    favorites.forEachIndexed { index, app ->
-        OrderedAppRow(app, index, onUp = { model.moveFavorite(app.key, -1) }, onRemove = { model.toggleFavorite(app) })
+    if (favorites.isNotEmpty()) VeilGroup(stringResource(R.string.favorites_count, settings.favorites.size, LauncherSettings.MAX_FAVORITES)) {
+        favorites.forEachIndexed { index, app ->
+            OrderedAppRow(app, index, onUp = { model.moveFavorite(app.key, -1) }, onRemove = { model.toggleFavorite(app) })
+        }
     }
 }
 
@@ -472,38 +472,41 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
         Chips(listOf(false to stringResource(R.string.arc_tab_lens), true to stringResource(R.string.arc_tab_global)), global) { global = it }
     }
     if (!global) {
-        Hint(stringResource(R.string.arc_explain_sets))
-        Stacked(stringResource(R.string.arc_slots)) {
-            Segments((ArcLook.MIN_SLOTS..ArcLook.MAX_VISIBLE).map { it to it.toString() }, look.slots, { v -> look { it.copy(slots = v) } })
+        VeilGroup {
+            GroupNote(stringResource(R.string.arc_explain_sets))
+            ChoiceSetting(stringResource(R.string.arc_slots), (ArcLook.MIN_SLOTS..ArcLook.MAX_VISIBLE).map { it to it.toString() }, look.slots,
+                { v -> look { it.copy(slots = v) } })
+            ChoiceSetting(stringResource(R.string.arc_size), sizes, look.radius, { v -> look { it.copy(radius = v) } })
+            ChoiceSetting(stringResource(R.string.arc_angle), spans, look.span, { v -> look { it.copy(span = v) } })
+            SwitchRow(stringResource(R.string.arc_tap_sets), look.tapSets, { on -> look { it.copy(tapSets = on) } },
+                detail = stringResource(R.string.arc_tap_sets_detail))
+            SwitchRow(stringResource(R.string.arc_haptics), look.haptics, { on -> look { it.copy(haptics = on) } },
+                detail = stringResource(R.string.arc_haptics_detail))
         }
-        ChoiceRow(stringResource(R.string.arc_size)) { Segments(sizes, look.radius, { v -> look { it.copy(radius = v) } }) }
-        ChoiceRow(stringResource(R.string.arc_angle)) { Segments(spans, look.span, { v -> look { it.copy(span = v) } }) }
-        ToggleRow(stringResource(R.string.arc_tap_sets), look.tapSets, { on -> look { it.copy(tapSets = on) } },
-            detail = stringResource(R.string.arc_tap_sets_detail))
-        ToggleRow(stringResource(R.string.arc_haptics), look.haptics, { on -> look { it.copy(haptics = on) } },
-            detail = stringResource(R.string.arc_haptics_detail))
     } else {
         val g = controls.globalArc
-        Hint(stringResource(R.string.global_arc_explain, look.slots))
-        ChoiceRow(stringResource(R.string.arc_size)) { Segments(sizes, g.radius, { v -> globalLook { it.copy(radius = v) } }) }
-        ChoiceRow(stringResource(R.string.arc_angle)) { Segments(spans, g.span, { v -> globalLook { it.copy(span = v) } }) }
-        ChoiceRow(stringResource(R.string.global_arc_dim)) {
-            Segments(listOf(GlobalArcLook.DIM_S to stringResource(R.string.global_arc_dim_low), GlobalArcLook.DIM_M to stringResource(R.string.arc_angle_mid),
-                GlobalArcLook.DIM_L to stringResource(R.string.global_arc_dim_high)), g.dim, { v -> globalLook { it.copy(dim = v) } })
+        VeilGroup {
+            GroupNote(stringResource(R.string.global_arc_explain, look.slots))
+            ChoiceSetting(stringResource(R.string.arc_size), sizes, g.radius, { v -> globalLook { it.copy(radius = v) } })
+            ChoiceSetting(stringResource(R.string.arc_angle), spans, g.span, { v -> globalLook { it.copy(span = v) } })
+            ChoiceSetting(stringResource(R.string.global_arc_dim), listOf(GlobalArcLook.DIM_S to stringResource(R.string.global_arc_dim_low),
+                GlobalArcLook.DIM_M to stringResource(R.string.arc_angle_mid), GlobalArcLook.DIM_L to stringResource(R.string.global_arc_dim_high)),
+                g.dim, { v -> globalLook { it.copy(dim = v) } })
+            SwitchRow(stringResource(R.string.arc_haptics), g.haptics, { on -> globalLook { it.copy(haptics = on) } },
+                detail = stringResource(R.string.global_arc_haptics_detail))
         }
-        ToggleRow(stringResource(R.string.arc_haptics), g.haptics, { on -> globalLook { it.copy(haptics = on) } },
-            detail = stringResource(R.string.global_arc_haptics_detail))
     }
 
     val stored = controls.arcSets.ifEmpty { listOf(dev.intelia.launcher.action.ArcSet(Controls.MAIN_SET)) }
     stored.forEachIndexed { setIndex, set ->
         val view = arc.sets.getOrNull(setIndex)?.takeIf { it.id == set.id } ?: ArcSetView(set.id, set.name, List(look.slots) { null })
         val name = setLabel(view, setIndex)
-        Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp, top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Kicker("${setIndex + 1} · $name · ${set.slots.take(look.slots).count { it != null }}/${look.slots}", Modifier.weight(1f), color = ink.accent)
+        Row(Modifier.fillMaxWidth().padding(end = 12.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            VeilCaption("${setIndex + 1} · $name · ${set.slots.take(look.slots).count { it != null }}/${look.slots}", Modifier.weight(1f))
             if (setIndex > 0) IconAction(Glyph.Close, stringResource(R.string.arc_set_remove, name), { model.editControls { it.removeSet(set.id) } },
                 tint = ink.muted)
         }
+        VeilGroup {
         repeat(look.slots) { index ->
             val raw = set.slots.getOrNull(index)
             val shown = view.slots.getOrNull(index)
@@ -515,9 +518,9 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
             val position = stringResource(if (index == 0) R.string.arc_slot_middle else R.string.arc_slot_n, index + 1)
             Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button,
                 onClickLabel = stringResource(R.string.arc_slot_choose)) { picking = set.id to index }
-                .padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                .padding(start = 18.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text((index + 1).toString(), Modifier.padding(end = 10.dp).semantics { contentDescription = position },
-                    style = InkText.label.copy(letterSpacing = 0.sp), color = ink.faint)
+                    style = InkText.label.copy(letterSpacing = 0.sp), color = ink.accent)
                 if (shown != null) ActionIcon(shown.action, label, 28.dp, ink.ink, app = shown.app, shortcut = shown.shortcut)
                 else HomeGlyph(Glyph.Plus, null, tint = ink.faint, size = 22.dp)
                 Text(label, Modifier.padding(start = 14.dp).weight(1f), style = InkText.body.copy(
@@ -528,8 +531,12 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
                 if (raw != null) IconAction(Glyph.Close, stringResource(R.string.remove), { model.editControls { it.setSlot(set.id, index, null) } }, tint = ink.muted)
             }
         }
+        }
     }
-    if (stored.size < Controls.MAX_SETS) NavRow(stringResource(R.string.arc_set_add), null, { model.editControls { it.addSet() ?: it } })
+    if (stored.size < Controls.MAX_SETS) {
+        Spacer(Modifier.height(10.dp))
+        VeilGroup { SettingRow(stringResource(R.string.arc_set_add), null, { model.editControls { it.addSet() ?: it } }, glyph = Glyph.Plus) }
+    }
 
     picking?.let { (setId, index) ->
         val inArc = remember(settings) { controls.arcSets.flatMap { it.slots }.filterNotNull().toSet() }
@@ -703,11 +710,13 @@ private fun BackupPart(model: HomeViewModel, beforeRestore: LauncherSettings?, o
             }
         }
     }
-    Hint(stringResource(R.string.backup_hint))
-    NavRow(stringResource(R.string.backup_export), null, { export.launch("intelia-${LocalDate.now()}.json") })
-    NavRow(stringResource(R.string.backup_import), null, {
-        restore.launch(arrayOf("application/json", "text/*", "application/octet-stream"))
-    })
+    VeilGroup {
+        GroupNote(stringResource(R.string.backup_hint))
+        SettingRow(stringResource(R.string.backup_export), null, { export.launch("intelia-${LocalDate.now()}.json") })
+        SettingRow(stringResource(R.string.backup_import), null, {
+            restore.launch(arrayOf("application/json", "text/*", "application/octet-stream"))
+        })
+    }
     if (beforeRestore != null) {
         Quiet(stringResource(R.string.backup_undo), {
             model.updateSettings { beforeRestore }
@@ -729,8 +738,7 @@ private fun BackupPart(model: HomeViewModel, beforeRestore: LauncherSettings?, o
 
 @Composable
 private fun Section(title: Int) {
-    Kicker(stringResource(title), Modifier.padding(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 6.dp), color = LocalInk.current.accent)
-    Hairline(Modifier.padding(horizontal = 24.dp))
+    VeilCaption(stringResource(title), Modifier.padding(top = 12.dp))
 }
 
 @Composable
@@ -750,8 +758,8 @@ private fun Stacked(label: String, content: @Composable () -> Unit) {
 @Composable
 private fun OrderedAppRow(app: AppEntry, index: Int, onUp: (() -> Unit)?, onRemove: () -> Unit) {
     val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text((index + 1).toString(), Modifier.padding(end = 10.dp), style = InkText.label.copy(letterSpacing = 0.sp), color = ink.faint)
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(start = 18.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text((index + 1).toString(), Modifier.padding(end = 10.dp), style = InkText.label.copy(letterSpacing = 0.sp), color = ink.accent)
         AppIcon(app, Modifier.size(28.dp))
         Text(app.label, Modifier.padding(start = 14.dp).weight(1f), style = InkText.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (onUp != null && index > 0) IconAction(Glyph.Up, stringResource(R.string.move_earlier), onUp, tint = ink.muted)

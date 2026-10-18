@@ -1,12 +1,14 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -130,14 +132,14 @@ fun ActionPicker(
             val grouped = filter.isBlank() && tab < 0
             LazyColumn {
                 if (first.isNotEmpty()) {
-                    item(key = "used") { Kicker(stringResource(R.string.pick_used), Modifier.padding(start = 20.dp, top = 14.dp, bottom = 2.dp), color = LocalInk.current.accent) }
+                    item(key = "used") { PickCaption(stringResource(R.string.pick_used)) }
                     items(first, key = { "u" + it.action.toString() }) { row -> PickerRow(row) { onPick(row.action) } }
                 }
                 (if (grouped) 0 until CAT_COUNT else 0..0).forEach { section ->
                     val inSection = if (grouped) shown.filter { it.section == section } else shown
                     val sectionNote = if (grouped && section == CAT_SHORTCUTS && inSection.isEmpty()) note else if (!grouped && section == 0) note else null
                     if (grouped && (inSection.isNotEmpty() || sectionNote != null)) item(key = "s$section") {
-                        Kicker(sections[section], Modifier.padding(start = 20.dp, top = 14.dp, bottom = 2.dp), color = LocalInk.current.accent)
+                        PickCaption(sections[section])
                     }
                     if (sectionNote != null) item(key = "n$section") {
                         Text(sectionNote, Modifier.padding(horizontal = 20.dp, vertical = 6.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2)
@@ -149,12 +151,23 @@ fun ActionPicker(
     }
 }
 
+/** A section caption in the picker, in the same quiet accent voice as Studio's group captions. */
+@Composable
+private fun PickCaption(text: String) {
+    Text(text.uppercase(), Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
+        style = InkText.label.copy(fontSize = 11.sp, letterSpacing = 1.4.sp), color = LocalInk.current.accent.copy(alpha = .9f), maxLines = 1)
+}
+
+/** A tab as one of Studio's soft choices: the chosen one washed and edged in the accent. */
 @Composable
 private fun PickTab(text: String, on: Boolean, onClick: () -> Unit) {
-    val c = LocalCrystal.current
-    Text(text, Modifier.clip(CircleShape).background(if (on) c.fg.copy(alpha = 0.16f) else c.fg.copy(alpha = 0.05f))
+    val ink = LocalInk.current
+    val shape = RoundedCornerShape(14.dp)
+    Text(text, Modifier.clip(shape).background(if (on) ink.accent.copy(alpha = if (ink.dark) .30f else .22f) else ink.ink.copy(alpha = .06f))
+        .then(if (on) Modifier.border(1.dp, ink.accent.copy(alpha = .65f), shape) else Modifier)
         .selectable(on, role = Role.Tab, onClick = onClick).heightIn(min = 40.dp).padding(horizontal = 14.dp, vertical = 10.dp),
-        style = CrystalType.body.copy(fontSize = 14.sp), color = if (on) c.fg else c.fg2, maxLines = 1)
+        style = InkText.body.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
+        color = if (on) ink.ink else ink.muted, maxLines = 1)
 }
 
 @Composable

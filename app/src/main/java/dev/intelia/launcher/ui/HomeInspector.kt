@@ -417,10 +417,14 @@ internal fun <T> Chips(options: List<Pair<T, String>>, selected: T, family: (T) 
         horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { (value, label) ->
             val on = value == selected
-            Text(label, Modifier.clip(CircleShape).then(if (on) Modifier.background(c.acc) else Modifier.border(1.dp, c.fg3, CircleShape))
+            // The same soft tab as Studio's VeilChoice, a size smaller for the floating cards.
+            val shape = RoundedCornerShape(12.dp)
+            Text(label, Modifier.clip(shape).background(if (on) c.acc.copy(alpha = if (c.dark) .30f else .22f) else c.fg.copy(alpha = .06f))
+                .then(if (on) Modifier.border(1.dp, c.acc.copy(alpha = .65f), shape) else Modifier)
                 .selectable(on, role = Role.RadioButton) { onSelect(value) }.heightIn(min = 36.dp).padding(horizontal = 12.dp, vertical = 9.dp),
-                style = CrystalType.body.copy(fontSize = 13.sp, lineHeight = 16.sp, fontFamily = family(value) ?: CrystalType.body.fontFamily),
-                color = if (on) c.accInk else c.fg, maxLines = 1)
+                style = CrystalType.body.copy(fontSize = 13.sp, lineHeight = 16.sp, fontFamily = family(value) ?: CrystalType.body.fontFamily,
+                    fontWeight = if (on) androidx.compose.ui.text.font.FontWeight.SemiBold else null),
+                color = if (on) c.fg else c.fg2, maxLines = 1)
         }
     }
 }

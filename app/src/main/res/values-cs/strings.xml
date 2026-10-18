@@ -523,7 +523,7 @@
     <string name="arc_haptics_detail">Lehké ťuknutí, když prst dojede na slot nebo na jinou sadu.</string>
     <string name="arc_set_remove">Odebrat sadu %1$s</string>
     <string name="arc_slot_unavailable">Na tomto telefonu nedostupné</string>
-    <string name="arc_slot_empty">Prázdné, klepni a vyber</string>
+    <string name="arc_slot_empty">Prázdné</string>
     <string name="arc_slot_middle">Slot %1$d, uprostřed</string>
     <string name="arc_slot_n">Slot %1$d</string>
     <string name="arc_slot_choose">Vybrat pro tento slot</string>

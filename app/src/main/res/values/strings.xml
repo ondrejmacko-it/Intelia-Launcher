@@ -524,7 +524,7 @@
     <string name="arc_haptics_detail">A light tick when the finger reaches a slot or another set.</string>
     <string name="arc_set_remove">Remove set %1$s</string>
     <string name="arc_slot_unavailable">Unavailable on this phone</string>
-    <string name="arc_slot_empty">Empty, tap to choose</string>
+    <string name="arc_slot_empty">Empty</string>
     <string name="arc_slot_middle">Slot %1$d, middle</string>
     <string name="arc_slot_n">Slot %1$d</string>
     <string name="arc_slot_choose">Choose for this slot</string>
