@@ -2,6 +2,32 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — PULSE 2.0 M3.1 Foundation (`feat/control-system-v1`, `6091d36`)
+- `pulse/PulseGestures.kt` (pure): one recognizer for Home and the service — Tap, DoubleTap, Hold, new
+  `Gesture.DoubleTapHold`, swipes. Tap waits only while DoubleTap/DoubleTapHold is bound, hold only while Hold
+  (DoubleTapHold) is bound; cancel / second finger / unbound or diagonal swipe → nothing; a cancel without a lift
+  does not swallow the next touch. Timings from `ViewConfiguration`. `PulseStage` (Hidden/Compact/Expanded/Arc) and
+  `PulseMode` (Off/Home/Everywhere) models. `PulseGesturesTest` 11 tests. Old `pulseSwipe` removed.
+- Home: `ui/PulseTouch.kt` feeds the recognizer and consumes the press (before, a hold under the camera also
+  opened the Home editor — found and fixed on the phone). TalkBack: click, long click when bound, custom actions.
+- Service: one `OnTouchListener` → recognizer (click/long click kept only for TalkBack). Lens target only in
+  Everywhere mode and unlocked: `SCREEN_OFF` / `SCREEN_ON` / `USER_PRESENT` broadcasts + settings flow, no polling.
+- `pulseEverywhere` (default true, old configs keep behaviour); Studio › PULSE and the Home inspector: chips
+  Vyp / Jen na ploše / Všude (Všude without the service opens Android settings and says why).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug :app:assembleLab`,
+  no Kotlin warnings. Debug, then Lab installed with `install -r`.
+- Phone (debug build), verified: Všude — hold on Home toggles torch (FlashlightController log), double tap → Spotify
+  (owner's binding), tap → menu; in Spotify hold toggles torch on/off, tap opens the menu, unbound left swipe does
+  nothing. Jen na ploše — service lens window gone (0 windows), Home hold toggles torch 3× in a row, double tap →
+  Spotify, tap opens the panel, editor no longer opens. Back to Všude → lens window back. Screen off → no lens window;
+  screen on at keyguard → still none.
+- Measured facts: a swipe down from the camera above apps always opens the notification shade (the system takes the
+  touch; PULSE runs nothing). The torch goes off by itself ~10 s after `dumpsys media.camera` runs, so torch checks
+  use `logcat FlashlightController` now. No swipe up from the camera (≈25 dp above it, threshold 36 dp).
+- NOT verified: lens coming back after unlock (`USER_PRESENT`; phone left locked, owner unlocks), double tap + hold by
+  hand, multi-touch by hand, TalkBack, gfxinfo/battery. Reference screenshots of Material Capsule / Essential Key
+  Tools were not in the repo or the message, so none were reviewed.
+
 ## 2026-10-18 — Control System V1: M5 Studio „Ovládání“, PULSE swipes, Home side swipes, D20 key remap (`feat/control-system-v1`)
 - Studio › Ovládání (`ui/ControlsPage.kt`, replaces the old Gesta page and the PULSE page's gesture rows): one search
   over gestures, surfaces and bound action names (diacritics-insensitive, `AppSearch.fold`); foldable groups PULSE

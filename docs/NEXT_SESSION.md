@@ -1,29 +1,33 @@
-Pokračujeme na Intelia Launcheru — **Control System V1** (`AGENTS.md` platí). Odpovídej česky, stručně. Limit
+Pokračujeme na Intelia Launcheru — **PULSE 2.0** (`AGENTS.md` platí). Odpovídej česky, stručně. Limit
 ~200–250k tokenů: žádní agenti, soubory nečti celé, výstupy filtruj, screenshoty zmenšuj (PIL, výřez).
 
-Stav (2026-10-18): větev `feat/control-system-v1`, nemergovat do `main`. Hotovo M0–M4 a M5 v kódu (viz
-`docs/STATUS.md` nahoře): Studio › Ovládání (`ui/ControlsPage.kt`), picker se záložkami a „Už použité“, PULSE tahy
-dolů/doleva/doprava (služba i Home), Home tah doleva/doprava, D20a remap tlačítek přes službu PULSE
-(`action/KeyRemap.kt`, `Controls.keys/keysEverywhere`).
+Stav (2026-10-18): větev `feat/control-system-v1` (pushnutá, nemergovat do `main`). Hotovo M0–M5 Control System V1
+a **M3.1 PULSE Foundation** (`6091d36`, viz `docs/STATUS.md` nahoře): `pulse/PulseGestures.kt` jeden rozpoznávač
+(Home `ui/PulseTouch.kt` + služba), `Gesture.DoubleTapHold`, režim Vyp / Jen na ploše / Všude (`pulseEverywhere`,
+`pulseMode()`), služba bez terče na zamčené obrazovce.
 
-Úkol této session — OVĚŘIT NA TELEFONU (majitel musí být u telefonu, odemknout ho a mačkat tlačítka):
-1. Essential Key: `adb shell getevent -lt` (na pozadí, grep EV_KEY) → majitel zmáčkne Essential Key 1×, 2×, podrží;
-   pak hlasitost. Na `gpio-keys` je neznámý scan code 0x00fa (250), v `gpio-keys.kl` nenamapovaný — ověř, jestli to
-   je on. Pak Studio › Ovládání › Hardwarová tlačítka › „Ověřit další tlačítko“: ukáže se vůbec? Výsledek do STATUS
-   pravdivě. Když nepřijde, napiš to a navrhni jen systémové nastavení Essential Key (nic nepředstírat).
-2. Remap: přiřaď hlasitost nahoru → Dvojí stisk → Svítilna, zapni „Tlačítka i mimo Intelii“. Ověř fyzicky: 1× mění
-   hlasitost (změř zpoždění), 2× svítilna (`dumpsys media.camera | grep "Torch for"`), v jiné aplikaci taky,
-   v hledání Intelie ne, se zhasnutou obrazovkou ne. `input keyevent` do filtru NEJDE, `sendevent` nemá práva.
-   Pak binding a přepínač vrať / zeptej se majitele.
-3. UI na telefonu: projdi Ovládání (hledání „svítilna“, sbalení skupin, zamčená gesta, křížek), picker (záložky,
-   hledání, štítky mimo Home), PULSE tahy (služba: start na 540 70) a Home tah doleva/doprava (prázdné místo 540 1650);
-   zkontroluj, že tah nahoru na Home dál otevírá šuplík a podržení kapsle dál funguje.
-4. Pokud zbydou tokeny: export/import `controlConfig` včetně bindingů a `keys`; úklid legacy `arc/arcFlows/...`.
+Koncept PULSE 2.0 (platí): Hidden = nic nevykresleno, jen malý terč; Compact = malá kapsle jen při události;
+Expanded = kompaktní panel z kamery; Arc = Global ARC (ARC V2 geometrie, vlastní sady). Veil Trace = tenká zakřivená
+linka v akcentu, jen při otevření, volitelná. Jedno Studio: náhled → krátké základy → přehled akcí → Pokročilé.
+
+Úkol této session:
+0. Na začátku ověř na telefonu (majitel ho odemkne): po odemknutí se terč PULSE vrátí (`dumpsys window windows |
+   grep -c "Intelia PULSE"` ≥ 1), dvojí klepnutí + podržení s testovací vazbou (pak vrátit).
+1. **M3.2 Music PULSE**: `NotificationListenerService` jen pro `MediaSessionManager.getActiveSessions` (nové
+   oprávnění = nejdřív se zeptej majitele, zapisuje se do DECISIONS), `MediaController.Callback` (žádný polling).
+   Compact: vlevo sloupce (jen při PLAYING, statické při Reduced Motion), vpravo kulatý artwork / ikona aplikace.
+   Expanded: artwork, název, interpret, ⏮ ⏯ ⏭, časová osa + seek jen když `ACTION_SEEK_TO`; ovladače bez podpory
+   akce nezobrazovat. Napřed Home, pak služba. Test: Spotify / YouTube Music, commit + push.
+2. Pak M3.3 Global ARC (podržení kamery → ARC V2 pod kamerou, release/cancel, Search jako akce; aplikace mimo Home
+   spouštět přes `LauncherApps`, FLOW s náhledem).
+
+Známá fakta: tah dolů z kamery nad aplikacemi bere systémová lišta (nelze); tah nahoru z kamery nedává smysl;
+svítilnu ověřuj `logcat -d | grep FlashlightController` (`dumpsys media.camera` ji po ~10 s zhasne).
 
 Build/telefon: JAVA_HOME `C:/Users/Ondra/AppData/Local/lesnik-toolchain/jdk-17.0.20.1+1`,
-`./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab`; Lab není debuggable, pro
-`run-as`/logcat `assembleDebug` (stejný balíček, `install -r`, NIKDY uninstall). adb v
-`lesnik-toolchain/sdk/platform-tools`, `MSYS_NO_PATHCONV=1`. Prefs: `run-as dev.intelia.launcher.lab cat
-shared_prefs/intelia.xml` (jen debug build). Souřadnice: LENS 540 2190, kamera 540 70, Home 540 1650, Studio
-dlouhý stisk 540 1000 → Nastavení 907 2256. Majitelovy bindingy (PULSE Podržení → Svítilna, Dvojí klepnutí →
-Spotify) neměnit. Netracked `docs/screens/*.rar` nemazat ani necommitovat.
+`./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab`; pro `run-as`/logcat
+`assembleDebug` (stejný balíček, `install -r`, NIKDY uninstall). adb v `lesnik-toolchain/sdk/platform-tools`,
+`MSYS_NO_PATHCONV=1`. Souřadnice: kamera 540 70 (služba), Home kapsle 540 150 (režim Jen na ploše), LENS 540 2190,
+Studio = dlouhý stisk 540 1000 → Nastavení 907 2256 → hledat „pulse“ (pole 540 1440, výsledek 400 1615).
+Majitelovy vazby (PULSE Podržení → Svítilna, Dvojí klepnutí → Spotify) neměnit. `docs/screens/*.rar` nemazat ani
+necommitovat.
