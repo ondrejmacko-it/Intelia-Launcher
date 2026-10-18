@@ -38,8 +38,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -89,7 +95,8 @@ fun VeilCaption(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Related settings on one shared plate: accent-washed matte fill, a crystal edge brighter at the top and hairlines
+ * Related settings on one shared plate of Veil glass (S4): a matte, faintly accent-tinted pane, the accent bleeding
+ * in from the top-left corner, a hairline lit at the top-left and glinting at the bottom-right, and hairlines
  * between the rows (never around each row).
  */
 @Composable
@@ -98,11 +105,7 @@ fun VeilGroup(title: String? = null, modifier: Modifier = Modifier, content: @Co
     if (title != null) VeilCaption(title)
     val shape = RoundedCornerShape(22.dp)
     val cuts = remember { ArrayList<Int>() }
-    val edge = Brush.verticalGradient(listOf(ink.accent.copy(alpha = if (ink.dark) .42f else .34f), ink.accent.copy(alpha = .08f)))
-    Layout(content, modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp).clip(shape)
-        .background(ink.ink.copy(alpha = if (ink.dark) .035f else .025f))
-        .background(ink.accent.copy(alpha = if (ink.dark) .10f else .07f))
-        .border(1.dp, edge, shape)
+    Layout(content, modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp).veilPane(shape, ink)
         .drawBehind {
             val inset = 16.dp.toPx()
             cuts.forEach { y -> drawLine(ink.line, Offset(inset, y.toFloat()), Offset(size.width - inset, y.toFloat()), 1.dp.toPx() / 2f) }
@@ -117,6 +120,28 @@ fun VeilGroup(title: String? = null, modifier: Modifier = Modifier, content: @Co
                 y += p.height
             }
         }
+    }
+}
+
+/**
+ * The in-page Veil glass pane (groups, cards in Search, the drawer and FLOW): tinted matte fill, corner bloom of the
+ * accent, a white hairline brighter at the top and the two-corner glint. Clips to [shape].
+ */
+fun Modifier.veilPane(shape: Shape, ink: InkPalette, tint: Float = 1f): Modifier = clip(shape).drawWithCache {
+    val outline = shape.createOutline(size, layoutDirection, this)
+    val fill = lerp(ink.ink.copy(alpha = if (ink.dark) .045f else .03f), ink.accent, if (ink.dark) .5f * tint else .4f * tint)
+        .copy(alpha = if (ink.dark) .045f + .07f * tint else .03f + .05f * tint)
+    val bloom = glassBloom(ink.accent.copy(alpha = if (ink.dark) .06f * tint else .04f * tint), size.width, size.height)
+    val hi = if (ink.dark) Color.White else ink.ink
+    val edge = Brush.verticalGradient(listOf(hi.copy(alpha = if (ink.dark) .13f else .10f), hi.copy(alpha = .035f), ink.accent.copy(alpha = .16f)))
+    val glint = glassGlint(hi.copy(alpha = if (ink.dark) .13f else .10f), size.width, size.height)
+    val stroke = Stroke(2.dp.toPx())
+    onDrawWithContent {
+        drawOutline(outline, fill)
+        bloom?.let { drawOutline(outline, it) }
+        drawContent()
+        drawOutline(outline, edge, style = stroke)
+        glint?.let { drawOutline(outline, it, style = stroke) }
     }
 }
 

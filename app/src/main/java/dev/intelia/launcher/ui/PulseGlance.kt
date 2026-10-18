@@ -1,5 +1,7 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.draw.drawWithCache
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -186,6 +188,14 @@ internal fun Modifier.veilGlass(shape: Shape, ink: InkPalette): Modifier {
         .clip(shape).background(base)
         .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = .07f), Color.Transparent), endY = 220f))
         .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = .16f), Color.White.copy(alpha = .04f))), shape)
+        .drawWithCache {
+            // The same two-corner glint and accent bloom as every Veil glass pane (S4).
+            val outline = shape.createOutline(size, layoutDirection, this)
+            val bloom = glassBloom(ink.accent.copy(alpha = .06f), size.width, size.height)
+            val glint = glassGlint(Color.White.copy(alpha = .16f), size.width, size.height)
+            val stroke = Stroke(2.dp.toPx())
+            onDrawBehind { bloom?.let { drawOutline(outline, it) }; glint?.let { drawOutline(outline, it, style = stroke) } }
+        }
 }
 
 /**
