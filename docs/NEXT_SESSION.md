@@ -6,7 +6,7 @@ nahoře: mrtvé UI odebráno, Onboarding a app sheet na Veil, titulky na Roboto 
 v rohu (Drawer 18–20 % janky, baseline 17 %). Screenshoty `docs/screens/s4.2/` (necommitovat).
 
 Zbývá:
-1. S toho, co nejde bez majitele: text 130/150 % a TalkBack (systémová nastavení — požádej majitele, ať je zapne, pak
+1. Bez majitele nejde: text 130/150 % a TalkBack (systémová nastavení — požádej majitele, ať je zapne, pak
    projdi Studio, Search, Drawer, PULSE kartu: ořezy, dotykové plochy ≥ 48 dp, popisky).
 2. Reduce motion (Intelia › Animace) a světlá tapeta — screenshot Home, Search, Drawer, Studio.
 3. PULSE „Jen na ploše“ jen se souhlasem majitele (přepnutí může vyžadovat znovu zapnout službu přístupnosti),
