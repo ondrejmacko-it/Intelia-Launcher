@@ -111,6 +111,8 @@ import dev.intelia.launcher.action.Gesture
 import dev.intelia.launcher.action.Reason
 import dev.intelia.launcher.action.Trigger
 import dev.intelia.launcher.data.pulseMode
+import dev.intelia.launcher.data.PulseHit
+import dev.intelia.launcher.data.PulseLens
 import dev.intelia.launcher.pulse.PulseGestures
 import dev.intelia.launcher.pulse.PulseMode
 import kotlinx.coroutines.CoroutineScope
@@ -183,8 +185,9 @@ class PulseAccessibilityService : AccessibilityService() {
         // Event driven: the lens follows the owner's mode (Off / Home / Everywhere), no polling.
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { s ->
             s.launch {
-                (application as InteliaApp).settings.state.map { (it.pulseMode() == PulseMode.Everywhere) to it.pulseMusic }.distinctUntilChanged()
-                    .collect { updateLens() }
+                // S3: a new lens calibration or touch target moves the overlay at once.
+                (application as InteliaApp).settings.state.map { listOf(it.pulseMode() == PulseMode.Everywhere, it.pulseMusic, it.pulseLens, it.pulseHit) }
+                    .distinctUntilChanged().collect { updateLens() }
             }
             s.launch { MediaWatch.now.collect { showMusic() } }
         }
@@ -411,11 +414,15 @@ class PulseAccessibilityService : AccessibilityService() {
 
     private fun placeLens() {
         val h = hole()
-        val box = lensTarget(h.x, h.y, h.radius, 10f * dp, 32f * dp)
-        val params = overlay(box.width, box.height, focusable = false).apply {
-            x = box.left; y = box.top
+        // S3: a target of its own on the lens (default 48 dp, owner-calibrated); the overlay sits above the status bar.
+        // While Studio calibrates, the draft lens and target are tried here (nothing is saved until Save).
+        val draft = _probe.value
+        val lensDp = draft?.first?.let { Pt(it.x, it.y) } ?: Pt(h.x / dp, h.y / dp)
+        val hit = pulseHitbox(lensDp.x, lensDp.y, draft?.second ?: (application as InteliaApp).settings.state.value.pulseHit, screenWidth() / dp)
+        val params = overlay((hit.width * dp).toInt(), (hit.height * dp).toInt(), focusable = false).apply {
+            x = (hit.left * dp).toInt(); y = (hit.top * dp).toInt()
             // While Home's editor is open the camera ring there edits PULSE, so the lens lets taps through.
-            if (editing) flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            if (editing && draft == null) flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         }
         val view = lens ?: View(this).apply {
             contentDescription = getString(R.string.pulse)
@@ -461,6 +468,8 @@ class PulseAccessibilityService : AccessibilityService() {
     private val gestureTimer = Runnable { gestureOut(gestures.timeout()) }
 
     private fun touch(e: MotionEvent) {
+        // Calibration test: count the touch, run nothing.
+        if (_probe.value != null) { if (e.actionMasked == MotionEvent.ACTION_DOWN) _probeHits.value++; return }
         val x = e.rawX / dp
         val y = e.rawY / dp
         gestureOut(when (e.actionMasked) {
@@ -663,7 +672,9 @@ class PulseAccessibilityService : AccessibilityService() {
             setContent {
                 val settings by (application as InteliaApp).settings.state.collectAsState()
                 InteliaTheme(settings) {
-                    PulseMenuSheet(hole, statusBar, width, settings.pulseMusic, ::act, ::open, ::closeMenu)
+                    val now = rememberPlaying(settings.pulseMusic)?.takeIf { it.info.visible }
+                    PulseGlance(hole, statusBar, width, now, global = true, ::act,
+                        onOpenPlayer = { pkg -> playerIntent(this@PulseAccessibilityService, pkg)?.let(::open) ?: closeMenu() }, onClose = ::closeMenu)
                 }
             }
         })
@@ -681,15 +692,14 @@ class PulseAccessibilityService : AccessibilityService() {
         if (watching) showMusic()
     }
 
-    private fun act(action: PulseAction) {
+    private fun act(item: GlanceItem) {
         closeMenu()
-        when (action) {
-            PulseAction.Torch -> Unit // toggled inside the menu
+        when (item) {
             // Wait for the menu window to leave the screen so it is not in the picture.
-            PulseAction.Screenshot -> if (Build.VERSION.SDK_INT >= 28) main.postDelayed({ performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT) }, 350)
-            PulseAction.Lock -> if (Build.VERSION.SDK_INT >= 28) main.postDelayed({ performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN) }, 150)
-            PulseAction.Notifications -> performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
-            PulseAction.QuickSettings -> performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
+            GlanceItem.Screenshot -> if (Build.VERSION.SDK_INT >= 28) main.postDelayed({ performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT) }, 350)
+            GlanceItem.Notifications -> performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+            GlanceItem.Alarm -> open(Intent(AlarmClock.ACTION_SHOW_ALARMS))
+            GlanceItem.Torch, GlanceItem.Battery -> Unit // toggled or shown inside the glance
         }
     }
 
@@ -736,6 +746,19 @@ class PulseAccessibilityService : AccessibilityService() {
          */
         fun performGlobal(action: Int): Boolean = instance?.performGlobalAction(action) ?: false
         @Volatile private var relayout: (() -> Unit)? = null
+        private val _probe = MutableStateFlow<Pair<PulseLens, PulseHit>?>(null)
+        private val _probeHits = MutableStateFlow(0)
+
+        /** S3: touches the lens overlay took while [probe] was set (Studio's target test). */
+        val probeHits: StateFlow<Int> = _probeHits.asStateFlow()
+
+        /** Studio's calibration: the overlay tries this lens and target and only counts touches; null ends the test. */
+        fun probe(draft: Pair<PulseLens, PulseHit>?) {
+            if (draft == null) _probeHits.value = 0
+            if (_probe.value == draft) return
+            _probe.value = draft
+            relayout?.invoke()
+        }
 
         /** Home's editor is open (true) or closed: the lens overlay stops or resumes taking taps. */
         fun setEditing(on: Boolean) {
@@ -772,229 +795,6 @@ private class OverlayOwner : SavedStateRegistryOwner {
 
     fun stop() {
         registry.currentState = Lifecycle.State.DESTROYED
-    }
-}
-
-private fun linkIntent(link: PulseLink): Intent = when (link) {
-    PulseLink.Wifi -> Intent(Settings.Panel.ACTION_WIFI)
-    PulseLink.Internet -> Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY)
-    PulseLink.Bluetooth -> Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
-    PulseLink.Sound -> Intent(Settings.ACTION_SOUND_SETTINGS)
-    PulseLink.Display -> Intent(Settings.ACTION_DISPLAY_SETTINGS)
-}
-
-private val PulseAction.label: Int get() = when (this) {
-    PulseAction.Torch -> R.string.torch
-    PulseAction.Screenshot -> R.string.pulse_screenshot
-    PulseAction.Lock -> R.string.pulse_lock
-    PulseAction.Notifications -> R.string.pulse_notifications
-    PulseAction.QuickSettings -> R.string.pulse_quick_settings
-}
-
-private val PulseLink.label: Int get() = when (this) {
-    PulseLink.Wifi -> R.string.pulse_wifi
-    PulseLink.Internet -> R.string.pulse_internet
-    PulseLink.Bluetooth -> R.string.pulse_bluetooth
-    PulseLink.Sound -> R.string.pulse_sound
-    PulseLink.Display -> R.string.pulse_display
-}
-
-/** The menu: a dark sheet that grows out of the lens; everything outside it closes. */
-@Composable
-private fun PulseMenuSheet(
-    hole: Hole, statusBar: Float, screenWidth: Float, musicOn: Boolean,
-    onAction: (PulseAction) -> Unit, onOpen: (Intent) -> Unit, onClose: () -> Unit,
-) {
-    val context = LocalContext.current
-    val density = LocalDensity.current
-    val ink = LocalInk.current
-    val audio = remember(context) { context.getSystemService(AudioManager::class.java) }
-    val cameras = remember(context) { context.getSystemService(CameraManager::class.java) }
-    val torchId = remember(cameras) { cameras?.let(::torchCamera) }
-    var torch by remember { mutableStateOf(false) }
-    var battery by remember { mutableStateOf<Battery?>(null) }
-    val alarm = remember { nextAlarm(context) }
-    var volume by remember { mutableFloatStateOf(0f) }
-    var ringer by remember { mutableIntStateOf(audio?.ringerMode ?: RINGER_NORMAL) }
-    var playing by remember { mutableStateOf(audio?.isMusicActive == true) }
-    fun readVolume() {
-        audio?.let { volume = volumeFraction(it.getStreamVolume(AudioManager.STREAM_MUSIC), it.getStreamMaxVolume(AudioManager.STREAM_MUSIC)) }
-    }
-
-    DisposableEffect(context) {
-        readVolume()
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(c: Context, intent: Intent) { battery = intent.battery() }
-        }
-        ContextCompat.registerReceiver(context, receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
-            ?.battery()?.let { battery = it }
-        val torchCallback = object : CameraManager.TorchCallback() {
-            override fun onTorchModeChanged(cameraId: String, enabled: Boolean) { if (cameraId == torchId) torch = enabled }
-        }
-        if (torchId != null) cameras?.registerTorchCallback(torchCallback, Handler(Looper.getMainLooper()))
-        onDispose {
-            context.unregisterReceiver(receiver)
-            cameras?.unregisterTorchCallback(torchCallback)
-        }
-    }
-
-    val margin = with(density) { 12.dp.toPx() }
-    val (left, width) = menuLeftAndWidth(screenWidth, hole.x, margin, with(density) { 420.dp.toPx() })
-    val ring = with(density) { 4.dp.toPx() }
-    val top = with(density) { menuTop(statusBar, hole.y, hole.radius, ring, 10.dp.toPx()) }
-    val shown = remember { MutableTransitionState(false).apply { targetState = true } }
-
-    Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
-        onClickLabel = stringResource(R.string.close)) { onClose() }) {
-        // The status bar stays visible: a translucent strip, as wide as the lens ring, leads from the camera
-        // down into the sheet; the icons on both sides are never covered.
-        AnimatedVisibility(shown, enter = fadeIn(tween(motionMs(160)))) {
-            Canvas(Modifier.fillMaxSize()) {
-                val half = hole.radius + ring
-                drawRoundRect(ink.night.copy(alpha = .55f), Offset(hole.x - half, hole.y - half),
-                    Size(2f * half, top + 30.dp.toPx() - (hole.y - half)), CornerRadius(half))
-                drawCircle(ink.onNight.copy(alpha = .45f), half, Offset(hole.x, hole.y), style = Stroke(1.dp.toPx()))
-            }
-        }
-        AnimatedVisibility(shown, Modifier.offset { IntOffset(left.toInt(), top.toInt()) },
-            enter = fadeIn(tween(motionMs(160))) + expandIn(tween(motionMs(280)), expandFrom = Alignment.TopCenter)) {
-            Column(Modifier.width(with(density) { width.toDp() }).clip(RoundedCornerShape(30.dp)).background(ink.night)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }) {
-                Column(Modifier.padding(start = 20.dp, top = 8.dp, end = 14.dp, bottom = 10.dp)) {
-                    // M3.2: the followed session first, with its own controls; without it the media keys row stays below.
-                    val now = rememberPlaying(musicOn)?.takeIf { it.info.visible }
-                    now?.let { MusicCard(it) }
-                    val zone = ZoneId.systemDefault()
-                    val alarmText = alarm?.let {
-                        val at = Instant.ofEpochMilli(it).atZone(zone)
-                        val day = when (at.toLocalDate()) {
-                            LocalDate.now(zone) -> stringResource(R.string.today)
-                            LocalDate.now(zone).plusDays(1) -> stringResource(R.string.tomorrow)
-                            else -> at.format(DateTimeFormatter.ofPattern("EEE d. M."))
-                        }
-                        at.toLocalTime().format(DateTimeFormatter.ofPattern("H:mm")) to day
-                    }
-                    PanelRow(Glyph.Bell, alarmText?.first ?: stringResource(R.string.no_alarm), alarmText?.second,
-                        onClick = { onOpen(Intent(AlarmClock.ACTION_SHOW_ALARMS)) })
-                    battery?.let {
-                        PanelRow(Glyph.Bolt, "${it.percent} %", stringResource(if (it.charging) R.string.charging else R.string.on_battery), onClick = null)
-                    }
-                    if (now == null) MediaRow(playing) { code ->
-                        val now = SystemClock.uptimeMillis()
-                        audio?.dispatchMediaKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0))
-                        audio?.dispatchMediaKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0))
-                        if (code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) playing = !playing
-                    }
-                    VolumeRow(volume, ringer,
-                        onStep = { raise ->
-                            audio?.adjustStreamVolume(AudioManager.STREAM_MUSIC, if (raise) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER, 0)
-                            readVolume()
-                        },
-                        onRinger = {
-                            try {
-                                audio?.ringerMode = nextRinger(ringer)
-                            } catch (_: SecurityException) {
-                            }
-                            ringer = audio?.ringerMode ?: ringer
-                        })
-                    Spacer(Modifier.height(6.dp))
-                    pulseActions(Build.VERSION.SDK_INT, torchId != null).chunked(3).forEach { row ->
-                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            row.forEach { action ->
-                                val on = action == PulseAction.Torch && torch
-                                Chip(stringResource(action.label), on, Modifier.weight(1f)) {
-                                    if (action == PulseAction.Torch) {
-                                        try {
-                                            if (torchId != null) cameras?.setTorchMode(torchId, !torch)
-                                        } catch (_: CameraAccessException) {
-                                        } catch (_: IllegalArgumentException) {
-                                        }
-                                    } else {
-                                        onAction(action)
-                                    }
-                                }
-                            }
-                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    pulseLinks(Build.VERSION.SDK_INT).chunked(3).forEach { row ->
-                        Row(Modifier.fillMaxWidth()) {
-                            row.forEach { link ->
-                                Text(stringResource(link.label) + " ↗", Modifier.weight(1f).heightIn(min = 44.dp)
-                                    .clickable(role = Role.Button) { onOpen(linkIntent(link)) }.padding(top = 12.dp),
-                                    style = InkText.small, color = ink.onNight.copy(alpha = .72f), textAlign = TextAlign.Center)
-                            }
-                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Quiet(stringResource(R.string.collapse), onClose, Modifier.padding(end = 4.dp), color = ink.onNight.copy(alpha = .7f))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MediaRow(playing: Boolean, onKey: (Int) -> Unit) {
-    val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        listOf(
-            Triple(Glyph.Prev, R.string.pulse_prev, KeyEvent.KEYCODE_MEDIA_PREVIOUS),
-            Triple(if (playing) Glyph.Pause else Glyph.Play, R.string.pulse_play_pause, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE),
-            Triple(Glyph.Next, R.string.pulse_next, KeyEvent.KEYCODE_MEDIA_NEXT),
-        ).forEach { (glyph, label, code) ->
-            val text = stringResource(label)
-            Box(Modifier.size(52.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = text) { onKey(code) }
-                .semantics { contentDescription = text }, contentAlignment = Alignment.Center) {
-                HomeGlyph(glyph, null, tint = ink.onNight, size = 22.dp)
-            }
-        }
-    }
-}
-
-/** Volume as a thread with a bead: − and + step the media stream, the chip flips sound and vibrate. */
-@Composable
-private fun VolumeRow(level: Float, ringer: Int, onStep: (Boolean) -> Unit, onRinger: () -> Unit) {
-    val ink = LocalInk.current
-    val label = stringResource(R.string.pulse_volume)
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
-        StepButton("−", stringResource(R.string.pulse_volume_down)) { onStep(false) }
-        Canvas(Modifier.weight(1f).height(24.dp).semantics { contentDescription = label; stateDescription = "${(level * 100).toInt()} %" }) {
-            val y = size.height / 2f
-            val x = size.width * level
-            drawLine(ink.onNight.copy(alpha = .25f), Offset(0f, y), Offset(size.width, y), 1.5.dp.toPx(), StrokeCap.Round)
-            drawLine(ink.accent, Offset(0f, y), Offset(x, y), 2.dp.toPx(), StrokeCap.Round)
-            drawCircle(ink.accent, 5.dp.toPx(), Offset(x, y))
-        }
-        StepButton("+", stringResource(R.string.pulse_volume_up)) { onStep(true) }
-        Spacer(Modifier.width(6.dp))
-        Chip(stringResource(if (ringer == RINGER_NORMAL) R.string.pulse_ring else R.string.pulse_vibrate), ringer == RINGER_NORMAL,
-            Modifier.width(96.dp), onRinger)
-    }
-}
-
-@Composable
-private fun StepButton(text: String, label: String, onClick: () -> Unit) {
-    val ink = LocalInk.current
-    Box(Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
-        .semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
-        Text(text, style = InkText.item, color = ink.onNight)
-    }
-}
-
-/** A ring-and-thread chip: an outline at rest, terracotta outline and bead while on. */
-@Composable
-private fun Chip(text: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val ink = LocalInk.current
-    Row(modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(22.dp))
-        .border(1.dp, if (on) ink.accent else ink.onNight.copy(alpha = .28f), RoundedCornerShape(22.dp))
-        .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 10.dp),
-        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        if (on) Box(Modifier.padding(end = 6.dp).size(6.dp).clip(CircleShape).background(ink.accent))
-        Text(text, style = InkText.small, color = ink.onNight, maxLines = 1)
     }
 }
 

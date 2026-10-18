@@ -660,12 +660,12 @@
     <string name="controls_home_hint">Tah nahoru a podržení mohou dělat něco jiného; šuplík zůstává na LENS a editor ve Studiu › Plocha.</string>
     <string name="pulse_preview_label">Náhled PULSE</string>
     <string name="pulse_preview_off">PULSE je vypnutý. Kde má fungovat, vybereš v Chování.</string>
-    <string name="pulse_preview_rest">Klid</string>
+    <string name="pulse_preview_rest">Skrytá</string>
     <string name="pulse_preview_music">Hudba</string>
     <string name="pulse_preview_expanded">Rozbalená</string>
-    <string name="pulse_preview_rest_note">Tichý kroužek u kamery; ukazuje se tu ozvěna, nabíjení a další budík.</string>
-    <string name="pulse_preview_music_note">Když něco hraje: vlevo pruhy, vpravo obal.</string>
-    <string name="pulse_preview_expanded_note">Panel po klepnutí: přehrávač s ovládáním, budík a baterie.</string>
+    <string name="pulse_preview_rest_note">V klidu PULSE není vidět, kamera zůstává čistá. Čárkovaně dotyková plocha; nabíjení nebo blízký budík přidají tichý kroužek.</string>
+    <string name="pulse_preview_music_note">Když něco hraje: vlevo pruhy, vpravo obal. Klepnutí otevře skladbu.</string>
+    <string name="pulse_preview_expanded_note">Po klepnutí jen skladba: obal a název otevřou přehrávač, pod tím ovládání. Zavřeš klepnutím vedle, tahem nahoru nebo úchytem.</string>
     <string name="pulse_preview_arc_note">Podrž a posuň: Global ARC pod kamerou, puštění spustí slot, návrat ke kameře zruší.</string>
     <string name="pulse_group_content">Obsah a události</string>
     <string name="pulse_group_gestures">Gesta</string>
@@ -688,4 +688,14 @@
     <string name="label_gap">Odstup od ikony</string>
     <string name="label_lines">Řádky</string>
     <string name="icon_look">Vzhled ikony</string>
+    <string name="pulse_open_player">Otevřít přehrávač</string>
+    <string name="pulse_alarm_short">Budík</string>
+    <string name="pulse_glance">Pohled PULSE</string>
+    <string name="pulse_hit_kicker">PULSE · dotyková plocha</string>
+    <string name="pulse_hit_body">Kam se počítá klepnutí na PULSE: vlastní čtverec na kameře, oddělený od kapsle a systémových ikon. Klepni na kameru a vyzkoušej to.</string>
+    <string name="pulse_hit_size">Velikost plochy</string>
+    <string name="pulse_hit_test">Test: %1$d na ploše · %2$d vedle</string>
+    <string name="pulse_preview_expanded_plain">Po klepnutí bez hudby: jedna řada toho, co se hodí teď (svítilna, budík …). Zavřeš klepnutím vedle, tahem nahoru nebo úchytem.</string>
+    <string name="pulse_sample_title">Ukázková skladba</string>
+    <string name="pulse_sample_artist">Interpret</string>
 </resources>

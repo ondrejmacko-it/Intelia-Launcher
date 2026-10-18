@@ -1,11 +1,32 @@
 package dev.intelia.launcher.ui
 
+import android.os.Build
+import android.os.SystemClock
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
+import dev.intelia.launcher.pulse.NowPlaying
+import dev.intelia.launcher.pulse.Playing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -22,7 +43,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -56,7 +76,7 @@ internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: Se
     var access by remember { mutableStateOf(MediaWatch.allowed(context)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { access = MediaWatch.allowed(context) }
     val mode = settings.pulseMode()
-    PulsePreview(settings)
+    PulsePreview(model, settings)
     if (settings.pulse) {
         val events = listOf(settings.pulseEcho, settings.pulseCharging, settings.pulseAlarm).count { it }
         VeilGroup(stringResource(R.string.pulse_group_content)) {
@@ -126,50 +146,89 @@ private fun pulseGestureSummary(model: HomeViewModel, controls: Controls): Strin
 }
 
 /**
- * The capsule's states drawn at the camera, switched by the tabs below: rest, compact music, the expanded panel and
- * Global ARC (with the real slot count and opening angle). A drawing, so nothing plays or runs.
+ * S3: the capsule's states as the phone shows them, not a sketch: the top of Home (the same [HomeMiniature] as Home)
+ * laid out at the screen's real size and scaled down, with the real PULSE pieces on top at the real lens: Skrytá (the
+ * invisible rest, its touch target dashed), Hudba ([MusicCompact]), Rozbalená ([GlanceCard]) and Global ARC
+ * ([GlobalArc] with the owner's own set). Sample music only; a cover takes every touch, so nothing here plays or runs.
  */
 @Composable
-private fun PulsePreview(settings: LauncherSettings) {
+private fun PulsePreview(model: HomeViewModel, settings: LauncherSettings) {
     val ink = LocalInk.current
+    val context = LocalContext.current
+    val density = LocalDensity.current
     var look by rememberSaveable { mutableStateOf(PulseLook.Rest) }
-    val opacity = settings.pulseOpacity / 100f
-    val accent = ink.accent
-    val arc = settings.controls.globalArc.over(settings.controls.arc)
-    val screen = androidx.compose.ui.platform.LocalConfiguration.current
-    val screenW = screen.screenWidthDp.toFloat()
-    // Global ARC's real bow (ARC V2 under the camera) in screen dp, camera at the preview's own camera height.
-    val camera = Pt(screenW / 2f, PREVIEW_CAMERA_DP)
-    val slots = remember(arc, screenW) {
-        val bow = GlobalArcGeometry.bow(arc, camera, screenW, screen.screenHeightDp.toFloat())
-        List(bow.count) { GlobalArcGeometry.slot(bow, camera, it) }
-    }
+    val now by rememberNow()
+    val arc by model.arc.collectAsStateWithLifecycle()
     val label = stringResource(R.string.pulse_preview_label)
     val note = stringResource(when {
         !settings.pulse -> R.string.pulse_preview_off
         look == PulseLook.Rest -> R.string.pulse_preview_rest_note
         look == PulseLook.Music -> R.string.pulse_preview_music_note
-        look == PulseLook.Expanded -> R.string.pulse_preview_expanded_note
+        look == PulseLook.Expanded -> if (settings.pulseMusic) R.string.pulse_preview_expanded_note else R.string.pulse_preview_expanded_plain
         else -> R.string.pulse_preview_arc_note
     })
+    val sample = remember(context) {
+        Playing(NowPlaying(context.packageName, context.getString(R.string.pulse_sample_title), context.getString(R.string.pulse_sample_artist),
+            NowPlaying.STATE_PLAYING, NowPlaying.ACTION_SKIP_TO_PREVIOUS or NowPlaying.ACTION_SKIP_TO_NEXT or NowPlaying.ACTION_PLAY_PAUSE,
+            215_000, 81_000, SystemClock.elapsedRealtime(), 0f), null)
+    }
+    val lens = rememberLens(settings.pulseLens)
+    val statusBar = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp().value }
     val shape = RoundedCornerShape(22.dp)
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-        Canvas(Modifier.fillMaxWidth().height(188.dp).clip(shape).background(Color(0xFF0B0B12)).border(1.dp, accent.copy(alpha = .30f), shape)
-            .clearAndSetSemantics { contentDescription = "$label. $note" }) {
-            val cx = size.width / 2f
-            val cy = PREVIEW_CAMERA_DP.dp.toPx()
-            val hole = 9.dp.toPx()
-            val light = Color.White
-            val fit = (size.width / screenW.dp.toPx()).coerceAtMost(1f)
-            if (settings.pulse) when (look) {
-                PulseLook.Rest -> drawCircle(light.copy(alpha = .55f * opacity), hole + 6.dp.toPx(), Offset(cx, cy), style = Stroke(1.5.dp.toPx()))
-                PulseLook.Music -> drawMusic(cx, cy, hole, opacity, accent)
-                PulseLook.Expanded -> drawPanel(cx, cy, hole, opacity, accent)
-                PulseLook.Arc -> drawArc(cx, cy, slots.map { Offset(cx + (it.x - camera.x).dp.toPx() * fit, cy + (it.y - camera.y).dp.toPx() * fit) },
-                    accent, fit)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val screen = LocalConfiguration.current
+            val screenW = screen.screenWidthDp.toFloat()
+            val screenH = (screen.screenHeightDp + statusBar).coerceAtLeast(PREVIEW_STAGE_DP)
+            val k = (maxWidth.value / screenW).coerceAtMost(1f)
+            Box(Modifier.size((screenW * k).dp, (PREVIEW_STAGE_DP * k).dp).clip(shape).background(Color.Black.copy(alpha = .28f))
+                .border(1.dp, ink.accent.copy(alpha = .30f), shape).clearAndSetSemantics { contentDescription = "$label. $note" }) {
+                Box(Modifier.stage(k, screenW, screenH)) {
+                    val home = settings.home.activeLayout()
+                    HomeMiniature(settings, home, now, model::entry, 1f, Modifier.fillMaxSize())
+                    val hx = with(density) { lens.x.toDp().value }
+                    val hy = with(density) { lens.y.toDp().value }
+                    val hr = with(density) { lens.radius.toDp().value }
+                    if (settings.pulse) when (look) {
+                        PulseLook.Rest -> Canvas(Modifier.fillMaxSize()) {
+                            val box = pulseHitbox(hx, hy, settings.pulseHit, screenW)
+                            drawRoundRect(ink.accent.copy(alpha = .9f), Offset(box.left.dp.toPx(), box.top.dp.toPx()),
+                                Size(box.width.dp.toPx(), box.height.dp.toPx()), CornerRadius(12.dp.toPx()),
+                                style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))))
+                        }
+                        PulseLook.Music -> {
+                            val mc = musicCapsule(hx, hy, hr, statusBar)
+                            Box(Modifier.offset(mc.left.dp, mc.top.dp)) { MusicCompact(sample, mc, lens.radius, settings.pulseOpacity, null) }
+                        }
+                        PulseLook.Expanded -> {
+                            val state = GlanceState(if (settings.pulseMusic) sample else null,
+                                glanceItems(settings.pulseMusic, torch = true, charging = false, global = settings.pulseEverywhere, sdk = Build.VERSION.SDK_INT),
+                                alarm = "6:30")
+                            val (left, width) = menuLeftAndWidth(screenW, hx, 12f, glanceWidth(state).value)
+                            val top = menuTop(statusBar, hy, hr, 4f, 8f)
+                            Canvas(Modifier.fillMaxSize()) {
+                                val half = (hr + 4f).dp.toPx()
+                                drawRoundRect(ink.night.copy(alpha = .5f), Offset(hx.dp.toPx() - half, hy.dp.toPx() - half),
+                                    Size(2f * half, (top + 24f).dp.toPx() - (hy.dp.toPx() - half)), CornerRadius(half))
+                            }
+                            GlanceCard(state, width.dp, {}, {}, {}, {}, Modifier.offset(left.dp, top.dp))
+                        }
+                        PulseLook.Arc -> {
+                            val hold = settings.controls.bound(Trigger.Pulse(Gesture.Hold)) as? Action.Arc
+                            val set = arc.sets.firstOrNull { s -> hold != null && s.id == settings.controls.arcSetFor(hold).id } ?: arc.sets.firstOrNull()
+                            GlobalArc(set, settings.controls.globalArc.over(settings.controls.arc), Pt(hx, hy), open = true, pick = null,
+                                flowSteps = { emptyList() })
+                        }
+                    }
+                    // The camera itself, so the picture reads like the phone.
+                    Canvas(Modifier.fillMaxSize()) { drawCircle(Color.Black, lens.radius, Offset(lens.x, lens.y)) }
+                }
+                // The stage ends softly instead of cutting Home's clock in half.
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(56.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFF16141C)))))
+                // Nothing in the preview takes a touch: its music buttons must never reach the real player.
+                Box(Modifier.matchParentSize().pointerInput(Unit) { awaitEachGesture { awaitFirstDown(requireUnconsumed = false).consume() } })
             }
-            drawCircle(Color.Black, hole, Offset(cx, cy))
-            drawCircle(light.copy(alpha = .18f), hole, Offset(cx, cy), style = Stroke(1.dp.toPx()))
         }
         Text(note, Modifier.padding(start = 6.dp, end = 6.dp, top = 8.dp), style = InkText.small, color = ink.muted)
         if (settings.pulse) VeilChoice(listOf(PulseLook.Rest to stringResource(R.string.pulse_preview_rest),
@@ -178,51 +237,11 @@ private fun PulsePreview(settings: LauncherSettings) {
     }
 }
 
-private fun DrawScope.drawMusic(cx: Float, cy: Float, hole: Float, opacity: Float, accent: Color) {
-    val h = 2 * hole + 10.dp.toPx()
-    val w = 150.dp.toPx()
-    drawRoundRect(Color(0xFF1A1A22).copy(alpha = .4f + .6f * opacity), Offset(cx - w / 2f, cy - h / 2f), Size(w, h), CornerRadius(h / 2f))
-    val bar = 3.dp.toPx()
-    listOf(.45f, .9f, .6f, .75f).forEachIndexed { i, f ->
-        val bh = (h - 12.dp.toPx()) * f
-        val x = cx - w / 2f + 16.dp.toPx() + i * (bar + 3.dp.toPx())
-        drawRoundRect(accent, Offset(x, cy - bh / 2f), Size(bar, bh), CornerRadius(bar / 2f))
-    }
-    drawCircle(accent.copy(alpha = .55f), hole, Offset(cx + w / 2f - hole - 5.dp.toPx(), cy))
+/** Lays the content out at [w] × [h] dp (the real screen) and draws it scaled by [k] from the top start. */
+private fun Modifier.stage(k: Float, w: Float, h: Float) = layout { m, c ->
+    val p = m.measure(Constraints.fixed(w.dp.roundToPx(), h.dp.roundToPx()))
+    layout(c.maxWidth, c.maxHeight) { p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = TransformOrigin(0f, 0f) } }
 }
 
-private fun DrawScope.drawPanel(cx: Float, cy: Float, hole: Float, opacity: Float, accent: Color) {
-    val left = 14.dp.toPx()
-    val top = cy - hole - 6.dp.toPx()
-    val w = size.width - 2 * left
-    val h = size.height - top - 12.dp.toPx()
-    drawRoundRect(Color(0xFF1A1A22).copy(alpha = .5f + .5f * opacity), Offset(left, top), Size(w, h), CornerRadius(22.dp.toPx()))
-    val art = 52.dp.toPx()
-    val y = cy + hole + 16.dp.toPx()
-    drawRoundRect(accent.copy(alpha = .5f), Offset(left + 16.dp.toPx(), y), Size(art, art), CornerRadius(12.dp.toPx()))
-    val tx = left + 16.dp.toPx() + art + 14.dp.toPx()
-    drawRoundRect(Color.White.copy(alpha = .75f), Offset(tx, y + 8.dp.toPx()), Size(w * .42f, 7.dp.toPx()), CornerRadius(4.dp.toPx()))
-    drawRoundRect(Color.White.copy(alpha = .35f), Offset(tx, y + 24.dp.toPx()), Size(w * .28f, 6.dp.toPx()), CornerRadius(3.dp.toPx()))
-    val line = y + art + 16.dp.toPx()
-    drawLine(Color.White.copy(alpha = .2f), Offset(left + 16.dp.toPx(), line), Offset(left + w - 16.dp.toPx(), line), 3.dp.toPx())
-    drawLine(accent, Offset(left + 16.dp.toPx(), line), Offset(left + 16.dp.toPx() + (w - 32.dp.toPx()) * .38f, line), 3.dp.toPx())
-    listOf(-1, 0, 1).forEach { i -> drawCircle(Color.White.copy(alpha = if (i == 0) .85f else .5f), (if (i == 0) 9 else 6).dp.toPx(),
-        Offset(cx + i * 44.dp.toPx(), line + 22.dp.toPx())) }
-}
-
-/** Global ARC: the beads where the real bow puts them ([slots], priority order: 0 is the middle), a dashed bow through them. */
-private fun DrawScope.drawArc(cx: Float, cy: Float, slots: List<Offset>, accent: Color, fit: Float) {
-    drawRect(Color.Black.copy(alpha = .35f))
-    val dash = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 6.dp.toPx()))
-    slots.sortedBy { it.x }.zipWithNext { a, b -> drawLine(Color.White.copy(alpha = .35f), a, b, 1.dp.toPx(), pathEffect = dash) }
-    val bead = 20.dp.toPx() * fit
-    slots.forEachIndexed { i, p ->
-        val chosen = i == 0
-        drawCircle(if (chosen) accent else Color.White.copy(alpha = .22f), if (chosen) bead * 1.2f else bead, p)
-        drawCircle(Color.White.copy(alpha = .55f), if (chosen) bead * 1.2f else bead, p, style = Stroke(1.dp.toPx()))
-    }
-    slots.firstOrNull()?.let { drawLine(accent.copy(alpha = .7f), Offset(cx, cy + 12.dp.toPx()), it, 1.5.dp.toPx()) }
-}
-
-/** Where the preview draws the camera, dp from its top. */
-private const val PREVIEW_CAMERA_DP = 22f
+/** How much of the screen's top the preview shows, dp: the camera, the expanded glance and Global ARC with its label. */
+private const val PREVIEW_STAGE_DP = 340f

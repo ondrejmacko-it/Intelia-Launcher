@@ -661,12 +661,12 @@
     <string name="controls_home_hint">Swipe up and hold can do something else; the drawer stays on LENS and the editor in Studio › Plocha.</string>
     <string name="pulse_preview_label">PULSE preview</string>
     <string name="pulse_preview_off">PULSE is off. Choose where it works under Behaviour.</string>
-    <string name="pulse_preview_rest">Rest</string>
+    <string name="pulse_preview_rest">Hidden</string>
     <string name="pulse_preview_music">Music</string>
     <string name="pulse_preview_expanded">Expanded</string>
-    <string name="pulse_preview_rest_note">A quiet ring at the camera; the echo, charging and the next alarm show here.</string>
-    <string name="pulse_preview_music_note">While something plays: bars on the left, the artwork on the right.</string>
-    <string name="pulse_preview_expanded_note">The tap panel: player with its controls, alarm and battery.</string>
+    <string name="pulse_preview_rest_note">At rest PULSE is invisible and the camera stays clear. Dashed: the touch target; charging or a near alarm add a quiet ring.</string>
+    <string name="pulse_preview_music_note">While something plays: bars on the left, the artwork on the right. A tap opens the song.</string>
+    <string name="pulse_preview_expanded_note">Tapped, only the song: artwork and title open the player, the controls below. Close it with a tap beside, a flick up or the handle.</string>
     <string name="pulse_preview_arc_note">Hold and slide: Global ARC under the camera, release runs the slot, back to the camera cancels.</string>
     <string name="pulse_group_content">Content and events</string>
     <string name="pulse_group_gestures">Gestures</string>
@@ -689,4 +689,14 @@
     <string name="label_gap">Gap to the icon</string>
     <string name="label_lines">Lines</string>
     <string name="icon_look">Icon look</string>
+    <string name="pulse_open_player">Open the player</string>
+    <string name="pulse_alarm_short">Alarm</string>
+    <string name="pulse_glance">PULSE glance</string>
+    <string name="pulse_hit_kicker">PULSE · touch target</string>
+    <string name="pulse_hit_body">Where a tap counts as PULSE: its own square on the camera, apart from the capsule and the status icons. Tap the camera to try it.</string>
+    <string name="pulse_hit_size">Target size</string>
+    <string name="pulse_hit_test">Test: %1$d on target · %2$d beside</string>
+    <string name="pulse_preview_expanded_plain">Tapped without music: one row of what fits now (torch, alarm …). Close it with a tap beside, a flick up or the handle.</string>
+    <string name="pulse_sample_title">Sample song</string>
+    <string name="pulse_sample_artist">Artist</string>
 </resources>

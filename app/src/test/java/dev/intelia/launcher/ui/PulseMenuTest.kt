@@ -4,35 +4,56 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import dev.intelia.launcher.data.PulseHit
 
 class PulseMenuTest {
-    @Test fun actionsDependOnApiAndFlash() {
-        assertEquals(PulseAction.entries.toList(), pulseActions(36, torch = true))
-        assertFalse(PulseAction.Torch in pulseActions(36, torch = false))
-        val old = pulseActions(27, torch = true)
-        assertFalse(PulseAction.Screenshot in old)
-        assertFalse(PulseAction.Lock in old)
-        assertTrue(PulseAction.Notifications in old && PulseAction.QuickSettings in old)
+    @Test fun glanceWithMusicIsOnlyTheSong() {
+        assertTrue(glanceItems(music = true, torch = true, charging = true, global = true, sdk = 36).isEmpty())
     }
 
-    @Test fun panelsOnlyFromApi29() {
-        assertEquals(listOf(PulseLink.Bluetooth, PulseLink.Sound, PulseLink.Display), pulseLinks(28))
-        assertEquals(PulseLink.entries.toList(), pulseLinks(29))
+    @Test fun glanceOffersWhatIsRelevant() {
+        assertEquals(listOf(GlanceItem.Torch, GlanceItem.Alarm), glanceItems(false, torch = true, charging = false, global = false, sdk = 36))
+        assertEquals(listOf(GlanceItem.Alarm, GlanceItem.Battery), glanceItems(false, torch = false, charging = true, global = false, sdk = 36))
+        assertEquals(GlanceItem.entries.toList(), glanceItems(false, torch = true, charging = true, global = true, sdk = 36))
+        assertFalse(GlanceItem.Screenshot in glanceItems(false, torch = true, charging = false, global = true, sdk = 27))
     }
 
-    @Test fun lensTargetIsCentredSquareOnPhone3() {
-        // Phone (3): lens 539.4 / 68.25 px, r 21 px, pad 10 dp = 26.25 px, min 32 dp = 84 px.
-        val t = lensTarget(539.4f, 68.25f, 21f, 26.25f, 84f)
-        assertEquals(94, t.width)
-        assertEquals(t.width, t.height)
-        assertEquals(492, t.left)
-        assertEquals(21, t.top)
+    @Test fun hitboxIs48dpCentredOnPhone3Lens() {
+        // Phone (3): lens 205.5 / 26 dp, screen 411 dp wide.
+        val t = pulseHitbox(205.5f, 26f, PulseHit(), 411f)
+        assertEquals(48f, t.width, 0f)
+        assertEquals(48f, t.height, 0f)
+        assertEquals(181.5f, t.left, 0.001f)
+        assertEquals(2f, t.top, 0.001f)
+        assertTrue(t.contains(205.5f, 26f))
     }
 
-    @Test fun lensTargetKeepsMinimumAndScreenTop() {
-        val t = lensTarget(100f, 10f, 4f, 2f, 84f)
-        assertEquals(84, t.width)
-        assertEquals(0, t.top)
+    @Test fun hitboxIgnoresTheCapsuleAndFollowsOnlyItsOwnOffset() {
+        val moved = pulseHitbox(205.5f, 26f, PulseHit(56f, dx = 10f, dy = 12f), 411f)
+        assertEquals(56f, moved.width, 0f)
+        assertEquals(187.5f, moved.left, 0.001f)
+        assertEquals(10f, moved.top, 0.001f)
+    }
+
+    @Test fun hitboxStaysOnScreen() {
+        val t = pulseHitbox(10f, 4f, PulseHit(), 411f)
+        assertEquals(0f, t.left, 0f)
+        assertEquals(0f, t.top, 0f)
+        assertEquals(363f, pulseHitbox(405f, 26f, PulseHit(), 411f).left, 0.001f)
+    }
+
+    @Test fun homeHitboxReachesBelowTheStatusBar() {
+        // On Home the status bar (40 dp) takes touches, so the target keeps 24 dp under it.
+        val t = pulseHitbox(205.5f, 26f, PulseHit(), 411f, blockedTop = 40f)
+        assertEquals(64f, t.bottom, 0.001f)
+        assertEquals(48f, t.width, 0f)
+    }
+
+    @Test fun hitSettingsAreBounded() {
+        val s = PulseHit(Float.NaN, 500f, -500f).sanitized()
+        assertEquals(PulseHit.DEFAULT_SIZE, s.size, 0f)
+        assertEquals(PulseHit.MAX_DX, s.dx, 0f)
+        assertEquals(PulseHit.MIN_DY, s.dy, 0f)
     }
 
     @Test fun menuIsCentredAndClamped() {
@@ -50,18 +71,6 @@ class PulseMenuTest {
         assertEquals(136f, menuTop(110f, 68f, 33f, 11f, 24f), 0.01f)
         // A lens hanging lower than the status bar pushes the sheet down.
         assertEquals(154f, menuTop(80f, 80f, 40f, 10f, 24f), 0.01f)
-    }
-
-    @Test fun ringerOnlyTogglesSoundAndVibrate() {
-        assertEquals(RINGER_VIBRATE, nextRinger(RINGER_NORMAL))
-        assertEquals(RINGER_NORMAL, nextRinger(RINGER_VIBRATE))
-        assertEquals(RINGER_NORMAL, nextRinger(RINGER_SILENT))
-    }
-
-    @Test fun volumeFractionIsSafe() {
-        assertEquals(.5f, volumeFraction(5, 10), 0.001f)
-        assertEquals(0f, volumeFraction(3, 0), 0.001f)
-        assertEquals(1f, volumeFraction(12, 10), 0.001f)
     }
 }
 

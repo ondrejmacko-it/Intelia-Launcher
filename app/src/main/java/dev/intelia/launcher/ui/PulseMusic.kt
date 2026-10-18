@@ -135,7 +135,7 @@ internal fun MusicArt(art: ImageBitmap?, size: Dp, shape: androidx.compose.ui.gr
  * without a duration).
  */
 @Composable
-internal fun MusicCard(playing: Playing) {
+internal fun MusicCard(playing: Playing, onOpen: (() -> Unit)? = null) {
     val ink = LocalInk.current
     val info = playing.info
     val art = rememberArt(playing)
@@ -147,8 +147,12 @@ internal fun MusicCard(playing: Playing) {
         }
         now = SystemClock.elapsedRealtime()
     }
+    val openLabel = stringResource(R.string.pulse_open_player)
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // S3: the artwork and title open the playing app; the controls below stay where the thumb expects them.
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClickLabel = openLabel, onClick = onOpen) else Modifier),
+            verticalAlignment = Alignment.CenterVertically) {
             MusicArt(art, 56.dp, RoundedCornerShape(14.dp))
             Column(Modifier.weight(1f).padding(start = 14.dp)) {
                 Text(info.title.ifEmpty { stringResource(R.string.pulse_music_now) }, style = InkText.body, color = ink.onNight,

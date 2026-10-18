@@ -215,8 +215,8 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
             BackupPart(model, beforeRestore) { beforeRestore = it }
         }
         StudioPane.Hidden -> HiddenApps(model, onBack = ::up)
-        StudioPane.Lens -> LensCalibration(settings.pulseLens, onSave = { lens ->
-            model.updateSettings { it.copy(pulseLens = lens) }
+        StudioPane.Lens -> LensCalibration(settings.pulseLens, settings.pulseHit, onSave = { lens, hit ->
+            model.updateSettings { it.copy(pulseLens = lens, pulseHit = hit) }
             up()
         }, onBack = ::up)
     } } }

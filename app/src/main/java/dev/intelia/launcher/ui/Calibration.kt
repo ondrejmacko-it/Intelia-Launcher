@@ -53,7 +53,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.LauncherSettings
+import dev.intelia.launcher.data.PulseHit
 import dev.intelia.launcher.data.PulseLens
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -67,7 +73,7 @@ private fun Float.snap(): Float = (this / STEP).roundToInt() * STEP
  * dot and only the hairline ring around it remains. Nothing is stored until Save.
  */
 @Composable
-fun LensCalibration(saved: PulseLens?, onSave: (PulseLens?) -> Unit, onBack: () -> Unit) {
+fun LensCalibration(saved: PulseLens?, savedHit: PulseHit, onSave: (PulseLens?, PulseHit) -> Unit, onBack: () -> Unit) {
     val ink = LocalInk.current
     val density = LocalDensity.current
     val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
@@ -84,13 +90,39 @@ fun LensCalibration(saved: PulseLens?, onSave: (PulseLens?) -> Unit, onBack: () 
         if (!settled || x < 0f) { x = start.x.snap(); y = start.y.snap(); r = start.r.snap() }
         if (auto != null) settled = true
     }
+    // S3: the touch target, calibrated apart from the lens: size and offset, tried right here before saving.
+    var hitSize by rememberSaveable { mutableStateOf(savedHit.size) }
+    var hitDx by rememberSaveable { mutableStateOf(savedHit.dx) }
+    var hitDy by rememberSaveable { mutableStateOf(savedHit.dy) }
+    val hit = PulseHit(hitSize, hitDx, hitDy)
+    var hits by remember { mutableStateOf(0) }
+    var misses by remember { mutableStateOf(0) }
+    var miss by remember { mutableStateOf<Offset?>(null) }
+    val flash = remember { androidx.compose.animation.core.Animatable(0f) }
+    // With PULSE everywhere the real lens overlay takes the draft and reports its touches here instead of acting.
+    val serviceHits by PulseAccessibilityService.probeHits.collectAsState()
+    LaunchedEffect(x, y, r, hitSize, hitDx, hitDy) { if (x >= 0f) PulseAccessibilityService.probe(PulseLens(x, y, r) to hit) }
+    DisposableEffect(Unit) { onDispose { PulseAccessibilityService.probe(null) } }
+    LaunchedEffect(serviceHits) { if (serviceHits > 0) { hits++; miss = null; flash.snapTo(1f); flash.animateTo(0f, androidx.compose.animation.core.tween(500)) } }
     SystemBarIcons(darkIcons = false)
     val on = ink.onNight
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (x >= 0f) Canvas(Modifier.fillMaxSize()) {
+        if (x >= 0f) Canvas(Modifier.fillMaxSize().pointerInput(x, y, hitSize, hitDx, hitDy) {
+            detectTapGestures { p ->
+                val box = pulseHitbox(x, y, hit, screenWidth)
+                if (box.contains(p.x.toDp().value, p.y.toDp().value)) { hits++; miss = null } else { misses++; miss = p }
+            }
+        }) {
             val c = Offset(x.dp.toPx(), y.dp.toPx())
             val rr = r.dp.toPx()
+            val box = pulseHitbox(x, y, hit, screenWidth)
+            val tl = Offset(box.left.dp.toPx(), box.top.dp.toPx())
+            val bs = Size(box.width.dp.toPx(), box.height.dp.toPx())
+            drawRoundRect(ink.accent.copy(alpha = .10f + .35f * flash.value), tl, bs, CornerRadius(12.dp.toPx()))
+            drawRoundRect(ink.accent.copy(alpha = .8f), tl, bs, CornerRadius(12.dp.toPx()),
+                style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))))
+            miss?.let { drawCircle(on.copy(alpha = .5f), 5.dp.toPx(), it, style = Stroke(1.5.dp.toPx())) }
             // A thread from the lens down to the controls, the target dot and its hairline ring.
             drawLine(on.copy(alpha = .18f), Offset(c.x, c.y + rr + 10.dp.toPx()), Offset(c.x, 132.dp.toPx()), 1.dp.toPx(), StrokeCap.Round)
             drawCircle(ink.accent, rr, c)
@@ -107,6 +139,14 @@ fun LensCalibration(saved: PulseLens?, onSave: (PulseLens?) -> Unit, onBack: () 
                 BeadControl(stringResource(R.string.pulse_lens_x), x, 0f, screenWidth.coerceAtMost(LauncherSettings.MAX_LENS_X)) { x = it }
                 BeadControl(stringResource(R.string.pulse_lens_y), y, 0f, 120f) { y = it }
                 BeadControl(stringResource(R.string.pulse_lens_size), r, LauncherSettings.MIN_LENS_R, 40f) { r = it }
+                Kicker(stringResource(R.string.pulse_hit_kicker), Modifier.padding(top = 26.dp), color = ink.accent)
+                Text(stringResource(R.string.pulse_hit_body), Modifier.padding(top = 6.dp), style = InkText.small.copy(fontSize = 14.sp),
+                    color = on.copy(alpha = .7f))
+                BeadControl(stringResource(R.string.pulse_hit_size), hitSize, PulseHit.MIN_SIZE, PulseHit.MAX_SIZE) { hitSize = it }
+                BeadControl(stringResource(R.string.pulse_lens_x), hitDx, -PulseHit.MAX_DX, PulseHit.MAX_DX) { hitDx = it }
+                BeadControl(stringResource(R.string.pulse_lens_y), hitDy, PulseHit.MIN_DY, PulseHit.MAX_DY) { hitDy = it }
+                Text(stringResource(R.string.pulse_hit_test, hits, misses), Modifier.padding(top = 12.dp), style = InkText.body,
+                    color = if (hits > 0 && misses == 0) ink.accent else on)
             }
             Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 24.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -114,9 +154,9 @@ fun LensCalibration(saved: PulseLens?, onSave: (PulseLens?) -> Unit, onBack: () 
                 Spacer(Modifier.weight(1f))
                 Quiet(stringResource(R.string.pulse_lens_auto), {
                     auto?.let { x = it.x.snap(); y = it.y.snap(); r = it.r.snap() }
-                    onSave(null)
+                    onSave(null, hit)
                 }, color = on)
-                Capsule(stringResource(R.string.flow_save), { onSave(PulseLens(x, y, r)) })
+                Capsule(stringResource(R.string.flow_save), { onSave(PulseLens(x, y, r), hit) })
             }
         }
     }

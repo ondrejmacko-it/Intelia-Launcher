@@ -11,7 +11,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -152,8 +156,12 @@ fun GlobalArc(
         val empty = set == null || set.slots.all { it == null }
         val half = minOf(GLOBAL_LABEL_MAX / 2f, maxWidth.value / 2f - 16f)
         val lx = camera.x.coerceIn(half + 16f, maxWidth.value - half - 16f)
-        val ly = camera.y + bow.lift + 64f
-        Column(Modifier.centerAt(lx.dp, ly.dp).widthIn(max = (2 * half).dp).graphicsLayer { alpha = reveal },
+        val plateInk = Color.White
+        // S3: the label hangs under the lowest slot on a plate of its own, so it never prints over Home's clock or an app.
+        val low = (0 until bow.count).maxOfOrNull { GlobalArcGeometry.slot(bow, camera, it).y } ?: (camera.y + bow.lift)
+        Box(Modifier.offset(x = (lx - half).dp, y = (low + 34f).dp).width((2 * half).dp).graphicsLayer { alpha = reveal },
+            contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.clip(RoundedCornerShape(18.dp)).background(Color.Black.copy(alpha = .62f)).padding(horizontal = 14.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             val kicker = when {
                 chosenSlot != null -> stringResource(if (chosenSlot.app != null || chosenSlot.shortcut != null) R.string.arc_release
@@ -163,15 +171,16 @@ fun GlobalArc(
                 else -> stringResource(R.string.global_arc_cancel_hint)
             }
             // Two lines, centred: a hint must never be cut off (it was „Návrat ke kameře gesto zruš…“).
-            Text(kicker.uppercase(Locale.getDefault()), style = InkText.label, color = homeInk.copy(alpha = .75f),
+            Text(kicker.uppercase(Locale.getDefault()), style = InkText.label, color = plateInk.copy(alpha = .75f),
                 textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (chosenSlot != null) {
-                Text(slotLabel(chosenSlot), style = InkText.item.copy(fontSize = 19.sp, shadow = homeShadow(homeInk),
-                    fontStyle = if (chosenSlot.flow != null) FontStyle.Italic else FontStyle.Normal), color = homeInk,
+                Text(slotLabel(chosenSlot), style = InkText.item.copy(fontSize = 19.sp, 
+                    fontStyle = if (chosenSlot.flow != null) FontStyle.Italic else FontStyle.Normal), color = plateInk,
                     textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                chosenSlot.flow?.let { BeadThread(flowSteps(it), missing, color = homeInk.copy(alpha = .8f), bead = accent) }
-            } else if (empty) Text(stringResource(R.string.arc_empty), style = InkText.small, color = homeInk.copy(alpha = .75f),
+                chosenSlot.flow?.let { BeadThread(flowSteps(it), missing, color = plateInk.copy(alpha = .8f), bead = accent) }
+            } else if (empty) Text(stringResource(R.string.arc_empty), style = InkText.small, color = plateInk.copy(alpha = .75f),
                 textAlign = TextAlign.Center)
+        }
         }
     }
 }

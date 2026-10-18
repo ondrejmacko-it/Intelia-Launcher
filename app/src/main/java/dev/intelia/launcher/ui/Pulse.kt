@@ -107,8 +107,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private val TARGET_BELOW = 28.dp
-
 internal data class Battery(val percent: Int, val charging: Boolean)
 
 /** Where the camera cut-out sits, in window px. */
@@ -294,9 +292,6 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             MusicCompact(shown, mc, h.radius, settings.pulseOpacity, battery?.percent?.takeIf { rest.gauge })
         }
 
-        // Touch target on the lens. The status bar window takes touches inside it, so the target also reaches
-        // [TARGET_BELOW] under the status bar, where a finger aiming at the camera usually lands.
-        val targetTop = hy - 24.dp
         // With PULSE everywhere on (D9) the service owns the lens; Lab draws no second target under it.
         // M3: tap opens the panel unless the owner bound it; double tap and hold exist only when bound, so an
         // unbound capsule never waits for a second tap.
@@ -329,12 +324,14 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         }
         fun gesture(g: Gesture) { if (!openArc(g, false)) { if (g == Gesture.Tap) tap() else onGesture(g) } }
         fun assisted(g: Gesture) { if (!openArc(g, true)) onGesture(g) }
+        // S3: the touch target is its own square on the lens ([pulseHitbox], owner-calibrated), whatever the capsule
+        // draws. The status bar window takes touches inside it, so on Home the target also reaches under the bar.
         // With PULSE everywhere on (D9) and the service running, the service owns the lens; Lab draws no second target.
-        // With music shown the whole capsule is the target, so a tap on the artwork opens the panel too.
-        val targetLeft = if (music != null) minOf(hx - 32.dp, mc.left.dp) else hx - 32.dp
-        val targetWidth = if (music != null) maxOf(hx + 32.dp, (mc.left + mc.width).dp) - targetLeft else 64.dp
+        val hit = pulseHitbox(hx.value, hy.value, settings.pulseHit, screenW, blockedTop = statusBar)
+        val targetLeft = hit.left.dp
+        val targetTop = hit.top.dp
         if (!preview && !expanded && owns) Box(Modifier.offset(x = targetLeft, y = targetTop)
-            .size(targetWidth, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
+            .size(hit.width.dp, hit.height.dp)
             // M3.1: one recognizer for every capsule gesture (shared with the PULSE service); a shorter gesture
             // waits only while a longer bound one can still follow.
             .pulseTouch(bound, swipes, ::gesture, onHeld = { x, y ->
@@ -360,97 +357,31 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
                 if (extras.isNotEmpty()) customActions = extras.map { g -> CustomAccessibilityAction(gestureLabels.getValue(g)) { assisted(g); true } }
             })
 
-        if (expanded) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() },
-            indication = null, onClickLabel = stringResource(R.string.close)) { expanded = false })
-        val panelTop = (hy - hr - 6.dp).coerceAtLeast(4.dp)
-        AnimatedVisibility(expanded, Modifier.fillMaxWidth().padding(horizontal = 12.dp).offset(y = panelTop),
-            enter = fadeIn(tween(motionMs(160))) + expandIn(tween(motionMs(300)), expandFrom = Alignment.TopCenter),
-            exit = fadeOut(tween(motionMs(140))) + shrinkOut(tween(motionMs(220)), shrinkTowards = Alignment.TopCenter)) {
-            PulsePanel(music, alarm, battery, hr, maxOf(hr * 2 + 18.dp, statusBar.dp - panelTop), onClose = { expanded = false })
-        }
+        // S3: the glance replaces the old dashboard: the song while music shows, else one row of what matters now.
+        if (expanded) PulseGlance(h, with(density) { statusBar.dp.toPx() }, window.width.toFloat(), music, global,
+            onItem = { item ->
+                when (item) {
+                    GlanceItem.Alarm -> try {
+                        context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (_: ActivityNotFoundException) {
+                    }
+                    GlanceItem.Notifications -> PulseAccessibilityService.performGlobal(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+                    GlanceItem.Screenshot -> if (Build.VERSION.SDK_INT >= 28) Handler(Looper.getMainLooper()).postDelayed({
+                        PulseAccessibilityService.performGlobal(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) }, 350)
+                    else -> Unit
+                }
+                expanded = false
+            },
+            onOpenPlayer = { pkg ->
+                playerIntent(context, pkg)?.let { try { context.startActivity(it) } catch (_: ActivityNotFoundException) { } }
+                expanded = false
+            },
+            onClose = { expanded = false })
         arc?.let { content ->
             val shown = content.sets.getOrNull(arcSet ?: arcShown)
             GlobalArc(shown, content.globalLook, camera, arcSet != null, arcPick, flowSteps,
                 onSlot = if (arcAssisted) { i -> val chosen = shown?.slots?.getOrNull(i); closeArc(); chosen?.let { onArcAction(it.action) } } else null,
                 onDismiss = ::closeArc)
         }
-    }
-}
-
-@Composable
-private fun PulsePanel(music: Playing?, alarm: Long?, battery: Battery?, holeRadius: Dp, header: Dp, onClose: () -> Unit) {
-    val context = LocalContext.current
-    val ink = LocalInk.current
-    val manager = remember(context) { context.getSystemService(CameraManager::class.java) }
-    val camera = remember(manager) { manager?.let(::torchCamera) }
-    var torch by remember { mutableStateOf(false) }
-    DisposableEffect(manager, camera) {
-        val callback = object : CameraManager.TorchCallback() {
-            override fun onTorchModeChanged(cameraId: String, enabled: Boolean) { if (cameraId == camera) torch = enabled }
-        }
-        if (camera != null) manager?.registerTorchCallback(callback, Handler(Looper.getMainLooper()))
-        onDispose { manager?.unregisterTorchCallback(callback) }
-    }
-    val zone = ZoneId.systemDefault()
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(ink.night)
-        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
-        .padding(start = 22.dp, end = 14.dp, bottom = 10.dp)) {
-        // Keep the camera and the status bar clear: the panel grows out of the lens, the system icons stay on top.
-        Box(Modifier.fillMaxWidth().height(header).drawBehind {
-            drawCircle(ink.onNight.copy(alpha = .18f), holeRadius.toPx() + 4.dp.toPx(), Offset(size.width / 2f - 4.dp.toPx(), holeRadius.toPx() + 6.dp.toPx()),
-                style = Stroke(1.dp.toPx()))
-        })
-        music?.let { MusicCard(it) }
-        val alarmRow = alarm?.let {
-            val at = Instant.ofEpochMilli(it).atZone(zone)
-            val day = when (at.toLocalDate()) {
-                LocalDate.now(zone) -> stringResource(R.string.today)
-                LocalDate.now(zone).plusDays(1) -> stringResource(R.string.tomorrow)
-                else -> at.format(DateTimeFormatter.ofPattern("EEE d. M."))
-            }
-            at.toLocalTime().format(DateTimeFormatter.ofPattern("H:mm")) to day
-        }
-        PanelRow(Glyph.Bell, alarmRow?.first ?: stringResource(R.string.no_alarm), alarmRow?.second, onClick = {
-            try {
-                context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            } catch (_: ActivityNotFoundException) {
-            }
-            onClose()
-        })
-        battery?.let {
-            PanelRow(Glyph.Bolt, "${it.percent} %", stringResource(if (it.charging) R.string.charging else R.string.on_battery), onClick = null)
-        }
-        if (camera != null) {
-            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(torch, role = Role.Switch) { on ->
-                try {
-                    manager?.setTorchMode(camera, on)
-                } catch (_: CameraAccessException) {
-                } catch (_: IllegalArgumentException) {
-                }
-            }.semantics { stateDescription = if (torch) "on" else "off" }, verticalAlignment = Alignment.CenterVertically) {
-                HomeGlyph(Glyph.Torch, null, tint = ink.onNight, size = 20.dp)
-                Text(stringResource(R.string.torch), Modifier.weight(1f).padding(start = 14.dp), style = InkText.body, color = ink.onNight)
-                Canvas(Modifier.padding(end = 8.dp).size(24.dp)) {
-                    val r = size.minDimension / 2f - 1.5.dp.toPx()
-                    drawCircle(if (torch) ink.accent else ink.onNight.copy(alpha = .5f), r, style = Stroke(1.5.dp.toPx()))
-                    if (torch) drawCircle(ink.accent, r * .55f)
-                }
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Quiet(stringResource(R.string.collapse), onClose, Modifier.padding(end = 4.dp), color = ink.onNight.copy(alpha = .7f))
-        }
-    }
-}
-
-@Composable
-internal fun PanelRow(glyph: Glyph, title: String, detail: String?, onClick: (() -> Unit)?) {
-    val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
-        verticalAlignment = Alignment.CenterVertically) {
-        HomeGlyph(glyph, null, tint = ink.onNight, size = 20.dp)
-        Text(title, Modifier.padding(start = 14.dp), style = InkText.item.copy(fontSize = 22.sp), color = ink.onNight)
-        Spacer(Modifier.width(10.dp))
-        if (detail != null) Text(detail, style = InkText.small.copy(fontWeight = FontWeight.Normal), color = ink.onNight.copy(alpha = .66f))
     }
 }

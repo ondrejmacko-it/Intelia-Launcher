@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next, Check, Undo, Redo, Layers, Grid, Settings, Palette, Touch, Shield, Pulse, Arc, Wave, Key }
+enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next, Check, Undo, Redo, Layers, Grid, Settings, Palette, Touch, Shield, Pulse, Arc, Wave, Key, Shot }
 
 /** Original monoline glyphs on a 24-unit grid; no icon font or bitmap assets. */
 @Composable
@@ -43,6 +43,9 @@ fun HomeGlyph(glyph: Glyph, label: String?, modifier: Modifier = Modifier, tint:
             Glyph.Settings -> { ring(12f, 12f, 6f); ring(12f, 12f, 2.4f)
                 for (i in 0 until 8) { val a = Math.toRadians(i * 45.0); val cx = kotlin.math.cos(a).toFloat(); val sy = kotlin.math.sin(a).toFloat()
                     line(12f + 6f * cx, 12f + 6f * sy, 12f + 9f * cx, 12f + 9f * sy) } }
+            // Screenshot: the four corners of a frame around a lens.
+            Glyph.Shot -> { line(4f, 8f, 4f, 4f); line(4f, 4f, 8f, 4f); line(16f, 4f, 20f, 4f); line(20f, 4f, 20f, 8f)
+                line(20f, 16f, 20f, 20f); line(20f, 20f, 16f, 20f); line(8f, 20f, 4f, 20f); line(4f, 20f, 4f, 16f); ring(12f, 12f, 3f) }
             Glyph.Close -> { line(6f, 6f, 18f, 18f); line(18f, 6f, 6f, 18f) }
             Glyph.Plus -> { line(12f, 5f, 12f, 19f); line(5f, 12f, 19f, 12f) }
             Glyph.Check -> { line(5f, 12.5f, 10f, 17.5f); line(10f, 17.5f, 19f, 7f) }

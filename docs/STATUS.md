@@ -2,6 +2,27 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — UX stabilisation S3: PULSE touch target, glance panel, faithful previews (`feat/control-system-v1`)
+- Touch target: `pulseHitbox()` (one function for Home and the service), a `PulseHit.size` square (default 48 dp)
+  on the lens + owner offset, independent of the capsule / artwork / status icons; Home adds 24 dp under the status
+  bar (the bar swallows touches). New key `pulseHit` (bounded in `sanitized()`); the service re-places the overlay
+  when the lens or target changes. Calibration screen: new *Dotyková plocha* section with a live test through the real
+  overlay (`PulseAccessibilityService.probe`: counts touches, runs nothing, saves nothing until Uložit).
+- Expanded PULSE: the black dashboard (Home `PulsePanel`, service `PulseMenuSheet`, volume / ringer / links / tiles)
+  replaced by one `PulseGlance`: with music only the song (artwork/title open the player, timeline, ⏮ ⏯ ⏭); without
+  music one row from `glanceItems()` (torch, alarm, battery while charging, above apps notifications + screenshot);
+  closes by tap beside, Back, flick up or the handle. Card always solid.
+- Studio › PULSE preview: real `HomeMiniature` top + real `MusicCompact` / `GlanceCard` / `GlobalArc` at the real
+  lens, scaled; touches blocked. Tabs Skrytá / Hudba / Rozbalená / Global ARC.
+- Global ARC hint („Návrat ke kameře gesto zruší“) and release label now hang under the lowest slot on a plate.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (217 tests, 0 failures).
+- Phone (Lab `install -r`, Spotify playing throughout, never paused), verified: overlay frame 126 px = 48 dp centred
+  on the lens; taps inside the square open PULSE, beside / below do not; glance with music opens 4/4, tap beside and
+  flick up close it; calibration test „3 na ploše · 1 vedle“, Back restored the saved target; the four previews render
+  (preview of the hint shows it on its plate above the date). Review pack: `docs/review/S3-PULSE-UX.md`.
+- NOT verified: glance without music, open-player tap, glance buttons, live Global ARC on Home / over apps (owner's
+  gesture not triggered), preview bottom fade, Home-only mode target, TalkBack, light theme, 130 % text.
+
 ## 2026-10-18 — UX stabilisation S2: faithful Home preview, icon and label defaults with exceptions (`feat/control-system-v1`)
 - Reproduced on the phone (Lab, owner's layout "Moje plocha", 64 dp icons): (1) Studio's miniature was a separate
   sketch — a fixed 26 dp Row that overflowed with a 96 dp icon and squeezed the last icon (Chrome tiny), no names, no

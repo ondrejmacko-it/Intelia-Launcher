@@ -76,6 +76,27 @@ data class Palette(
 /** Manual camera position for PULSE, in dp from the top-left of the portrait screen; [r] is the lens radius. */
 @Serializable data class PulseLens(val x: Float, val y: Float, val r: Float)
 
+/**
+ * S3: PULSE's touch target, kept apart from what PULSE draws: a [size] dp square centred on the lens, moved by
+ * [dx] / [dy] dp. The capsule, the music artwork and the status icons around it never change it.
+ */
+@Serializable data class PulseHit(val size: Float = DEFAULT_SIZE, val dx: Float = 0f, val dy: Float = 0f) {
+    fun sanitized(): PulseHit = PulseHit(
+        if (size.isFinite()) size.coerceIn(MIN_SIZE, MAX_SIZE) else DEFAULT_SIZE,
+        if (dx.isFinite()) dx.coerceIn(-MAX_DX, MAX_DX) else 0f,
+        if (dy.isFinite()) dy.coerceIn(MIN_DY, MAX_DY) else 0f,
+    )
+
+    companion object {
+        const val DEFAULT_SIZE = 48f
+        const val MIN_SIZE = 40f
+        const val MAX_SIZE = 72f
+        const val MAX_DX = 48f
+        const val MIN_DY = -16f
+        const val MAX_DY = 40f
+    }
+}
+
 /** Where the owner left the editor card, dp: top-left (null = placed by the element), width, body cap (0 = automatic). */
 @Serializable data class CardFrame(val x: Float? = null, val y: Float? = null, val w: Float = 312f, val h: Float = 0f) {
     companion object {
@@ -127,6 +148,8 @@ data class LauncherSettings(
     val pulseEverywhere: Boolean = true,
     /** Null: use the display cutout reported by the system. */
     val pulseLens: PulseLens? = null,
+    /** S3: the lens touch target (size and offset), separate from the capsule. */
+    val pulseHit: PulseHit = PulseHit(),
     val pulseEcho: Boolean = true,
     val pulseAlarm: Boolean = true,
     val pulseCharging: Boolean = true,
@@ -227,6 +250,7 @@ data class LauncherSettings(
             motion = if (reduceMotion) Motion.Off else motion,
             pulseLens = pulseLens?.takeIf { it.x.isFinite() && it.y.isFinite() && it.r.isFinite() }
                 ?.let { PulseLens(it.x.coerceIn(0f, MAX_LENS_X), it.y.coerceIn(0f, MAX_LENS_Y), it.r.coerceIn(MIN_LENS_R, MAX_LENS_R)) },
+            pulseHit = pulseHit.sanitized(),
             pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
             textScale = TEXT_SCALES.minBy { kotlin.math.abs(it - (if (textScale.isFinite()) textScale else 1f)) },
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
