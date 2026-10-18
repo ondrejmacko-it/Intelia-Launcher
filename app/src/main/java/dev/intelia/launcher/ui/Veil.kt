@@ -8,7 +8,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageShader
@@ -236,9 +238,12 @@ fun Modifier.veilSurface(
     } else null
     val innerGlow = if (tokens.innerGlow.alpha > 0f) Stroke(28.dp.toPx()) else null
     val innerCore = Stroke(12.dp.toPx())
+    val bloom = glassBloom(tokens.glow, size.width, size.height)
+    val glint = glassGlint(tokens.edgeTop, size.width, size.height)
     onDrawWithContent {
         drawOutline(outline, fill)
         glow?.let { drawOutline(outline, it) }
+        bloom?.let { drawBloom(it) }
         grain?.let { drawOutline(outline, it, alpha = tokens.grain) }
         sheen?.let { drawOutline(outline, it) }
         streak?.let { drawOutline(outline, it) }
@@ -249,5 +254,37 @@ fun Modifier.veilSurface(
         }
         drawContent()
         drawOutline(outline, edge, style = stroke)
+        glint?.let { drawOutline(outline, it, style = stroke) }
     }
+}
+
+/**
+ * Veil glass (S4): the owner's accent bleeding through from the top-left corner, as if a coloured light sat behind
+ * the pane. [glow] is the tokens' faint accent; the bloom is a few times stronger but stays far from the text.
+ */
+internal fun glassBloom(glow: Color, w: Float, h: Float): Brush? = if (glow.alpha <= 0f) null else
+    Brush.radialGradient(listOf(glow.copy(alpha = (glow.alpha * 2.6f).coerceAtMost(.16f)), Color.Transparent),
+        center = Offset(w * .08f, 0f), radius = bloomRadius(w, h))
+
+private fun bloomRadius(w: Float, h: Float) = max(minOf(w * .7f, h * 1.4f), 1f)
+
+/**
+ * The bloom is transparent beyond its radius, so it is filled only over the corner it reaches (S4.2: filling the
+ * whole drawer surface with the gradient cost 3–5 % janky frames on the Phone (3)). Callers clip to their shape.
+ */
+internal fun DrawScope.drawBloom(bloom: Brush) {
+    val r = bloomRadius(size.width, size.height)
+    drawRect(bloom, size = Size(minOf(size.width, size.width * .08f + r), minOf(size.height, r)))
+}
+
+/**
+ * Veil glass (S4): the hairline catches light at two corners — strong at the top-left, a smaller glint at the
+ * bottom-right — and stays dark along the long sides. Drawn over the regular edge.
+ */
+internal fun glassGlint(edgeTop: Color, w: Float, h: Float): Brush? {
+    if (edgeTop.alpha <= .05f) return null
+    val t = Color.Transparent
+    val hi = edgeTop.copy(alpha = (edgeTop.alpha * 2.4f).coerceAtMost(.7f))
+    return Brush.linearGradient(0f to hi, .2f to t, .8f to t, 1f to hi.copy(alpha = hi.alpha * .8f),
+        start = Offset.Zero, end = Offset(w, h))
 }

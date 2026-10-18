@@ -1,7 +1,9 @@
 package dev.intelia.launcher.data
 
+import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
+import dev.intelia.launcher.pulse.PulseMode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -74,6 +76,27 @@ data class Palette(
 /** Manual camera position for PULSE, in dp from the top-left of the portrait screen; [r] is the lens radius. */
 @Serializable data class PulseLens(val x: Float, val y: Float, val r: Float)
 
+/**
+ * S3: PULSE's touch target, kept apart from what PULSE draws: a [size] dp square centred on the lens, moved by
+ * [dx] / [dy] dp. The capsule, the music artwork and the status icons around it never change it.
+ */
+@Serializable data class PulseHit(val size: Float = DEFAULT_SIZE, val dx: Float = 0f, val dy: Float = 0f) {
+    fun sanitized(): PulseHit = PulseHit(
+        if (size.isFinite()) size.coerceIn(MIN_SIZE, MAX_SIZE) else DEFAULT_SIZE,
+        if (dx.isFinite()) dx.coerceIn(-MAX_DX, MAX_DX) else 0f,
+        if (dy.isFinite()) dy.coerceIn(MIN_DY, MAX_DY) else 0f,
+    )
+
+    companion object {
+        const val DEFAULT_SIZE = 48f
+        const val MIN_SIZE = 40f
+        const val MAX_SIZE = 72f
+        const val MAX_DX = 48f
+        const val MIN_DY = -16f
+        const val MAX_DY = 40f
+    }
+}
+
 /** Where the owner left the editor card, dp: top-left (null = placed by the element), width, body cap (0 = automatic). */
 @Serializable data class CardFrame(val x: Float? = null, val y: Float? = null, val w: Float = 312f, val h: Float = 0f) {
     companion object {
@@ -114,15 +137,30 @@ data class LauncherSettings(
     val clockStyle: ClockStyle = ClockStyle.Serif,
     val motion: Motion = Motion.Calm,
     val haptics: Haptics = Haptics.Soft,
+    /** D24: strength 0–100 and later per-surface levels; absent = taken from [haptics]. */
+    val haptic: HapticPrefs = HapticPrefs(),
+    /** D25: owner-made colours (step 1: one main accent); absent = presets only. */
+    val custom: CustomColors = CustomColors(),
     /** D18: extra text size on top of the system font scale; 1 = as the system sets it. */
     val textScale: Float = 1f,
     val iconStyle: IconStyle = IconStyle.System,
     val pulse: Boolean = true,
+    /**
+     * M3.1: with PULSE on, false keeps it on Home only even while the PULSE service runs (the service then shows no
+     * lens target at all). True: above other apps whenever the owner has the service switched on.
+     */
+    val pulseEverywhere: Boolean = true,
     /** Null: use the display cutout reported by the system. */
     val pulseLens: PulseLens? = null,
+    /** S3: the lens touch target (size and offset), separate from the capsule. */
+    val pulseHit: PulseHit = PulseHit(),
     val pulseEcho: Boolean = true,
     val pulseAlarm: Boolean = true,
     val pulseCharging: Boolean = true,
+    /** M3.2 (D21): show the playing media session; needs the owner's notification-access switch. Off by default. */
+    val pulseMusic: Boolean = false,
+    /** Veil 3.0: while music shows, a tap opens the player even when the tap has an action of its own. */
+    val pulseTapPlayer: Boolean = true,
     /** How close an alarm must be, in hours, before the capsule shows it. */
     val pulseAlarmHours: Int = 12,
     /** Capsule background opacity in percent; text stays opaque. */
@@ -139,6 +177,12 @@ data class LauncherSettings(
     val iconSize: Int = 40,
     /** Outline of the icon disc in the Veil and Tinted styles. */
     val iconShape: IconShape = IconShape.Circle,
+    /** S2: default glyph colour of Home icons, one of [ItemTint]; empty = the wallpaper ink. An item's own wins. */
+    val iconTint: String = "",
+    /** S2: default opacity of Home icons, [IconOverride.MIN_ALPHA]..1. */
+    val iconAlpha: Float = 1f,
+    /** S2: default look of the names under Home icons; an item overrides single properties. */
+    val labels: LabelStyle = LabelStyle(),
     /** Home layouts (schema 2, §5.4); built from the legacy fields above by [sanitized] on migration. */
     val home: HomeLayouts = HomeLayouts(),
     /** Per-place colours; absent in older documents = unified (one accent everywhere). */
@@ -149,11 +193,19 @@ data class LauncherSettings(
     val wallDim: Int = 0,
     /** The editor card as the owner last moved and sized it; null = placed by the element every time. */
     val editorCard: CardFrame? = null,
+    /**
+     * Control System V1: ARC sets and trigger bindings. Null = not yet edited in the new Studio; [controls] then
+     * derives it from the legacy ARC lists, which are never rewritten (non-destructive migration).
+     */
+    val controlConfig: Controls? = null,
     /** Document version; 0 = written before the Crystal design (phase B1). Migrated by [sanitized]. */
     val schema: Int = 0,
 ) {
+    /** The effective Control System configuration (stored, or migrated from the legacy ARC lists). */
+    val controls: Controls get() = controlConfig ?: Controls.migrate(arc, arcFlows, arcShortcuts, arcRings)
+
     companion object {
-        const val SCHEMA = 2
+        const val SCHEMA = 3
 
         /** Settings of a new install: current schema and the Crystal defaults (accent, clock). */
         fun fresh() = LauncherSettings(accent = Accent.Frost, clockStyle = ClockStyle.Crystal, schema = SCHEMA).sanitized()
@@ -185,6 +237,16 @@ data class LauncherSettings(
     /** The accent that colours [target]: its own palette colour unless the palette is unified or unset there. */
     fun accentFor(target: PaletteTarget): Accent = palette.takeUnless { it.unified }?.get(target) ?: accent
 
+    /** The preset of [target] when it has its own, null when it follows the main colour (which may be custom, D25). */
+    fun ownAccent(target: PaletteTarget): Accent? = palette.takeUnless { it.unified }?.get(target)
+
+    /** D24: the haptic level 0–100 for [surface] (null = global). */
+    fun hapticLevel(surface: HapticSurface? = null): Int = Haptic.level(haptic, haptics, surface)
+
+    /** D24: sets the global level and keeps the old three-way choice close for older readers. */
+    fun withHapticLevel(level: Int): LauncherSettings =
+        level.coerceIn(0, Haptic.MAX).let { copy(haptic = haptic.copy(strength = it), haptics = Haptic.toLegacy(it)) }
+
     /** Bounded and self-consistent; applied on every read and write, including restores. */
     fun sanitized(): LauncherSettings {
         val accepted = mutableListOf<FlowAlias>()
@@ -198,14 +260,21 @@ data class LauncherSettings(
             arcFlows = arcFlows.filter { it in ids }.distinct().take(ARC_FLOW_SLOTS),
             arcShortcuts = arcShortcuts.filter(::validKey).distinct().take(ARC_SHORTCUT_SLOTS),
             arcRings = arcRings.coerceIn(1, 3),
+            controlConfig = controlConfig?.sanitized(ids),
             motion = if (reduceMotion) Motion.Off else motion,
             pulseLens = pulseLens?.takeIf { it.x.isFinite() && it.y.isFinite() && it.r.isFinite() }
                 ?.let { PulseLens(it.x.coerceIn(0f, MAX_LENS_X), it.y.coerceIn(0f, MAX_LENS_Y), it.r.coerceIn(MIN_LENS_R, MAX_LENS_R)) },
+            pulseHit = pulseHit.sanitized(),
+            haptic = haptic.sanitized(),
+            custom = custom.sanitized(),
             pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
             textScale = TEXT_SCALES.minBy { kotlin.math.abs(it - (if (textScale.isFinite()) textScale else 1f)) },
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
             veilShift = veilShift.coerceIn(-MAX_VEIL_SHIFT, MAX_VEIL_SHIFT),
             iconSize = iconSize.coerceIn(MIN_ICON, MAX_ICON),
+            iconTint = iconTint.takeIf { t -> ItemTint.entries.any { it.name == t } }.orEmpty(),
+            iconAlpha = if (iconAlpha.isFinite()) iconAlpha.coerceIn(IconOverride.MIN_ALPHA, 1f) else 1f,
+            labels = migratedLabels().sanitized(),
             wallpaper = wallpaper.takeIf { Wallpapers.byId(it) != null }.orEmpty(),
             wallDim = wallDim.coerceIn(0, Wallpapers.maxDim(Wallpapers.byId(wallpaper))),
             editorCard = editorCard?.takeIf { f -> listOfNotNull(f.x, f.y, f.w, f.h).all(Float::isFinite) }?.let { f ->
@@ -215,7 +284,17 @@ data class LauncherSettings(
             reduceMotion = false,
             // 0 → 1: nothing to rewrite; an existing user's accent (Terracotta when absent) is kept as is.
             schema = SCHEMA,
-        ).let { it.copy(home = sanitizeHome(it)) }
+        ).let { it.copy(home = sanitizeHome(it, schema)) }
+    }
+
+    /**
+     * 2 → 3: the label switch was per icon only. The global default becomes "on" when every icon of the active layout
+     * had its name, so a Home with all names on keeps them without an exception on each item.
+     */
+    private fun migratedLabels(): LabelStyle {
+        if (schema >= 3) return labels
+        val icons = home.layouts.firstOrNull { it.id == home.active }?.items.orEmpty().filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
+        return labels.copy(show = icons.isNotEmpty() && icons.all { it.label == true })
     }
 
     /**
@@ -223,19 +302,20 @@ data class LauncherSettings(
      * Afterwards the linked layout is always rebuilt from them; user layouts are bounded and clamped, never dropped
      * for a single bad item.
      */
-    private fun sanitizeHome(s: LauncherSettings): HomeLayouts {
+    private fun sanitizeHome(s: LauncherSettings, from: Int): HomeLayouts {
         val ids = HashSet<String>()
         val user = home.layouts.asSequence()
             .filter { !it.linked && validKey(it.id) && it.id != HomeLayouts.LINKED_ID && ids.add(it.id) }
             .take(HomeLayouts.MAX_LAYOUTS - 1)
-            .map(::sanitizeLayout)
+            .map { sanitizeLayout(it, if (from < 3) s.labels.show else null) }
             .toList()
         val layouts = listOf(HomeTemplates.linked(s)) + user
         val active = home.active.takeIf { id -> layouts.any { it.id == id } } ?: HomeLayouts.LINKED_ID
         return HomeLayouts(active, layouts)
     }
 
-    private fun sanitizeLayout(l: LayoutSpec): LayoutSpec {
+    /** [labelsFrom]: set when migrating from schema 2, the new global default; a stored label equal to it is dropped. */
+    private fun sanitizeLayout(l: LayoutSpec, labelsFrom: Boolean?): LayoutSpec {
         val grid = GridSpec(l.grid.cols.coerceIn(3, 6), l.grid.rows.coerceIn(4, 8))
         val ids = HashSet<String>()
         val singles = HashSet<ItemKind>()
@@ -248,6 +328,7 @@ data class LauncherSettings(
             .filter { it.anchor.type != AnchorType.LensRow || slots.add(it.anchor.slot) }
             .take(HomeLayouts.MAX_ITEMS)
             .map(::sanitizeLook)
+            .map { if (labelsFrom != null && it.label != null) it.copy(label = (it.label == true).takeIf { on -> on != labelsFrom }) else it }
             .toMutableList()
         if (ItemKind.Lens !in singles) items.add(0, HomeItem("lens", ItemKind.Lens, Anchor(AnchorType.Lens, dx = reach.dx)))
         val name = l.name.filterNot(Char::isISOControl).trim().take(HomeLayouts.MAX_NAME).ifEmpty { HomeTemplates.DEFAULT_NAME }
@@ -269,6 +350,9 @@ data class LauncherSettings(
             weight = if (it.kind != ItemKind.Clock || it.weight == 0) 0 else it.weight.coerceIn(100, 900),
             tint = it.tint.takeIf { t -> ItemTint.entries.any { e -> e.name == t } }.orEmpty(),
             alpha = if (it.alpha.isFinite()) it.alpha.coerceIn(.3f, 1f) else 1f,
+            label = it.label.takeIf { _ -> it.kind == ItemKind.App || it.kind == ItemKind.Flow },
+            labelLook = it.labelLook?.takeIf { _ -> it.kind == ItemKind.App || it.kind == ItemKind.Flow }?.sanitized(),
+            icon = it.icon?.takeIf { _ -> it.kind == ItemKind.App || it.kind == ItemKind.Flow }?.sanitized(),
             background = if ((it.kind == ItemKind.Clock || it.kind == ItemKind.Date) && it.background != ClockBackground.None.name &&
                 ClockBackground.entries.any { b -> b.name == it.background }) it.background else "",
             look = if (it.kind == ItemKind.Clock || it.kind == ItemKind.Date) it.look.let { l ->
@@ -314,4 +398,11 @@ object SettingsCodec {
     }
 
     fun encode(settings: LauncherSettings): String = json.encodeToString(LauncherSettings.serializer(), settings)
+}
+
+/** M3.1: Off / Home / Everywhere as the owner chose it; Everywhere still needs the PULSE service to be running. */
+fun LauncherSettings.pulseMode(): PulseMode = when {
+    !pulse -> PulseMode.Off
+    !pulseEverywhere -> PulseMode.Home
+    else -> PulseMode.Everywhere
 }

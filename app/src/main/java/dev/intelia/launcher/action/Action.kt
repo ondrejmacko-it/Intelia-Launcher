@@ -15,8 +15,8 @@ sealed interface Action {
     /** Launcher component key, as stored in settings ("package/class"). */
     @Serializable @SerialName("app") data class App(val component: String) : Action
 
-    /** A FLOW by its exact name; resolved at run time, so renaming the FLOW breaks the binding visibly. */
-    @Serializable @SerialName("flow") data class Flow(val name: String) : Action
+    /** A FLOW by its stable id: renaming the FLOW keeps the binding; deleting it makes it [Reason.FlowMissing]. */
+    @Serializable @SerialName("flow") data class Flow(val id: String) : Action
 
     @Serializable @SerialName("search") data object Search : Action
 
@@ -34,6 +34,23 @@ sealed interface Action {
 
     @Serializable @SerialName("card") data class Card(val id: String) : Action
 
+    @Serializable @SerialName("lock") data object Lock : Action
+
+    /** The clock app's alarms (S3.1 Quick Action); the glance shows the next alarm on it. */
+    @Serializable @SerialName("alarms") data object Alarms : Action
+
+    /** The app drawer; Home's default for a swipe up, which can now carry something else (Veil 3.0). */
+    @Serializable @SerialName("drawer") data object Drawer : Action
+
+    /** Home's editor; the default for holding Home. Studio › Upravit plochu always reaches it as well. */
+    @Serializable @SerialName("edit_home") data object EditHome : Action
+
+    /**
+     * Global ARC (M3.3): a held PULSE gesture opens ARC set [set] under the camera; the finger slides to a slot and
+     * release runs it. Only hold gestures can carry it ([opensArc]); the surface draws it, so [run] never does.
+     */
+    @Serializable @SerialName("arc") data class Arc(val set: String = Controls.MAIN_SET) : Action
+
     /** Null when the action can run now; otherwise why not. Never has side effects. */
     fun unavailableReason(host: ActionHost): Reason? = when (this) {
         is App -> when {
@@ -41,7 +58,7 @@ sealed interface Action {
             !host.hasApp(component) -> Reason.AppMissing
             else -> null
         }
-        is Flow -> when (val flow = host.findFlow(name)) {
+        is Flow -> when (val flow = host.findFlow(id)) {
             null -> Reason.FlowMissing
             else -> if (flow.targets.all(host::hasApp)) null else Reason.AppMissing
         }
@@ -56,8 +73,40 @@ sealed interface Action {
         Torch -> if (host.hasTorch()) null else Reason.Unsupported
         Screenshot -> if (host.hasPulseService()) null else Reason.NeedsPulseService
         SoundMode -> null
-        is SystemPanel -> null
+        // The shade opens through the PULSE service only; the Settings panels need nothing.
+        is SystemPanel -> if (kind.viaService && !host.hasPulseService()) Reason.NeedsPulseService else null
         is Card -> if (wellFormed(id) && host.hasCard(id)) null else Reason.CardMissing
+        Lock -> if (host.hasPulseService()) null else Reason.NeedsPulseService
+        Alarms -> null
+        Drawer, EditHome -> null
+        is Arc -> if (wellFormed(set)) null else Reason.Invalid
+    }
+
+    /** What the user has to grant before this can run; shown next to the action in pickers. */
+    val requirement: Requirement get() = when (this) {
+        is Shortcut -> Requirement.DefaultHome
+        Screenshot, Lock -> Requirement.PulseService
+        is SystemPanel -> if (kind.viaService) Requirement.PulseService else Requirement.None
+        else -> Requirement.None
+    }
+
+    /**
+     * Runs from PULSE outside Home (M3): system actions only, which need nothing from Intelia's own screens.
+     * Apps, FLOWs, Search, shortcuts and cards stay on Home, where FLOW keeps its preview and Search its sheet.
+     */
+    val outsideHome: Boolean get() = when (this) {
+        is Media, Torch, Screenshot, SoundMode, is SystemPanel, Lock, Alarms, is Arc -> true
+        is App, is Flow, Search, is Shortcut, is Card, Drawer, EditHome -> false
+    }
+
+    /** Structural check for restored data; availability on this device is [unavailableReason]. */
+    fun wellFormed(): Boolean = when (this) {
+        is App -> wellFormed(component)
+        is Flow -> wellFormed(id)
+        is Shortcut -> wellFormed(pkg) && wellFormed(id)
+        is Card -> wellFormed(id)
+        is Arc -> wellFormed(set)
+        else -> true
     }
 
     fun isAvailable(host: ActionHost): Boolean = unavailableReason(host) == null
@@ -70,7 +119,7 @@ sealed interface Action {
         unavailableReason(host)?.let { return ActionResult.Unavailable(it) }
         val ok = when (this) {
             is App -> return opened(host.launchApp(component))
-            is Flow -> return opened(host.runFlow(checkNotNull(host.findFlow(name))))
+            is Flow -> return opened(host.runFlow(checkNotNull(host.findFlow(id))))
             Search -> return opened(host.openSearch())
             is Shortcut -> return opened(host.startShortcut(pkg, id))
             is Media -> host.sendMedia(key)
@@ -79,6 +128,12 @@ sealed interface Action {
             SoundMode -> host.toggleSoundMode()
             is SystemPanel -> return opened(host.openPanel(kind))
             is Card -> return opened(host.openCard(id))
+            Lock -> host.lockScreen()
+            Alarms -> return opened(host.openAlarms())
+            Drawer -> return opened(host.openDrawer())
+            EditHome -> return opened(host.editHome())
+            // Drawn and tracked by the surface that recognised the hold; reaching here means no surface can.
+            is Arc -> return ActionResult.Unavailable(Reason.Unsupported)
         }
         return if (ok) ActionResult.Done else ActionResult.Unavailable(Reason.Failed)
     }
@@ -95,7 +150,14 @@ sealed interface Action {
 @Serializable enum class MediaKey { PlayPause, Next, Previous }
 
 /** System panels; Wi-Fi, Bluetooth and mobile data cannot be toggled by an app, only opened (D10, honesty). */
-@Serializable enum class PanelKind { Internet, Wifi, Bluetooth, Sound, Display, Notifications, QuickSettings }
+@Serializable enum class PanelKind {
+    Internet, Wifi, Bluetooth, Sound, Display, Notifications, QuickSettings;
+
+    /** The notification shade and Quick Settings open through the PULSE service; the rest are Settings screens. */
+    val viaService: Boolean get() = this == Notifications || this == QuickSettings
+}
+
+enum class Requirement { None, DefaultHome, PulseService }
 
 enum class Reason { Invalid, AppMissing, FlowMissing, ShortcutMissing, NotDefaultHome, CardMissing, NeedsPulseService, Unsupported, Failed }
 
@@ -115,7 +177,8 @@ sealed interface ActionResult {
  */
 interface ActionHost {
     fun hasApp(component: String): Boolean
-    fun findFlow(name: String): FlowAlias?
+    /** By stable id; Search's exact name match uses [exactFlow] instead. */
+    fun findFlow(id: String): FlowAlias?
     fun isDefaultHome(): Boolean
     fun hasShortcut(pkg: String, id: String): Boolean
     fun hasTorch(): Boolean
@@ -132,6 +195,11 @@ interface ActionHost {
     fun toggleSoundMode(): Boolean
     fun openPanel(kind: PanelKind): Boolean
     fun openCard(id: String): Boolean
+    fun lockScreen(): Boolean
+    /** Home's own screens; a host without Home (the PULSE service outside it) cannot open them. */
+    fun openAlarms(): Boolean = false
+    fun openDrawer(): Boolean = false
+    fun editHome(): Boolean = false
 }
 
 /** Exact FLOW lookup shared by hosts: same normalisation as Search, never a prefix match. */

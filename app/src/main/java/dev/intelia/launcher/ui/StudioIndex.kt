@@ -3,27 +3,36 @@ package dev.intelia.launcher.ui
 import dev.intelia.launcher.search.AppSearch
 
 /**
- * The pages of Settings (Studio), in the order of its main page. [Home] has no page of its own: it opens the editor.
+ * The pages of Settings (Studio, Veil 3.0): five areas on the main page and the pages inside them. [parent] is where
+ * Back goes; null = the main page.
  */
-enum class StudioSection { Look, Icons, Home, Favorites, Arc, Flow, Pulse, Gestures, Motion, Backup, System, About }
+enum class StudioSection(val parent: StudioSection? = null) {
+    Look, Home, Controls, Actions, System,
+    Favorites(Home), Pulse(Controls), Arc(Controls), Gestures(Controls), Motion(Controls), Backup(System);
+
+    /** 1 for an area, 2 for a page inside one; drives the slide direction. */
+    val depth: Int get() = if (parent == null) 1 else 2
+}
 
 /**
- * Every place a Settings search can lead to: a page, or a part of one opened there. Each setting lives in exactly
- * one place, so a search never offers the same thing twice.
+ * Every row a Settings search can lead to; the page opens, scrolls to the row and lights it briefly. A target names
+ * one row, and each setting has exactly one row, so a search never offers the same thing twice.
  */
 enum class StudioTarget(val section: StudioSection) {
-    Material(StudioSection.Look), Wallpaper(StudioSection.Look), Theme(StudioSection.Look), Colors(StudioSection.Look),
-    Icons(StudioSection.Icons),
-    EditHome(StudioSection.Home), Grid(StudioSection.Home),
-    Favorites(StudioSection.Favorites),
-    Arc(StudioSection.Arc), Shortcuts(StudioSection.Arc),
-    Flows(StudioSection.Flow),
-    Pulse(StudioSection.Pulse),
-    Gestures(StudioSection.Gestures),
-    Motion(StudioSection.Motion),
-    Backup(StudioSection.Backup),
-    Hidden(StudioSection.System), DefaultHome(StudioSection.System),
-    About(StudioSection.About),
+    Theme(StudioSection.Look), Colors(StudioSection.Look), Material(StudioSection.Look), Wallpaper(StudioSection.Look),
+    TextSize(StudioSection.Look), Icons(StudioSection.Look),
+    EditHome(StudioSection.Home), Grid(StudioSection.Home), Placement(StudioSection.Home), Favorites(StudioSection.Favorites),
+    Pulse(StudioSection.Pulse), PulseLook(StudioSection.Pulse), PulseEvents(StudioSection.Pulse), PulseMusic(StudioSection.Pulse),
+    PulseLens(StudioSection.Pulse),
+    Arc(StudioSection.Arc), GlobalArc(StudioSection.Arc), Shortcuts(StudioSection.Arc),
+    Gestures(StudioSection.Gestures), Keys(StudioSection.Gestures),
+    Motion(StudioSection.Motion), Haptics(StudioSection.Motion),
+    Flows(StudioSection.Actions),
+    DefaultHome(StudioSection.System), Permissions(StudioSection.System), Hidden(StudioSection.System), Backup(StudioSection.Backup),
+    About(StudioSection.System);
+
+    /** The row's anchor on its page. */
+    val anchor: String get() = name
 }
 
 /** One searchable entry: what it is called, where it lives ("Vzhled › Tapeta") and words people may type instead. */

@@ -2,6 +2,620 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-19 — 0.1.0-beta.1 release preparation (`feat/control-system-v1` → `main`)
+- D26: `versionCode` 2, `versionName` `0.1.0-beta.1`; optional release signing from git-ignored
+  `.signing/release.properties`; `locales_config.xml` + Studio › Systém a data › Jazyk (Android 13+ per-app language).
+  The app already had full EN (`values`) and CS (`values-cs`) strings; no hard-coded UI text found in Kotlin.
+- PASS: `./gradlew -q --max-workers=1 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab
+  :app:assembleRelease` (145 s, 235 tests, 0 failures). Lab APK SHA-256 `321aa38b…d57f`, v2 debug signature;
+  release APK unsigned (no production key — BLOCKED, owner decision).
+- Phone (3), Android 16, top activity checked before every input: `install -r` 00:08 (vc 1 → 2), HOME role and PULSE
+  service kept; Home, LENS → Search (+ keyboard), drawer, ARC hold + cancel, editor → Studio, Jazyk → Android's app
+  language page (Čeština / English) → Back. Nothing of the owner's setup changed.
+- Observed: Studio said „Služba PULSE: Vypnuto“ while `dumpsys accessibility` listed it bound (UX_BUGS U1, maybe the
+  dump rebind race).
+- Docs: README (EN) + README.cs.md, `docs/release/v0.1.0-beta.1/`, `docs/audit/BETA_0.1.0_BASELINE.md`,
+  `docs/audit/UX_BUGS.md`, `docs/product/MASTER_PLAN.md`; 3 screenshots in `docs/screens/v0.1.0-beta.1/`.
+- Not verified: lock/unlock, Recents → Home, PULSE over apps, Global ARC, process restart, TalkBack, light theme,
+  English UI on the device. Competitor / online research not done (MASTER_PLAN §13).
+
+## 2026-10-18 — M2 step 2: haptic strength (D24) and a custom accent (D25) (`feat/control-system-v1`)
+- Owner approved D24 = B (`VIBRATE`) with automatic fallback to A, and D25 = one custom accent first, architecture
+  ready for full palettes (see `DECISIONS.md`).
+- Haptics: `data/HapticPrefs.kt` — `HapticPrefs(strength, per)` in settings `haptic`, pure `Haptic.level/step/plan`;
+  `ui/HapticEngine.kt` plays a one-shot amplitude pulse (`USAGE_TOUCH`) where `Vibrator.hasAmplitudeControl`, else the
+  system effect of one of four stops; Android's `HAPTIC_FEEDBACK_ENABLED` off = silent. Used by `InkHaptics` (LENS ARC
+  = Arc, Pulse.kt = Pulse, Search = global) and the PULSE service (keys, Global ARC, PULSE gestures — before always
+  on, now they follow the strength and the system switch). Animace a haptika: slider 0–100 % or the four stops, each
+  change plays once; a note says when Android's touch feedback is off. Old `haptics` maps onto its stop (Jemná 25,
+  Výrazná 85) and is written back with every change.
+- Colour: `data/CustomColors.kt` (`custom.accent`, opaque ARGB, hex parse/format); `AccentColors.derive` keeps hue and
+  saturation and moves lightness to 4.5:1 against the theme's Veil base and for text on the accent; `mainAccent` /
+  `placeAccent` in `Ink.kt` are the single resolver. Palette › Vlastní barva: hue / saturation / lightness, hex, dark and
+  light preview, „Zpět na předvolbu“. A preset swatch or Obnovit výchozí (Vzhled) clears it; the preset under it is kept.
+- PASS: `./gradlew -q --max-workers=1 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (235 tests; new `HapticAndCustomColorTest` 7 tests: legacy mapping, clamps, plan paths, hex, round trip, contrast over a
+  hue × saturation × lightness grid). `install -r` 23:46; `dumpsys package`: VIBRATE granted.
+- Phone (3), top activity checked before every input: the motor reports no amplitude control (`vibrator_manager`
+  capabilities `[ON_CALLBACK]`), so Studio shows the four stops — the fallback path. The first build showed the owner's
+  Jemná as Střední (35 was in the middle third); fixed (Jemná = 25), the owner's choice now shows Jemná. Android touch
+  feedback is off on this phone (`haptic_feedback_enabled` 0): the page says so and nothing vibrates; not changed.
+  Vlastní barva: hue tap → #8CE3F7 applied at once to Studio, the sheet and PULSE, both theme previews legible; „Zpět na
+  předvolbu“ restored the preset (Coral ringed, sliders back at 14°).
+- Observed: the accent was Orchid at 23:16 and Coral at 23:42 while the owner was using the phone (other settings
+  unchanged); this session only changed it inside the custom-colour test above and restored it.
+- Not verified: the continuous slider and amplitude pulses (no device with amplitude control), any felt vibration
+  (system feedback off), hex typing on the device, TalkBack speech, a light-theme run.
+
+## 2026-10-18 — M1 follow-ups and M2 step 1: caption counters, Motiv tiles (`feat/control-system-v1`)
+- ARC page: the LENS ARC / Global ARC tab is hoisted to Studio; `PreviewPlan.kind(section, globalArc)` → new
+  `PreviewKind.GlobalArc`, drawn as PULSE's stage in its ARC state (Global ARC under the camera, owner's hold set).
+- Search preview: the strip starts at the Search card's measured top (`onGloballyPositioned`, real-size layout) less
+  `SEARCH_HEAD` 48 dp for the „Ukázka“ badge; 420 dp is only the guess before the first layout.
+- Gesta a tlačítka: each binding group's caption counts what does something (`Controls.boundCount`: binding, default,
+  PULSE tap = menu; locked LENS pillars count): „PULSE KAPSLE · 4/7 PŘIŘAZENO“, „HOME · 4/6“, „LENS · 4/5“. Groups
+  without gesture rows (ARC, Hardwarová tlačítka) keep a plain caption.
+- Vzhled › Motiv: three preview tiles (Systém split light/dark, Světlý, Tmavý) drawn with each theme's `inkPalette`
+  and the owner's accent; radio group, the chosen one ringed.
+- DECISIONS D24 (haptic slider, A no permission vs B `VIBRATE`) and D25 (free colour, data change) — PROPOSED.
+- PASS: `./gradlew -q --max-workers=1 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (228 tests; new `PreviewPlanTest.searchStripFollowsTheMeasuredCard`, `ControlsTest.captionCountersCount…`).
+  Earlier runs failed on Windows page-file memory and on a stale Gradle test worker holding `classes.jar` (killed).
+- Phone (3), top activity checked before every input, build 23:15: Vzhled shows the tiles (dump: Systém `checked=true`,
+  Světlý / Tmavý checkable); Gesta captions as above (scroll at x = 20); ARC › Global ARC preview shows the arc under
+  the camera, LENS ARC tab still the LENS arc; Akce a FLOW: strip fits the „pocty“ card and field (no empty band).
+- Not verified: the 23:20 build (SEARCH_HEAD 16 → 48 dp) — after its install the phone showed the system Recents in
+  use, so no input was sent; Search preview with no FLOW on the device (owner's FLOWs not touched; the app-name sample
+  path is JVM tested); Global ARC preview with PULSE off (shows Home's top and the camera only); TalkBack speech.
+
+## 2026-10-18 — M1 step 2: Arc, Search, Lens and Pulse previews (`feat/control-system-v1`)
+- `PreviewPlan.kind`: ARC → `Arc`, PULSE → `Pulse`, Gesta a tlačítka → `Lens`, Akce a FLOW → `Search`; Home pages
+  unchanged. `PreviewPlan.stripTop` (pure) picks the strip: dock row, arc above LENS, Search card, whole screen with
+  LENS on a side/top edge. `StudioPreview` draws every kind at the real screen size, scaled, inside `PreviewCover`.
+- Arc: `LensArc(shown = true)` on the owner's first set, no slot picked; in `LocalPreviewMode` it skips its
+  open-change effect, ON_STOP close, `BackHandler`, key handling, focus and the gesture. Drawn through a new
+  `HomeMiniature(lensOverlay)` hook in place of the LENS mark.
+- Search: `ResultsCard` and `SearchField` internal; sample query = first FLOW name, else the first 3 letters of an app
+  (`PreviewPlan.sampleQuery`), marked „Ukázka“; the field renders plain text in preview (no `BasicTextField`, no clear
+  button), no `PulseAccessibilityService.typing`, `model.query` untouched. Home under it blurred 18 dp, 97 %.
+- Pulse: the S3.1 picture moved into the host as `PulseStage`; the page keeps the note and state chips
+  (`PulseLookPicker`), the state is hoisted to Studio. Sample music still marked „Ukázka“.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (`PreviewPlanTest` 6 tests); `install -r` of `app-lab.apk` (23:04).
+- Phone (3), top activity checked before input: step 1 — Vzhled miniature as before (screenshot), a tap on it changes
+  nothing in the dump, one „Náhled plochy“ node. Akce a FLOW: Search card for „pocty“ with Spustit and ENTER SPUSTÍ,
+  „Ukázka“, `mInputShown=false` after a tap on the preview, dump unchanged. ARC: set „Hlavní“ open, 8 slots, three set
+  dots, no pick; tap changes nothing, Back leaves the page. Gesta: dock row strip. PULSE: Rozbalená (sample song) and
+  Global ARC states. 3 fast scrolls at x = 20 on PULSE: handle stays at y 1248.
+- Not verified: TalkBack speech (labels only seen in the dump), Reduced Motion, frame timing, side-dock layouts,
+  the Search preview with no FLOWs, light theme. The ARC preview shows LENS ARC also on the Global ARC tab.
+
+## 2026-10-18 — M1 step 1: PreviewHost core (`feat/control-system-v1`)
+- `ui/PreviewHost.kt`: `PreviewKind`, `PreviewPlan.kind(section)` (pure), `PreviewCover` (consumes every touch on the
+  Initial pass, one TalkBack label, sets `LocalPreviewMode`). `StudioFrame` takes a `PreviewKind` instead of a Boolean;
+  the Home miniature (main page, Vzhled, Plocha, Oblíbené) is drawn inside `PreviewCover`. Design: `DECISIONS.md` D23.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (new `PreviewPlanTest`); `install -r` of `app-lab.apk` (22:45).
+- Not verified on the device: after the install the phone showed the system Recents (owner may have been using it), so
+  no input was sent. Open: the miniature looks unchanged, a tap on it does nothing, the dump has one „Náhled plochy“
+  node. Arc / Lens / Search / Pulse kinds are not built yet (D23).
+
+## 2026-10-18 — M0 Studio sheet stability (`feat/control-system-v1`)
+- Cause: `StudioSheet`'s `NestedScrollConnection` fed the list's unused scroll into the sheet's top (`onPostScroll`) and
+  re-settled it in `onPreFling`, so a fast scroll moved the sheet. Removed: the list scrolls and flings inside the sheet
+  only. The handle alone moves it (`draggable`, system touch slop, 900 dp/s fling to the next stop, else the nearest).
+- Closing: `SheetStops.release` (pure, JVM tested) closes only when the handle is let go below the Preview stop + 96 dp
+  **and** at least 40 % of the room down, and not flung back up. Before, a page without a preview (e.g. PULSE) closed
+  after a 96 dp pull — a 684 px slow drag on Ovládání › PULSE closed Studio on the device.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (new `StudioNavTest.onlyAClearHandleDragClosesThePage`); one earlier run failed on Windows page-file memory, passed
+  after `gradlew --stop`. `install -r` of `app-lab.apk` (22:37).
+- Phone (3), handle bounds from `uiautomator dump`, swipes at x = 20: Ovládání › PULSE (no preview, top 274) 10× fast
+  up/down + 5 flings → 274 before and after. Nastavení: Balanced 1248 → 10× fast scroll → 1248; slow handle drag up →
+  Settings 274; fast flick down → Balanced 1248; slow drag down → Preview 1884; 10× fast scroll inside the peek → 1884;
+  150 px pull below Preview → back to 1884; 380 px pull → Studio closed. Vzhled opened from Balanced keeps 1248; Back →
+  Nastavení 1248; Back → editor.
+- Not verified: transitions measured by frames (no `gfxinfo` run this time, no visible flash in screenshots); Reduced
+  Motion path (unchanged code: `motionMs` 0 = jump); TalkBack handle actions (semantics unchanged, not spoken).
+- Docs: `docs/KEA_PARITY.md` — KEA screenshots reviewed as organisational inspiration and mapped onto M1–M8.
+
+## 2026-10-18 — S4.4 UX regressions: dock targets, overlay accessibility, large text (`feat/control-system-v1`, f5d0a1f..)
+- Git: a56a738 and d6b30d1 were only local; pushed to `origin/feat/control-system-v1` (fast-forward, nothing rewritten).
+- Dock: `Dock.lensTouch` gives LENS's touch box (84 × 100 dp) a per-side extent; it gives way only on a neighbour's side,
+  along the cheaper axis, never below 24 dp from its centre (48 dp box). The LENS mark and ARC geometry stay centred on
+  LENS. The owner's layout, gap and pitch are unchanged. Measured from `uiautomator dump` on the Phone (3), owner's
+  Home (76 dp icon targets, four dock apps, an icon above LENS): 100 % — LENS 64 × 74 dp, every dock icon 74–76 dp, the
+  icon above 76 dp (was: LENS 84 × 100 over it); 130 % (`font_scale` 1.15, density 478) — LENS 63 × 74, icons 73–76;
+  150 % (1.3, 540, 320 dp wide) — LENS 48 × 74, Fotoaparát 60 dp (was 42), others 63–76; icons do not overlap (screenshot).
+  Taps at LENS's left edge (x = 468 px at 150 %) and its upper part open Search. Settings restored to 1.0 / 420.
+  Not done: a compact or two-row dock for narrow screens — with these targets every icon already has ≥ 48 dp; proposed for
+  M2 (Plocha › LENS řada) if the owner wants five or more dock apps.
+- Accessibility: under Search and the drawer Home's subtree is `clearAndSetSemantics` (still drawn and composed); Search and
+  the drawer carry a `paneTitle`; Action Picker / confirm / leave-editor dialog titles are headings. Dump with Search open:
+  only the results card and the focused field, no dock, LENS or PULSE nodes; drawer open: header, favourites and list only;
+  after Back the dock, clock and PULSE nodes are back. The options sheet and dialogs are their own windows.
+- PULSE glance: when a quick-button name would be cut (measured with the label style), the buttons go onto two rows of two,
+  each with half the card. 100 %: one row of four (unchanged); 130 % and 150 %: 2 × 2, „Oznámení“ and „Svítilna“ whole.
+- Veil: FLOW editor's name caption is a `VeilCaption` like „Kroky“; calibration's explanation is a `GroupNote` inside the
+  touch-area group. No new blur or cards; calibration keeps its solid page under the live strip.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (new `DockTest.lensGivesWayToItsNeighbours`); `install -r` of `app-lab.apk`; PULSE and KEA accessibility services stayed on.
+- Not verified: a spoken TalkBack walk-through with the owner (focus order checked from the tree only); ARC hold-slide on
+  the narrowed LENS box (code path uses LENS's centre, not the box's); side-edge docks; Action Picker on the device.
+
+## 2026-10-18 — S4 Unified UI Polish, part 3: checks and leftovers (`feat/control-system-v1`)
+- Action Picker: with a host, a system action's requirement („Vyžaduje službu PULSE“) is shown only while unmet (the
+  reason); without a host it still says what the action will need. Seen on the Phone (3): Oznámení reads „funguje i
+  mimo Home“ with the service on.
+- Studio open (lab build, editor → Nastavení, `dumpsys gfxinfo` reset after the editor opens): warm 3–6 % janky, p90
+  24–29 ms (8 runs). Cold = first open after `install -r`: 9–11 % janky, p90 32–38 ms, p95 42–57 ms (3 runs; the
+  earlier 18 % / 53 ms included the editor). Composing `HomePreview` one frame later: 7–12 %, p90 36–46 ms (4 runs) —
+  no gain, reverted. The cold cost is first-use class loading / JIT, not the miniature.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`;
+  `install -r` of `app-lab.apk` (PULSE accessibility service stays enabled across `install -r`).
+- Verified on the device (screenshots `docs/screens/s4.3/`, not committed): Intelia wallpaper Papír (light) — Home dark
+  type and dark status icons, Vzhled, Search, drawer; Pohyb Vyp — Animace page, Search, drawer, Studio open fully;
+  idle Global ARC hint („Návrat ke kameře gesto zruší.“) after a 3.5 s still hold on PULSE, release launched nothing.
+  Owner's look restored (Soumrak, Klidný).
+- PULSE glance card: its width was `n × 76 + 24` dp around 16 + 16 dp padding, so the last quick button got 68 dp and
+  „Oznámení“ was cut at larger text. Width now `+ 32`; the buttons share the card by weight (≤ 76 dp each), so when the
+  screen is narrower than the card wants (150 % text + display size = 320 dp) all four stay visible.
+- Owner-approved checks on the Phone (3): glance Svítilna toggles the torch (camera service log on/off, button shows
+  the accent while on), the alarm button opens Clock › Budíky, Oznámení opens the shade (collapsed again). PULSE „Jen na
+  ploše“: no „Intelia PULSE“ window over Clock; back to „Všude“: the window returns, the accessibility service stayed
+  enabled (no re-enable). Text 130 % (`font_scale` 1.15, density 478) and 150 % (1.3, density 540): Studio, Search,
+  drawer, Home hold; glance fixed as above. `uiautomator dump` at 150 %: Studio, drawer, Search rows and Home labelled,
+  no unlabelled targets; the LENS hit area (84 × 100 dp) overlaps its neighbours, so the dock camera is 42 dp wide and
+  a Home item above LENS 45 dp tall at 320 dp; Home's dock stays in the accessibility tree behind the open drawer.
+- Not done: `LocalCrystal` → Veil API in the Home editor / inspector (32 uses; no visible change to gain, risk of
+  one). A spoken TalkBack walk-through (adb cannot drive TalkBack gestures reliably) — labels checked from the dump only.
+
+## 2026-10-18 — S4 Unified UI Polish, part 2 (`feat/control-system-v1`, 065c02b..)
+- Dead UI removed (no references in main or test): `CrystalArc`, `StudioRow`, `LiveCapsule`, `CrystalSurface`,
+  `crystalMat`, `ArcSlot`/`ArcEnd` (Crystal.kt), `Segments`, `ToggleRow`, `ChoiceRow`, `NavRow`, `TideDash` (Kit.kt),
+  `Stacked` (Studio.kt). `LocalCrystal` stays: it is the palette the Home editor, Search and sheets read.
+- Look: secondary `Capsule` on Veil glass instead of an ink outline; `InkText.title` on the Veil display face (Roboto
+  Flex, as the drawer and Studio) — serif stays for Home lists, ARC labels and FLOW names. Onboarding lists, layout
+  choice and preview on `veilPane` plates with inner hairlines. App sheet: sans title, accent check instead of the dash.
+- Copy: Controls/PULSE/Home/LENS/ARC/keys/favourites/backup/Global ARC/calibration hints shortened (cs + en); the
+  Ovládání hub note removed (the four rows say it); calibration says „ty“ like the rest.
+- Performance (Phone (3), lab build, drawer 5× swipe-up + Back, `dumpsys gfxinfo`): S4.1 material 19–24 % janky, p50
+  21–22 ms; bloom + glint off 17 %, p50 18–19 ms (= the earlier 16.9–17.1 % baseline); bloom filled only over the corner
+  it reaches (`drawBloom`) 18–20 %, p50 18–19 ms, GPU p90 22 ms. Backdrop blur off made no difference (22 %). Search 5×
+  open/close: 4.3 % janky, p95 23 ms. Studio first open: 18 %, p90 53 ms (one run; composition).
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (32 suites, 0 failures; `-Xmx2g` failed on a too-small page file). `install -r` of `app-lab.apk` on the Phone (3).
+- Verified on the device (screenshots, `docs/screens/s4.2/`, not committed): dark — Home, Search, drawer, app sheet,
+  FLOW list, LENS ARC, Home editor, Studio home, Ovládání, Gesta a tlačítka, ARC, PULSE (both scrolls), calibration,
+  Global ARC over Android Settings (opens, slide back + release closes the overlay, nothing launched); light (Intelia
+  theme set to Světlý, then back to Systém) — Vzhled, Gesta, drawer, FLOW, Search.
+- Not verified: 130/150 % text and TalkBack (system settings, left to the owner), Reduce motion, light wallpaper,
+  PULSE „Jen na ploše“ (switching the owner's mode may need the accessibility service re-enabled), glance quick
+  buttons, idle ARC hint, Action Picker on the device.
+- Open: the Home editor and inspector still read `LocalCrystal` colours (look matches, code is the older palette
+  API); FLOW pages and calibration sit on solid paper while Studio shows the wallpaper; Studio first-open jank.
+
+## 2026-10-18 — S4 Unified UI Polish, part 1: Veil glass on every pane (`feat/control-system-v1`, 3877521..e647adf)
+- Material (owner's glassmorphism references): `veilSurface` adds `glassBloom` (the accent bleeding in from the
+  top-left corner, ≤ 16 %, none on Matte) and `glassGlint` (hairline lit at the top-left, a smaller glint at the
+  bottom-right). New `Modifier.veilPane` (VeilKit) = the same look for in-page panes; `VeilGroup` uses it; the PULSE
+  glance card (`veilGlass`) gets the same bloom and glint. Tokens and contrast tests unchanged.
+- Studio › ARC on VeilKit: look in one `VeilGroup` (`GroupNote` + `ChoiceSetting` + `SwitchRow`) for LENS ARC and
+  Global ARC, each set a captioned group, „Přidat sadu“ as a row; empty slot reads „Prázdné“ (the TalkBack click label
+  still says choose). Favourites and Záloha on groups; `Section` = `VeilCaption`. ARC V2 logic untouched.
+- `Chips` (Home inspector, 32 uses) and Action Picker tabs/captions = the `VeilChoice` look (accent wash + edge).
+- Accent: Search glyph, drawer „Moje“ caption + favourites on a glass pane + index letters, FLOW list as glass cards,
+  „+ Nový příkaz“ glass button, FLOW editor „Kde“ as a `VeilGroup`. Home and clock layout unchanged.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (32 suites, 0 failures;
+  two daemon deaths from low system memory, the rerun passed). `install -r` of `app-lab.apk` on the Phone (3).
+- Verified on the device (screenshots, dark theme, owner's Frost preset): editor bar, Studio home + Ovládání, ARC page
+  (both scrolls), drawer, FLOW list, Search results card.
+- Not verified: light theme, 130 % text, TalkBack, the Action Picker and sheets on the device, Global ARC over an app;
+  remaining S3.1 checks (glance buttons, idle ARC hint, open/close smoothness, Jen na ploše) still open.
+- Open (S4 part 2): Ovládání hub note into its group, Studio sub-pages audit for duplicate hints, `Stacked` now unused
+  in Studio.kt, remaining `Kicker`/`Capsule` in Onboarding, Calibration, ControlsPage, HomeEditor/EditorLook Crystal.
+
+## 2026-10-18 — S3.1 PULSE UX finish: Quick Actions, Veil glance material, adaptive previews, calibration on VeilKit (`feat/control-system-v1`)
+- Quick Actions: `Controls.quick` (`QuickAction`: action, optional glyph, hidden; null = `DEFAULT_QUICK` torch / alarms /
+  notification shade), bounded in `Controls.sanitized()` (max 8, no FLOW-less / ARC actions, glyph names letters only).
+  New `Action.Alarms` (opens the clock's alarms), `PanelKind.viaService` (shade and Quick Settings report
+  `NeedsPulseService` without the service). `quickEntries()` resolves the visible ones on the device (max 4, missing apps,
+  shortcuts and service-only actions while the service is off are left out). Glance runs them through the Action Engine
+  (Home: `onAction`; service: `runFromArc`). `GlanceItem` / `glanceItems` removed. Battery shows first only while charging
+  with the charging event on. Studio › PULSE › Rychlé akce: change (shared `ActionPicker`), icon, hide, move, remove, add,
+  reset to defaults.
+- Glance look: `veilGlass` = dense matte card tinted 12 % by the accent, top light, hairline rim, shadow; 22 % scrim
+  behind; the long stem replaced by Veil Trace (accent ring round the lens + short fading thread). Enter scale+fade from
+  the lens, exit the same way before the action runs (Motion Off / Reduce motion = 0 ms). No blur.
+- Global ARC: the cancel hint shows only after the finger rests 1.4 s on no slot (`explain`), never in Studio.
+- Studio › PULSE: groups Režim / Obsah a rychlé akce / Gesta / Vzhled / Události · n ze 3 / Pokročilé (summary of touch
+  target + camera). Preview height per state (camera strip at rest, down to the card or the lowest ARC slot), soft fade,
+  „Ukázka“ badge on sample music / alarm, ARC from the owner's real geometry and set.
+- Calibration (Kamera a dotyk): live black strip with the real camera, Studio rows below: size chips 40/48/56/64 dp,
+  „Otestovat dotyky“ (counts only in test mode), advanced offsets + camera (Automaticky / Vlastní) on request,
+  Uloženo / Neuložené změny chip, Zrušit / Uložit (disabled without a change).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (218 tests, 0 failures; the
+  first run of the final build died in the Gradle daemon, the rerun passed).
+- Phone (Lab `install -r`), verified: glance over an app with Spotify **paused** shows the song with ▶; artwork tap opened
+  Spotify, playback stayed paused; glance on Home without music (music switch off temporarily, restored): 90 % · Svítilna
+  · 5:40 · Oznámení, tap beside closes; Studio previews Skrytá / Hudba (Ukázka) / Rozbalená / Global ARC without clock or
+  hint collisions; Quick Actions move up and reset to defaults; calibration: 56 dp → „Neuložené změny“, test „1 na ploše ·
+  1 vedle“, Zrušit kept 48 dp; Back from Gesta returns to PULSE; Global ARC opened on Home by hold and closed on release
+  at the camera without running anything. Crash found and fixed: `BackHandler` inside the service overlay (no dispatcher).
+- NOT verified: glance buttons actually run (torch / alarms / shade not pressed), idle ARC hint (hold ended early),
+  Global ARC over apps, light theme, 130 % text, TalkBack, frame timing of open/close, Home-only mode.
+- Incident: during testing a mis-aimed tap opened the notification shade and expanded one notification; it was closed
+  at once; the three taps landed near the top-left corner, no reply or action button (screenshots checked).
+
+## 2026-10-18 — UX stabilisation S3: PULSE touch target, glance panel, faithful previews (`feat/control-system-v1`)
+- Touch target: `pulseHitbox()` (one function for Home and the service), a `PulseHit.size` square (default 48 dp)
+  on the lens + owner offset, independent of the capsule / artwork / status icons; Home adds 24 dp under the status
+  bar (the bar swallows touches). New key `pulseHit` (bounded in `sanitized()`); the service re-places the overlay
+  when the lens or target changes. Calibration screen: new *Dotyková plocha* section with a live test through the real
+  overlay (`PulseAccessibilityService.probe`: counts touches, runs nothing, saves nothing until Uložit).
+- Expanded PULSE: the black dashboard (Home `PulsePanel`, service `PulseMenuSheet`, volume / ringer / links / tiles)
+  replaced by one `PulseGlance`: with music only the song (artwork/title open the player, timeline, ⏮ ⏯ ⏭); without
+  music one row from `glanceItems()` (torch, alarm, battery while charging, above apps notifications + screenshot);
+  closes by tap beside, Back, flick up or the handle. Card always solid.
+- Studio › PULSE preview: real `HomeMiniature` top + real `MusicCompact` / `GlanceCard` / `GlobalArc` at the real
+  lens, scaled; touches blocked. Tabs Skrytá / Hudba / Rozbalená / Global ARC.
+- Global ARC hint („Návrat ke kameře gesto zruší“) and release label now hang under the lowest slot on a plate.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (217 tests, 0 failures).
+- Phone (Lab `install -r`, Spotify playing throughout, never paused), verified: overlay frame 126 px = 48 dp centred
+  on the lens; taps inside the square open PULSE, beside / below do not; glance with music opens 4/4, tap beside and
+  flick up close it; calibration test „3 na ploše · 1 vedle“, Back restored the saved target; the four previews render
+  (preview of the hint shows it on its plate above the date). Review pack: `docs/review/S3-PULSE-UX.md`.
+- NOT verified: glance without music, open-player tap, glance buttons, live Global ARC on Home / over apps (owner's
+  gesture not triggered), preview bottom fade, Home-only mode target, TalkBack, light theme, 130 % text.
+
+## 2026-10-18 — UX stabilisation S2: faithful Home preview, icon and label defaults with exceptions (`feat/control-system-v1`)
+- Reproduced on the phone (Lab, owner's layout "Moje plocha", 64 dp icons): (1) Studio's miniature was a separate
+  sketch — a fixed 26 dp Row that overflowed with a 96 dp icon and squeezed the last icon (Chrome tiny), no names, no
+  grid/free icons, its own spacing; (2) a name was centred 12 dp under the icon, so on the LENS row it fell onto the
+  gesture bar and larger text grew up into the icon; width fixed at 76 dp, one line; (3) the LENS row kept its 46/62 dp
+  steps for any icon size, so 96 dp icons overlapped their neighbours; (4) a LENS-row name above its icon could
+  run into the name of an icon above (found after fix 2, fixed).
+- Fix: `ui/HomeScene.kt` = one renderer for Home and Studio: `HomeText` (clock + bound/free date, moved out of
+  `HomeRoot`), `HomeIconFace`, `HomeLabel`, `homeLabels`; `HomeMiniature` lays Home out at the window's real size
+  with the same `HomeGeometry`, insets, Dock/LENS spot and scales it as one picture. `labelBoxes` (pure, replaces
+  `labelWidths`): top-anchored names, wrap to the lines that fit, clear of neighbours, LENS, edges, the nav bar and
+  other names; no room below → above; no room → hidden. `HomeGeometry.rowIcon` widens the LENS row for big icons and
+  keeps every disc on screen. `HomeSketch` removed.
+- Model (schema 3, `data/HomeLook.kt`): global `LauncherSettings.labels` (`LabelStyle`: show, size, face, weight,
+  colour, alignment, gap, lines), `iconTint`, `iconAlpha`; per item `HomeItem.label` (Boolean?, null = global),
+  `labelLook` (`LabelOverride`), `icon` (`IconOverride`: style, shape, colour, opacity); size stays `sizeDp`, position
+  stays the item's anchor. Migration in `sanitized()`: global "show" = every icon of the active layout had its name;
+  equal per-item flags become null. UI: Vzhled › Ikony (colour, opacity, labels switch + label controls) and the
+  editor card (Vzhled ikony, Popisek with Globální / Vlastní ↺ chips, `ItemProp.Label/LabelLook/Icon`).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (216 tests, 0 failures;
+  new label layout, row width, migration, bounds and JSON round-trip tests; `HomeSketchTest` removed with the sketch).
+- Phone (Lab `install -r`), verified: 96 dp Telefon on the LENS row stays whole, its name goes above it, Studio's
+  Vzhled preview shows the same; global labels on → Home and preview both show the four names under the row above
+  the gesture bar; editor: grid item "All Document Reader" with 2 lines at 130 % text wraps and the LENS-row name
+  stays clear. Owner's state restored afterwards (Telefon size/label back to global, text 100 %, labels off).
+- NOT verified: free / grid placements with many labelled neighbours, side-edge LENS row, 150 % system font, TalkBack
+  on the new controls, light theme, onboarding preview (unchanged legacy sketch).
+
+## 2026-10-18 — UX stabilisation S0 + S1: Studio back stack and draggable sheet (`feat/control-system-v1`)
+- S0: local commits `d962d83`, `6844976`, `4169c70` built and tested (PASS), pushed to `feat/control-system-v1`.
+  Causes found in code / screenshots: (1) `Studio.up()` used fixed parents, so PULSE, ARC and Gesta opened from the main
+  page's quick access or from the PULSE page went back to Ovládání; (2) `StudioFrame` gave the Home miniature a fixed
+  50 % (`PREVIEW_SHARE`), cutting rows on short rooms; (3) Global ARC hint text („Návrat ke kameře gesto zruší“) is drawn
+  over the clock (owner screenshot 16:09:51) — open, S3; (4) the expanded PULSE is still the old black quick-settings
+  dashboard — open, S3; (5) icon size / label bugs — not reproduced yet, S2.
+- S1 (`ui/StudioNav.kt`, `ui/StudioSheet.kt`, `Studio.kt`): `StudioStack` back stack saved by page names; Back pops to
+  the page you came from, an empty stack leaves Studio for its origin (Home or the editor); pages still on the stack
+  keep their scroll. `StudioSheet` = one Veil Focus sheet with a handle and stops Preview / Balanced / Settings from
+  `SheetStops.of(room)` (sheet ≥ 176 dp at Preview, Balanced preview ≥ 200 dp, sheet ≥ 280 dp); the stop is shared
+  across pages; the list scrolls first, only its overscroll moves the sheet; handle dragged 96 dp below Preview closes
+  Studio to its origin; TalkBack actions on the handle. Pages without a Home preview keep the full sheet.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (217 tests, new
+  `StudioNavTest` 6/6). First run crashed the Gradle daemon (native memory), rerun PASS.
+- Phone (Lab `install -r`), verified: editor → Nastavení → Ovládání → PULSE → Gesta kapsle → Back ×4 = Gesta → PULSE →
+  Ovládání → Nastavení → editor; search „gesta“ → Hardwarová tlačítka → Back = Nastavení with the query and results
+  kept; handle drag to Settings, Preview and Balanced stops; Balanced kept when opening Vzhled; Vzhled list scrolls to
+  its end without moving the sheet; handle dragged down from Vzhled → editor.
+- NOT verified: PULSE opened from the editor's camera (`StudioStart.Pulse`, covered by the unit test only), Action
+  Picker in the path (it is a Dialog with its own Back), rotation / process death restore, TalkBack, Reduced Motion.
+
+## 2026-10-18 — Studio Veil 3.0, step 4: PULSE page (`feat/control-system-v1`)
+- `ui/PulseStudio.kt` replaces the old `PulseInspector` (removed from `EditorLook.kt`): an interactive drawn preview
+  (Klid / Hudba / Rozbalená / Global ARC; a drawing, nothing plays or runs; Global ARC beads sit where
+  `GlobalArcGeometry` puts them for the real slot count, size and angle; opacity follows the setting), then groups
+  Obsah a události (music + access, echo, charging, alarm + hours), Gesta (summary of capsule bindings → Gesta a
+  tlačítka; new switch), Vzhled (opacity), Chování (Vyp / Jen na ploše / Všude + service note), Pokročilé (camera
+  calibration, PULSE service). Anchors: Pulse, PulseLook, PulseEvents, PulseMusic, PulseLens.
+- New key `pulseTapPlayer` (default true): while music shows, a tap opens the player panel even when the tap has an
+  action; off → the tap runs its action, else the menu. Home (`Pulse.kt` tap) and the service (`gesture`) honour it;
+  nothing else in PULSE 2.0 logic changed. With the default and an unbound tap, behaviour is as before.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab`, no warnings.
+- Phone (Lab `install -r`), verified: the four preview states render (snapshot), groups render with real values
+  (opacity 75 %, events 3/3, summary „Klepnutí: Otevře menu · Podržení: Global ARC · Hlavní · +2“); Studio search
+  „kamery“ → „Ovládání › PULSE › Poloha kamery“ → PULSE scrolled to Pokročilé (the row ends at the screen's lower edge).
+- NOT verified: the tap-player switch in use (needs music playing; owner's music display is off), Všude with the
+  service mode chip (dumps make the service read „Vypnuto“ for a moment), light theme, 130 % text, TalkBack.
+
+## 2026-10-18 — Studio Veil 3.0, step 3: gestures as rows, Home swipe up / hold rebindable (`feat/control-system-v1`)
+- Step 1 leftovers checked on the phone (Lab from `d962d83`): Plocha page (preview, Upravit plochu, Oblíbené 5 z 7,
+  grid steppers); Systém a data (default home ✓, PULSE service „Povoleno“ — right after a `uiautomator dump` it reads
+  „Vypnuto“ for a moment, the known rebind), notification access, hidden apps, backup, about; Vzhled › Obnovit
+  výchozí dialog says what it restores, Zrušit leaves everything; editor camera tap → Studio › PULSE, Back → editor.
+- `Action.Drawer` / `Action.EditHome` (`ActionHost.openDrawer` / `editHome`, default false: the service outside
+  Home cannot open them), offered among system actions. `Controls.HOME_DEFAULTS` (swipe up = drawer, hold = editor),
+  `defaultOf` / `effective`; binding a default stores nothing, unbinding brings it back. Global ARC still only on held
+  PULSE gestures. Home runs `effective` for both; a rebound swipe up is also a TalkBack custom action.
+- `VeilKit`: `GestureRow` (action icon, gesture, action, note „Výchozí“ / „i jinde“, remove or reset), `GroupNote`.
+  Gesta a tlačítka rebuilt on it: one `VeilGroup` per surface, unused gestures under „Další gesta · Nevyužitá: N“
+  (search shows all matches), LENS tap / swipe up / hold locked with an explanation, Home hint says where the drawer
+  and the editor stay reachable.
+- Tests: `ControlsTest` +1 (defaults, rebind, unbind → default, JSON + sanitize).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab`, no warnings.
+- Phone (Lab `install -r`), verified: page renders (PULSE: Klepnutí = menu Výchozí, Dvojí = Spotify, Podržení =
+  Global ARC · Hlavní, Klepnutí a podržení = Svítilna; Home: Tah nahoru = Šuplík Výchozí, Podržení = Upravit plochu
+  Výchozí); hold on Home opens the editor. Home Tah nahoru temporarily → Upravit plochu: swipe up opened the editor;
+  reset (cross „Obnovit výchozí“) → row back to Šuplík Výchozí and swipe up opened the drawer.
+- NOT verified: hold rebound to another action, TalkBack custom actions, light theme, 130 % text.
+
+## 2026-10-18 — Studio Veil 3.0, step 1: five areas, shared kit, search to the row (`feat/control-system-v1`)
+- Owner approved the tree: Vzhled · Plocha · Ovládání (PULSE, ARC, Gesta a tlačítka, Animace a haptika) · Akce a FLOW ·
+  Systém a data. Fixed gestures: only the LENS pillars stay locked (to be applied in the gestures step).
+- `ui/VeilKit.kt`: `VeilGroup` (one accent-washed matte plate per group, crystal edge, hairlines between rows),
+  `SettingRow`, `SwitchRow` + `VeilSwitch`, `VeilChoice` / `ChoiceSetting`, `SettingBlock`, `ResetDefaults` (says what it
+  restores, asks first), `settingAnchor` (search target: scroll into view + accent glow; Motion Off = no fade).
+- `StudioIndex`: sections with parents (max. two levels), 28 row-level targets with synonyms; the path never repeats a
+  name (no more „Ovládání › Ovládání“; the gestures page is now „Gesta a tlačítka“).
+- Pages rebuilt on the kit: main page (5 areas with summaries, quick access: Upravit plochu / PULSE / ARC), Vzhled
+  (theme + colours, material, wallpaper, text size moved here, icons; reset), Plocha (editor, favourites, grid,
+  placement), Ovládání hub, Akce a FLOW, Animace a haptika (reset), Systém a data (permissions with state: default
+  home, PULSE service, notification access; hidden apps, backup, about). Editor: a tap on the camera opens
+  Studio › PULSE (Back returns to the editor) instead of a second PULSE card.
+- Not yet on the kit: PULSE, ARC, Gesta a tlačítka, Oblíbené, Záloha pages (old components); search targets on those
+  pages open the page but do not scroll to the row yet (e.g. „Global ARC“ opens ARC on the LENS tab). Citlivost,
+  accent in Search/Drawer/FLOW: later steps.
+- Settings coverage (by reading, not by a test): every user key has a row; legacy/internal keys without one:
+  showClock, showDate, reduceMotion, reach, layout, arc, arcFlows, arcShortcuts, arcRings, onboarded, editorCard, schema;
+  `home` and per-item clock/date look stay in the Home editor.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (StudioIndexTest +2), no warnings.
+- Phone (Lab `install -r`), verified: main page renders the five areas with summaries; search „velikost textu“ →
+  one result „Vzhled › Velikost textu“ → Vzhled scrolled to the row with the glow; ARC page via search; Global ARC
+  read back as S + Silné and set to M / Střední / Střední (read back from the chips); Ovládání hub rows render.
+- NOT verified: Systém a data page, Plocha page, reset dialogs, editor camera → Studio › PULSE, light theme, 130 % text,
+  TalkBack. Testing stopped: an incoming call arrived on the phone.
+
+## 2026-10-18 — Global ARC look of its own, bow and label fixes (`feat/control-system-v1`)
+- `GlobalArcLook` in `Controls.globalArc` (size S/M/L, arc narrow/mid/wide, slot tick, dim over apps 30/45/65 %),
+  sanitized with the rest; old configs decode to the defaults (= the look Global ARC had). Slot count and sets stay
+  shared with LENS ARC (`GlobalArcLook.over`). Home and the service use `ArcContent.globalLook` for geometry and tick.
+- Studio › ARC: chips „LENS ARC“ / „Global ARC“; the Global tab has Velikost, Oblouk, Ztmavení nad aplikacemi,
+  Ťuknutí na každém slotu; sets below on both tabs. Search keywords: global, kamera, ztmavení.
+- Fixes: the dashed bow's circle centre was mirrored below the camera (now `Dock.toScreen(Top, 0, drop)`, through the
+  slots); the release hint wraps to two centred lines, up to 300 dp, instead of being cut off.
+- Tests: `ControlsTest` +2 (separate look, sanitize + old JSON defaults).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug` and
+  `:app:testDebugUnitTest :app:assembleLab`, no Kotlin warnings. Lab installed with `install -r`.
+- Phone, verified: over Calculator the bow runs through all 8 slots and „Návrat ke kameře gesto zruší.“ is whole;
+  Studio tabs render; Global set to S + Silné while LENS ARC stayed M / 8 slots (read back from the chips).
+- Seen: right after an install the service shows „ARC je prázdný“ until its app list loads (a second or two).
+- NOT verified: how S + Silné looks over an app (the owner took the phone over), release after the change, Home
+  (Jen na ploše) drawing. Global ARC was left at S + Silné on the phone; set it back to M + Střední if unwanted.
+
+## 2026-10-18 — M3.3 follow-up phone checks (`feat/control-system-v1`, `8cb8f81`, Lab installed 14:01)
+- Verified (Všude, over Google Calculator): temporarily Search in FLOW slot 4 + Podržení → Global ARC · FLOW; release
+  on the Search slot → Home with the Search sheet and keyboard open. Podržení → Global ARC · Zkratky; release on
+  „Nová anonymní karta“ → Chrome incognito (shortcut outside Home works). Both test changes reverted and re-read
+  (Podržení → Global ARC · Hlavní, FLOW 3/8, Zkratky 3/8).
+- Seen: the hint „Návrat ke kameře gesto zruš…“ is cut off (220 dp label); slots sit ~120 px under the camera while the
+  dashed bow is drawn far lower (y≈1000–1250 px); over Maps the app's chips show between slots under the .45 scrim.
+- `uiautomator dump` makes the system unbind and rebind every accessibility service, so for ~1 s the Studio
+  „Všude potřebuje službu PULSE“ hint is correct, not a bug; wait before gesture tests after a dump.
+- NOT verified: TalkBack path (turning TalkBack on is a system setting, left to the owner), a really light app
+  (system night mode: Calculator and Maps are dark), landscape.
+
+## 2026-10-18 — PULSE 2.0 M3.3 Global ARC (`feat/control-system-v1`)
+- D22: `Action.Arc(set)` bound only to held PULSE gestures; `Controls.opensArc` / `arcSetFor`, sanitized (not in slots,
+  not on other triggers). `ui/GlobalArc.kt`: `GlobalArcGeometry` (ARC V2 `ArcBow`, LENS on the top edge) + `GlobalArc`
+  composable (veil, dashed bow, thread, slots, "release opens/runs" label, FLOW bead preview; over other apps a dim
+  scrim and light ink; TalkBack long press opens it with slots as buttons). `ArcContent.of` shared by Home and the service.
+- Home (Jen na ploše): `pulseTouch` reports held moves and the end (lift = run, cancel = nothing). Service (Všude): the
+  lens touch keeps driving a non-touchable `Intelia PULSE arc` window; outside Home `AndroidActionHost` resolves apps,
+  FLOWs and shortcuts through `AppRepository`; Search / cards go to Home via `PulseAccessibilityService.homeRequest`.
+- Studio › Ovládání: picker has a „Global ARC“ tab, one row per set („Global ARC · Hlavní / FLOW / Zkratky“); bound
+  rows show the set. `DoubleTapHold` is labelled „Klepnutí a podržení“. PULSE hint updated.
+- Tests: `ControlsTest` +4 (hold-only binding, sanitize, set fallback, JSON), `GlobalArcGeometryTest` 2.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug` and
+  `:app:testDebugUnitTest :app:assembleLab --rerun-tasks`, no Kotlin warnings.
+- Phone (debug, then Lab `install -r`): owner's bindings set through the new picker — Podržení → Global ARC · Hlavní,
+  Klepnutí a podržení → Svítilna (FlashlightController true/false). Všude on Home: arc under the camera, slide back to
+  the camera + lift → nothing (Home stays, arc window gone); release on Instagram → Instagram. Over Instagram: release
+  on ChatGPT → ChatGPT (outside Home, `LauncherApps`). Temporarily Global ARC · FLOW over ChatGPT: „pocty“ previewed
+  Kalkulačka → Hodiny, release ran both in order; binding set back to Hlavní. Jen na ploše (temporarily): Home draws
+  the same arc, cancel → nothing, release → ChatGPT; mode set back to Všude.
+- NOT verified: Search from Global ARC (no Search slot in the owner's sets), shortcut slots outside Home, cards,
+  TalkBack path, light apps under the scrim, landscape. Hold on the Home target must start below the status bar
+  (a touch at y≈120 px went to the shade). Optional M3.2 leftovers still open: YouTube Music, Reduced Motion, lock.
+
+## 2026-10-18 — PULSE 2.0 M3.2 Music PULSE (`feat/control-system-v1`)
+- D21 approved (notification access only for active media sessions). `pulse/NowPlaying.kt` (pure: state, actions →
+  controls, extrapolated position, session pick) + `NowPlayingTest` 5; `pulse/MediaWatch.kt` (session listener +
+  `MediaController.Callback`, ref-counted, no polling) and `PulseMediaListener`; `musicCapsule` geometry + test.
+- Compact: bars left (move only while playing and motion on; paused = three low dots), lens ring (+ charge gauge on
+  Home), round artwork right (app icon via `LauncherApps` without artwork). Expanded: artwork, title, artist,
+  timeline (seek only with `ACTION_SEEK_TO`), ⏮ ⏯ ⏭ only when supported. Home first; the service draws the compact
+  as a non-touchable `Intelia PULSE music` window (hidden while the menu is open) and the menu shows the card on top.
+- Studio › PULSE: „Ukázat, co hraje“ toggle; switching it on without access opens Android's notification-access
+  page for the listener and shows why. Fixes: Studio said the service was off after an update rebind (old instance
+  reset `running`); the expanded Home panel was drawn under the Home clock (now above while expanded).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug :app:assembleLab`, no warnings.
+- Phone (debug, `install -r`), verified: after unlock the lens is back (`Intelia PULSE` windows ≥ 1); double tap + hold
+  with a test binding (→ Oznámení) opened the shade, hold still toggles the torch (FlashlightController), test binding
+  removed again (owner's Spotify / Svítilna untouched). Owner enabled notification access by hand. Všude: compact over
+  Home and over Spotify; tap → menu with card; pause, seek (→ 1:02), play, next all changed Spotify's session. Jen na
+  ploše: service 0 windows, Home draws compact with charge gauge; tap → panel above the clock; pause → static dots.
+  Mode set back to Všude, music resumed.
+- NOT verified: YouTube Music, Reduced Motion (code path only), compact removal at lock (code path same as the lens),
+  TalkBack on the timeline, battery/gfxinfo. A tap on the artwork itself inside the status bar goes to the system
+  (only touches below the status bar reach the target).
+
+## 2026-10-18 — PULSE 2.0 M3.1 Foundation (`feat/control-system-v1`, `6091d36`)
+- `pulse/PulseGestures.kt` (pure): one recognizer for Home and the service — Tap, DoubleTap, Hold, new
+  `Gesture.DoubleTapHold`, swipes. Tap waits only while DoubleTap/DoubleTapHold is bound, hold only while Hold
+  (DoubleTapHold) is bound; cancel / second finger / unbound or diagonal swipe → nothing; a cancel without a lift
+  does not swallow the next touch. Timings from `ViewConfiguration`. `PulseStage` (Hidden/Compact/Expanded/Arc) and
+  `PulseMode` (Off/Home/Everywhere) models. `PulseGesturesTest` 11 tests. Old `pulseSwipe` removed.
+- Home: `ui/PulseTouch.kt` feeds the recognizer and consumes the press (before, a hold under the camera also
+  opened the Home editor — found and fixed on the phone). TalkBack: click, long click when bound, custom actions.
+- Service: one `OnTouchListener` → recognizer (click/long click kept only for TalkBack). Lens target only in
+  Everywhere mode and unlocked: `SCREEN_OFF` / `SCREEN_ON` / `USER_PRESENT` broadcasts + settings flow, no polling.
+- `pulseEverywhere` (default true, old configs keep behaviour); Studio › PULSE and the Home inspector: chips
+  Vyp / Jen na ploše / Všude (Všude without the service opens Android settings and says why).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug :app:assembleLab`,
+  no Kotlin warnings. Debug, then Lab installed with `install -r`.
+- Phone (debug build), verified: Všude — hold on Home toggles torch (FlashlightController log), double tap → Spotify
+  (owner's binding), tap → menu; in Spotify hold toggles torch on/off, tap opens the menu, unbound left swipe does
+  nothing. Jen na ploše — service lens window gone (0 windows), Home hold toggles torch 3× in a row, double tap →
+  Spotify, tap opens the panel, editor no longer opens. Back to Všude → lens window back. Screen off → no lens window;
+  screen on at keyguard → still none.
+- Measured facts: a swipe down from the camera above apps always opens the notification shade (the system takes the
+  touch; PULSE runs nothing). The torch goes off by itself ~10 s after `dumpsys media.camera` runs, so torch checks
+  use `logcat FlashlightController` now. No swipe up from the camera (≈25 dp above it, threshold 36 dp).
+- NOT verified: lens coming back after unlock (`USER_PRESENT`; phone left locked, owner unlocks), double tap + hold by
+  hand, multi-touch by hand, TalkBack, gfxinfo/battery. Reference screenshots of Material Capsule / Essential Key
+  Tools were not in the repo or the message, so none were reviewed.
+
+## 2026-10-18 — Control System V1: M5 Studio „Ovládání“, PULSE swipes, Home side swipes, D20 key remap (`feat/control-system-v1`)
+- Studio › Ovládání (`ui/ControlsPage.kt`, replaces the old Gesta page and the PULSE page's gesture rows): one search
+  over gestures, surfaces and bound action names (diacritics-insensitive, `AppSearch.fold`); foldable groups PULSE
+  kapsle · Home · LENS · ARC (link to the sets, filled-slot count) · Hardwarová tlačítka · one group per proven key,
+  each with "n přiřazeno". A line is gesture → action (icon + name), tap = picker, cross = unbind; "Stejná akce je i
+  jinde (n×)" is informative only. Pillar gestures (LENS tap/up/hold, Home up/hold) are shown locked as „Pevné“.
+- `ActionPicker`: search always on top, category tabs Vše/Aplikace/FLOW/Zkratky/Systém/Média/Panely, „Už použité“
+  first (actions bound anywhere), and for PULSE/key triggers a „funguje i mimo Home“ / „jen na Home“ tag.
+- PULSE swipes down/left/right (`pulseSwipe`, ≥ 36 dp, dominant axis 1.5×): in the service via an `OnTouchListener`
+  on the lens view (a recognised bound swipe cancels the view's tap/hold), on Home via `detectDragGestures` added only
+  while a swipe is bound. TalkBack custom actions for every bound swipe (service and Home).
+- Home swipe left/right (`homeSideSwipe`, ≥ 72 dp) through `detectHorizontalDragGestures`, so vertical drags stay the
+  drawer / swipe down; TalkBack custom actions when bound.
+- D20 approved and implemented (see DECISIONS): `canRequestFilterKeyEvents` in `pulse_accessibility.xml`; the service
+  requests `FLAG_REQUEST_FILTER_KEY_EVENTS` at run time only while `keysEverywhere` is on and a proven key has a
+  binding. `action/KeyRemap.kt` (pure): tap / double / hold per key, unbound presses replayed (volume via
+  `adjustSuggestedStreamVolume`, media keys via `dispatchMediaKeyEvent`). Passes everything while Intelia search is
+  open (`PulseAccessibilityService.typing`) or the screen is not interactive. `Controls.keys` (proven codes, max 8;
+  Back/Home/Power/Recents refused), `withKey`/`withoutKey`/`keyBound`/`triggersOf`; key bindings on unproven codes or
+  with other gestures than Tap/DoubleTap/Hold are dropped by `sanitized()`. The diagnostics page stores the seen code.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug :app:assembleLab`
+  (new `KeyRemapTest` 7, `PulseSwipeTest` 3, `ControlsTest` +2); `compileDebugKotlin` without warnings.
+- Phone (Nothing Phone (3)), verified: Lab and debug `install -r`; the PULSE service rebinds by itself after the update
+  with `capabilities=8` (filter key events granted, no re-enable needed). With a test binding (key 24 double → torch,
+  `keysEverywhere`) written into prefs via the debug build, the service logged `want=true has=false` and requested the
+  filter (temporary log, removed before commit). Owner prefs restored from the pulled copy before Lab was reinstalled.
+- Phone, measured: `getevent -pl`: `gpio-keys` (event0) reports KEY_VOLUMEUP and scan code `0x00fa` (250);
+  `/system/usr/keylayout/gpio-keys.kl` maps 115/114/102/528/766 only, so 250 has no Android key code in that layout
+  (likely the Essential Key, not proven). Another installed accessibility service (Kea, `com.techiboystudios.kea`)
+  holds the key-filter capability (capabilities=41).
+- NOT verified: any physical key press (the owner was away for the 15-minute `getevent -lt` capture, nothing came);
+  whether the Essential Key reaches apps or the accessibility key filter at all; `input keyevent` injection never
+  reaches accessibility key filters (onKeyEvent got nothing), `sendevent` is denied (`/dev/input` root/input only),
+  so the remap itself is untested on the phone. Volume delay with only a double press bound not measured.
+  The Ovládání page, the picker tabs and all new swipes were not seen on the phone: it was locked (keyguard) and
+  unlocking needs the owner. Export/import of the new `keys`/`keysEverywhere` fields not checked.
+
+## 2026-10-18 — Control System V1: M3 TalkBack actions, M4 Home/LENS gestures, key diagnostics (`feat/control-system-v1`)
+- PULSE double tap for TalkBack: on Home a `CustomAccessibilityAction` when bound; in the service an
+  `AccessibilityDelegateCompat` on the lens view, read at query time (double tap as custom action, long press only
+  when hold is bound).
+- `Trigger.Home(DoubleTap | SwipeDown)` and `Trigger.Lens(SwipeLeft | SwipeRight)` → `Controls.bound` → `perform`;
+  all do nothing until bound, an unbound Home double tap adds no delay. LENS side flick (`lensSideFlick`, ≥ 56 dp,
+  clearly horizontal) never overlaps the upward drawer flick (`LensFlickTest`). TalkBack gets custom actions for
+  bound Home and LENS gestures. Studio › Gesta › Vlastní gesta: four rows with the shared picker (`GestureBindings`,
+  also used for PULSE now).
+- Studio › Gesta › Hardwarová tlačítka (D20): shows the keys that reach Intelia, with press count and hold;
+  `KeyProbe` unit tested. No key binding, no new permission.
+- `./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r`.
+- Phone: Home double tap → torch on, again → off; Home swipe down → notification shade (`mCurrentFocus`
+  NotificationShade); LENS flick left → torch toggled; LENS flick right unbound → nothing; LENS tap still opens
+  Search with the keyboard. In Android Settings a PULSE double tap bound to "Oznámení" opened the shade through the
+  service. Key screen with `adb input keyevent` 24, 24, 25, long 25, 27: "Hlasitost + 2×", "Hlasitost − 2× a
+  podrženo", "Fotoaparát 1×"; `volume_music_speaker` stayed 0. Physical keys not pressed (adb-injected only).
+- Not verified: TalkBack itself (actions are in code, not tried with TalkBack on), LENS flick with LENS on a side edge,
+  media/lock/screenshot through PULSE. Phone keeps PULSE Hold → torch, Double tap → Spotify (owner's), Home double
+  tap → torch, Home swipe down → notifications, LENS left → torch (test bindings).
+
+## 2026-10-18 — Control System V1: M3 PULSE gestures (`feat/control-system-v1`)
+- `Trigger.Pulse(Tap | DoubleTap | Hold)` → `Controls.bound` → Home's `perform` (`Pulse.kt`, `combinedClickable`):
+  an unbound tap still opens the panel; double tap and hold exist only when bound, so tap never waits.
+- `PulseAccessibilityService`: the lens view takes the same three gestures. With Home resumed it hands the action
+  to Home (`PulseAccessibilityService.home`); elsewhere only `Action.outsideHome` (media, torch, screenshot, sound,
+  panels, lock) runs through an `AndroidActionHost` without Home's model; apps, FLOWs, Search, shortcuts and cards
+  show "runs from PULSE only on Home". Double tap waits the system double-tap time only when bound.
+- Studio › Ovládání › PULSE › Gesta kapsle: three rows with the shared `ActionPicker`, remove/reset per row.
+- `Controls.bind` (replace/unbind, ARC slots refused) and `Action.outsideHome`, both unit tested.
+- `./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r`.
+- Phone (Nothing Phone (3)): Studio row shows "Podržení · Svítilna" after picking via the picker; on Home a hold
+  under the camera turned the torch on and a second hold off (`dumpsys media.camera`); an unbound tap opened
+  the panel. ARC at font scale 1.3: arrow labels fit, no overlap.
+- Follow-up, service path with PULSE everywhere on (owner switched it on): in Android Settings a hold toggled the
+  torch on and off; a double tap bound to Allegro showed "Tahle akce se z PULSE spouští jen na Home." and launched
+  nothing; on Home the same double tap launched Allegro through Home. Android suppressed Lab's Toast ("Suppressing
+  toast … by user request", notifications off), so the service now shows its own note under the camera instead.
+- ARC set arrows moved out of the thumb's way: (±72, +30) dp, below LENS centre, hit 22 dp (was ±94, +2, 30),
+  smaller chevron and label; `ArcBowTest` checks the straight path from LENS to every slot never touches an arrow.
+  Phone: the left arrow switched to "Zkratky"; a slide to the outermost left slot launched its app.
+- Not verified: TalkBack for the new gestures (double tap has no TalkBack action), ARC with LENS on a side edge on
+  the phone (geometry only covered by `ArcBowTest`). The phone keeps Hold → torch and Double tap → Allegro bound.
+
+## 2026-10-18 — Control System V1: wide ARC, set arrows, set by taps (`feat/control-system-v1`)
+
+- ARC is one flat arc just above LENS (middle slot 80/96/116 dp above the LENS centre for S/M/L; the circle's
+  centre lies below LENS), spread across the room beside LENS, up to 8 slots (≥ 50 dp apart, ≤ 76 dp so 3 slots
+  stay close). "Oblouk" (úzký/střední/široký) now sets how round it is. Set arrows `‹ name` / `name ›` sit beside
+  LENS: sliding onto one shows the previous/next set (once per visit, re-arms when the finger leaves it); the old
+  "slide past an end" switch is gone, the dots stay.
+- Set by taps (`ArcLook.tapSets`, default on, toggle in Studio › Ovládání › ARC): hold = set 1, tap + hold = set 2,
+  two taps + hold = set 3. A tap waits up to 280 ms for a next one only while there is more than one set, so
+  Search then opens that much later. Three taps = Search.
+- `Segments` targets are ≥ 48 dp wide (digits used to be ~10 dp); ARC "Sloty" row is stacked.
+- `./gradlew -q :app:testDebugUnitTest :app:assembleLab` PASS (ArcBowTest rewritten for the new geometry).
+- Phone (Nothing Phone (3), Lab, `install -r`, 411 dp wide): hold shows Hlavní with arrows "‹ Zkratky" / "FLOW ›";
+  tap + hold opened FLOW; tap, tap + hold opened Zkratky (3/3 runs; one earlier combined run showed nothing, not
+  reproduced); slide right arrow → FLOW, then left arrow → Hlavní; single tap opened Search; 8 slots span the width;
+  release on the Instagram slot launched Instagram.
+- Not verified: TalkBack on the arrows, LENS on a side/top edge with the new arc, 130 % text on the arrow labels,
+  how 280 ms feels by hand (adb `input` taps are ~80 ms apart), gfxinfo.
+
+## 2026-10-18 — Control System V1: M2 ARC V2 (`feat/control-system-v1`, `50edba3`, `558234f` + follow-up)
+
+Verified (`./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r` on Nothing Phone (3)):
+- ARC is drawn from `settings.controls`: the legacy rings migrated to three sets (Hlavní 5 apps, FLOW 2, Zkratky 2),
+  shown as one shallow arc with set dots; slot 1 straight above LENS.
+- Hold + slide: slot pick with label (FLOW previewed as Kalkulačka → Hodiny); sliding past the right end switched to
+  FLOW; sliding onto the third dot switched to Zkratky; back on LENS cancelled. Releasing on FLOW "pocty" opened
+  Calculator then Clock.
+- Studio › Ovládání › ARC: slots 3–7, size S/M/L, arc narrow/medium/wide, tick toggle, sets slot by slot (up, remove,
+  add set). Shared ActionPicker: sections, "svit" → Svítilna (diacritics-insensitive); picked into FLOW slot 3.
+  Releasing on it turned the torch on, again off (`dumpsys media.camera`).
+- Keyboard: Tab to LENS + Up opens assisted ARC; slots are clickable nodes with their names, dots are separate
+  48 dp tabs (Up used to move focus away before key-up; fixed by handling key-down).
+- gfxinfo, 5 × hold/slide/cancel, 3 runs each: before M2 (`0e27fc9`) 7.6–8.6 % janky, p90 25–29 ms;
+  M2 9.1–9.3 % janky, p90 23–29 ms. No clear regression; not a performance claim.
+
+Not verified / not done:
+- TalkBack itself (only the keyboard path, which uses the same assisted mode); Reduced Motion; LENS on a side or top
+  edge on the phone (unit-tested geometry only); one-handed reach with the L size.
+- Export/import of `controlConfig` on the phone. PULSE, Home, LENS and key bindings still not wired (M3/M4).
+
+## 2026-10-18 — Control System V1: M0 fixes, M1 Action Engine core (`feat/control-system-v1`)
+
+Verified (`./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r` on Nothing Phone (3)):
+- Add picker filter: "zpra" → Zprávy. Drawer "Moje" names ellipsize with a gutter at 130 % text. Settings at 130 %:
+  no control under 48 dp. Tapping the camera in the Home editor opens the PULSE inspector.
+- LENS ARC release runs through the Action Engine: app slot launched Claude; FLOW "pocty" launched Calculator then
+  Clock; sliding back onto LENS launched nothing. No Intelia crashes in the crash buffer.
+
+Not verified / not done:
+- ARC content still comes from the legacy lists; PULSE, Home, LENS and key bindings are modelled but not wired.
+- Torch, media, sound, panels, lock and screenshot actions in `AndroidActionHost` not exercised on the phone.
+- Export/import of `controlConfig` on the phone; TalkBack, Reduced Motion and jank for the ARC path.
+
 ## 2026-10-17 — D18 accessibility, icon pass, full screenshot sweep (`claude/crystal-redesign`)
 
 - `./gradlew :app:testDebugUnitTest :app:assembleLab` — PASS (150 JVM tests; new `CoreTest.textScaleSnapsToOfferedSizes`,

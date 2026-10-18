@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -53,7 +55,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.LauncherSettings
+import dev.intelia.launcher.data.PulseHit
 import dev.intelia.launcher.data.PulseLens
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -62,12 +70,13 @@ private const val STEP = .5f
 private fun Float.snap(): Float = (this / STEP).roundToInt() * STEP
 
 /**
- * Lens calibration for PULSE. The ground is night-dark so the real camera hole disappears into it;
- * an accent dot is drawn where Intelia believes the lens is. Move it until the camera swallows the
- * dot and only the hairline ring around it remains. Nothing is stored until Save.
+ * Studio › PULSE › Kamera a dotyk (S3.1, VeilKit). On top a compact live strip on black, where the real camera hole
+ * disappears: the accent dot is where Intelia believes the lens is, the dashed square the touch target. Below, the
+ * Studio's own rows: the target size first, a safe touch test, and only on request the fine offsets and the camera
+ * itself. Everything is a draft until Uložit; Zrušit and Back leave the saved values untouched.
  */
 @Composable
-fun LensCalibration(saved: PulseLens?, onSave: (PulseLens?) -> Unit, onBack: () -> Unit) {
+fun LensCalibration(saved: PulseLens?, savedHit: PulseHit, onSave: (PulseLens?, PulseHit) -> Unit, onBack: () -> Unit) {
     val ink = LocalInk.current
     val density = LocalDensity.current
     val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
@@ -76,82 +85,109 @@ fun LensCalibration(saved: PulseLens?, onSave: (PulseLens?) -> Unit, onBack: () 
     var x by rememberSaveable { mutableStateOf(saved?.x ?: -1f) }
     var y by rememberSaveable { mutableStateOf(saved?.y ?: -1f) }
     var r by rememberSaveable { mutableStateOf(saved?.r ?: -1f) }
-    /** True once the dot came from the user or a saved value; the cutout read never overrides it then. */
-    var settled by rememberSaveable { mutableStateOf(saved != null) }
-    // The cutout is known a frame after the first composition; until then, or without one, a guess.
-    LaunchedEffect(auto) {
+    /** The draft follows the detected cutout (saved as null) until the owner moves the camera by hand. */
+    var automatic by rememberSaveable { mutableStateOf(saved == null) }
+    LaunchedEffect(auto, automatic) {
         val start = auto ?: if (x < 0f) PulseLens(screenWidth / 2f, 24f, 11f) else return@LaunchedEffect
-        if (!settled || x < 0f) { x = start.x.snap(); y = start.y.snap(); r = start.r.snap() }
-        if (auto != null) settled = true
+        if (automatic || x < 0f) { x = start.x.snap(); y = start.y.snap(); r = start.r.snap() }
     }
+    var hitSize by rememberSaveable { mutableStateOf(savedHit.size) }
+    var hitDx by rememberSaveable { mutableStateOf(savedHit.dx) }
+    var hitDy by rememberSaveable { mutableStateOf(savedHit.dy) }
+    val hit = PulseHit(hitSize, hitDx, hitDy)
+    var testing by rememberSaveable { mutableStateOf(false) }
+    var advanced by rememberSaveable { mutableStateOf(saved != null || savedHit.dx != 0f || savedHit.dy != 0f) }
+    var hits by remember { mutableStateOf(0) }
+    var misses by remember { mutableStateOf(0) }
+    var miss by remember { mutableStateOf<Offset?>(null) }
+    val flash = remember { androidx.compose.animation.core.Animatable(0f) }
+    // With PULSE everywhere the real lens overlay takes the draft and reports its touches here instead of acting.
+    val serviceHits by PulseAccessibilityService.probeHits.collectAsState()
+    LaunchedEffect(x, y, r, hitSize, hitDx, hitDy) { if (x >= 0f) PulseAccessibilityService.probe(PulseLens(x, y, r) to hit) }
+    DisposableEffect(Unit) { onDispose { PulseAccessibilityService.probe(null) } }
+    LaunchedEffect(serviceHits) { if (serviceHits > 0 && testing) { hits++; miss = null; flash.snapTo(1f); flash.animateTo(0f, androidx.compose.animation.core.tween(500)) } }
     SystemBarIcons(darkIcons = false)
+    val draft = (if (automatic) null else PulseLens(x, y, r)) to hit
+    val changed = draft != (saved to savedHit)
     val on = ink.onNight
+    val stripH = (y + maxOf(r, hitSize / 2f + hitDy) + 34f).coerceAtLeast(96f)
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (x >= 0f) Canvas(Modifier.fillMaxSize()) {
-            val c = Offset(x.dp.toPx(), y.dp.toPx())
-            val rr = r.dp.toPx()
-            // A thread from the lens down to the controls, the target dot and its hairline ring.
-            drawLine(on.copy(alpha = .18f), Offset(c.x, c.y + rr + 10.dp.toPx()), Offset(c.x, 132.dp.toPx()), 1.dp.toPx(), StrokeCap.Round)
-            drawCircle(ink.accent, rr, c)
-            drawCircle(on.copy(alpha = .9f), rr + 4.dp.toPx(), c, style = Stroke(1.dp.toPx()))
+    Column(Modifier.fillMaxSize().background(ink.paper)) {
+        // The live strip: real coordinates from the top of the screen, so the camera sits inside it.
+        Box(Modifier.fillMaxWidth().height(stripH.dp).background(Color.Black)
+            .drawBehind { drawLine(ink.accent.copy(alpha = .35f), Offset(0f, size.height - 1f), Offset(size.width, size.height - 1f), 1.dp.toPx()) }) {
+            if (x >= 0f) Canvas(Modifier.fillMaxSize().pointerInput(x, y, hitSize, hitDx, hitDy, testing) {
+                if (testing) detectTapGestures { p ->
+                    val box = pulseHitbox(x, y, hit, screenWidth)
+                    if (box.contains(p.x.toDp().value, p.y.toDp().value)) { hits++; miss = null } else { misses++; miss = p }
+                }
+            }) {
+                val c = Offset(x.dp.toPx(), y.dp.toPx())
+                val rr = r.dp.toPx()
+                val box = pulseHitbox(x, y, hit, screenWidth)
+                val tl = Offset(box.left.dp.toPx(), box.top.dp.toPx())
+                val bs = Size(box.width.dp.toPx(), box.height.dp.toPx())
+                drawRoundRect(ink.accent.copy(alpha = .10f + .35f * flash.value), tl, bs, CornerRadius(12.dp.toPx()))
+                drawRoundRect(ink.accent.copy(alpha = .8f), tl, bs, CornerRadius(12.dp.toPx()),
+                    style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))))
+                miss?.let { drawCircle(on.copy(alpha = .5f), 5.dp.toPx(), it, style = Stroke(1.5.dp.toPx())) }
+                drawCircle(ink.accent, rr, c)
+                drawCircle(on.copy(alpha = .9f), rr + 4.dp.toPx(), c, style = Stroke(1.dp.toPx()))
+            }
+            Text(stringResource(if (testing) R.string.pulse_hit_test else R.string.pulse_calib_strip, hits, misses),
+                Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 8.dp), style = InkText.small,
+                color = if (testing && hits > 0 && misses == 0) ink.accent else on.copy(alpha = .7f))
         }
-        Column(Modifier.fillMaxSize().padding(top = 150.dp).navigationBarsPadding().verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)) {
-            Kicker(stringResource(R.string.pulse_lens_kicker), color = ink.accent)
-            Text(stringResource(R.string.pulse_lens_title), Modifier.padding(top = 8.dp),
-                style = InkText.title.copy(fontSize = 30.sp, lineHeight = 34.sp), color = on)
-            Text(stringResource(R.string.pulse_lens_body), Modifier.padding(top = 8.dp, bottom = 12.dp), style = InkText.small.copy(fontSize = 14.sp),
-                color = on.copy(alpha = .7f))
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 8.dp)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.pulse_lens), Modifier.weight(1f), style = InkText.title.copy(fontSize = 24.sp, lineHeight = 28.sp))
+                Text(stringResource(if (changed) R.string.pulse_calib_draft else R.string.pulse_calib_saved),
+                    Modifier.clip(RoundedCornerShape(10.dp)).background(if (changed) ink.accent.copy(alpha = .22f) else ink.ink.copy(alpha = .07f))
+                        .padding(horizontal = 10.dp, vertical = 3.dp), style = InkText.label, color = if (changed) ink.ink else ink.muted)
+            }
+            // S4.4: the explanation belongs to the touch area it explains, inside its group like every Studio note.
+            if (x < 0f) Text(stringResource(R.string.pulse_calib_body), Modifier.padding(horizontal = 20.dp), style = InkText.small, color = ink.muted)
             if (x >= 0f) {
-                BeadControl(stringResource(R.string.pulse_lens_x), x, 0f, screenWidth.coerceAtMost(LauncherSettings.MAX_LENS_X)) { x = it }
-                BeadControl(stringResource(R.string.pulse_lens_y), y, 0f, 120f) { y = it }
-                BeadControl(stringResource(R.string.pulse_lens_size), r, LauncherSettings.MIN_LENS_R, 40f) { r = it }
+                VeilGroup(stringResource(R.string.pulse_hit_group)) {
+                    GroupNote(stringResource(R.string.pulse_calib_body))
+                    val sizes = listOf(40f, 48f, 56f, 64f)
+                    ChoiceSetting(stringResource(R.string.pulse_hit_size), (sizes + listOfNotNull(hitSize.takeIf { it !in sizes })).sorted()
+                        .map { it to "${it.toInt()} dp" }, hitSize, { hitSize = it })
+                    if (!testing) SettingRow(stringResource(R.string.pulse_test), stringResource(R.string.pulse_test_detail),
+                        { hits = 0; misses = 0; miss = null; testing = true }, glyph = Glyph.Touch)
+                    else SettingRow(stringResource(R.string.pulse_hit_test, hits, misses), stringResource(R.string.pulse_test_detail), null,
+                        glyph = Glyph.Touch, trailing = { Quiet(stringResource(R.string.pulse_test_done), { testing = false; miss = null }) })
+                }
+                if (!advanced) VeilGroup { SettingRow(stringResource(R.string.pulse_calib_advanced), null, { advanced = true }) }
+                else {
+                    VeilGroup(stringResource(R.string.pulse_calib_offsets)) {
+                        SettingBlock {
+                            SliderRow(stringResource(R.string.pulse_hit_dx), hitDx, -PulseHit.MAX_DX, PulseHit.MAX_DX, STEP, dp(hitDx)) { hitDx = it.snap() }
+                            SliderRow(stringResource(R.string.pulse_hit_dy), hitDy, PulseHit.MIN_DY, PulseHit.MAX_DY, STEP, dp(hitDy)) { hitDy = it.snap() }
+                        }
+                    }
+                    VeilGroup(stringResource(R.string.pulse_calib_camera)) {
+                        ChoiceSetting(stringResource(R.string.pulse_calib_camera_mode), listOf(true to stringResource(R.string.pulse_lens_auto_short),
+                            false to stringResource(R.string.pulse_lens_custom)), automatic, { automatic = it })
+                        if (!automatic) SettingBlock {
+                            SliderRow(stringResource(R.string.pulse_lens_x), x, 0f, screenWidth.coerceAtMost(LauncherSettings.MAX_LENS_X), STEP, dp(x)) { x = it.snap() }
+                            SliderRow(stringResource(R.string.pulse_lens_y), y, 0f, 120f, STEP, dp(y)) { y = it.snap() }
+                            SliderRow(stringResource(R.string.pulse_lens_size), r, LauncherSettings.MIN_LENS_R, 40f, STEP, dp(r)) { r = it.snap() }
+                        }
+                    }
+                }
             }
-            Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 24.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Quiet(stringResource(R.string.pulse_lens_back), onBack, color = on.copy(alpha = .7f))
-                Spacer(Modifier.weight(1f))
-                Quiet(stringResource(R.string.pulse_lens_auto), {
-                    auto?.let { x = it.x.snap(); y = it.y.snap(); r = it.r.snap() }
-                    onSave(null)
-                }, color = on)
-                Capsule(stringResource(R.string.flow_save), { onSave(PulseLens(x, y, r)) })
-            }
+        }
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Quiet(stringResource(R.string.preset_cancel), onBack, color = ink.muted)
+            Spacer(Modifier.weight(1f))
+            Capsule(stringResource(R.string.flow_save), { onSave(draft.first, draft.second) }, enabled = changed)
         }
     }
 }
 
-/** Label and value, then ‹ thread-with-bead › : one row per coordinate. */
-@Composable
-private fun BeadControl(label: String, value: Float, min: Float, max: Float, onChange: (Float) -> Unit) {
-    val ink = LocalInk.current
-    val on = ink.onNight
-    fun set(v: Float) = onChange(v.coerceIn(min, max).snap())
-    Column(Modifier.fillMaxWidth().padding(top = 14.dp)) {
-        val shown = String.format(Locale.ROOT, "%.1f dp", value)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, style = InkText.body, color = on)
-            Text(shown, Modifier.padding(start = 10.dp),
-                style = InkText.label.copy(letterSpacing = 0.sp), color = on.copy(alpha = .55f))
-        }
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            StepRing("‹", stringResource(R.string.pulse_lens_less, label)) { set(value - STEP) }
-            BeadSlider(value, min, max, STEP, label, shown, Modifier.weight(1f).padding(horizontal = 10.dp), ::set)
-            StepRing("›", stringResource(R.string.pulse_lens_more, label)) { set(value + STEP) }
-        }
-    }
-}
-
-@Composable
-private fun StepRing(mark: String, description: String, onClick: () -> Unit) {
-    val on = LocalInk.current.onNight
-    Box(Modifier.size(48.dp).clip(CircleShape).border(1.dp, on.copy(alpha = .3f), CircleShape)
-        .clickable(role = Role.Button, onClickLabel = description, onClick = onClick)
-        .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
-        Text(mark, style = InkText.item.copy(fontSize = 24.sp, lineHeight = 24.sp), color = on)
-    }
-}
+private fun dp(v: Float) = String.format(Locale.ROOT, "%.1f dp", v)
 
 /**
  * A rounded track; the chosen part is accent, the value is a bead that grows a halo while held. Tap or drag anywhere on it.

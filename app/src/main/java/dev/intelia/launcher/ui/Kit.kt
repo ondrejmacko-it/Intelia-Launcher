@@ -4,7 +4,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,9 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -69,12 +65,6 @@ fun Kicker(text: String, modifier: Modifier = Modifier, color: Color = LocalInk.
 @Composable
 fun Hairline(modifier: Modifier = Modifier, color: Color = LocalInk.current.line) {
     Box(modifier.fillMaxWidth().height(1.dp).background(color))
-}
-
-/** The tide dash: the "this is selected" mark of the Ink screens (no longer under LENS, 4.3). */
-@Composable
-fun TideDash(visible: Boolean, modifier: Modifier = Modifier, width: Dp = 14.dp, color: Color = LocalInk.current.accent) {
-    Box(modifier.size(width, 2.dp).clip(RoundedCornerShape(1.dp)).background(if (visible) color else Color.Transparent))
 }
 
 /**
@@ -156,14 +146,14 @@ fun SplitClock(now: LocalTime, style: ClockStyle, ink: Color, accent: Color, siz
 
 private fun Float.em(size: TextUnit): TextUnit = (this * size.value).sp
 
-/** Primary action: a filled capsule. Outline variant for secondary actions. */
+/** Primary action: a filled accent capsule. The secondary variant sits on Veil glass ([veilPane]). */
 @Composable
 fun Capsule(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, filled: Boolean = true, enabled: Boolean = true) {
     val ink = LocalInk.current
     val shape = CircleShape
     Box(
         modifier.heightIn(min = 48.dp).clip(shape)
-            .then(if (filled) Modifier.background(if (enabled) ink.accent else ink.line) else Modifier.border(1.5.dp, ink.ink, shape))
+            .then(if (filled) Modifier.background(if (enabled) ink.accent else ink.line) else Modifier.veilPane(shape, ink))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 22.dp),
         contentAlignment = Alignment.Center,
@@ -182,24 +172,6 @@ fun Quiet(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, colo
     }
 }
 
-/** Words in a row; the chosen one is ink with the tide dash beneath. */
-@Composable
-fun <T> Segments(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
-    val ink = LocalInk.current
-    Row(modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        options.forEach { (value, label) ->
-            val on = value == selected
-            Column(Modifier.heightIn(min = 48.dp).selectable(on, role = Role.RadioButton, onClick = { onSelect(value) }),
-                verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(label, style = InkText.body.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
-                    color = if (on) ink.ink else ink.muted, maxLines = 1)
-                Spacer(Modifier.height(5.dp))
-                TideDash(on)
-            }
-        }
-    }
-}
-
 /** A ring that fills with accent when on: the toggle in Intelia's ring language. */
 @Composable
 fun RingToggle(checked: Boolean, modifier: Modifier = Modifier) {
@@ -210,37 +182,6 @@ fun RingToggle(checked: Boolean, modifier: Modifier = Modifier) {
         val r = size.minDimension / 2f - stroke
         drawCircle(if (checked) ink.accent else ink.faint, r, style = Stroke(stroke))
         if (fill > 0f) drawCircle(ink.accent, r * .55f * fill)
-    }
-}
-
-@Composable
-fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, detail: String? = null) {
-    Row(modifier.fillMaxWidth().heightIn(min = 56.dp).toggleable(checked, role = Role.Switch, onValueChange = onChange)
-        .padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(label, style = InkText.body)
-            if (detail != null) Text(detail, style = InkText.small, color = LocalInk.current.muted)
-        }
-        RingToggle(checked)
-    }
-}
-
-@Composable
-fun ChoiceRow(label: String, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
-    Row(modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 24.dp, end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f).padding(end = 12.dp), style = InkText.body, maxLines = 2)
-        content()
-    }
-}
-
-@Composable
-fun NavRow(label: String, value: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val ink = LocalInk.current
-    Row(modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f), style = InkText.body)
-        if (value != null) Text(value, style = InkText.small.copy(fontSize = 14.sp), color = ink.muted, maxLines = 1)
-        Text("  →", Modifier.clearAndSetSemantics { }, style = InkText.body, color = ink.muted)
     }
 }
 

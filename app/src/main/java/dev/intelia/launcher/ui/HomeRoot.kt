@@ -6,7 +6,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.ActionResult
+import dev.intelia.launcher.action.Reason
+import dev.intelia.launcher.action.Gesture
+import dev.intelia.launcher.action.Trigger
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -32,6 +39,9 @@ import dev.intelia.launcher.data.TypeFace
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
+import dev.intelia.launcher.data.iconLook
+import dev.intelia.launcher.data.labelShown
+import dev.intelia.launcher.data.labelStyle
 import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.HomeTemplates
@@ -84,6 +94,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -109,6 +120,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -162,9 +174,7 @@ fun dateLine(now: LocalDateTime): String =
 private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSignal: Int) {
     val context = LocalContext.current
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
-    val arcApps by model.arcApps.collectAsStateWithLifecycle()
-    val arcFlows by model.arcFlows.collectAsStateWithLifecycle()
-    val arcShortcuts by model.arcShortcuts.collectAsStateWithLifecycle()
+    val arc by model.arc.collectAsStateWithLifecycle()
     val visible by model.visibleApps.collectAsStateWithLifecycle()
     val icons = LocalContext.current.intelia.icons
     // The drawer's icons are rendered while Home rests, so opening it draws them in its first frames.
@@ -208,10 +218,38 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
             FlowRun.Failed -> message(R.string.launch_failed)
         }
     }
+    fun editHome() { studioStart = StudioStart.Main; editOnHome = true; pages.removeState(Page.Studio.name); page = Page.Home }
+    val actionHost = rememberActionHost(model, onDrawer = ::openDrawer, onEditHome = ::editHome) { openSearch(fromLens = true) }
+    /** The Action Engine entry for every trigger: run, go Home when something opened, otherwise say why. */
+    fun perform(action: Action) {
+        when (val result = action.run(actionHost)) {
+            // Search, the drawer and the editor are Home's own screens: they stay open.
+            ActionResult.Opened -> if (action != Action.Search && action != Action.Drawer && action != Action.EditHome) goHome()
+            ActionResult.Done -> Unit
+            is ActionResult.Unavailable -> message(when (result.reason) {
+                Reason.AppMissing -> R.string.action_app_missing
+                Reason.FlowMissing -> R.string.action_flow_missing
+                Reason.NotDefaultHome -> R.string.action_not_default_home
+                Reason.ShortcutMissing -> R.string.action_shortcut_missing
+                Reason.NeedsPulseService -> R.string.action_needs_pulse
+                Reason.Unsupported -> R.string.action_unsupported
+                Reason.Invalid, Reason.CardMissing, Reason.Failed -> R.string.launch_failed
+            })
+        }
+    }
     fun edit(alias: FlowAlias?, from: Page) { editBack = from; editing = alias?.id ?: ""; focus.clearFocus(); keyboard?.hide(); page = Page.FlowEdit }
     val steps: (FlowAlias) -> List<String?> = { alias -> alias.targets.map { model.entry(it)?.label } }
 
+    // PULSE everywhere (M3): while Home is in front the service hands bound gestures here, so FLOW, Search
+    // and apps behave exactly as from ARC.
+    LifecycleResumeEffect(Unit) {
+        PulseAccessibilityService.home = { perform(it) }
+        onPauseOrDispose { PulseAccessibilityService.home = null }
+    }
     LaunchedEffect(homeSignal) { if (homeSignal > 0) goHome() }
+    // M3.3: Search or a card picked on Global ARC in another app; Home runs it once it is in front.
+    val request by PulseAccessibilityService.homeRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(request) { request?.let { PulseAccessibilityService.consumed(); perform(it) } }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { model.refreshShortcuts() }
     // Search is a paper surface; never leave it behind for Recents or the next return Home.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (page == Page.Search || page == Page.Drawer) goHome() }
@@ -252,16 +290,17 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
         }, label = "page") { target -> pages.SaveableStateProvider(target.name) {
             when (target) {
                 Page.Home -> Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().veilBackdrop(depth, backdropBlur)) { Home(
+                // S4.4: under Search or the drawer Home stays drawn but leaves the accessibility tree, so TalkBack's focus
+                // order is the overlay's alone; it comes back as the overlay closes.
+                Box(Modifier.fillMaxSize().veilBackdrop(depth, backdropBlur)
+                    .then(if (focusOpen) Modifier.clearAndSetSemantics { } else Modifier)) { Home(
                     settings = settings,
                     apps = remember(favorites, visible) { (visible + favorites).associateBy { it.key } },
-                    arc = remember(arcApps, arcFlows, arcShortcuts, settings.arcRings) {
-                        ArcContent(arcApps, arcFlows, arcShortcuts, settings.arcRings)
-                    },
+                    arc = arc,
                     flowSteps = steps,
                     onSearch = { openSearch(true) },
                     onDrawer = ::openDrawer,
-                    onPulseLens = { studioStart = StudioStart.Lens; page = Page.Studio },
+                    onPulseLens = { studioStart = StudioStart.Pulse; page = Page.Studio },
                     onSettings = { studioStart = StudioStart.Editor; page = Page.Studio },
                     startEditing = editOnHome,
                     onEditingStarted = { editOnHome = false },
@@ -269,7 +308,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     onLaunch = ::launch,
                     onOptions = { options = it },
                     onRun = ::run,
-                    onShortcut = ::launch,
+                    onAction = ::perform,
                     onMessage = ::message,
                     onSaveLayout = { edited ->
                         model.updateSettings { it.copy(home = it.home.save(edited)) }
@@ -303,7 +342,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                 Page.Search, Page.Drawer -> Unit
                 Page.Flows -> FlowList(
                     aliases = settings.aliases,
-                    arcFlows = settings.arcFlows,
+                    arcFlows = remember(settings) { settings.controls.arcSets.flatMap { it.slots }.filterIsInstance<Action.Flow>().map { it.id } },
                     flowSteps = steps,
                     onBack = { if (flowsBack == Page.Studio) page = Page.Studio else goHome() },
                     onCreate = { edit(null, Page.Flows) },
@@ -315,8 +354,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     val initial = settings.aliases.firstOrNull { it.id == id }
                     FlowEditor(
                         initial = initial,
-                        inArc = initial != null && initial.id in settings.arcFlows,
-                        arcFull = settings.arcFlows.size >= LauncherSettings.ARC_FLOW_SLOTS,
+                        inArc = initial != null && settings.controls.inArc(Action.Flow(initial.id)),
+                        arcFull = settings.controls.arcFull(),
                         apps = visible,
                         resolve = model::entry,
                         onSave = { alias, inArc ->
@@ -328,7 +367,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                 }
                 Page.Studio -> AccentScope(PaletteTarget.Studio) {
                     Studio(model, settings, onBack = { studioStart = StudioStart.Main; goHome() }, onFlows = { flowsBack = Page.Studio; page = Page.Flows },
-                        onEditHome = { studioStart = StudioStart.Main; editOnHome = true; pages.removeState(Page.Studio.name); page = Page.Home },
+                        onEditHome = ::editHome,
                         start = studioStart)
                 }
             }
@@ -341,8 +380,8 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     options?.let { entry ->
         AppOptionsSheet(
             app = entry,
-            inArc = entry.key in settings.arc,
-            arcFull = settings.arc.size >= LauncherSettings.ARC_SLOTS,
+            inArc = settings.controls.inArc(Action.App(entry.key)),
+            arcFull = settings.controls.arcFull(),
             favorite = entry.key in settings.favorites,
             favoritesFull = settings.favorites.size >= LauncherSettings.MAX_FAVORITES,
             onArc = { model.toggleArc(entry); options = null },
@@ -380,7 +419,7 @@ private fun Home(
     onLaunch: (AppEntry) -> Unit,
     onOptions: (AppEntry) -> Unit,
     onRun: (FlowAlias) -> Unit,
-    onShortcut: (ShortcutEntry) -> Unit,
+    onAction: (Action) -> Unit,
     onMessage: (Int) -> Unit,
     onSaveLayout: (LayoutSpec) -> Unit,
 ) {
@@ -458,14 +497,54 @@ private fun Home(
     fun leave(then: () -> Unit) { if (editor?.dirty == true) leaveThen = then else { close(); then() } }
     BackHandler(enabled = editor != null) { leave {} }
 
+    // M4: free Home gestures run only when bound; an unbound double tap never delays anything.
+    val homeDouble = settings.controls.bound(Trigger.Home(Gesture.DoubleTap))
+    val homeDown by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeDown)))
+    val homeLeft by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeLeft)))
+    val homeRight by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeRight)))
+    // Veil 3.0: swipe up and hold carry the drawer and the editor by default, but can be rebound.
+    val homeUp by rememberUpdatedState(settings.controls.effective(Trigger.Home(Gesture.SwipeUp)))
+    val homeHold = settings.controls.effective(Trigger.Home(Gesture.Hold))
+    fun runHome(a: Action) { when (a) { Action.Drawer -> onDrawer(); Action.EditHome -> openRequested = true; else -> onAction(a) } }
+    val homeLabels = listOf(stringResource(R.string.gesture_home_double), stringResource(R.string.gesture_home_down),
+        stringResource(R.string.gesture_home_left), stringResource(R.string.gesture_home_right), stringResource(R.string.gesture_home_up))
+    val homeHoldLabel = stringResource(R.string.gesture_home_hold)
+    // A rebound swipe up is offered to TalkBack too; the drawer stays one LENS swipe away.
+    val homeActions = listOf(homeDouble, homeDown, homeLeft, homeRight, homeUp?.takeIf { it != Action.Drawer }).mapIndexedNotNull { i, bound ->
+        bound?.let { a -> CustomAccessibilityAction(homeLabels[i]) { onAction(a); true } }
+    }
+    val lensLabels = listOf(stringResource(R.string.gesture_lens_left), stringResource(R.string.gesture_lens_right))
+    val lensFlicks = listOf(Gesture.SwipeLeft, Gesture.SwipeRight).mapIndexedNotNull { i, g ->
+        settings.controls.bound(Trigger.Lens(g))?.let { a -> CustomAccessibilityAction(lensLabels[i]) { onAction(a); true } }
+    }
     // The chain stays the same in edit mode: swapping modifiers mid-gesture would cancel an icon's hold-and-drag.
     BoxWithConstraints(Modifier.fillMaxSize()
         .pointerInput(Unit) {
             var drag = 0f
             detectVerticalDragGestures(onDragStart = { drag = 0f }, onVerticalDrag = { _, amount -> drag += amount },
-                onDragEnd = { if (drag < -swipe && editor == null) onDrawer() })
-        }.combinedClickable(interactionSource = null, indication = null, onLongClickLabel = editLabel, onClick = {},
-            onLongClick = { if (editor == null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openRequested = true } })) {
+                onDragEnd = {
+                    if (editor != null) return@detectVerticalDragGestures
+                    if (drag < -swipe) homeUp?.let(::runHome) else if (drag > swipe) homeDown?.let(onAction)
+                })
+        }
+        .pointerInput(Unit) {
+            // M5: sideways swipes do nothing unless bound; Home has no pager, so nothing else listens sideways.
+            // A horizontal detector locks onto sideways moves only, so vertical drags stay the drawer and swipe down.
+            var dx = 0f
+            detectHorizontalDragGestures(onDragStart = { dx = 0f }, onHorizontalDrag = { _, d -> dx += d },
+                onDragEnd = {
+                    if (editor != null) return@detectHorizontalDragGestures
+                    when (homeSideSwipe(dx / density.density, 0f)) {
+                        Gesture.SwipeLeft -> homeLeft?.let(onAction)
+                        Gesture.SwipeRight -> homeRight?.let(onAction)
+                        else -> Unit
+                    }
+                })
+        }.combinedClickable(interactionSource = null, indication = null,
+            onLongClickLabel = if (homeHold == Action.EditHome) editLabel else homeHoldLabel, onClick = {},
+            onDoubleClick = if (homeDouble != null && editor == null) ({ onAction(homeDouble) }) else null,
+            onLongClick = { if (editor == null) homeHold?.let { haptic.performHapticFeedback(HapticFeedbackType.LongPress); runHome(it) } })
+        .semantics { if (homeActions.isNotEmpty() && editor == null) customActions = homeActions }) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
         val statusTop = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp() }
         val saved = settings.home.activeLayout()
@@ -473,7 +552,8 @@ private fun Home(
         val dock = (editor?.layout ?: saved).dock
         val lensSpot = Dock.centre(dock, editor?.lensDx() ?: saved.lensDx(), maxWidth.value, maxHeight.value, statusTop.value, bottomInset.value)
         val compact = maxHeight < 560.dp
-        val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, lensSpot.x, lensSpot.y, dock, bottomInset.value)
+        val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, lensSpot.x, lensSpot.y, dock, bottomInset.value,
+            rowIcon(editor?.layout ?: saved, settings))
         check(tick >= 0) // read so that editor changes recompose this scope
         fun open(): HomeEditorState = editor ?: HomeEditorState(saved, geometry,
             blocked = { listOfNotNull(clockZone, dateZone.takeIf { editor?.layout?.items?.any { it.kind == ItemKind.Date && it.anchor.type == AnchorType.Free } == true }) })
@@ -490,10 +570,7 @@ private fun Home(
         })
         val clock = layout.items.firstOrNull { it.kind == ItemKind.Clock }
         val date = layout.items.firstOrNull { it.kind == ItemKind.Date }
-        /** Where free text (fy = 0) starts below the status bar. */
-        // A LENS row on the top edge pushes all text down by its band.
-        val dockTop = if (dock.edge == DockEdge.Top) (geometry.areaTop - statusTop.value - 24f).dp else 0.dp
-        val textTop = (if (compact) 24.dp else TEXT_TOP.dp) + dockTop
+        val textTop = homeTextTop(geometry, statusTop.value, compact).dp
         val freeDate = date?.takeIf { it.anchor.type == AnchorType.Free }
         val iconDefault = settings.iconSize
         // Zones are kept in Home coordinates, inside the editor's scaled layer ([EditView]).
@@ -514,11 +591,26 @@ private fun Home(
         val hole = rememberLens(settings.pulseLens)
         val camera = Pt(hole.x / density.density, hole.y / density.density)
         if (ed != null) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
+        val pulseService by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+        val quick = remember(settings.controls, apps, settings.aliases, pulseService) {
+            quickEntries(settings.controls, apps.values.toList(), settings.aliases, pulseService)
+        }
         // PULSE stays at the camera, outside the editor's scaled Home.
-        if (settings.pulse && ed == null) Pulse(settings)
+        if (settings.pulse && ed == null) Pulse(settings, onGesture = { g -> settings.controls.bound(Trigger.Pulse(g))?.let { onAction(it); true } ?: false },
+            arc = arc, onArcAction = onAction, flowSteps = flowSteps, quick = quick)
         if (ed != null) {
             if (settings.pulse) Pulse(settings, preview = true)
             CameraMark(camera, selected == PULSE_ID)
+            // Home (and its tap layer) is scaled to 86 % around the middle, so the camera sits above it: PULSE gets
+            // its own target here, in screen coordinates.
+            val pulseLabel = stringResource(R.string.pulse)
+            Box(Modifier.offset(x = (camera.x - CAMERA_HALF_W).dp, y = 0.dp).size((CAMERA_HALF_W * 2).dp, (camera.y + CAMERA_BELOW).dp)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Button,
+                    onClickLabel = pulseLabel) {
+                    if (presetsOpen) { ed.cancelPreview(); presetsOpen = false; previewKey = null }
+                    selected = PULSE_ID.takeIf { selected != PULSE_ID }; addPoint = null
+                    refresh()
+                })
             // The status bar would take every tap near the camera, so the editor hides it (swipe brings it back)
             // and PULSE everywhere's lens lets taps through: tapping the capsule opens its inspector.
             val rootView = androidx.compose.ui.platform.LocalView.current
@@ -540,56 +632,16 @@ private fun Home(
 
         if (clock == null) timeZone = null
         if (date == null) dateZone = null
-        if (clock != null || (date != null && freeDate == null)) {
-            val a = clock?.anchor ?: Anchor.free(if (listLayout) 0f else .5f, 0f)
-            val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
-            val topPad = (if (compact) 24.dp else TEXT_TOP.dp) + dockTop + (geometry.areaH * a.fy).dp
-            // §5.12 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
-            val plate = !clock?.background.isNullOrEmpty()
-            val clockInk = if (plate) LocalCrystal.current.fg else homeInk
-            // On a plate the theme's accent variant is right; straight on the wallpaper, the wallpaper's.
-            val onClock = if (plate) places else wallPlaces
-            val accent = onClock[PaletteTarget.Clock]
-            val textAccent = onClock[PaletteTarget.Text]
-            // The plate keeps 8 dp from the edges; bare text may come [TEXT_EDGE] dp close.
-            Column(
-                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(top = topPad)
-                    .atFx(a.fx, geometry.areaLeft, geometry.areaW, if (plate) 8f else TEXT_EDGE).graphicsLayer { alpha = quiet }
-                    .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) }
-                    .then(if (plate) Modifier.veilSurface(plateTokens(clock.background), VeilOrigin.Top, RoundedCornerShape(26.dp))
-                        .padding(horizontal = (20f + clock.look.padX).dp).padding(top = (14f + clock.look.padY).dp, bottom = (16f + clock.look.padY).dp)
-                        else Modifier)
-                    .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
-                horizontalAlignment = when (clock?.look?.align ?: ItemAlign.Auto) {
-                    ItemAlign.Start -> Alignment.Start
-                    ItemAlign.Center -> Alignment.CenterHorizontally
-                    ItemAlign.End -> Alignment.End
-                    ItemAlign.Auto -> if (bias < 0f) Alignment.Start else if (bias > 0f) Alignment.End else Alignment.CenterHorizontally
-                },
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: clockInk, accent,
-                    (if (clock.sizeDp == 0) (if (compact) 64 else ItemSizes.CLOCK) else clock.sizeDp).sp,
-                    Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, shadow = !plate, weight = clock.weight, look = clock.look)
-                if (date != null && freeDate == null) DateText(date, now, clockInk, textAccent, onPlate = plate, modifier = Modifier.offset(date.look.dx.dp, date.look.dy.dp).onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
-            }
-        } else clockZone = null
-        if (freeDate != null) {
-            // An unpinned date: placed like the clock (§5.5), by its own free point.
-            // Moved over the clock's plate, it reads in the plate's ink instead of the wallpaper's.
-            val onPlate = !clock?.background.isNullOrEmpty() && clockZone?.let { dateZone?.centredIn(it, 8f) } == true
-            DateText(freeDate, now, if (onPlate) LocalCrystal.current.fg else homeInk, (if (onPlate) places else wallPlaces)[PaletteTarget.Text],
-                onPlate = onPlate, modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
-                .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp)
-                .atFx(freeDate.anchor.fx, geometry.areaLeft, geometry.areaW, TEXT_EDGE).graphicsLayer { alpha = quiet }
-                .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
-        }
+        // Moved over the clock's plate, an unpinned date reads in the plate's ink instead of the wallpaper's.
+        val dateOnPlate = freeDate != null && !clock?.background.isNullOrEmpty() && clockZone?.let { dateZone?.centredIn(it, 8f) } == true
+        if (clock == null && (date == null || freeDate != null)) clockZone = null
+        HomeText(layout, geometry, textTop.value, settings, now, homeInk, places, wallPlaces, compact, { quiet }, dateOnPlate,
+            onClock = { c -> clockZone = zoneOf(c, 8f) }, onTime = { c -> timeZone = zoneOf(c, 4f) }, onDate = { c -> dateZone = zoneOf(c, 6f) })
 
         // Icons placed by geometry: LENS row, grid cells, free positions; apps and FLOWs.
-        // On a side row the slots stand 46 dp apart: no room for a name under each icon.
-        val names = labelWidths(layout.items.filter { (it.kind == ItemKind.App || it.kind == ItemKind.Flow) && it.label &&
-            !(dock.edge.vertical && it.anchor.type == AnchorType.LensRow) }
-            .mapNotNull { item -> geometry.position(item, layout)?.let { item.id to it } }.toMap(), lensPt.takeIf { !dock.edge.vertical })
+        // S2: names laid out once for Home and Studio's miniature ([homeLabels]); a side row has no room for them.
+        val names = homeLabels(layout, geometry, settings, density)
+        val iconAccent = wallPlaces[PaletteTarget.Icons]
         layout.items.forEach { item ->
             if ((item.kind != ItemKind.App && item.kind != ItemKind.Flow) || !item.anchor.type.isPlaced()) return@forEach
             val app = if (item.kind == ItemKind.App) apps[item.target] else null
@@ -599,13 +651,11 @@ private fun Home(
             // The node stays put while it is dragged (its gesture needs a still frame); a ghost follows the finger.
             val dragging = drag?.id == item.id
             val p = geometry.position(item, layout) ?: return@forEach
-            val iconDp = item.iconDp(iconDefault).dp
+            val look = item.iconLook(settings)
+            val iconDp = look.sizeDp.dp
             key(item.id) {
-                val nameWidth = names[item.id]
-                if (nameWidth != null) Text(name, Modifier.centerAt(p.x.dp, p.y.dp + iconDp / 2 + 12.dp).widthIn(max = nameWidth.dp)
-                    .graphicsLayer { alpha = if (dragging) 0f else quiet }.clearAndSetSemantics {},
-                    style = CrystalType.body.copy(fontSize = 12.sp, lineHeight = 14.sp, shadow = homeShadow(homeInk)),
-                    color = homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                names[item.id]?.let { box -> HomeLabel(name, box, item.labelStyle(settings.labels), homeInk, iconAccent,
+                    Modifier.graphicsLayer { alpha = if (dragging) 0f else quiet }.clearAndSetSemantics {}) }
                 Box(Modifier.centerAt(p.x.dp, p.y.dp).size(maxOf(CrystalDims.touch, iconDp + 8.dp)).graphicsLayer { alpha = if (dragging) 0f else quiet }
                     .clip(CircleShape)
                     .pointerInput(item.id) {
@@ -644,9 +694,8 @@ private fun Home(
                             CustomAccessibilityAction(removeLabel) { open().remove(item.id); refresh(); true },
                         )
                     }, contentAlignment = Alignment.Center) {
-                    // No backing (4.3): system or icon-pack icons as they are; monochrome tinted fg.
-                    if (app != null) AppIcon(app, Modifier.size(iconDp), tint = homeInk)
-                    else HomeGlyph(Glyph.Flow, null, tint = homeInk, size = iconDp * .7f)
+                    // No backing (4.3): system or icon-pack icons as they are; monochrome tinted fg. Own style, colour, opacity (S2).
+                    HomeIconFace(app, look, homeInk, iconAccent)
                 }
             }
         }
@@ -682,16 +731,28 @@ private fun Home(
             }
         }
 
-        AccentScope(PaletteTarget.Lens) { LensArc(arc, lensSpot, dock.edge, flowSteps, onSearch = onSearch, onDrawer = onDrawer, onLaunch = onLaunch, onRun = onRun,
-            onShortcut = onShortcut, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
+        // S4.4: LENS gives way to the icons around it, so each keeps a whole 48 dp target at any display size.
+        val lensTouch = remember(layout, geometry, settings, apps, flows) {
+            val targets = layout.items.mapNotNull { item ->
+                if ((item.kind != ItemKind.App && item.kind != ItemKind.Flow) || !item.anchor.type.isPlaced()) return@mapNotNull null
+                if (apps[item.target] == null && flows[item.target] == null) return@mapNotNull null
+                val p = geometry.position(item, layout) ?: return@mapNotNull null
+                p to maxOf(CrystalDims.touch.value, item.iconLook(settings).sizeDp + 8f)
+            }
+            Dock.lensTouch(lensSpot, dock.edge.vertical, targets)
+        }
+        AccentScope(PaletteTarget.Lens) { LensArc(arc, lensSpot, dock.edge, flowSteps, onSearch = onSearch, onDrawer = onDrawer, touch = lensTouch,
+            onAction = onAction, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
             lensFilled = lensItem?.style == LensStyle.Filled.name,
             // TalkBack moves LENS in the editor without a drag (§5.5), each as one undo step.
-            editActions = if (ed == null) emptyList() else listOf(
+            // Outside the editor TalkBack gets the bound LENS flicks instead (M4).
+            editActions = if (ed == null) lensFlicks else listOf(
                 CustomAccessibilityAction(lensLeft) { ed.setLensDx(ed.layout.lensDx() - LENS_A11Y_STEP).also { refresh() } },
                 CustomAccessibilityAction(lensRight) { ed.setLensDx(ed.layout.lensDx() + LENS_A11Y_STEP).also { refresh() } },
                 CustomAccessibilityAction(lensCentre) { ed.setLensDx(0f).also { refresh() } },
             ),
-            onEditSelect = if (ed == null) null else { { selected = ed.lensId(); refresh() } }) }
+            onEditSelect = if (ed == null) null else { { selected = ed.lensId(); refresh() } },
+            onFlick = { g -> settings.controls.bound(Trigger.Lens(g))?.let { onAction(it); true } ?: false }) }
         if (ed != null) {
             // Editor layer above LENS: a hold on LENS never opens ARC here; drags move elements.
             Box(Modifier.fillMaxSize()
@@ -826,29 +887,25 @@ private fun Home(
                 } }
             }
 
-            if (selected == PULSE_ID && drag == null) {
-                val r = hole.radius / density.density + 10f
-                // Below the editor bar: the camera sits under the status bar, the card hangs from the bar.
-                InspectorCard(Zone(camera.x - r, barBottom - 12f - r, camera.x + r, barBottom - 12f), maxWidth.value, barBottom + EDIT_LABEL, null,
-                    stringResource(R.string.pulse), inspectorFrame) {
-                    PulseInspector(settings, set, onLens = { leave(onPulseLens) })
-                }
-            }
+            // PULSE has one home, Studio › PULSE: a tap on the camera in the editor goes there (unsaved edits are asked about first).
+            if (selected == PULSE_ID && drag == null) LaunchedEffect(Unit) { selected = null; leave(onPulseLens) }
             val sel = selected?.let(ed::item)
-            val rings = remember(arc.slots, lensPt, dock.edge, maxWidth, maxHeight) { Dock.rings(arc.slots, dock.edge, lensPt, maxWidth.value, maxHeight.value) }
-            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, rings, Modifier.fillMaxSize().then(homeLayer), dock.edge)
+            val bow = remember(arc.look, arc.sets.size, lensPt, dock.edge, maxWidth, maxHeight) {
+                Dock.bow(arc.look, arc.sets.size.coerceAtLeast(1), dock.edge, lensPt, maxWidth.value, maxHeight.value)
+            }
+            if (sel?.kind == ItemKind.Lens || ed.lensDrag != null) GhostArc(lensPt, bow, Modifier.fillMaxSize().then(homeLayer), dock.edge)
             if (sel != null && drag == null && ed.lensDrag == null) {
                 val zone = when (sel.kind) {
                     ItemKind.Clock -> timeZone ?: clockZone
                     ItemKind.Date -> dateZone
                     // The card keeps clear of the ghost ARC: its zone reaches up to the outermost ring.
                     ItemKind.Lens -> (sel.lensDp() / 2f + 6f).let { r ->
-                        val tip = Dock.toScreen(dock.edge, 0f, -maxOf(r, rings.reach + 8f))
+                        val tip = Dock.toScreen(dock.edge, 0f, -maxOf(r, bow.reach + 8f))
                         Zone(lensPt.x + minOf(-r, tip.x), lensPt.y + minOf(-r, tip.y), lensPt.x + maxOf(r, tip.x), lensPt.y + maxOf(r, tip.y))
                     }
                     else -> ed.pointOf(sel)?.let { c ->
                         val r = sel.iconDp(iconDefault) / 2f + 6f
-                        Zone(c.x - r, c.y - r, c.x + r, c.y + r + if (sel.label) 20f else 0f)
+                        Zone(c.x - r, c.y - r, c.x + r, c.y + r + if (sel.labelShown(settings.labels)) 20f else 0f)
                     }
                 }
                 
@@ -890,7 +947,7 @@ private fun Home(
                         ItemKind.Lens -> LensInspector(ed, sel, dock, onChange = ::refresh)
                         else -> {
                             val app = apps[sel.target]
-                            ItemInspector(ed, sel, iconDefault,
+                            ItemInspector(ed, sel, settings,
                                 onMore = app?.let { a -> { onOptions(a) } }, onRemoved = { selected = null }, onChange = ::refresh)
                         }
                     }
@@ -957,29 +1014,13 @@ private fun hitItem(state: HomeEditorState, p: Pt, timeZone: Zone?, dateZone: Zo
 
 /** Id of the PULSE pseudo-element in the editor (it is a setting, not a layout item). */
 private const val PULSE_ID = "#pulse"
+private const val CAMERA_HALF_W = 96f
+private const val CAMERA_BELOW = 24f
 /** How far one TalkBack "move LENS" action shifts it (dp). */
 private const val LENS_A11Y_STEP = 24f
 
 /** Room under the editor bar for the name of what is edited, dp. */
 private const val EDIT_LABEL = 8f
-/** Where the clock and free text start below the status bar, dp: right under it (the editor bar floats over). */
-private const val TEXT_TOP = 0f
-/** How close the clock and free text may come to the screen's side edges, dp. */
-private const val TEXT_EDGE = 12f
-
-/**
- * Places a clock or an unpinned date so that its centre sits at [fx] across the editor's area, the very point
- * the editor drags, so the text follows the finger one to one; it is kept whole [margin] dp inside the screen
- * (fx 0 and 1 still mean flush left and right, 0.5 centred).
- */
-private fun Modifier.atFx(fx: Float, areaLeft: Float, areaW: Float, margin: Float) = layout { m, c ->
-    val edge = margin.dp.roundToPx()
-    val w = c.maxWidth
-    val p = m.measure(c.copy(minWidth = 0, maxWidth = (w - 2 * edge).coerceAtLeast(0)))
-    val centre = (areaLeft + fx * areaW).dp.roundToPx()
-    layout(w, p.height) { p.place((centre - p.width / 2).coerceIn(edge, maxOf(edge, w - edge - p.width)), 0) }
-}
-
 /** Opacity of the date on a plate: full, as the dark Veil over a white wallpaper has no margin below it (VeilTest). */
 internal const val PLATE_TEXT_ALPHA = 1f
 

@@ -1,5 +1,23 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import dev.intelia.launcher.data.AccentColors
+import dev.intelia.launcher.data.CustomColors
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -59,10 +77,96 @@ fun PaletteEditor(settings: LauncherSettings, set: SettingsEdit, modifier: Modif
         val at = place.takeUnless { unified }
         if (!unified) Chips(listOf<Pair<PaletteTarget?, String>>(null to stringResource(R.string.palette_main)) +
             PaletteTarget.entries.map { it to stringResource(placeNames.getValue(it)) }, at) { place = it }
-        if (at == null) Swatches(settings.accent, main = false) { v -> if (v != null) set { it.copy(accent = v) } }
-        else PlaceSwatches(settings, at, set)
+        if (at == null) {
+            // A preset clears the custom colour (D25); the preset kept underneath it is never changed by the custom one.
+            Swatches(settings.accent.takeIf { settings.custom.accent == null }, main = false) { v ->
+                if (v != null) set { it.copy(accent = v, custom = it.custom.copy(accent = null)) }
+            }
+            CustomAccent(settings, set)
+        } else PlaceSwatches(settings, at, set)
     }
 }
+
+/**
+ * D25: the owner's own main colour. Closed it is one row (disc, name, hex); open it mixes hue, saturation and
+ * lightness or takes a hex code, and shows what each theme will draw (lightness corrected for legible text).
+ */
+@Composable
+private fun CustomAccent(settings: LauncherSettings, set: SettingsEdit) {
+    val ink = LocalInk.current
+    val custom = settings.custom.accent
+    var open by rememberSaveable { mutableStateOf(false) }
+    // Mixing state lives here (a round trip through ARGB would make the sliders jump); it starts again from the colour
+    // shown whenever a custom colour is set or cleared.
+    val fresh = custom == null
+    val start = remember(fresh) { AccentColors.hsl(custom ?: ink.accent.toArgb()) }
+    var h by rememberSaveable(fresh) { mutableFloatStateOf(start.first) }
+    var sat by rememberSaveable(fresh) { mutableFloatStateOf(start.second) }
+    var l by rememberSaveable(fresh) { mutableFloatStateOf(start.third) }
+    var hex by rememberSaveable { mutableStateOf(custom?.let(CustomColors::hex).orEmpty()) }
+    fun store(argb: Int) = set { it.copy(custom = it.custom.copy(accent = argb)) }
+    fun mix(nh: Float = h, ns: Float = sat, nl: Float = l) {
+        h = nh; sat = ns; l = nl
+        val c = AccentColors.fromHsl(h, sat, l)
+        hex = CustomColors.hex(c)
+        store(c)
+    }
+    val name = stringResource(R.string.palette_custom)
+    val state = custom?.let(CustomColors::hex) ?: stringResource(R.string.palette_custom_none)
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { open = !open }
+        .semantics(mergeDescendants = true) { stateDescription = state }.padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        val shown = custom?.let { Color(AccentColors.derive(it, ink.dark)) }
+        Box(Modifier.size(32.dp).clip(CircleShape).then(
+            if (shown != null) Modifier.background(shown).border(2.dp, ink.ink.copy(alpha = .6f), CircleShape)
+            else Modifier.background(Brush.sweepGradient(HUES.map { Color(AccentColors.fromHsl(it, .7f, .6f)) }))))
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(name, style = InkText.body)
+            Text(state, style = InkText.small, color = ink.muted)
+        }
+        Text(if (open) "⌃" else "⌄", style = InkText.body, color = ink.muted)
+    }
+    if (!open) return
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        SliderRow(stringResource(R.string.palette_hue), h, 0f, 359f, 1f, "${h.toInt()}°") { mix(nh = it) }
+        Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(8.dp).clip(CircleShape)
+            .background(Brush.horizontalGradient(HUES.map { Color(AccentColors.fromHsl(it, sat, l.coerceIn(.25f, .75f))) })))
+        SliderRow(stringResource(R.string.palette_saturation), sat * 100f, 0f, 100f, 1f, "${(sat * 100).toInt()} %") { mix(ns = it / 100f) }
+        SliderRow(stringResource(R.string.palette_lightness), l * 100f, 0f, 100f, 1f, "${(l * 100).toInt()} %") { mix(nl = it / 100f) }
+        val hexLabel = stringResource(R.string.palette_hex)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(hexLabel, Modifier.padding(end = 12.dp), style = InkText.small, color = ink.muted)
+            BasicTextField(hex, { t ->
+                hex = t.take(7)
+                CustomColors.parseHex(hex)?.let { c -> AccentColors.hsl(c).let { (a, b, d) -> h = a; sat = b; l = d }; store(c) }
+            }, Modifier.weight(1f).clip(CircleShape).background(ink.ink.copy(alpha = .06f)).padding(horizontal = 14.dp, vertical = 12.dp)
+                .semantics { contentDescription = hexLabel }, singleLine = true, cursorBrush = SolidColor(ink.accent),
+                textStyle = InkText.body.copy(color = ink.ink, fontFamily = InkFonts.mono),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false))
+        }
+        custom?.let { c ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.palette_custom_preview), Modifier.weight(1f), style = InkText.small, color = ink.muted)
+                listOf(true, false).forEach { dark ->
+                    val p = inkPalette(dark, Color(AccentColors.derive(c, dark)))
+                    Box(Modifier.clip(RoundedCornerShape(10.dp)).background(p.paper).padding(6.dp)) {
+                        Text("Aa", Modifier.clip(RoundedCornerShape(8.dp)).background(p.accent).padding(horizontal = 10.dp, vertical = 2.dp),
+                            style = InkText.small, color = p.onAccent)
+                    }
+                }
+            }
+            GroupNote(stringResource(R.string.palette_custom_detail))
+            Quiet(stringResource(R.string.palette_custom_clear), {
+                set { it.copy(custom = it.custom.copy(accent = null)) }
+                hex = ""
+            }, Modifier.padding(horizontal = 4.dp))
+        }
+    }
+}
+
+/** Hue stops for the gradients of [CustomAccent]. */
+private val HUES = (0..360 step 30).map { it.toFloat() }
 
 /** One place's colours, "main colour" first; choosing one turns the palette per place (inspectors of clock and LENS). */
 @Composable

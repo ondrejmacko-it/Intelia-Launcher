@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next, Check, Undo, Redo, Layers, Grid, Settings }
+enum class Glyph { Search, Apps, Flow, Back, Up, Studio, Close, Bell, Bolt, Torch, Plus, Prev, Play, Pause, Next, Check, Undo, Redo, Layers, Grid, Settings, Palette, Touch, Shield, Pulse, Arc, Wave, Key, Shot }
 
 /** Original monoline glyphs on a 24-unit grid; no icon font or bitmap assets. */
 @Composable
@@ -43,6 +43,9 @@ fun HomeGlyph(glyph: Glyph, label: String?, modifier: Modifier = Modifier, tint:
             Glyph.Settings -> { ring(12f, 12f, 6f); ring(12f, 12f, 2.4f)
                 for (i in 0 until 8) { val a = Math.toRadians(i * 45.0); val cx = kotlin.math.cos(a).toFloat(); val sy = kotlin.math.sin(a).toFloat()
                     line(12f + 6f * cx, 12f + 6f * sy, 12f + 9f * cx, 12f + 9f * sy) } }
+            // Screenshot: the four corners of a frame around a lens.
+            Glyph.Shot -> { line(4f, 8f, 4f, 4f); line(4f, 4f, 8f, 4f); line(16f, 4f, 20f, 4f); line(20f, 4f, 20f, 8f)
+                line(20f, 16f, 20f, 20f); line(20f, 20f, 16f, 20f); line(8f, 20f, 4f, 20f); line(4f, 20f, 4f, 16f); ring(12f, 12f, 3f) }
             Glyph.Close -> { line(6f, 6f, 18f, 18f); line(18f, 6f, 6f, 18f) }
             Glyph.Plus -> { line(12f, 5f, 12f, 19f); line(5f, 12f, 19f, 12f) }
             Glyph.Check -> { line(5f, 12.5f, 10f, 17.5f); line(10f, 17.5f, 19f, 7f) }
@@ -82,6 +85,26 @@ fun HomeGlyph(glyph: Glyph, label: String?, modifier: Modifier = Modifier, tint:
             Glyph.Next -> { line(18f, 6f, 18f, 18f); line(6f, 6f, 15f, 12f); line(15f, 12f, 6f, 18f) }
             Glyph.Play -> { line(8f, 5f, 8f, 19f); line(8f, 5f, 19f, 12f); line(19f, 12f, 8f, 19f) }
             Glyph.Pause -> { line(9f, 5f, 9f, 19f); line(15f, 5f, 15f, 19f) }
+            // Studio areas (Veil 3.0): palette, touch, shield; PULSE capsule, ARC bow, haptic wave, hardware key.
+            Glyph.Palette -> { ring(12f, 12f, 8.5f); drawCircle(tint, 1.4f * unit, point(9f, 9f)); drawCircle(tint, 1.4f * unit, point(14.5f, 8.5f))
+                drawCircle(tint, 1.4f * unit, point(8f, 14f)); ring(15f, 15f, 2f) }
+            Glyph.Touch -> { ring(12f, 8f, 3.5f); line(12f, 11.5f, 12f, 21f); line(8f, 15f, 12f, 21f); line(16f, 15f, 12f, 21f) }
+            Glyph.Shield -> {
+                val path = Path().apply {
+                    moveTo(12f * unit, 3f * unit); lineTo(19f * unit, 6f * unit); lineTo(19f * unit, 11f * unit)
+                    cubicTo(19f * unit, 16f * unit, 16f * unit, 19f * unit, 12f * unit, 21f * unit)
+                    cubicTo(8f * unit, 19f * unit, 5f * unit, 16f * unit, 5f * unit, 11f * unit); lineTo(5f * unit, 6f * unit); close()
+                }
+                drawPath(path, tint, style = Stroke(w, join = StrokeJoin.Round)); line(9f, 12f, 11.5f, 14.5f); line(11.5f, 14.5f, 15.5f, 9.5f)
+            }
+            Glyph.Pulse -> { drawRoundRect(tint, point(3f, 8f), Size(18f * unit, 8f * unit), CornerRadius(4f * unit), style = Stroke(w))
+                ring(12f, 12f, 1.8f) }
+            Glyph.Arc -> { drawArc(tint, 200f, 140f, false, point(3f, 5f), Size(18f * unit, 18f * unit), style = Stroke(w, cap = StrokeCap.Round))
+                ring(12f, 19f, 2.2f); drawCircle(tint, 1.4f * unit, point(5.5f, 9.5f)); drawCircle(tint, 1.4f * unit, point(12f, 5f))
+                drawCircle(tint, 1.4f * unit, point(18.5f, 9.5f)) }
+            Glyph.Wave -> { line(3f, 12f, 6f, 12f); line(6f, 12f, 8f, 7f); line(8f, 7f, 11f, 17f); line(11f, 17f, 13f, 5f); line(13f, 5f, 16f, 19f)
+                line(16f, 19f, 18f, 12f); line(18f, 12f, 21f, 12f) }
+            Glyph.Key -> { drawRoundRect(tint, point(8f, 3f), Size(8f * unit, 18f * unit), CornerRadius(4f * unit), style = Stroke(w)); line(12f, 7f, 12f, 10f) }
         }
     }
 }

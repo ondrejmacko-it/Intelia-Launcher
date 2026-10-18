@@ -2,6 +2,7 @@
 
 package dev.intelia.launcher.ui
 
+import dev.intelia.launcher.data.HapticSurface
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import android.app.AlarmManager
@@ -31,6 +32,7 @@ import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,6 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
@@ -71,9 +74,15 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -85,21 +94,26 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import dev.intelia.launcher.R
+import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.Gesture
+import dev.intelia.launcher.action.Trigger
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
 import dev.intelia.launcher.data.PulseLens
+import dev.intelia.launcher.flow.FlowAlias
+import dev.intelia.launcher.pulse.Playing
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private val TARGET_BELOW = 28.dp
-
 internal data class Battery(val percent: Int, val charging: Boolean)
 
 /** Where the camera cut-out sits, in window px. */
 internal data class Hole(val x: Float, val y: Float, val radius: Float)
+
+internal val PULSE_SWIPES = setOf(Gesture.SwipeDown, Gesture.SwipeUp, Gesture.SwipeLeft, Gesture.SwipeRight)
 
 /**
  * The camera hole as the system describes it. The cutout path is exact; some builds report a bounding
@@ -173,7 +187,11 @@ internal fun torchCamera(manager: CameraManager): String? = try {
  * without echo or panel, so opacity can be tuned live.
  */
 @Composable
-fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false) {
+fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false, onGesture: (Gesture) -> Boolean = { false },
+    /** Global ARC (M3.3): what its sets hold now, and where a released slot goes (null = no Global ARC here). */
+    arc: ArcContent? = null, onArcAction: (Action) -> Unit = {}, flowSteps: (FlowAlias) -> List<String?> = { emptyList() },
+    /** S3.1: the glance's Quick Actions, resolved by the caller ([quickEntries]). */
+    quick: List<QuickEntry> = emptyList()) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val ink = LocalInk.current
@@ -184,8 +202,19 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
     var battery by remember { mutableStateOf<Battery?>(null) }
     var alarm by remember { mutableStateOf<Long?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    /** The open Global ARC set index, the picked slot and whether TalkBack opened it (slots are buttons then). */
+    var arcSet by remember { mutableStateOf<Int?>(null) }
+    var arcPick by remember { mutableStateOf<Int?>(null) }
+    var arcAssisted by remember { mutableStateOf(false) }
+    /** The set last shown, so the slots stay while Global ARC fades out. */
+    var arcShown by remember { mutableStateOf(0) }
+    val haptics = rememberInkHaptics(HapticSurface.Pulse)
+    fun closeArc() { arcSet = null; arcPick = null; arcAssisted = false }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { closeArc() }
+    BackHandler(enabled = arcSet != null) { closeArc() }
     val global by PulseAccessibilityService.running.collectAsState()
     val echo = remember { Animatable(1f) }
+    var started by remember { mutableStateOf(false) }
 
     LifecycleStartEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
@@ -199,7 +228,8 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED).apply { addAction(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED) }
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)?.battery()?.let { battery = it }
         alarm = nextAlarm(context)
-        onStopOrDispose { context.unregisterReceiver(receiver); expanded = false }
+        started = true
+        onStopOrDispose { context.unregisterReceiver(receiver); expanded = false; started = false }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
         if (!preview && motion != Motion.Off && settings.pulseEcho) scope.launch { echo.snapTo(0f); echo.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
@@ -217,8 +247,12 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("H:mm"))) },
     ).joinToString(", ")
     val statusBar = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp().value }
+    // M3.2: with PULSE everywhere on and the service running, the service shows the music; Home only while it owns the lens.
+    val owns = !(global && settings.pulseEverywhere)
+    val music = rememberPlaying(!preview && started && owns && settings.pulseMusic)?.takeIf { it.info.visible }
 
-    Box(modifier.fillMaxSize()) {
+    // Home draws its content after PULSE; while expanded the panel (and its close layer) must sit above it.
+    Box(modifier.zIndex(if (expanded || arcSet != null) 1f else 0f).fillMaxSize()) {
         val hx = with(density) { h.x.toDp() }
         val hy = with(density) { h.y.toDp() }
         val hr = with(density) { h.radius.toDp() }
@@ -237,7 +271,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         // At rest (D8): a disc around the lens inside the status bar, no wider than the cut-out plus one dot,
         // so it never covers status icons and repeats nothing the system already shows.
         val capsule = restCapsule(hx.value, hy.value, hr.value, statusBar, rest.alarmMark)
-        AnimatedVisibility(rest.visible && !expanded, Modifier.offset(x = capsule.left.dp, y = capsule.top.dp),
+        AnimatedVisibility(rest.visible && music == null && !expanded, Modifier.offset(x = capsule.left.dp, y = capsule.top.dp),
             enter = fadeIn(tween(motionMs(200))) + expandIn(tween(motionMs(260)), expandFrom = Alignment.CenterStart),
             exit = fadeOut(tween(motionMs(160))) + shrinkOut(tween(motionMs(200)), shrinkTowards = Alignment.CenterStart)) {
             Canvas(Modifier.size(capsule.width.dp, capsule.height.dp).clip(RoundedCornerShape(50))
@@ -252,100 +286,97 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             }
         }
 
-        // Touch target on the lens. The status bar window takes touches inside it, so the target also reaches
-        // [TARGET_BELOW] under the status bar, where a finger aiming at the camera usually lands.
-        val targetTop = hy - 24.dp
+        // Compact music (M3.2): bars on the left (moving only while playing), the round artwork on the right.
+        val mc = musicCapsule(hx.value, hy.value, hr.value, statusBar)
+        AnimatedVisibility(music != null && !expanded, Modifier.offset(x = mc.left.dp, y = mc.top.dp),
+            enter = fadeIn(tween(motionMs(200))) + expandIn(tween(motionMs(260)), expandFrom = Alignment.Center),
+            exit = fadeOut(tween(motionMs(160))) + shrinkOut(tween(motionMs(200)), shrinkTowards = Alignment.Center)) {
+            val shown = music ?: return@AnimatedVisibility
+            MusicCompact(shown, mc, h.radius, settings.pulseOpacity, battery?.percent?.takeIf { rest.gauge })
+        }
+
         // With PULSE everywhere on (D9) the service owns the lens; Lab draws no second target under it.
-        if (!preview && !expanded && !global) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
-            .size(64.dp, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
-                role = Role.Button) { expanded = true }
-            .semantics { contentDescription = label; if (restState.isNotEmpty()) stateDescription = restState })
+        // M3: tap opens the panel unless the owner bound it; double tap and hold exist only when bound, so an
+        // unbound capsule never waits for a second tap.
+        val controls = settings.controls
+        val bound = { g: Gesture -> controls.bound(Trigger.Pulse(g)) != null }
+        val hold = bound(Gesture.Hold)
+        val holdLabel = stringResource(R.string.pulse_gesture_hold)
+        val gestureLabels = mapOf(Gesture.DoubleTap to stringResource(R.string.pulse_gesture_double),
+            Gesture.DoubleTapHold to stringResource(R.string.pulse_gesture_double_hold),
+            Gesture.SwipeDown to stringResource(R.string.pulse_gesture_down),
+            Gesture.SwipeLeft to stringResource(R.string.pulse_gesture_left), Gesture.SwipeRight to stringResource(R.string.pulse_gesture_right))
+        val extras = gestureLabels.keys.filter(bound)
+        val swipes = extras.any { it in PULSE_SWIPES }
+        // With music shown the tap opens the player first (owner can turn that off); otherwise its action, else the menu.
+        val tap = { if ((music != null && settings.pulseTapPlayer) || !onGesture(Gesture.Tap)) expanded = true }
+        val camera = Pt(hx.value, hy.value)
+        val window = LocalWindowInfo.current.containerSize
+        val screenW = window.width / density.density
+        val screenH = window.height / density.density
+        // M3.3: a held gesture bound to Global ARC opens it here; every other gesture goes to the caller.
+        fun openArc(g: Gesture, assisted: Boolean): Boolean {
+            val a = controls.bound(Trigger.Pulse(g)) as? Action.Arc ?: return false
+            val content = arc ?: return false
+            arcSet = content.sets.indexOfFirst { it.id == controls.arcSetFor(a).id }.coerceAtLeast(0)
+            arcShown = arcSet ?: 0
+            arcPick = null
+            arcAssisted = assisted
+            haptics.confirm()
+            return true
+        }
+        fun gesture(g: Gesture) { if (!openArc(g, false)) { if (g == Gesture.Tap) tap() else onGesture(g) } }
+        fun assisted(g: Gesture) { if (!openArc(g, true)) onGesture(g) }
+        // S3: the touch target is its own square on the lens ([pulseHitbox], owner-calibrated), whatever the capsule
+        // draws. The status bar window takes touches inside it, so on Home the target also reaches under the bar.
+        // With PULSE everywhere on (D9) and the service running, the service owns the lens; Lab draws no second target.
+        val hit = pulseHitbox(hx.value, hy.value, settings.pulseHit, screenW, blockedTop = statusBar)
+        val targetLeft = hit.left.dp
+        val targetTop = hit.top.dp
+        if (!preview && !expanded && owns) Box(Modifier.offset(x = targetLeft, y = targetTop)
+            .size(hit.width.dp, hit.height.dp)
+            // M3.1: one recognizer for every capsule gesture (shared with the PULSE service); a shorter gesture
+            // waits only while a longer bound one can still follow.
+            .pulseTouch(bound, swipes, ::gesture, onHeld = { x, y ->
+                val k = arcSet ?: return@pulseTouch
+                val content = arc ?: return@pulseTouch
+                val bow = GlobalArcGeometry.bow(content.globalLook, camera, screenW, screenH)
+                val next = GlobalArcGeometry.pick(bow, camera, targetLeft.value + x, targetTop.value + y, content.filled(k), arcPick)
+                if (next != null && next != arcPick && content.globalLook.haptics) haptics.tick()
+                arcPick = next
+            }, onHeldEnd = { release ->
+                val chosen = if (release) arcSet?.let { k -> arcPick?.let { arc?.sets?.getOrNull(k)?.slots?.getOrNull(it) } } else null
+                if (arcSet != null) closeArc()
+                chosen?.let { haptics.confirm(); onArcAction(it.action) }
+            })
+            .semantics {
+                role = Role.Button
+                contentDescription = label
+                val playingState = music?.info?.let { i -> listOf(i.title, i.artist).filter(String::isNotEmpty).joinToString(" – ") }.orEmpty()
+                listOf(restState, playingState).filter(String::isNotEmpty).joinToString(", ").takeIf { it.isNotEmpty() }?.let { stateDescription = it }
+                onClick(label) { tap(); true }
+                if (hold) onLongClick(holdLabel) { assisted(Gesture.Hold); true }
+                // TalkBack has no double tap or swipe of its own; bound ones are offered as custom actions.
+                if (extras.isNotEmpty()) customActions = extras.map { g -> CustomAccessibilityAction(gestureLabels.getValue(g)) { assisted(g); true } }
+            })
 
-        if (expanded) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() },
-            indication = null, onClickLabel = stringResource(R.string.close)) { expanded = false })
-        val panelTop = (hy - hr - 6.dp).coerceAtLeast(4.dp)
-        AnimatedVisibility(expanded, Modifier.fillMaxWidth().padding(horizontal = 12.dp).offset(y = panelTop),
-            enter = fadeIn(tween(motionMs(160))) + expandIn(tween(motionMs(300)), expandFrom = Alignment.TopCenter),
-            exit = fadeOut(tween(motionMs(140))) + shrinkOut(tween(motionMs(220)), shrinkTowards = Alignment.TopCenter)) {
-            PulsePanel(alarm, battery, hr, maxOf(hr * 2 + 18.dp, statusBar.dp - panelTop), onClose = { expanded = false })
+        // S3: the glance replaces the old dashboard: the song while music shows, else one row of what matters now.
+        if (expanded) PulseGlance(h, with(density) { statusBar.dp.toPx() }, window.width.toFloat(), music, quick, settings.pulseCharging,
+            onAction = { action ->
+                expanded = false
+                // The card has left the screen by now, so a screenshot shows what lies under it.
+                onArcAction(action)
+            },
+            onOpenPlayer = { pkg ->
+                playerIntent(context, pkg)?.let { try { context.startActivity(it) } catch (_: ActivityNotFoundException) { } }
+                expanded = false
+            },
+            onClose = { expanded = false })
+        arc?.let { content ->
+            val shown = content.sets.getOrNull(arcSet ?: arcShown)
+            GlobalArc(shown, content.globalLook, camera, arcSet != null, arcPick, flowSteps,
+                onSlot = if (arcAssisted) { i -> val chosen = shown?.slots?.getOrNull(i); closeArc(); chosen?.let { onArcAction(it.action) } } else null,
+                onDismiss = ::closeArc)
         }
-    }
-}
-
-@Composable
-private fun PulsePanel(alarm: Long?, battery: Battery?, holeRadius: Dp, header: Dp, onClose: () -> Unit) {
-    val context = LocalContext.current
-    val ink = LocalInk.current
-    val manager = remember(context) { context.getSystemService(CameraManager::class.java) }
-    val camera = remember(manager) { manager?.let(::torchCamera) }
-    var torch by remember { mutableStateOf(false) }
-    DisposableEffect(manager, camera) {
-        val callback = object : CameraManager.TorchCallback() {
-            override fun onTorchModeChanged(cameraId: String, enabled: Boolean) { if (cameraId == camera) torch = enabled }
-        }
-        if (camera != null) manager?.registerTorchCallback(callback, Handler(Looper.getMainLooper()))
-        onDispose { manager?.unregisterTorchCallback(callback) }
-    }
-    val zone = ZoneId.systemDefault()
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(ink.night)
-        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
-        .padding(start = 22.dp, end = 14.dp, bottom = 10.dp)) {
-        // Keep the camera and the status bar clear: the panel grows out of the lens, the system icons stay on top.
-        Box(Modifier.fillMaxWidth().height(header).drawBehind {
-            drawCircle(ink.onNight.copy(alpha = .18f), holeRadius.toPx() + 4.dp.toPx(), Offset(size.width / 2f - 4.dp.toPx(), holeRadius.toPx() + 6.dp.toPx()),
-                style = Stroke(1.dp.toPx()))
-        })
-        val alarmRow = alarm?.let {
-            val at = Instant.ofEpochMilli(it).atZone(zone)
-            val day = when (at.toLocalDate()) {
-                LocalDate.now(zone) -> stringResource(R.string.today)
-                LocalDate.now(zone).plusDays(1) -> stringResource(R.string.tomorrow)
-                else -> at.format(DateTimeFormatter.ofPattern("EEE d. M."))
-            }
-            at.toLocalTime().format(DateTimeFormatter.ofPattern("H:mm")) to day
-        }
-        PanelRow(Glyph.Bell, alarmRow?.first ?: stringResource(R.string.no_alarm), alarmRow?.second, onClick = {
-            try {
-                context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            } catch (_: ActivityNotFoundException) {
-            }
-            onClose()
-        })
-        battery?.let {
-            PanelRow(Glyph.Bolt, "${it.percent} %", stringResource(if (it.charging) R.string.charging else R.string.on_battery), onClick = null)
-        }
-        if (camera != null) {
-            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(torch, role = Role.Switch) { on ->
-                try {
-                    manager?.setTorchMode(camera, on)
-                } catch (_: CameraAccessException) {
-                } catch (_: IllegalArgumentException) {
-                }
-            }.semantics { stateDescription = if (torch) "on" else "off" }, verticalAlignment = Alignment.CenterVertically) {
-                HomeGlyph(Glyph.Torch, null, tint = ink.onNight, size = 20.dp)
-                Text(stringResource(R.string.torch), Modifier.weight(1f).padding(start = 14.dp), style = InkText.body, color = ink.onNight)
-                Canvas(Modifier.padding(end = 8.dp).size(24.dp)) {
-                    val r = size.minDimension / 2f - 1.5.dp.toPx()
-                    drawCircle(if (torch) ink.accent else ink.onNight.copy(alpha = .5f), r, style = Stroke(1.5.dp.toPx()))
-                    if (torch) drawCircle(ink.accent, r * .55f)
-                }
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Quiet(stringResource(R.string.collapse), onClose, Modifier.padding(end = 4.dp), color = ink.onNight.copy(alpha = .7f))
-        }
-    }
-}
-
-@Composable
-internal fun PanelRow(glyph: Glyph, title: String, detail: String?, onClick: (() -> Unit)?) {
-    val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
-        verticalAlignment = Alignment.CenterVertically) {
-        HomeGlyph(glyph, null, tint = ink.onNight, size = 20.dp)
-        Text(title, Modifier.padding(start = 14.dp), style = InkText.item.copy(fontSize = 22.sp), color = ink.onNight)
-        Spacer(Modifier.width(10.dp))
-        if (detail != null) Text(detail, style = InkText.small.copy(fontWeight = FontWeight.Normal), color = ink.onNight.copy(alpha = .66f))
     }
 }

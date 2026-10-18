@@ -1,5 +1,26 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
+import kotlin.math.roundToInt
+import dev.intelia.launcher.data.iconLook
+import dev.intelia.launcher.data.IconOverride
+import dev.intelia.launcher.data.HomeItem
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import dev.intelia.launcher.pulse.MediaWatch
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
+import dev.intelia.launcher.pulse.PulseMode
+import dev.intelia.launcher.data.pulseMode
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -45,16 +66,17 @@ import dev.intelia.launcher.data.ThemeMode
 /** Changes the stored settings at once (not part of the layout's undo history). */
 typealias SettingsEdit = ((LauncherSettings) -> LauncherSettings) -> Unit
 
-/** The icon style for all of Home, Search, drawer and ARC (Settings › Ikony). */
+/** The icon style for all of Home, Search, drawer and ARC, and the disc shape where the style has a disc. */
 @Composable
 fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
-    Chips(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink),
-        IconStyle.Veil to stringResource(R.string.look_veil), IconStyle.Tinted to stringResource(R.string.icons_tinted)),
-        settings.iconStyle) { v -> set { it.copy(iconStyle = v) } }
+    ChoiceSetting(stringResource(R.string.icons_style), listOf(IconStyle.System to stringResource(R.string.icons_system),
+        IconStyle.Ink to stringResource(R.string.icons_ink), IconStyle.Veil to stringResource(R.string.look_veil),
+        IconStyle.Tinted to stringResource(R.string.icons_tinted)), settings.iconStyle, { v -> set { it.copy(iconStyle = v) } },
+        anchor = StudioTarget.Icons.anchor)
     if (settings.iconStyle == IconStyle.Veil || settings.iconStyle == IconStyle.Tinted) {
-        Chips(listOf(IconShape.Circle to stringResource(R.string.shape_circle), IconShape.Squircle to stringResource(R.string.shape_squircle),
-            IconShape.Rounded to stringResource(R.string.shape_rounded), IconShape.Drop to stringResource(R.string.shape_drop)),
-            settings.iconShape) { v -> set { it.copy(iconShape = v) } }
+        ChoiceSetting(stringResource(R.string.icons_shape), listOf(IconShape.Circle to stringResource(R.string.shape_circle),
+            IconShape.Squircle to stringResource(R.string.shape_squircle), IconShape.Rounded to stringResource(R.string.shape_rounded),
+            IconShape.Drop to stringResource(R.string.shape_drop)), settings.iconShape, { v -> set { it.copy(iconShape = v) } })
     }
 }
 
@@ -77,11 +99,12 @@ internal fun themeName(t: ThemeMode) = when (t) {
  */
 @Composable
 fun MaterialChips(settings: LauncherSettings, set: SettingsEdit) {
-    Chips(listOf<Pair<Glass?, String>>(Glass.Veil to stringResource(R.string.look_veil), Glass.Crystal to stringResource(R.string.glass_crystal),
-        Glass.Frost to stringResource(R.string.glass_frost), Glass.Liquid to stringResource(R.string.glass_liquid), null to stringResource(R.string.look_solid)),
-        settings.glass.takeUnless { settings.veilSolid }) { v ->
-        set { if (v == null) it.copy(veilSolid = true) else it.copy(glass = v, veilSolid = false) }
-    }
+    ChoiceSetting(stringResource(R.string.look_material), listOf<Pair<Glass?, String>>(Glass.Veil to stringResource(R.string.look_veil),
+        Glass.Crystal to stringResource(R.string.glass_crystal), Glass.Frost to stringResource(R.string.glass_frost),
+        Glass.Liquid to stringResource(R.string.glass_liquid), null to stringResource(R.string.look_solid)),
+        settings.glass.takeUnless { settings.veilSolid }, { v ->
+            set { if (v == null) it.copy(veilSolid = true) else it.copy(glass = v, veilSolid = false) }
+        }, anchor = StudioTarget.Material.anchor)
 }
 
 /** The fold title each Look part is keyed by; Studio's search opens a part by it. */
@@ -96,25 +119,48 @@ fun lookFoldTitle(target: StudioTarget): String? = when (target) {
 }
 
 /**
- * Every app and FLOW icon at once (Settings › Ikony): style and disc shape, one size for all of Home (up to
+ * Every app and FLOW icon at once (Settings › Vzhled › Ikony): style and disc shape, one size for all of Home (up to
  * [LauncherSettings.MAX_ICON]) and their names, applied to the active layout at once.
  */
 @Composable
 fun IconSettings(settings: LauncherSettings, set: SettingsEdit) {
     IconStyleChips(settings, set)
-    AllIconsSize(settings, set)
-    val icons = settings.home.activeLayout().items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
-    Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on ->
-        set { it.copy(home = it.home.withIcons { i -> i.copy(label = on) }) }
+    SettingBlock {
+        AllIconsSize(settings, set)
+        // S2: colour and opacity of every Home icon (style and shape are chosen above, for the whole launcher).
+        val global = HomeItem("", ItemKind.App).iconLook(settings)
+        if (settings.iconStyle != IconStyle.System) {
+            Kick(stringResource(R.string.inspect_color))
+            IconTintChips(global.tint) { v -> set { it.copy(iconTint = v) } }
+        }
+        val pct = (settings.iconAlpha * 100).roundToInt()
+        SliderRow(stringResource(R.string.inspect_opacity), pct.toFloat(), IconOverride.MIN_ALPHA * 100, 100f, 5f, "$pct %") { v ->
+            set { it.copy(iconAlpha = v / 100f) }
+        }
     }
+    // The switch sets the default and drops each icon's own choice, so all of them really follow it, as the size does.
+    SwitchRow(stringResource(R.string.look_labels), settings.labels.show, { on ->
+        set { it.copy(labels = it.labels.copy(show = on), home = it.home.withIcons { i -> i.copy(label = null) }) }
+    }, detail = stringResource(R.string.labels_note))
+    if (settings.labels.show) SettingBlock { LabelStyleControls(settings.labels) { v -> set { it.copy(labels = v.sanitized()) } } }
 }
 
-/** The look of the whole launcher — panels, wallpaper, theme, colours — in one place, Settings › Vzhled; one part open at a time. */
+/** The look of the whole launcher in one place, Settings › Vzhled: theme and colours, material, wallpaper, text, icons. */
 @Composable
 fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
-    Fold(stringResource(R.string.look_material), stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass))) {
+    VeilGroup(stringResource(R.string.look_group_theme)) {
+        SettingBlock(StudioTarget.Theme.anchor) {
+            Text(stringResource(R.string.theme), Modifier.padding(start = 4.dp, top = 4.dp), style = InkText.body.copy(fontSize = 16.sp))
+            ThemeTiles(settings.theme, settings) { v -> set { it.copy(theme = v) } }
+        }
+        SettingBlock(StudioTarget.Colors.anchor) {
+            Text(stringResource(R.string.palette_section), Modifier.padding(start = 4.dp, top = 4.dp), style = InkText.body.copy(fontSize = 16.sp))
+            PaletteEditor(settings, set)
+        }
+    }
+    VeilGroup(stringResource(R.string.look_material)) {
         MaterialChips(settings, set)
-        if (!settings.veilSolid) {
+        if (!settings.veilSolid) SettingBlock {
             val shift = settings.veilShift
             SliderRow(stringResource(R.string.look_density), shift.toFloat(), -LauncherSettings.MAX_VEIL_SHIFT.toFloat(),
                 LauncherSettings.MAX_VEIL_SHIFT.toFloat(), 1f, (if (shift > 0) "+" else "") + "$shift %") { v ->
@@ -122,25 +168,72 @@ fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
             }
         }
         // The accent edge exists on Veil and on matte panels; the other glasses have no outline to light.
-        if (settings.veilSolid || settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v ->
+        if (settings.veilSolid || settings.glass == Glass.Veil) SwitchRow(stringResource(R.string.look_edge), settings.veilEdge, { v ->
             set { it.copy(veilEdge = v) }
-        }
+        })
     }
     val wall = Wallpapers.byId(settings.wallpaper)
-    Fold(stringResource(R.string.wallpaper), stringResource(wallName(wall?.id))) {
-        WallpaperChoice(settings.wallpaper) { id ->
-            set { it.copy(wallpaper = id, wallDim = it.wallDim.coerceAtMost(Wallpapers.maxDim(Wallpapers.byId(id)))) }
+    VeilGroup(stringResource(R.string.wallpaper)) {
+        SettingBlock(StudioTarget.Wallpaper.anchor) {
+            WallpaperChoice(settings.wallpaper) { id ->
+                set { it.copy(wallpaper = id, wallDim = it.wallDim.coerceAtMost(Wallpapers.maxDim(Wallpapers.byId(id)))) }
+            }
+            SliderRow(stringResource(R.string.wallpaper_dim), settings.wallDim.toFloat(), 0f, Wallpapers.maxDim(wall).toFloat(), 5f,
+                "${settings.wallDim} %") { v -> set { it.copy(wallDim = v.toInt()) } }
+            if (wall != null) WallpaperExportRow(wall, settings.wallDim)
         }
-        SliderRow(stringResource(R.string.wallpaper_dim), settings.wallDim.toFloat(), 0f, Wallpapers.maxDim(wall).toFloat(), 5f,
-            "${settings.wallDim} %") { v -> set { it.copy(wallDim = v.toInt()) } }
-        if (wall != null) WallpaperExportRow(wall, settings.wallDim)
     }
-    Fold(stringResource(R.string.theme), stringResource(themeName(settings.theme))) {
-        Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
-            ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
+    VeilGroup(stringResource(R.string.look_group_text)) {
+        ChoiceSetting(stringResource(R.string.text_size), LauncherSettings.TEXT_SCALES.map { it to "${(it * 100).toInt()} %" }, settings.textScale,
+            { v -> set { it.copy(textScale = v) } }, anchor = StudioTarget.TextSize.anchor)
     }
-    Fold(stringResource(R.string.palette_section), stringResource(if (settings.palette.unified) R.string.palette_one else R.string.palette_places)) {
-        PaletteEditor(settings, set)
+    VeilGroup(stringResource(R.string.icons)) { IconSettings(settings, set) }
+}
+
+/**
+ * Motiv as preview tiles (M2): each tile is a tiny Studio sheet drawn with that theme's own ink and the owner's accent,
+ * Systém split light / dark. Radio group; the chosen tile is ringed in the accent.
+ */
+@Composable
+private fun ThemeTiles(chosen: ThemeMode, settings: LauncherSettings, onPick: (ThemeMode) -> Unit) {
+    val ink = LocalInk.current
+    val light = inkPalette(false, mainAccent(settings, false))
+    val dark = inkPalette(true, mainAccent(settings, true))
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(ThemeMode.System to R.string.theme_system, ThemeMode.Light to R.string.theme_light, ThemeMode.Dark to R.string.theme_dark)
+            .forEach { (mode, name) ->
+                val on = mode == chosen
+                val shape = RoundedCornerShape(14.dp)
+                Column(Modifier.weight(1f).clip(shape).selectable(on, role = Role.RadioButton) { onPick(mode) }.padding(bottom = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    Canvas(Modifier.fillMaxWidth().height(84.dp).clip(shape)
+                        .border(if (on) 2.dp else 1.dp, if (on) ink.accent else ink.line, shape)) {
+                        when (mode) {
+                            ThemeMode.Light -> miniSheet(light)
+                            ThemeMode.Dark -> miniSheet(dark)
+                            ThemeMode.System -> {
+                                clipRect(right = size.width / 2) { miniSheet(light) }
+                                clipRect(left = size.width / 2) { miniSheet(dark) }
+                            }
+                        }
+                    }
+                    Text(stringResource(name), Modifier.padding(top = 6.dp), style = InkText.small, color = if (on) ink.ink else ink.muted,
+                        maxLines = 1)
+                }
+            }
+    }
+}
+
+/** A Studio sheet in miniature: paper, a title line, two rows and an accent switch. */
+private fun DrawScope.miniSheet(p: InkPalette) {
+    val u = size.width / 10f
+    drawRect(p.paper)
+    drawRoundRect(p.ink.copy(alpha = .75f), Offset(u, u * 1.2f), Size(u * 4.5f, u * .7f), CornerRadius(u * .35f))
+    repeat(2) { i ->
+        val y = u * (3f + i * 2.4f)
+        drawRoundRect(p.line, Offset(u * .6f, y - u * .5f), Size(u * 8.8f, u * 2f), CornerRadius(u * .6f))
+        drawRoundRect(p.muted, Offset(u * 1.2f, y + u * .2f), Size(u * 4f, u * .5f), CornerRadius(u * .25f))
+        drawRoundRect(if (i == 0) p.accent else p.faint, Offset(u * 6.6f, y), Size(u * 2.2f, u), CornerRadius(u * .5f))
     }
 }
 
@@ -235,24 +328,4 @@ private fun AllIconsSize(settings: LauncherSettings, set: SettingsEdit) {
 @Composable
 internal fun Kick(text: String) {
     Text(text.uppercase(), Modifier.padding(top = 10.dp, bottom = 2.dp), style = CrystalType.label, color = LocalCrystal.current.fg2)
-}
-
-/** PULSE (tap the camera ring in the editor, §5.5): the capsule's look and events; calibration lives in Studio. */
-@Composable
-fun PulseInspector(settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit) {
-    val c = LocalCrystal.current
-    Toggle(stringResource(R.string.pulse_toggle), settings.pulse) { v -> set { it.copy(pulse = v) } }
-    if (!settings.pulse) return
-    SliderRow(stringResource(R.string.pulse_opacity), settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, 5f,
-        "${settings.pulseOpacity} %") { v -> set { it.copy(pulseOpacity = v.toInt()) } }
-    val events = listOf(settings.pulseEcho, settings.pulseCharging, settings.pulseAlarm).count { it }
-    Fold(stringResource(R.string.pulse_events), "$events / 3") {
-        Toggle(stringResource(R.string.pulse_echo), settings.pulseEcho) { v -> set { it.copy(pulseEcho = v) } }
-        Toggle(stringResource(R.string.pulse_charging), settings.pulseCharging) { v -> set { it.copy(pulseCharging = v) } }
-        Toggle(stringResource(R.string.pulse_alarm), settings.pulseAlarm) { v -> set { it.copy(pulseAlarm = v) } }
-        if (settings.pulseAlarm) Chips(listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours) { v ->
-            set { it.copy(pulseAlarmHours = v) }
-        }
-    }
-    Action(stringResource(R.string.pulse_lens), c.acc, onLens)
 }

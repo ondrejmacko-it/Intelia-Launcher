@@ -83,9 +83,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -134,6 +136,11 @@ fun SearchOverlay(
     onRun: (FlowAlias) -> Unit,
     onOptions: (AppEntry) -> Unit,
 ) {
+    // D20: while search is open no key is remapped, so nothing runs while typing.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        PulseAccessibilityService.typing = true
+        onDispose { PulseAccessibilityService.typing = false }
+    }
     val query by model.query.collectAsStateWithLifecycle()
     val results by model.results.collectAsStateWithLifecycle()
     val flows by model.flowMatches.collectAsStateWithLifecycle()
@@ -182,7 +189,8 @@ fun SearchOverlay(
 
     // Home under Search: the shared Focus depth (blurred, scaled, tinted), never replaced (§5.6, D15).
     VeilDepthSource(VeilLevel.Focus) { morph.value }
-    Box(Modifier.fillMaxSize()) {
+    val pane = stringResource(R.string.search)
+    Box(Modifier.fillMaxSize().semantics { paneTitle = pane }) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = morph.value }.background(veilScrim())
             .pointerInput(Unit) { detectTapGestures { leave() } })
         Box(Modifier.fillMaxSize()) {
@@ -206,7 +214,7 @@ fun SearchOverlay(
 
 /** The Veil pill: drawn from the LENS ring (morph 0) to the full field (morph 1); layout never changes. */
 @Composable
-private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float, lensDx: Dp, exactMatch: Boolean,
+internal fun SearchField(query: String, focus: FocusRequester, morph: () -> Float, lensDx: Dp, exactMatch: Boolean,
                         onChange: (String) -> Unit, onSubmit: () -> Unit) {
     val c = LocalCrystal.current
     val tokens = veil(VeilLevel.Dense)
@@ -236,8 +244,11 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
         }
         .padding(start = 18.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).graphicsLayer { alpha = ((morph() - .5f) * 2f).coerceIn(0f, 1f) }, verticalAlignment = Alignment.CenterVertically) {
-            HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 20.dp)
-            BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).focusRequester(focus).semantics { contentDescription = description },
+            HomeGlyph(Glyph.Search, null, tint = c.acc, size = 20.dp)
+            // A preview shows the text only: no field that could take focus or bring up the keyboard.
+            if (LocalPreviewMode.current) Text(query, Modifier.weight(1f).padding(start = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp),
+                color = c.fg, maxLines = 1)
+            else BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).focusRequester(focus).semantics { contentDescription = description },
                 singleLine = true, textStyle = CrystalType.body.copy(fontSize = 17.sp, color = c.fg), cursorBrush = SolidColor(c.acc),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { onSubmit() }),
                 decorationBox = { inner ->
@@ -247,14 +258,14 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
                     }
                 })
             if (exactMatch) Text(stringResource(R.string.enter_runs).uppercase(), Modifier.padding(horizontal = 6.dp), style = CrystalType.label, color = c.acc)
-            if (query.isNotEmpty()) IconAction(Glyph.Close, stringResource(R.string.clear), { onChange("") }, tint = c.fg2)
+            if (query.isNotEmpty() && !LocalPreviewMode.current) IconAction(Glyph.Close, stringResource(R.string.clear), { onChange("") }, tint = c.fg2)
         }
     }
 }
 
 /** Veil Dense card of at most [SearchPicks.MAX] rows, first row (Enter) nearest the field and lit in the accent. */
 @Composable
-private fun ResultsCard(
+internal fun ResultsCard(
     query: String,
     rows: List<SearchPick<AppEntry>>,
     resolve: (String) -> AppEntry?,
@@ -389,6 +400,7 @@ fun DrawerOverlay(
     BackHandler(enabled = open) { leave() }
 
     VeilDepthSource(VeilLevel.Focus) { shown.value }
+    val drawerPane = stringResource(R.string.apps)
     // Parked: off-screen, not drawn, out of the accessibility tree and of hit testing, so Home works as if absent.
     Box(Modifier.fillMaxSize().then(if (parked) Modifier.offset { IntOffset(0, 100_000) }.graphicsLayer { alpha = 0f }
         .clearAndSetSemantics { } else Modifier)) {
@@ -399,6 +411,7 @@ fun DrawerOverlay(
             .graphicsLayer { alpha = shown.value; translationY = (1f - shown.value) * 32.dp.toPx()
                 compositingStrategy = CompositingStrategy.ModulateAlpha }
             .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Bottom)
+            .semantics { if (open) paneTitle = drawerPane }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}) {
             CompositionLocalProvider(LocalInk provides veilInk()) {
                 Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 6.dp, top = 6.dp).heightIn(min = 56.dp),
@@ -412,11 +425,11 @@ fun DrawerOverlay(
                 Box(Modifier.weight(1f).fillMaxWidth()) { Drawer(apps, favorites, list, onLaunch, onOptions) }
                 // The field opens Search in place: same pill, same spot at the thumb.
                 val solid = veil(VeilLevel.Focus).bottom.copy(alpha = 1f)
-                Row(Modifier.fillMaxWidth().padding(10.dp).height(52.dp).clip(CircleShape)
-                    .background(solid).background(c.fg.copy(alpha = .06f))
+                Row(Modifier.fillMaxWidth().padding(10.dp).height(52.dp).clip(CircleShape).background(solid)
+                    .veilPane(CircleShape, LocalInk.current)
                     .clickable(role = Role.Button, onClick = onSearch).padding(horizontal = 18.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 20.dp)
+                    HomeGlyph(Glyph.Search, null, tint = c.acc, size = 20.dp)
                     Text(stringResource(R.string.search), Modifier.padding(start = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg3)
                 }
             }
@@ -439,7 +452,7 @@ internal fun AppRow(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit,
         onLongClickLabel = stringResource(R.string.app_options), onClick = onClick, onLongClick = onLongClick)
         .padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (letter != null) Text(letter, Modifier.width(26.dp).semantics { hideFromAccessibility() },
-            style = CrystalType.label.copy(letterSpacing = 0.sp), color = ink.faint)
+            style = CrystalType.label.copy(letterSpacing = 0.sp), color = ink.accent.copy(alpha = .75f))
         AppIcon(app, Modifier.size(32.dp))
         Text(app.label, Modifier.padding(start = 16.dp).weight(1f), style = CrystalType.body.copy(fontSize = 17.sp),
             color = if (app.suspended) ink.faint else ink.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -456,22 +469,26 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, state: LazyL
     val haptics = rememberInkHaptics()
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp)) {
-            Text(stringResource(R.string.mine).uppercase(), Modifier.padding(start = 24.dp, bottom = 10.dp), style = CrystalType.label, color = ink.muted)
+            Text(stringResource(R.string.mine).uppercase(), Modifier.padding(start = 24.dp, bottom = 8.dp),
+                style = CrystalType.label.copy(letterSpacing = 1.4.sp), color = ink.accent.copy(alpha = .9f))
             if (favorites.isEmpty()) Text(stringResource(R.string.mine_empty), Modifier.padding(horizontal = 24.dp),
                 style = CrystalType.caption, color = ink.muted)
-            else Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+            // Favourites sit on one pane of Veil glass, like a Studio group.
+            else Row(Modifier.padding(horizontal = 12.dp).fillMaxWidth().veilPane(RoundedCornerShape(22.dp), ink)
+                .horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 8.dp)) {
                 favorites.forEach { app ->
                     Column(Modifier.width(72.dp).combinedClickable(role = Role.Button,
                         onLongClickLabel = stringResource(R.string.app_options), onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
                         .padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AppIcon(app, Modifier.size(44.dp))
-                        Text(app.label, Modifier.padding(top = 6.dp), style = CrystalType.caption.copy(fontSize = 11.sp, lineHeight = 14.sp),
-                            color = ink.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // A 4 dp gutter each side: at 130 % text, neighbouring names end in an ellipsis instead of touching.
+                        Text(app.label, Modifier.fillMaxWidth().padding(top = 6.dp, start = 4.dp, end = 4.dp),
+                            style = CrystalType.caption.copy(fontSize = 11.sp, lineHeight = 14.sp), color = ink.muted, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                     }
                 }
             }
         }
-        Hairline()
         BoxWithConstraints(Modifier.weight(1f)) {
         // The rail needs room for 27 legible letters; above a raised keyboard it steps aside.
         val rail = maxHeight >= 380.dp

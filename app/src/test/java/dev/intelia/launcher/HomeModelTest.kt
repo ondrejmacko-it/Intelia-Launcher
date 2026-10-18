@@ -1,5 +1,14 @@
 package dev.intelia.launcher
 
+import org.junit.Assert.assertNull
+import dev.intelia.launcher.data.iconLook
+import dev.intelia.launcher.data.labelStyle
+import dev.intelia.launcher.data.labelShown
+import dev.intelia.launcher.data.IconStyle
+import dev.intelia.launcher.data.IconLook
+import dev.intelia.launcher.data.IconOverride
+import dev.intelia.launcher.data.LabelOverride
+import dev.intelia.launcher.data.LabelStyle
 import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.GridSpec
@@ -133,8 +142,8 @@ class HomeModelTest {
             HomeItem("a", target = "a/A", anchor = Anchor.cell(0, 0), sizeDp = 56), HomeItem("b", target = "b/B", anchor = Anchor.cell(1, 0))))
         val home = HomeLayouts("mine", listOf(user))
         val named = home.withIcons { it.copy(label = true, sizeDp = 0) }.activeLayout()
-        assertTrue(named.items.filter { it.kind == ItemKind.App }.all { it.label && it.sizeDp == 0 })
-        assertFalse(named.items.first { it.kind == ItemKind.Clock }.label)
+        assertTrue(named.items.filter { it.kind == ItemKind.App }.all { it.label == true && it.sizeDp == 0 })
+        assertNull(named.items.first { it.kind == ItemKind.Clock }.label)
         // No icon changes → the document stays as it was.
         assertTrue(home.withIcons { it } === home)
         // On the linked preset a real change becomes the own copy, as the editor's ✓ does.
@@ -272,8 +281,51 @@ class HomeModelTest {
         assertEquals("", clock.background)
         for (base in listOf(LayoutBase.Essentials, LayoutBase.Balanced)) {
             val items = HomeTemplates.build(base, (1..8).map { "p$it/A" }, showClock = true, showDate = true)
-            assertTrue(items.none { it.label })
+            assertTrue(items.none { it.label == true })
         }
+    }
+
+    @Test fun labelsMigrateToAGlobalDefaultWithExceptions() {
+        fun doc(vararg labels: Boolean) = LauncherSettings(schema = 2, home = HomeLayouts("mine", listOf(LayoutSpec("mine", "Moje",
+            items = labels.mapIndexed { i, on -> HomeItem("a$i", target = "p$i/A", anchor = Anchor.cell(i, 0), label = on) } +
+                HomeItem("clock", ItemKind.Clock, Anchor.free(.5f, 0f), label = true)))))
+        val all = doc(true, true, true).sanitized()
+        assertTrue(all.labels.show)
+        assertTrue(all.home.activeLayout().items.all { it.label == null })
+        val mixed = doc(true, false, false).sanitized()
+        assertFalse(mixed.labels.show)
+        val items = mixed.home.activeLayout().items.associateBy { it.id }
+        assertEquals(true, items.getValue("a0").label)
+        assertNull(items.getValue("a1").label)
+        assertTrue(items.getValue("a0").labelShown(mixed.labels) && !items.getValue("a1").labelShown(mixed.labels))
+        // Once migrated nothing moves again; an explicit "off" against a global "on" stays an exception.
+        val again = mixed.copy(labels = mixed.labels.copy(show = true),
+            home = mixed.home.withIcons { if (it.id == "a1") it.copy(label = false) else it }).sanitized()
+        assertEquals(false, again.home.activeLayout().items.single { it.id == "a1" }.label)
+        assertEquals(again, SettingsCodec.decode(SettingsCodec.encode(again)))
+    }
+
+    @Test fun iconAndLabelLooksAreBoundedAndResolveOverGlobals() {
+        val s = LauncherSettings(iconSize = 48, iconTint = "Neon", iconAlpha = 0f, labels = LabelStyle(sizeSp = 99, weight = 1234, gap = -3, lines = 9),
+            home = HomeLayouts("mine", listOf(LayoutSpec("mine", items = listOf(
+                HomeItem("a", target = "a/A", anchor = Anchor.cell(0, 0), icon = IconOverride(alpha = 5f, tint = "Accent"),
+                    labelLook = LabelOverride(lines = 2, sizeSp = 1)),
+                HomeItem("b", target = "b/B", anchor = Anchor.cell(1, 0), icon = IconOverride(), labelLook = LabelOverride()),
+                HomeItem("clock", ItemKind.Clock, Anchor.free(.5f, 0f), icon = IconOverride(style = IconStyle.Ink)),
+            ))))).sanitized()
+        assertEquals("", s.iconTint)
+        assertEquals(IconOverride.MIN_ALPHA, s.iconAlpha, 1e-6f)
+        assertEquals(LabelStyle(sizeSp = LabelStyle.MAX_SIZE, weight = 900, gap = 0, lines = LabelStyle.MAX_LINES), s.labels)
+        val items = s.home.activeLayout().items.associateBy { it.id }
+        val a = items.getValue("a")
+        assertEquals(IconLook(48, s.iconStyle, s.iconShape, "Accent", 1f), a.iconLook(s))
+        assertEquals(2, a.labelStyle(s.labels).lines)
+        assertEquals(LabelStyle.MIN_SIZE, a.labelStyle(s.labels).sizeSp)
+        // Empty overrides are dropped; a clock has no icon look.
+        assertNull(items.getValue("b").icon)
+        assertNull(items.getValue("b").labelLook)
+        assertNull(items.getValue("clock").icon)
+        assertEquals(s, SettingsCodec.decode(SettingsCodec.encode(s)))
     }
 }
 

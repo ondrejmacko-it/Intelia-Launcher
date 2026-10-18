@@ -1,6 +1,10 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.Canvas
+import dev.intelia.launcher.search.AppSearch
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.height
@@ -60,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import dev.intelia.launcher.R
+import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.data.DockEdge
 import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.LensAt
@@ -79,6 +84,9 @@ import androidx.compose.foundation.verticalScroll
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
+import dev.intelia.launcher.data.iconLook
+import dev.intelia.launcher.data.labelShown
+import dev.intelia.launcher.data.labelStyle
 import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.ItemTint
@@ -410,10 +418,14 @@ internal fun <T> Chips(options: List<Pair<T, String>>, selected: T, family: (T) 
         horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { (value, label) ->
             val on = value == selected
-            Text(label, Modifier.clip(CircleShape).then(if (on) Modifier.background(c.acc) else Modifier.border(1.dp, c.fg3, CircleShape))
+            // The same soft tab as Studio's VeilChoice, a size smaller for the floating cards.
+            val shape = RoundedCornerShape(12.dp)
+            Text(label, Modifier.clip(shape).background(if (on) c.acc.copy(alpha = if (c.dark) .30f else .22f) else c.fg.copy(alpha = .06f))
+                .then(if (on) Modifier.border(1.dp, c.acc.copy(alpha = .65f), shape) else Modifier)
                 .selectable(on, role = Role.RadioButton) { onSelect(value) }.heightIn(min = 36.dp).padding(horizontal = 12.dp, vertical = 9.dp),
-                style = CrystalType.body.copy(fontSize = 13.sp, lineHeight = 16.sp, fontFamily = family(value) ?: CrystalType.body.fontFamily),
-                color = if (on) c.accInk else c.fg, maxLines = 1)
+                style = CrystalType.body.copy(fontSize = 13.sp, lineHeight = 16.sp, fontFamily = family(value) ?: CrystalType.body.fontFamily,
+                    fontWeight = if (on) androidx.compose.ui.text.font.FontWeight.SemiBold else null),
+                color = if (on) c.fg else c.fg2, maxLines = 1)
         }
     }
 }
@@ -557,19 +569,36 @@ private fun TrackingRow(state: HomeEditorState, item: HomeItem, onChange: () -> 
 
 /** App or FLOW on Home: its own size and label; moving step by step folded. Style and size of all icons live in Look. */
 @Composable
-fun ItemInspector(state: HomeEditorState, item: HomeItem, iconDefault: Int, onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
+fun ItemInspector(state: HomeEditorState, item: HomeItem, settings: LauncherSettings, onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
     val c = LocalCrystal.current
     // The card's header names the app; its options link sits on the right.
     if (onMore != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         Text(stringResource(R.string.inspect_more), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onMore)
             .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.acc)
     }
-    val size = item.iconDp(iconDefault)
+    val size = item.iconDp(settings.iconSize)
     SliderRow(stringResource(R.string.icon_this_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp",
         inherit = { InheritChip(ItemProp.Size, state, item, onChange) }) { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
-    Toggle(stringResource(R.string.inspect_label), item.label) { on -> state.edit(item.id, "label") { it.copy(label = on) }; onChange() }
+    // S2: the icon's look and its name follow Vzhled › Ikony until the item sets its own (Vlastní ↺ returns them).
+    Fold(stringResource(R.string.icon_look)) {
+        InheritLine(ItemProp.Icon, state, item, onChange)
+        val global = HomeItem("", ItemKind.App).iconLook(settings)
+        IconLookControls(item.iconLook(settings)) { look ->
+            state.edit(item.id, "icon") { it.copy(icon = iconOverride(look, global)) }; onChange()
+        }
+    }
+    InheritLine(ItemProp.Label, state, item, onChange)
+    Toggle(stringResource(R.string.inspect_label), item.labelShown(settings.labels)) { on ->
+        state.edit(item.id, "label") { it.copy(label = on.takeIf { v -> v != settings.labels.show }) }; onChange()
+    }
+    if (item.labelShown(settings.labels)) Fold(stringResource(R.string.labels_title)) {
+        InheritLine(ItemProp.LabelLook, state, item, onChange)
+        LabelStyleControls(item.labelStyle(settings.labels)) { style ->
+            state.edit(item.id, "labelLook") { it.copy(labelLook = labelOverride(style, settings.labels)) }; onChange()
+        }
+    }
     Fold(stringResource(R.string.inspect_move)) { MoveButtons { dx, dy -> state.nudge(item.id, dx, dy); onChange() } }
     Action(stringResource(R.string.inspect_remove), c.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }
@@ -753,34 +782,34 @@ fun AddMenu(at: Pt, screenW: Float, topLimit: Float, avoid: Zone?, onApp: () -> 
     }
 }
 
-/** A list of apps or FLOWs to add, on Veil Dense from the bottom. */
+/** A list of apps or FLOWs to add to Home: the shared [ActionPicker] with just those two sections. */
 @Composable
 fun AddPicker(title: String, apps: List<AppEntry>, flows: List<FlowAlias>, onApp: (AppEntry) -> Unit, onFlow: (FlowAlias) -> Unit, onDismiss: () -> Unit) {
-    val c = LocalCrystal.current
-    Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Bottom)
-            .padding(vertical = 12.dp)) {
-            Text(title, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
-            if (apps.isEmpty() && flows.isEmpty()) Text(stringResource(R.string.pick_none), Modifier.padding(20.dp),
-                style = CrystalType.body.copy(fontSize = 14.sp), color = c.fg2)
-            LazyColumn {
-                items(apps, key = { "a" + it.key }) { app ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onApp(app) }.padding(horizontal = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        AppIcon(app, Modifier.size(32.dp), tint = c.fg)
-                        Text(app.label, Modifier.padding(start = 14.dp), style = CrystalType.body.copy(fontSize = 15.sp), color = c.fg, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                items(flows, key = { "f" + it.id }) { flow ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onFlow(flow) }.padding(horizontal = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        HomeGlyph(Glyph.Flow, null, tint = c.fg, size = 24.dp)
-                        Text(flow.name, Modifier.padding(start = 18.dp), style = CrystalType.body.copy(fontSize = 15.sp), color = c.fg, maxLines = 1)
-                    }
-                }
-            }
+    ActionPicker(title, apps, flows, onPick = { action ->
+        when (action) {
+            is Action.App -> apps.firstOrNull { it.key == action.component }?.let(onApp)
+            is Action.Flow -> flows.firstOrNull { it.id == action.id }?.let(onFlow)
+            else -> Unit
         }
+    }, onDismiss = onDismiss)
+}
+
+internal const val PICKER_FILTER_FROM = 8
+
+/** The picker's filter row: diacritics-insensitive, the same ranking as Search; never runs anything. */
+@Composable
+internal fun PickerFilter(value: String, hint: String? = null, onChange: (String) -> Unit) {
+    val c = LocalCrystal.current
+    val label = hint ?: stringResource(R.string.flow_find_app)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp).heightIn(min = 48.dp).clip(CircleShape)
+        .background(c.fg.copy(alpha = 0.06f)).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 18.dp)
+        BasicTextField(value, onChange, Modifier.weight(1f).padding(start = 10.dp).semantics { contentDescription = label }, singleLine = true,
+            cursorBrush = SolidColor(c.acc), textStyle = CrystalType.body.copy(fontSize = 15.sp, color = c.fg),
+            decorationBox = { inner ->
+                if (value.isEmpty()) Text(label, style = CrystalType.body.copy(fontSize = 15.sp), color = c.fg3)
+                inner()
+            })
     }
 }
 
@@ -902,32 +931,30 @@ fun ConfirmDialog(title: String, action: String, onConfirm: () -> Unit, onDismis
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().veilSurface(veil(VeilLevel.Dense), VeilOrigin.Top)
             .padding(horizontal = 20.dp, vertical = 18.dp)) {
-            Text(title, Modifier.padding(bottom = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
+            Text(title, Modifier.padding(bottom = 12.dp).semantics { heading() }, style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
             Action(stringResource(R.string.preset_cancel), c.fg2, onDismiss)
             Action(action, c.acc, onConfirm)
         }
     }
 }
 
-/** Faint ARC rings around LENS while its inspector is open (radii 108 / 180 / 250 dp, as on the phone). */
+/** The faint wide ARC above LENS while its inspector is open: the arc and slots ARC would really open with LENS here. */
 @Composable
-fun GhostArc(lens: Pt, rings: ArcRings, modifier: Modifier = Modifier, edge: DockEdge = DockEdge.Bottom) {
+fun GhostArc(lens: Pt, bow: ArcBow, modifier: Modifier = Modifier, edge: DockEdge = DockEdge.Bottom) {
     val c = LocalCrystal.current
     Canvas(modifier) {
         val o = Offset(lens.x * density, lens.y * density)
         val ink = c.fg.copy(alpha = .22f)
-        // The arcs ARC would really open with LENS here: each ring's span and its slots, clipped by the edges.
-        rings.angles.forEachIndexed { ring, angles ->
-            if (angles.isEmpty()) return@forEachIndexed
-            val r = rings.radius(ring) * density
-            val from = angles.min()
-            val to = angles.max()
-            drawArc(ink, -90f + Dock.degrees(edge) + from - 6f, to - from + 12f, false, Offset(o.x - r, o.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
-            angles.indices.forEach { i ->
-                val (lx, ly) = rings.position(ring, i)
-                val p = Dock.toScreen(edge, lx, ly)
-                drawCircle(ink, 3.dp.toPx(), Offset(o.x + p.x * density, o.y + p.y * density))
-            }
+        if (bow.angles.isEmpty()) return@Canvas
+        val r = bow.curve * density
+        val from = bow.angles.first()
+        val to = bow.angles.last()
+        val c0 = Dock.toScreen(edge, 0f, bow.drop).let { Offset(o.x + it.x * density, o.y + it.y * density) }
+        drawArc(ink, -90f + Dock.degrees(edge) + from - 3f, to - from + 6f, false, Offset(c0.x - r, c0.y - r), Size(2 * r, 2 * r), style = Stroke(1.dp.toPx()))
+        (0 until bow.count).forEach { i ->
+            val (lx, ly) = bow.position(i)
+            val p = Dock.toScreen(edge, lx, ly)
+            drawCircle(ink, 3.dp.toPx(), Offset(o.x + p.x * density, o.y + p.y * density))
         }
     }
 }

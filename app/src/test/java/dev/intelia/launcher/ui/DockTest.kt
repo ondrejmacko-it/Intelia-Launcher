@@ -121,4 +121,20 @@ class DockTest {
         val s = SettingsCodec.decode("{\"schema\":2,\"home\":{\"active\":\"mine\",\"layouts\":[{\"id\":\"mine\",\"dock\":{\"gap\":1,\"pitch\":500,\"spread\":true}}]}}")
         assertEquals(DockSpec(gap = DockSpec.MIN_GAP, pitch = DockSpec.MAX_PITCH, spread = true), s.home.activeLayout().dock)
     }
+
+    @Test fun lensGivesWayToItsNeighbours() {
+        val lens = Pt(160f, 700f)
+        // Nothing near: the full 84 × 100 dp.
+        assertEquals(LensTouch.Default, Dock.lensTouch(lens, false, emptyList()))
+        // The dock camera 62 dp to the right keeps its whole 48 dp target; LENS gives way on that side only.
+        assertEquals(LensTouch(42f, 50f, 38f, 50f), Dock.lensTouch(lens, false, listOf(Pt(222f, 700f) to 48f)))
+        // A big icon (76 dp target) 58 dp above LENS (the owner's Home, S4.4): LENS's top comes down to it.
+        assertEquals(LensTouch(42f, 24f, 42f, 50f), Dock.lensTouch(lens, false, listOf(Pt(160f, 642f) to 76f)))
+        // Never below the minimum, even when a neighbour sits on top of LENS.
+        val t = Dock.lensTouch(lens, false, listOf(Pt(170f, 700f) to 48f))
+        assertTrue(t.width >= Dock.MIN_LENS_TOUCH && t.height >= Dock.MIN_LENS_TOUCH)
+        // A side row runs down the edge: LENS is 100 wide and 84 tall there.
+        val side = Dock.lensTouch(lens, true, emptyList())
+        assertEquals(100f to 84f, side.width to side.height)
+    }
 }

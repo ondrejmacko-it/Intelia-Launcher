@@ -275,3 +275,106 @@ be chosen in that picker). Automatic sync needs, before any code: the `INTERNET`
 today), a Google Cloud project with an OAuth client owned by the owner, Credential Manager / Google Identity and a
 Drive `appDataFolder` client (licences and APK size to check), conflict rules between phones, and a list of what
 leaves the phone (D17 envelope: package names, FLOW names, wallpaper choice). Waiting for the owner's decision.
+
+## D20 — 2026-10-18 — Hardware keys: diagnostics only, foreground only (no new capability)
+M4 adds Studio › Ovládání › Gesta › Hardwarová tlačítka: a focused screen that shows which key codes reach
+Intelia (and consumes them there, so volume does not change); nothing runs and nothing is bound. Keys reach an
+app only while it is in front; Power, Home and Recents never do. Catching keys in other apps would need
+`flagRequestFilterKeyEvents` on the PULSE accessibility service, which lets it see every key press system-wide:
+not enabled, waiting for an explicit owner decision. `Trigger.Key` stays valid in the model, but no surface reads
+it until a key was proven here and the owner decided where it may act.
+
+## D20a — 2026-10-18 — APPROVED by the owner: hardware-key remap outside Intelia
+The owner asked for remapping "like Essential Key Remap", also outside Intelia. Scope:
+- `android:canRequestFilterKeyEvents="true"` on the PULSE accessibility service; `flagRequestFilterKeyEvents` is not
+  in the XML but requested at run time only while Studio › Ovládání › „Tlačítka i mimo Intelii“ is on **and** a
+  proven key has a binding. Off by default; the switch needs the PULSE service on.
+- The filter takes only keys with a binding; every other key goes on untouched. Back, Home, Power and Recents are
+  never accepted. Only key codes proven in the diagnostics page can be bound (`Controls.keys`, sanitized).
+- Nothing is logged or stored about presses; no text is ever seen, only key codes and two timers (hold, double).
+- Nothing runs while typing: while Intelia's search is open every key passes. Text fields of other apps cannot be
+  detected without window content, which the service does not request; that limit is accepted and stated here.
+- With the screen off (not interactive) every key passes; screen-off gestures are not offered.
+- Unbound presses of a taken key keep their job (volume step, media key); with only a double press bound a single
+  press acts one double-tap timeout later.
+
+## D21 — 2026-10-18 — APPROVED by the owner: notification access for Music PULSE (M3.2)
+The owner approved a `NotificationListenerService` (`pulse.PulseMediaListener`) for one purpose only: Android allows
+`MediaSessionManager.getActiveSessions` only to an enabled listener. Scope:
+- The listener has no code beyond telling `MediaWatch` it was bound; no notification is read, logged or stored.
+- Off twice by default: Studio › PULSE › „Ukázat, co hraje“ (`pulseMusic`, default false) and Android's notification
+  access, which only the owner switches on (Intelia opens the page, never toggles it).
+- Event driven: active-sessions listener + `MediaController.Callback`, no polling. Watched only while it can show:
+  Home while started (Jen na ploše), the PULSE service while Všude + unlocked + music on.
+- Controls exist only for actions the session reports (prev / play-pause / next, seek only with `ACTION_SEEK_TO`).
+- Accepted side effect: an enabled listener stays bound by the system, which keeps Intelia's process alive.
+
+## D22 — 2026-10-18 — APPROVED by the owner: Global ARC from the camera (M3.3)
+The owner chose: PULSE **hold → Global ARC** (set 1 by default, any set selectable in Studio › Ovládání), **tap then
+hold → torch**, everything rebindable. Scope:
+- New `Action.Arc(set)`; only `Trigger.Pulse(Hold | DoubleTapHold)` may carry it (`Controls.opensArc`, enforced in
+  `bind` and `sanitized`); it never sits in an ARC slot. A missing set falls back to the first set.
+- Geometry is ARC V2 `ArcBow` with LENS on the top edge (`GlobalArcGeometry`), one set (no room for dots/arrows above
+  the camera). Release on a slot runs it; release near the camera, a cancel or a second finger runs nothing. A FLOW
+  shows its steps while picked and runs only on release (the explicit action of AGENTS.md).
+- Outside Home the PULSE service now starts apps, FLOWs and shortcuts **only from Global ARC**, through Intelia's own
+  `AppRepository` (public `LauncherApps`; shortcuts only while Intelia is the default home). Search and cards bring
+  Home forward and run there via an in-process request (never an intent extra, so no other app can inject actions).
+  Every other PULSE gesture keeps the M3 rule: system actions only outside Home. No new permission.
+
+## D23 — 2026-10-18 — PreviewHost: one way to show live previews in Studio (M1)
+- Every Studio preview is the renderer the real surface uses, fed with the owner's settings, wrapped in
+  `PreviewCover`: all touches are consumed on the Initial pass, TalkBack hears one label, `LocalPreviewMode` is true.
+  Renderers that start side effects (focus, keyboard, haptics, actions, `PulseAccessibilityService.typing`) must skip
+  them when `LocalPreviewMode` is set. Sample data (music, alarm, a query) is always marked as a sample.
+- `PreviewPlan.kind(section)` (pure, JVM tested) is the only place that says which page shows which preview.
+  M1 step 1: Home miniature (main page, Vzhled, Plocha, Oblíbené) moved onto it, unchanged look.
+- Next kinds, same rules: `Arc` (ARC page: the owner's first set drawn open at LENS, no slot picked), `Lens` (LENS
+  calibration: the dock strip), `Search` (Search card with a marked sample query and the owner's apps, no field focus,
+  no keyboard), `Pulse` (move the in-list S3.1 state preview into the host). No new permission, service or network.
+- M1 step 2 (built): Arc on ARC, Pulse on PULSE, Lens on Gesta a tlačítka (what LENS's gestures act on), Search on
+  Akce a FLOW (FLOWs run from Search by exact name; the sample query is the owner's first FLOW name). Each preview shows
+  only the strip it is about (`PreviewPlan.stripTop`).
+
+## D24 — 2026-10-18 — APPROVED by the owner: haptic strength (B, VIBRATE) with automatic fallback to A
+M2 order: (1) counters in binding-group captions and (2) Motiv preview tiles need no decision (built 2026-10-18);
+(3) haptic strength and (4) a custom colour follow D24 / D25.
+The owner chose B with a fallback: maximum control without losing compatibility. Scope:
+- New permission `android.permission.VIBRATE` (normal, granted at install). Used only for touch feedback Intelia
+  already gives (ARC, PULSE, LENS, Search, Studio preview of the strength); never for notifications or patterns.
+- Model `HapticPrefs` (settings `haptic`): one global `strength` 0–100 (null = taken from the old `haptics` choice on its
+  stop: Off 0, Jemná 25, Výrazná 85, so nothing changes for an existing install) and a `per` map for ARC, PULSE, gestures and
+  keys — sanitized now, no UI yet (later step). Every write of `strength` also writes the old `haptics` enum, so an
+  older build or backup reader keeps a close value.
+- Device with amplitude control (`Vibrator.hasAmplitudeControl`): a continuous slider, one-shot pulses whose
+  amplitude follows the strength. Without it: four stops (Vypnuto / Jemná / Střední / Silná) mapped to the system's
+  own effects through `View.performHapticFeedback`. `Haptic.plan` (pure, JVM tested) picks the path.
+- The system setting wins: with Android's touch feedback off nothing vibrates on either path (the amplitude path
+  reads `HAPTIC_FEEDBACK_ENABLED` and vibrates with `USAGE_TOUCH`, which follows the touch-intensity setting).
+  Strength 0 is off. Global ARC's own on/off switch stays.
+
+## D25 — 2026-10-18 — APPROVED by the owner: one custom accent colour, architecture ready for full palettes
+Step 1 is one owner-made accent for the whole launcher. Scope:
+- Settings `custom: CustomColors` — today only `accent` (opaque ARGB, null = none). It is the main accent while set
+  and overrides the preset `accent`, which is kept untouched, so choosing a preset again (or clearing the custom
+  colour) restores the old look exactly. Places of a per-place palette that follow the main colour follow it too.
+- Later steps extend `CustomColors` (per-place colours, component colours, whole themes, a Design Lab) without
+  touching the preset enum: every renderer gets colours through one resolver (`mainAccent` in `Ink.kt`).
+- The stored colour is the owner's base; what is drawn is derived per theme by `AccentColors.derive` (pure, JVM
+  tested): the hue and saturation are kept, lightness moves until it reaches 4.5:1 against the Veil base of that theme
+  and the text on the accent keeps 4.5:1 too. No eyedropper (would need screen capture), no permission, no network.
+
+## D26 — 2026-10-19 — Versioning, release signing and app language for 0.1.0-beta.1
+- **Version:** `versionName = "0.1.0-beta.1"`, `versionCode = 2` (was 1). Build types add their suffix (`-lab`, `-dev`).
+  `versionCode` only ever goes up; every public build gets a new one.
+- **Packages:** `dev.intelia.launcher` is the distribution package; `dev.intelia.launcher.lab` (Lab, debug) is the
+  development package signed with the shared, public debug key (D4). The two install side by side and never update
+  each other. The debug key is public in git and must never sign a distributed build.
+- **Release signing:** `app/build.gradle.kts` reads an optional `.signing/release.properties` (`storeFile`,
+  `storePassword`, `keyAlias`, `keyPassword`; `.signing/` and `*.jks` are git-ignored). Without it
+  `assembleRelease` produces `app-release-unsigned.apk`, which cannot be installed or published by mistake.
+  Creating the long-lived key is the **owner's decision** (who holds it, where the backup lives); losing it means no
+  update path for anyone who installed a build signed with it.
+- **Language:** Intelia ships English (`values`) and Czech (`values-cs`). `res/xml/locales_config.xml` +
+  `android:localeConfig` enable Android 13+'s per-app language; Studio › Systém a data › Jazyk opens that system
+  page. No in-app locale override, no new dependency. Older Android follows the system language.

@@ -27,11 +27,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -41,6 +38,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import dev.intelia.launcher.data.Accent
 import dev.intelia.launcher.data.AccentColors
+import android.view.View
+import dev.intelia.launcher.data.Haptic
+import dev.intelia.launcher.data.HapticPrefs
+import dev.intelia.launcher.data.HapticSurface
 import dev.intelia.launcher.data.Haptics
 import dev.intelia.launcher.data.IconShape
 import dev.intelia.launcher.data.IconStyle
@@ -100,7 +101,8 @@ object InkFonts {
 }
 
 object InkText {
-    val title = TextStyle(fontFamily = InkFonts.serif, fontWeight = FontWeight.Normal, fontSize = 32.sp, lineHeight = 36.sp)
+    // S4.2: titles share the Veil display face (Roboto Flex, as the drawer and Studio); serif stays for Home and FLOW names.
+    val title = TextStyle(fontFamily = flex(500, 112f), fontSize = 32.sp, lineHeight = 36.sp)
     val item = TextStyle(fontFamily = InkFonts.serif, fontSize = 21.sp, lineHeight = 26.sp)
     val body = TextStyle(fontFamily = InkFonts.sans, fontSize = 16.sp, lineHeight = 22.sp)
     val small = TextStyle(fontFamily = InkFonts.sans, fontSize = 13.sp, lineHeight = 18.sp)
@@ -114,7 +116,7 @@ val LocalHomeInk = staticCompositionLocalOf { Color.White }
 val LocalMotion = staticCompositionLocalOf { Motion.Calm }
 val LocalIconStyle = staticCompositionLocalOf { IconStyle.System }
 val LocalIconShape = staticCompositionLocalOf { IconShape.Circle }
-val LocalInkHaptics = staticCompositionLocalOf { Haptics.Soft }
+val LocalInkHaptics = staticCompositionLocalOf { InkHapticLevels() }
 
 /** Duration scaled by the Motion setting; 0 disables the animation. */
 @Composable
@@ -124,25 +126,27 @@ fun motionMs(calm: Int = 220): Int = when (LocalMotion.current) {
     Motion.Off -> 0
 }
 
-class InkHaptics(private val haptic: HapticFeedback, private val mode: Haptics) {
-    /** Crossing onto a new target. */
-    fun tick() {
-        if (mode != Haptics.Off) {
-            haptic.performHapticFeedback(if (mode == Haptics.Strong) HapticFeedbackType.LongPress else HapticFeedbackType.TextHandleMove)
-        }
-    }
-
-    /** Arming a gesture or committing an action. */
-    fun confirm() {
-        if (mode != Haptics.Off) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-    }
+/** What [rememberInkHaptics] needs from settings: the D24 levels and the old choice they fall back to. */
+@Immutable
+data class InkHapticLevels(val prefs: HapticPrefs = HapticPrefs(), val legacy: Haptics = Haptics.Soft) {
+    fun level(surface: HapticSurface?): Int = Haptic.level(prefs, legacy, surface)
 }
 
+/** Touch feedback at the owner's strength (D24), through [HapticEngine]. */
+class InkHaptics(private val engine: HapticEngine, private val view: View, private val level: Int) {
+    /** Crossing onto a new target. */
+    fun tick() = engine.play(view, level, Haptic.Kind.Tick)
+
+    /** Arming a gesture or committing an action. */
+    fun confirm() = engine.play(view, level, Haptic.Kind.Confirm)
+}
+
+/** [surface] picks its own level once per-surface strengths exist; null = the global one. */
 @Composable
-fun rememberInkHaptics(): InkHaptics {
-    val haptic = LocalHapticFeedback.current
-    val mode = LocalInkHaptics.current
-    return remember(haptic, mode) { InkHaptics(haptic, mode) }
+fun rememberInkHaptics(surface: HapticSurface? = null): InkHaptics {
+    val view = LocalView.current
+    val level = LocalInkHaptics.current.level(surface)
+    return remember(view, level) { InkHaptics(HapticEngine.of(view.context), view, level) }
 }
 
 /**
@@ -167,6 +171,19 @@ internal fun accentColor(accent: Accent, dark: Boolean): Color =
         val context = LocalContext.current
         if (dark) dynamicDarkColorScheme(context).primary else dynamicLightColorScheme(context).primary
     } else Color(AccentColors.argb(accent, dark))
+
+/**
+ * D25: the main accent as a theme draws it — the owner's custom colour (derived for that theme) when set, else the
+ * preset. Every renderer gets the main colour here, so later custom palettes and themes plug in at one place.
+ */
+@Composable
+internal fun mainAccent(settings: LauncherSettings, dark: Boolean): Color =
+    settings.custom.accent?.let { Color(AccentColors.derive(it, dark)) } ?: accentColor(settings.accent, dark)
+
+/** A palette place's colour: its own preset, or the main accent (custom or preset) it follows. */
+@Composable
+internal fun placeAccent(settings: LauncherSettings, target: PaletteTarget, dark: Boolean): Color =
+    settings.ownAccent(target)?.let { accentColor(it, dark) } ?: mainAccent(settings, dark)
 
 /** Resolved colours of the palette's places (§5.12); all equal to the main accent while it is unified. */
 @Immutable
@@ -248,8 +265,8 @@ fun SystemBarIcons(darkIcons: Boolean) {
 @Composable
 fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
     val dark = isDark(settings)
-    val ink = inkPalette(dark, accentColor(settings.accent, dark))
-    val places = PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), dark) }, ink.accent)
+    val ink = inkPalette(dark, mainAccent(settings, dark))
+    val places = PlaceColors(PaletteTarget.entries.associateWith { placeAccent(settings, it, dark) }, ink.accent)
     // Home type follows the wallpaper, not the theme: Crystal fg light on light wallpapers (4.1).
     // Intelia's own wallpaper is known exactly; on the system one only its hint, and a strong dim makes it dark.
     val systemLight = rememberWallpaperWantsDarkText()
@@ -257,7 +274,7 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
         ?: (systemLight && settings.wallDim < Wallpapers.SYSTEM_LIGHT_TEXT_DIM)
     val homeInk = if (wallLight) CrystalColors.FgLight else CrystalColors.FgDark
     val wallPlaces = if (wallLight == !dark) places
-        else PlaceColors(PaletteTarget.entries.associateWith { accentColor(settings.accentFor(it), !wallLight) }, accentColor(settings.accent, !wallLight))
+        else PlaceColors(PaletteTarget.entries.associateWith { placeAccent(settings, it, !wallLight) }, mainAccent(settings, !wallLight))
     val base = if (dark) darkColorScheme() else lightColorScheme()
     val scheme = base.copy(
         primary = ink.accent, onPrimary = ink.onAccent, background = ink.paper, surface = ink.paper,
@@ -277,7 +294,7 @@ fun InteliaTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
             LocalIconStyle provides settings.iconStyle,
             LocalIconShape provides settings.iconShape,
             LocalVeil provides VeilPrefs(settings.veilSolid, settings.veilShift, settings.veilEdge, settings.glass),
-            LocalInkHaptics provides settings.haptics,
+            LocalInkHaptics provides InkHapticLevels(settings.haptic, settings.haptics),
             LocalContentColor provides ink.ink,
             LocalTextStyle provides InkText.body.copy(color = ink.ink),
         ) { CrystalTheme(dark, ink.accent, content) }

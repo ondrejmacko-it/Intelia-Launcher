@@ -117,7 +117,7 @@ class HomeEditorStateTest {
         e.edit("a", "label") { it.copy(label = true) }
         e.undo()
         assertEquals(60, e.item("a")!!.sizeDp)
-        assertFalse(e.item("a")!!.label)
+        assertNull(e.item("a")!!.label)
         e.undo()
         assertEquals(0, e.item("a")!!.sizeDp)
         assertFalse(e.canUndo)
@@ -285,22 +285,58 @@ class HomeEditorStateTest {
     }
 
     @Test fun lensRowNamesNeverOverlap() {
-        val slots = Anchor.LENS_SLOTS.associate { "s$it" to geo.lensSlot(it) }
         val lens = Pt(geo.lensX, geo.lensY)
-        val w = labelWidths(slots, lens)
+        fun boxes(vararg at: Pair<String, Pt>) =
+            labelBoxes(at.map { (id, p) -> LabelIcon(id, p, 40f, labelled = true) }, lens, geo.width, geo.statusTop, geo.height)
         // ±62 / ±108 dp: the outer pair stands 46 dp from the inner one, too close for a name.
-        assertTrue(w.isEmpty())
-        val two = labelWidths(mapOf("a" to geo.lensSlot(-1), "b" to geo.lensSlot(1)), lens)
+        assertTrue(boxes(*Anchor.LENS_SLOTS.map { "s$it" to geo.lensSlot(it) }.toTypedArray()).isEmpty())
+        val two = boxes("a" to geo.lensSlot(-1), "b" to geo.lensSlot(1))
         assertEquals(setOf("a", "b"), two.keys)
-        two.forEach { (id, width) ->
-            val x = (if (id == "a") geo.lensSlot(-1) else geo.lensSlot(1)).x
-            assertTrue(kotlin.math.abs(x - lens.x) - width / 2 >= 28f)
-        }
-        val grid = (0 until 4).associate { "c$it" to geo.cellCentre(it, 5, 4, 6) }
-        val g = labelWidths(grid, lens)
-        assertEquals(4, g.size)
-        val xs = (0 until 4).map { geo.cellCentre(it, 5, 4, 6).x }
-        for (i in 0 until 3) assertTrue(xs[i] + g.getValue("c$i") / 2 <= xs[i + 1] - g.getValue("c${i + 1}") / 2)
+        two.values.forEach { assertTrue(kotlin.math.abs(it.x - lens.x) - it.width / 2 >= 28f) }
+        val grid = boxes(*(0 until 4).map { "c$it" to geo.cellCentre(it, 5, 4, 6) }.toTypedArray())
+        assertEquals(4, grid.size)
+        val g = (0 until 4).map { grid.getValue("c$it") }
+        for (i in 0 until 3) assertTrue(g[i].x + g[i].width / 2 <= g[i + 1].x - g[i + 1].width / 2)
+        // Top-anchored under the icon: a bigger text grows down, never into the icon.
+        g.forEach { assertTrue(!it.above && it.y >= geo.cellCentre(0, 5, 4, 6).y + 20f) }
+    }
+
+    @Test fun bigNamesWrapToTheRoomAndFlipAboveAtTheBottom() {
+        val top = geo.cellCentre(0, 0, 4, 6)
+        val below = geo.cellCentre(0, 1, 4, 6)
+        // 150 % text: 30 dp lines, up to 3; the icon one row lower limits the name to the lines that fit.
+        val icons = listOf(LabelIcon("a", top, 64f, labelled = true, lineH = 30f, lines = 3), LabelIcon("b", below, 64f))
+        val a = labelBoxes(icons, null, geo.width, geo.statusTop, geo.height).getValue("a")
+        assertFalse(a.above)
+        assertTrue(a.lines in 1..2)
+        assertTrue(a.y + a.lines * 30f <= below.y - 32f)
+        // Right above the navigation bar there is no line of room below: the name goes above the icon.
+        val low = Pt(200f, geo.height - 40f)
+        val b = labelBoxes(listOf(LabelIcon("x", low, 64f, labelled = true)), null, geo.width, geo.statusTop, geo.height).getValue("x")
+        assertTrue(b.above && b.y <= low.y - 32f)
+        // ...but never into the name of the icon above it.
+        val upper = Pt(200f, low.y - 100f)
+        val pair = labelBoxes(listOf(LabelIcon("u", upper, 64f, labelled = true, lineH = 25f, lines = 2),
+            LabelIcon("x", low, 64f, labelled = true, lineH = 25f)), null, geo.width, geo.statusTop, geo.height)
+        val u = pair.getValue("u")
+        pair["x"]?.let { x -> assertTrue(x.y - x.lines * 25f >= u.y + u.lines * 25f) }
+        // A big icon gets a wider name than LABEL_MAX, still inside the screen.
+        val wide = labelBoxes(listOf(LabelIcon("w", Pt(205f, 400f), 96f, labelled = true)), null, geo.width, 0f, geo.height).getValue("w")
+        assertEquals(112f, wide.width, .01f)
+        val edge = labelBoxes(listOf(LabelIcon("e", Pt(30f, 400f), 40f, labelled = true)), null, geo.width, 0f, geo.height).getValue("e")
+        assertTrue(edge.x - edge.width / 2 >= 4f - 1e-3f)
+    }
+
+    @Test fun bigIconsPushTheLensRowApart() {
+        val wide = HomeGeometry(700f, 911f, statusTop = 40f, lensX = 350f, lensY = 829f, rowIcon = 96f)
+        val xs = Anchor.LENS_SLOTS.sorted().map { wide.lensSlot(it).x }
+        assertTrue(kotlin.math.abs(xs[1] - 350f) >= 28f + 48f + 6f - 1e-3f)
+        assertTrue(xs[1] - xs[0] >= 102f - 1e-3f && xs[3] - xs[2] >= 102f - 1e-3f)
+        // On a phone the row shrinks to fit, but no 96 dp disc leaves the screen.
+        val phone = HomeGeometry(411f, 911f, statusTop = 40f, lensX = 205.5f, lensY = 829f, rowIcon = 96f)
+        Anchor.LENS_SLOTS.forEach { val x = phone.lensSlot(it).x; assertTrue(x - 48f >= 0f && x + 48f <= 411f) }
+        // Default 40 dp icons keep the spec's steps.
+        assertEquals(geo.lensSlot(1).x, HomeGeometry(411f, 911f, 40f, 205.5f, 829f, rowIcon = 40f).lensSlot(1).x, 1e-3f)
     }
 
     @Test fun editViewKeepsTheTopClockClearOfTheBar() {

@@ -1,5 +1,9 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -64,23 +68,25 @@ fun FlowList(
             color = ink.muted)
         LazyColumn(Modifier.weight(1f)) {
             if (aliases.isEmpty()) item { Text(stringResource(R.string.flow_empty), Modifier.padding(24.dp), style = InkText.body, color = ink.muted) }
+            // Each FLOW is its own pane of Veil glass (S4), so a long list stays easy to scan.
             items(aliases, key = { it.id }) { alias ->
-                Hairline()
-                Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(role = Role.Button, onClickLabel = stringResource(R.string.flow_edit)) { onEdit(alias) }
-                    .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).veilPane(RoundedCornerShape(22.dp), ink)
+                    .heightIn(min = 72.dp).clickable(role = Role.Button, onClickLabel = stringResource(R.string.flow_edit)) { onEdit(alias) }
+                    .padding(start = 18.dp, end = 8.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(alias.name, style = InkText.item.copy(fontSize = 26.sp, lineHeight = 30.sp, fontStyle = FontStyle.Italic),
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         BeadThread(flowSteps(alias), missing, Modifier.padding(top = 4.dp))
                     }
-                    Kicker(if (alias.id in arcFlows) "ARC · LENS" else "LENS", Modifier.padding(horizontal = 8.dp), color = ink.faint)
+                    Kicker(if (alias.id in arcFlows) "ARC · LENS" else "LENS", Modifier.padding(horizontal = 8.dp), color = ink.accent.copy(alpha = .7f))
                     Quiet(stringResource(R.string.flow_run), { onRun(alias) })
                 }
             }
-            if (aliases.isNotEmpty()) item { Hairline() }
         }
-        Capsule("+ " + stringResource(R.string.flow_create), onCreate, Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
-            filled = false)
+        Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp).veilPane(CircleShape, ink, tint = 1.6f).heightIn(min = 52.dp)
+            .clickable(role = Role.Button, onClick = onCreate), contentAlignment = Alignment.Center) {
+            Text("+ " + stringResource(R.string.flow_create), style = InkText.body.copy(fontWeight = FontWeight.Medium), color = ink.accent)
+        }
     }
 }
 
@@ -125,8 +131,9 @@ fun FlowEditor(
     }) {
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
             item {
-                Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp)) {
-                    Kicker(stringResource(R.string.flow_name), color = ink.muted)
+                // S4.4: the name and the steps are captioned like every Veil group; the steps stay a plain list.
+                VeilCaption(stringResource(R.string.flow_name))
+                Column(Modifier.padding(start = 24.dp, end = 24.dp)) {
                     val label = stringResource(R.string.flow_name)
                     BasicTextField(name, { name = it; error = null }, Modifier.fillMaxWidth().padding(top = 4.dp)
                         .semantics { contentDescription = label }
@@ -143,12 +150,12 @@ fun FlowEditor(
                     error?.let { Text(stringResource(it.message()), Modifier.padding(top = 8.dp), style = InkText.small, color = ink.danger) }
                 }
             }
-            item { Kicker(stringResource(R.string.flow_steps), Modifier.padding(start = 24.dp, end = 24.dp, top = 26.dp, bottom = 8.dp), color = ink.muted) }
+            item { VeilCaption(stringResource(R.string.flow_steps), Modifier.padding(top = 10.dp)) }
             itemsIndexed(targets, key = { _, key -> "step:$key" }) { index, key ->
                 val entry = resolve(key)
                 Hairline()
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text((index + 1).toString(), Modifier.width(22.dp), style = InkText.label.copy(letterSpacing = 0.sp), color = ink.muted)
+                    Text((index + 1).toString(), Modifier.width(22.dp), style = InkText.label.copy(letterSpacing = 0.sp), color = ink.accent)
                     if (entry != null) AppIcon(entry, Modifier.size(32.dp)) else Spacer(Modifier.size(32.dp))
                     Text(entry?.label ?: stringResource(R.string.flow_target_missing), Modifier.padding(start = 14.dp).weight(1f),
                         style = InkText.body, color = if (entry == null) ink.danger else ink.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -176,14 +183,14 @@ fun FlowEditor(
                 }
             }
             item {
-                Kicker(stringResource(R.string.flow_where), Modifier.padding(start = 24.dp, end = 24.dp, top = 26.dp, bottom = 8.dp), color = ink.muted)
-                Hairline()
-                ChoiceRow(stringResource(R.string.flow_in_lens)) { Text(stringResource(R.string.always), style = InkText.body, color = ink.accent) }
-                Hairline()
-                ToggleRow(stringResource(R.string.flow_in_arc), arc, onChange = { on -> if (!on || !arcFull || inArc) arc = on },
-                    detail = stringResource(if (arcFull && !inArc) R.string.arc_flows_full else R.string.flow_in_arc_detail))
-                Hairline()
-                Text(stringResource(R.string.flow_rule), Modifier.padding(start = 24.dp, end = 24.dp, top = 14.dp), style = InkText.small, color = ink.muted)
+                Spacer(Modifier.size(10.dp))
+                VeilGroup(stringResource(R.string.flow_where)) {
+                    SettingRow(stringResource(R.string.flow_in_lens), null, null,
+                        trailing = { Text(stringResource(R.string.always), style = InkText.body, color = ink.accent) })
+                    SwitchRow(stringResource(R.string.flow_in_arc), arc, onChange = { on -> if (!on || !arcFull || inArc) arc = on },
+                        detail = stringResource(if (arcFull && !inArc) R.string.arc_flows_full else R.string.flow_in_arc_detail))
+                    GroupNote(stringResource(R.string.flow_rule))
+                }
                 if (initial != null) Quiet(stringResource(R.string.flow_delete), { onDelete(initial.id) },
                     Modifier.padding(start = 20.dp, top = 18.dp), color = ink.danger)
             }
