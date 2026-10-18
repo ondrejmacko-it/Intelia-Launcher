@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -59,15 +60,15 @@ import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.Placement
 
 /**
- * Home Editor top bar (D15): cancel, undo and redo, what is edited, and Hotovo, 48 dp Veil Light controls in the
- * margin freed by the editor's 86 % Home ([EditView]), so it never covers a clock at the very top.
+ * Home Editor top bar (D15), in the camera row (the editor hides the status bar): cancel, undo and redo left of
+ * the camera; what is edited and Hotovo right of it. 44 dp Veil Light controls.
  */
 @Composable
 fun EditorBar(
     /** Plain values: [HomeEditorState] is plain Kotlin, so the caller refreshes after undo/redo. */
     canUndo: Boolean,
     canRedo: Boolean,
-    /** The element being edited, named in the middle of the bar; null = nothing selected. */
+    /** The element being edited, named next to Hotovo; null = nothing selected. */
     editing: String?,
     onCancel: () -> Unit,
     onUndo: () -> Unit,
@@ -78,34 +79,50 @@ fun EditorBar(
     val ink = LocalInk.current
     val c = LocalCrystal.current
     val veil = veil(VeilLevel.Light)
-    Row(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(horizontal = 12.dp).padding(top = 4.dp)
-        .height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape)) { BarIcon(Glyph.Close, stringResource(R.string.edit_cancel), true, onCancel) }
-        Row(Modifier.padding(start = 6.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
-            BarIcon(Glyph.Undo, stringResource(R.string.edit_undo), canUndo, onUndo)
-            BarIcon(Glyph.Redo, stringResource(R.string.edit_redo), canRedo, onRedo)
-        }
-        // What is edited now, in the free middle of the bar.
-        Box(Modifier.weight(1f).padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
-            androidx.compose.animation.AnimatedVisibility(editing != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
-                Text(editing.orEmpty(), Modifier.veilSurface(veil, VeilOrigin.Top, CircleShape).padding(horizontal = 12.dp, vertical = 8.dp),
-                    style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    Row(modifier.fillMaxWidth().padding(horizontal = 10.dp).padding(top = 4.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.veilSurface(veil, VeilOrigin.Bottom, CircleShape)) { BarIcon(Glyph.Close, stringResource(R.string.edit_cancel), true, onCancel) }
+            Row(Modifier.padding(start = 6.dp).veilSurface(veil, VeilOrigin.Bottom, CircleShape), verticalAlignment = Alignment.CenterVertically) {
+                BarIcon(Glyph.Undo, stringResource(R.string.edit_undo), canUndo, onUndo)
+                BarIcon(Glyph.Redo, stringResource(R.string.edit_redo), canRedo, onRedo)
             }
         }
-        Row(Modifier.height(44.dp).clip(CircleShape).background(ink.accent).clickable(role = Role.Button, onClick = onDone)
-            .padding(start = 12.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            HomeGlyph(Glyph.Check, null, tint = c.accInk, size = 18.dp)
-            Text(stringResource(R.string.edit_finish), Modifier.padding(start = 6.dp), style = CrystalType.body.copy(fontSize = 14.sp), color = c.accInk)
+        // The camera sits here.
+        androidx.compose.foundation.layout.Spacer(Modifier.width(36.dp))
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.animation.AnimatedVisibility(editing != null, Modifier.weight(1f, fill = false).padding(end = 6.dp),
+                enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+                Text(editing.orEmpty(), Modifier.veilSurface(veil, VeilOrigin.Top, CircleShape).padding(horizontal = 10.dp, vertical = 7.dp),
+                    style = CrystalType.body.copy(fontSize = 12.sp), color = c.fg, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            Row(Modifier.height(40.dp).clip(CircleShape).background(ink.accent).clickable(role = Role.Button, onClick = onDone)
+                .padding(start = 10.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                HomeGlyph(Glyph.Check, null, tint = c.accInk, size = 18.dp)
+                Text(stringResource(R.string.edit_finish), Modifier.padding(start = 6.dp), style = CrystalType.body.copy(fontSize = 14.sp), color = c.accInk)
+            }
         }
     }
 }
 
-/** Height of [EditorBar] below the status bar, dp. */
-const val BAR_HEIGHT = 52f
+/**
+ * The light glossy frame around the editor's Home ([frame], screen dp): exactly what Home shows after Hotovo.
+ * Drawn only, it never takes a touch.
+ */
+@Composable
+fun EditorFrame(frame: Zone, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(22.dp)
+    Box(modifier.offset(frame.left.dp, frame.top.dp).size((frame.right - frame.left).dp, (frame.bottom - frame.top).dp)
+        .border(1.dp, androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.White.copy(alpha = .55f), Color.White.copy(alpha = .14f),
+            Color.White.copy(alpha = .30f))), shape)
+        .padding(1.dp).border(.5.dp, Color.Black.copy(alpha = .18f), shape))
+}
+
+/** Height of [EditorBar] from the top edge, dp. */
+const val BAR_HEIGHT = 48f
 
 /** Height of [EditorTray] and its distance from the bottom edge, dp. */
 const val TRAY_HEIGHT = 56f
-const val TRAY_BOTTOM = 34f
+const val TRAY_BOTTOM = 24f
 
 /**
  * The editor's tool tray (D15) in the bottom margin: Přidat, Předlohy, the placement (Mřížka / Volně / Hybrid,

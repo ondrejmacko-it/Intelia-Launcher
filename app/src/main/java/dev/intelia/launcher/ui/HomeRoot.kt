@@ -582,11 +582,11 @@ private fun Home(
         val listLayout = layout.items.any { it.anchor.type == AnchorType.Stack }
         val lensItem = layout.items.firstOrNull { it.kind == ItemKind.Lens }
         val lensPt = Pt(geometry.lensX, geometry.lensY)
-        val barBottom = statusTop.value + BAR_HEIGHT
-        // D15: the editor shows the same Home at 86 %; cards are placed from the settled scale, not the animated one.
-        val view = EditView(maxWidth.value, maxHeight.value, if (ed != null) EditView.EDIT_SCALE else 1f)
+        val barBottom = BAR_HEIGHT
+        // D15: the editor shows the same Home framed between the bar and the tray; cards are placed from the settled scale, not the animated one.
+        val view = EditView(maxWidth.value, maxHeight.value, ed != null)
         val homeScale by animateFloatAsState(view.scale, tween(motionMs(320), easing = VeilMotion.ease), label = "edit-scale")
-        val homeLayer = Modifier.graphicsLayer { scaleX = homeScale; scaleY = homeScale; transformOrigin = TransformOrigin(.5f, EditView.ORIGIN_Y) }
+        val homeLayer = Modifier.graphicsLayer { scaleX = homeScale; scaleY = homeScale; transformOrigin = TransformOrigin(.5f, view.originY) }
 
         val hole = rememberLens(settings.pulseLens)
         val camera = Pt(hole.x / density.density, hole.y / density.density)
@@ -849,6 +849,7 @@ private fun Home(
                     }
                 }
             }
+            EditorFrame(view.toScreen(Zone(0f, 0f, maxWidth.value, maxHeight.value)))
             EditorBar(ed.canUndo, ed.canRedo, editing = editingTitle, onCancel = { leave {} }, onUndo = { ed.undo(); refresh() },
                 onRedo = { ed.redo(); refresh() }, onDone = { save() }, modifier = Modifier.align(Alignment.TopCenter))
             // The tray steps aside while a card is open: cards may reach down to the navigation bar.

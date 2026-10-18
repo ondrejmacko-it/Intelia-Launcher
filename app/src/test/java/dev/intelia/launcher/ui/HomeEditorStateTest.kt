@@ -341,15 +341,16 @@ class HomeEditorStateTest {
 
     @Test fun editViewKeepsTheTopClockClearOfTheBar() {
         val view = EditView(411f, 911f)
-        // The clock's earliest top (status bar + 24 dp) lands below a 48 dp bar under the status bar.
-        assertTrue(view.toScreen(Pt(205.5f, 40f + 24f)).y > 40f + BAR_HEIGHT)
-        // LENS stays above the tray (56 dp, 34 dp above the bottom).
-        assertTrue(view.toScreen(Pt(205.5f, 829f + 30f)).y < 911f - 34f - 56f)
+        // The framed Home starts below the camera-row bar and ends above the tray.
+        assertTrue(view.toScreen(Pt(205.5f, 0f)).y >= BAR_HEIGHT)
+        assertTrue(view.toScreen(Pt(205.5f, 911f)).y <= 911f - TRAY_BOTTOM - TRAY_HEIGHT)
+        // 1:1 in proportion.
+        assertEquals(view.toScreen(Pt(411f, 0f)).x - view.toScreen(Pt(0f, 0f)).x, 411f * view.scale, 1e-3f)
         val p = Pt(37f, 600f)
         val back = view.toHome(view.toScreen(p))
         assertEquals(p.x, back.x, 1e-3f)
         assertEquals(p.y, back.y, 1e-3f)
-        assertEquals(Pt(205.5f, 911f * .52f), view.toScreen(Pt(205.5f, 911f * .52f)))
+        assertEquals(Pt(205.5f, 911f * view.originY), view.toScreen(Pt(205.5f, 911f * view.originY)))
     }
 
     @Test fun inspectorOpensOnTheRoomierSide() {

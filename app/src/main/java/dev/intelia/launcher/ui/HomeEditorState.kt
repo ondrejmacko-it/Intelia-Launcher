@@ -625,13 +625,18 @@ private const val LENS_HALF = 28f
 private const val ROW_AIR = 6f
 
 /**
- * The editor's view of Home (D15): the same Home drawn at [scale] around 50 % / [ORIGIN_Y] of the screen, so the
- * bar and the tray take the freed margins. Home keeps its own coordinates; cards, the bar and the tray are placed
- * on the screen, from an element's settled position ([toScreen]).
+ * The editor's view of Home (D15): the same Home drawn 1:1 in proportion, scaled to fit the frame between the
+ * camera-row bar ([BAR_HEIGHT]) and the tray, with [FRAME_GAP] of air on both sides. Home keeps its own
+ * coordinates; cards, the bar and the tray are placed on the screen, from an element's settled position ([toScreen]).
  */
-data class EditView(val width: Float, val height: Float, val scale: Float = EDIT_SCALE) {
+data class EditView(val width: Float, val height: Float, val editing: Boolean = true) {
+    private val frameTop get() = BAR_HEIGHT + FRAME_GAP
+    private val frameScale get() = ((height - TRAY_BOTTOM - TRAY_HEIGHT - FRAME_GAP - frameTop) / height).coerceIn(.5f, 1f)
+    val scale get() = if (editing) frameScale else 1f
+    /** Where the scaling is centred, a fraction of the height; the same in and out of the editor. */
+    val originY get() = if (frameScale >= 1f) .5f else frameTop / (1f - frameScale) / height
     private val ox get() = width / 2f
-    private val oy get() = height * ORIGIN_Y
+    private val oy get() = height * originY
     fun toScreen(p: Pt) = Pt(ox + (p.x - ox) * scale, oy + (p.y - oy) * scale)
     fun toScreen(z: Zone): Zone {
         val a = toScreen(Pt(z.left, z.top))
@@ -641,8 +646,8 @@ data class EditView(val width: Float, val height: Float, val scale: Float = EDIT
     fun toHome(p: Pt) = Pt(ox + (p.x - ox) / scale, oy + (p.y - oy) / scale)
 
     companion object {
-        const val EDIT_SCALE = .86f
-        const val ORIGIN_Y = .52f
+        /** Air between the framed Home and the bar above / the tray below, dp. */
+        const val FRAME_GAP = 8f
     }
 }
 

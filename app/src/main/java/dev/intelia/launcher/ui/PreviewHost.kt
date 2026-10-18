@@ -162,7 +162,7 @@ internal fun StudioPreview(kind: PreviewKind, settings: LauncherSettings, model:
     var searchTop by remember { mutableStateOf<Float?>(null) }
     val top = PreviewPlan.stripTop(kind, screenH.value, lens.y, reach, home.dock.edge == DockEdge.Bottom, searchTop)
     val stripH = screenH - top.dp
-    val scale = minOf(room / stripH, (screenW - 32.dp) / screenW).coerceAtLeast(.05f)
+    val scale = minOf(room / stripH, (screenW - 16.dp) / screenW).coerceAtLeast(.05f)
     val shape = RoundedCornerShape(16.dp)
     val label = stringResource(when (kind) {
         PreviewKind.Arc -> R.string.arc_preview

@@ -225,13 +225,23 @@ internal fun PulseStage(model: HomeViewModel, settings: LauncherSettings, look: 
             (0 until bow.count).maxOfOrNull { GlobalArcGeometry.slot(bow, Pt(hx, hy), it).y } ?: (hy + bow.lift)
         } + 64f
     }.coerceIn(PREVIEW_MIN_DP, screenH)
+    // How wide a window around the camera each state needs, dp: the capsule is zoomed in, not shown at full width.
+    val stageW = when {
+        !settings.pulse -> hr * 2f + 160f
+        look == PulseLook.Rest -> pulseHitbox(hx, hy, settings.pulseHit, screenW).width + 120f
+        look == PulseLook.Music -> musicCapsule(hx, hy, hr, statusBar).width + 96f
+        look == PulseLook.Expanded -> glanceWidth(glance).value + 40f
+        else -> screenW
+    }.coerceIn(minOf(200f, screenW), screenW)
     val shownH by animateFloatAsState(stageH, tween(motionMs(220)), label = "pulse-preview-height")
+    val shownW by animateFloatAsState(stageW, tween(motionMs(220)), label = "pulse-preview-width")
+    val left = (hx - shownW / 2f).coerceIn(0f, (screenW - shownW).coerceAtLeast(0f))
     val sampled = settings.pulse && (look == PulseLook.Music || (look == PulseLook.Expanded))
-    // The strip fits the room above the sheet and the width less a margin, like every Studio preview.
-    val k = minOf((screenWidth.value - 32f) / screenW, room.value / shownH, 1f).coerceAtLeast(.05f)
-    PreviewCover("$label. $note", modifier.size((screenW * k).dp, (shownH * k).dp).clip(shape).background(Color.Black.copy(alpha = .28f))
+    // The window fills the room above the sheet and the width less a margin, up to 3× the phone's size.
+    val k = minOf((screenWidth.value - 16f) / shownW, room.value / shownH, 3f).coerceAtLeast(.05f)
+    PreviewCover("$label. $note", modifier.size((shownW * k).dp, (shownH * k).dp).clip(shape).background(Color.Black.copy(alpha = .28f))
         .border(1.dp, ink.accent.copy(alpha = .30f), shape)) {
-        Box(Modifier.stage(k, screenW, screenH)) {
+        Box(Modifier.stage(k, screenW, screenH, left)) {
             val home = settings.home.activeLayout()
             HomeMiniature(settings, home, now, model::entry, 1f, Modifier.fillMaxSize())
             if (settings.pulse) when (look) {
@@ -270,10 +280,12 @@ internal fun PulseStage(model: HomeViewModel, settings: LauncherSettings, look: 
     }
 }
 
-/** Lays the content out at [w] × [h] dp (the real screen) and draws it scaled by [k] from the top start. */
-private fun Modifier.stage(k: Float, w: Float, h: Float) = layout { m, c ->
+/** Lays the content out at [w] × [h] dp (the real screen) and draws it scaled by [k] from the top start, [left] dp in. */
+private fun Modifier.stage(k: Float, w: Float, h: Float, left: Float = 0f) = layout { m, c ->
     val p = m.measure(Constraints.fixed(w.dp.roundToPx(), h.dp.roundToPx()))
-    layout(c.maxWidth, c.maxHeight) { p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = TransformOrigin(0f, 0f) } }
+    layout(c.maxWidth, c.maxHeight) {
+        p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = TransformOrigin(0f, 0f); translationX = -left.dp.toPx() * k }
+    }
 }
 
 /** The shortest strip the preview shows, dp, and the glance card's height with the song or with a row of actions. */
