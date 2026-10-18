@@ -2,6 +2,28 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — UX stabilisation S0 + S1: Studio back stack and draggable sheet (`feat/control-system-v1`)
+- S0: local commits `d962d83`, `6844976`, `4169c70` built and tested (PASS), pushed to `feat/control-system-v1`.
+  Causes found in code / screenshots: (1) `Studio.up()` used fixed parents, so PULSE, ARC and Gesta opened from the main
+  page's quick access or from the PULSE page went back to Ovládání; (2) `StudioFrame` gave the Home miniature a fixed
+  50 % (`PREVIEW_SHARE`), cutting rows on short rooms; (3) Global ARC hint text („Návrat ke kameře gesto zruší“) is drawn
+  over the clock (owner screenshot 16:09:51) — open, S3; (4) the expanded PULSE is still the old black quick-settings
+  dashboard — open, S3; (5) icon size / label bugs — not reproduced yet, S2.
+- S1 (`ui/StudioNav.kt`, `ui/StudioSheet.kt`, `Studio.kt`): `StudioStack` back stack saved by page names; Back pops to
+  the page you came from, an empty stack leaves Studio for its origin (Home or the editor); pages still on the stack
+  keep their scroll. `StudioSheet` = one Veil Focus sheet with a handle and stops Preview / Balanced / Settings from
+  `SheetStops.of(room)` (sheet ≥ 176 dp at Preview, Balanced preview ≥ 200 dp, sheet ≥ 280 dp); the stop is shared
+  across pages; the list scrolls first, only its overscroll moves the sheet; handle dragged 96 dp below Preview closes
+  Studio to its origin; TalkBack actions on the handle. Pages without a Home preview keep the full sheet.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (217 tests, new
+  `StudioNavTest` 6/6). First run crashed the Gradle daemon (native memory), rerun PASS.
+- Phone (Lab `install -r`), verified: editor → Nastavení → Ovládání → PULSE → Gesta kapsle → Back ×4 = Gesta → PULSE →
+  Ovládání → Nastavení → editor; search „gesta“ → Hardwarová tlačítka → Back = Nastavení with the query and results
+  kept; handle drag to Settings, Preview and Balanced stops; Balanced kept when opening Vzhled; Vzhled list scrolls to
+  its end without moving the sheet; handle dragged down from Vzhled → editor.
+- NOT verified: PULSE opened from the editor's camera (`StudioStart.Pulse`, covered by the unit test only), Action
+  Picker in the path (it is a Dialog with its own Back), rotation / process death restore, TalkBack, Reduced Motion.
+
 ## 2026-10-18 — Studio Veil 3.0, step 4: PULSE page (`feat/control-system-v1`)
 - `ui/PulseStudio.kt` replaces the old `PulseInspector` (removed from `EditorLook.kt`): an interactive drawn preview
   (Klid / Hudba / Rozbalená / Global ARC; a drawing, nothing plays or runs; Global ARC beads sit where
