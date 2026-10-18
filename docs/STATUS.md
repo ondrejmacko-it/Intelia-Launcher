@@ -2,6 +2,32 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Studio Veil 3.0, step 1: five areas, shared kit, search to the row (`feat/control-system-v1`)
+- Owner approved the tree: Vzhled · Plocha · Ovládání (PULSE, ARC, Gesta a tlačítka, Animace a haptika) · Akce a FLOW ·
+  Systém a data. Fixed gestures: only the LENS pillars stay locked (to be applied in the gestures step).
+- `ui/VeilKit.kt`: `VeilGroup` (one accent-washed matte plate per group, crystal edge, hairlines between rows),
+  `SettingRow`, `SwitchRow` + `VeilSwitch`, `VeilChoice` / `ChoiceSetting`, `SettingBlock`, `ResetDefaults` (says what it
+  restores, asks first), `settingAnchor` (search target: scroll into view + accent glow; Motion Off = no fade).
+- `StudioIndex`: sections with parents (max. two levels), 28 row-level targets with synonyms; the path never repeats a
+  name (no more „Ovládání › Ovládání“; the gestures page is now „Gesta a tlačítka“).
+- Pages rebuilt on the kit: main page (5 areas with summaries, quick access: Upravit plochu / PULSE / ARC), Vzhled
+  (theme + colours, material, wallpaper, text size moved here, icons; reset), Plocha (editor, favourites, grid,
+  placement), Ovládání hub, Akce a FLOW, Animace a haptika (reset), Systém a data (permissions with state: default
+  home, PULSE service, notification access; hidden apps, backup, about). Editor: a tap on the camera opens
+  Studio › PULSE (Back returns to the editor) instead of a second PULSE card.
+- Not yet on the kit: PULSE, ARC, Gesta a tlačítka, Oblíbené, Záloha pages (old components); search targets on those
+  pages open the page but do not scroll to the row yet (e.g. „Global ARC“ opens ARC on the LENS tab). Citlivost,
+  accent in Search/Drawer/FLOW: later steps.
+- Settings coverage (by reading, not by a test): every user key has a row; legacy/internal keys without one:
+  showClock, showDate, reduceMotion, reach, layout, arc, arcFlows, arcShortcuts, arcRings, onboarded, editorCard, schema;
+  `home` and per-item clock/date look stay in the Home editor.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (StudioIndexTest +2), no warnings.
+- Phone (Lab `install -r`), verified: main page renders the five areas with summaries; search „velikost textu“ →
+  one result „Vzhled › Velikost textu“ → Vzhled scrolled to the row with the glow; ARC page via search; Global ARC
+  read back as S + Silné and set to M / Střední / Střední (read back from the chips); Ovládání hub rows render.
+- NOT verified: Systém a data page, Plocha page, reset dialogs, editor camera → Studio › PULSE, light theme, 130 % text,
+  TalkBack. Testing stopped: an incoming call arrived on the phone.
+
 ## 2026-10-18 — Global ARC look of its own, bow and label fixes (`feat/control-system-v1`)
 - `GlobalArcLook` in `Controls.globalArc` (size S/M/L, arc narrow/mid/wide, slot tick, dim over apps 30/45/65 %),
   sanitized with the rest; old configs decode to the defaults (= the look Global ARC had). Slot count and sets stay

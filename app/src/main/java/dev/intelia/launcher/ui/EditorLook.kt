@@ -54,16 +54,17 @@ import dev.intelia.launcher.data.ThemeMode
 /** Changes the stored settings at once (not part of the layout's undo history). */
 typealias SettingsEdit = ((LauncherSettings) -> LauncherSettings) -> Unit
 
-/** The icon style for all of Home, Search, drawer and ARC (Settings › Ikony). */
+/** The icon style for all of Home, Search, drawer and ARC, and the disc shape where the style has a disc. */
 @Composable
 fun IconStyleChips(settings: LauncherSettings, set: SettingsEdit) {
-    Chips(listOf(IconStyle.System to stringResource(R.string.icons_system), IconStyle.Ink to stringResource(R.string.icons_ink),
-        IconStyle.Veil to stringResource(R.string.look_veil), IconStyle.Tinted to stringResource(R.string.icons_tinted)),
-        settings.iconStyle) { v -> set { it.copy(iconStyle = v) } }
+    ChoiceSetting(stringResource(R.string.icons_style), listOf(IconStyle.System to stringResource(R.string.icons_system),
+        IconStyle.Ink to stringResource(R.string.icons_ink), IconStyle.Veil to stringResource(R.string.look_veil),
+        IconStyle.Tinted to stringResource(R.string.icons_tinted)), settings.iconStyle, { v -> set { it.copy(iconStyle = v) } },
+        anchor = StudioTarget.Icons.anchor)
     if (settings.iconStyle == IconStyle.Veil || settings.iconStyle == IconStyle.Tinted) {
-        Chips(listOf(IconShape.Circle to stringResource(R.string.shape_circle), IconShape.Squircle to stringResource(R.string.shape_squircle),
-            IconShape.Rounded to stringResource(R.string.shape_rounded), IconShape.Drop to stringResource(R.string.shape_drop)),
-            settings.iconShape) { v -> set { it.copy(iconShape = v) } }
+        ChoiceSetting(stringResource(R.string.icons_shape), listOf(IconShape.Circle to stringResource(R.string.shape_circle),
+            IconShape.Squircle to stringResource(R.string.shape_squircle), IconShape.Rounded to stringResource(R.string.shape_rounded),
+            IconShape.Drop to stringResource(R.string.shape_drop)), settings.iconShape, { v -> set { it.copy(iconShape = v) } })
     }
 }
 
@@ -86,11 +87,12 @@ internal fun themeName(t: ThemeMode) = when (t) {
  */
 @Composable
 fun MaterialChips(settings: LauncherSettings, set: SettingsEdit) {
-    Chips(listOf<Pair<Glass?, String>>(Glass.Veil to stringResource(R.string.look_veil), Glass.Crystal to stringResource(R.string.glass_crystal),
-        Glass.Frost to stringResource(R.string.glass_frost), Glass.Liquid to stringResource(R.string.glass_liquid), null to stringResource(R.string.look_solid)),
-        settings.glass.takeUnless { settings.veilSolid }) { v ->
-        set { if (v == null) it.copy(veilSolid = true) else it.copy(glass = v, veilSolid = false) }
-    }
+    ChoiceSetting(stringResource(R.string.look_material), listOf<Pair<Glass?, String>>(Glass.Veil to stringResource(R.string.look_veil),
+        Glass.Crystal to stringResource(R.string.glass_crystal), Glass.Frost to stringResource(R.string.glass_frost),
+        Glass.Liquid to stringResource(R.string.glass_liquid), null to stringResource(R.string.look_solid)),
+        settings.glass.takeUnless { settings.veilSolid }, { v ->
+            set { if (v == null) it.copy(veilSolid = true) else it.copy(glass = v, veilSolid = false) }
+        }, anchor = StudioTarget.Material.anchor)
 }
 
 /** The fold title each Look part is keyed by; Studio's search opens a part by it. */
@@ -105,25 +107,34 @@ fun lookFoldTitle(target: StudioTarget): String? = when (target) {
 }
 
 /**
- * Every app and FLOW icon at once (Settings › Ikony): style and disc shape, one size for all of Home (up to
+ * Every app and FLOW icon at once (Settings › Vzhled › Ikony): style and disc shape, one size for all of Home (up to
  * [LauncherSettings.MAX_ICON]) and their names, applied to the active layout at once.
  */
 @Composable
 fun IconSettings(settings: LauncherSettings, set: SettingsEdit) {
     IconStyleChips(settings, set)
-    AllIconsSize(settings, set)
+    SettingBlock { AllIconsSize(settings, set) }
     val icons = settings.home.activeLayout().items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
-    Toggle(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }) { on ->
+    SwitchRow(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }, { on ->
         set { it.copy(home = it.home.withIcons { i -> i.copy(label = on) }) }
-    }
+    })
 }
 
-/** The look of the whole launcher — panels, wallpaper, theme, colours — in one place, Settings › Vzhled; one part open at a time. */
+/** The look of the whole launcher in one place, Settings › Vzhled: theme and colours, material, wallpaper, text, icons. */
 @Composable
 fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
-    Fold(stringResource(R.string.look_material), stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass))) {
+    VeilGroup(stringResource(R.string.look_group_theme)) {
+        ChoiceSetting(stringResource(R.string.theme), listOf(ThemeMode.System to stringResource(R.string.theme_system),
+            ThemeMode.Light to stringResource(R.string.theme_light), ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme,
+            { v -> set { it.copy(theme = v) } }, anchor = StudioTarget.Theme.anchor)
+        SettingBlock(StudioTarget.Colors.anchor) {
+            Text(stringResource(R.string.palette_section), Modifier.padding(start = 4.dp, top = 4.dp), style = InkText.body.copy(fontSize = 16.sp))
+            PaletteEditor(settings, set)
+        }
+    }
+    VeilGroup(stringResource(R.string.look_material)) {
         MaterialChips(settings, set)
-        if (!settings.veilSolid) {
+        if (!settings.veilSolid) SettingBlock {
             val shift = settings.veilShift
             SliderRow(stringResource(R.string.look_density), shift.toFloat(), -LauncherSettings.MAX_VEIL_SHIFT.toFloat(),
                 LauncherSettings.MAX_VEIL_SHIFT.toFloat(), 1f, (if (shift > 0) "+" else "") + "$shift %") { v ->
@@ -131,26 +142,26 @@ fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
             }
         }
         // The accent edge exists on Veil and on matte panels; the other glasses have no outline to light.
-        if (settings.veilSolid || settings.glass == Glass.Veil) Toggle(stringResource(R.string.look_edge), settings.veilEdge) { v ->
+        if (settings.veilSolid || settings.glass == Glass.Veil) SwitchRow(stringResource(R.string.look_edge), settings.veilEdge, { v ->
             set { it.copy(veilEdge = v) }
-        }
+        })
     }
     val wall = Wallpapers.byId(settings.wallpaper)
-    Fold(stringResource(R.string.wallpaper), stringResource(wallName(wall?.id))) {
-        WallpaperChoice(settings.wallpaper) { id ->
-            set { it.copy(wallpaper = id, wallDim = it.wallDim.coerceAtMost(Wallpapers.maxDim(Wallpapers.byId(id)))) }
+    VeilGroup(stringResource(R.string.wallpaper)) {
+        SettingBlock(StudioTarget.Wallpaper.anchor) {
+            WallpaperChoice(settings.wallpaper) { id ->
+                set { it.copy(wallpaper = id, wallDim = it.wallDim.coerceAtMost(Wallpapers.maxDim(Wallpapers.byId(id)))) }
+            }
+            SliderRow(stringResource(R.string.wallpaper_dim), settings.wallDim.toFloat(), 0f, Wallpapers.maxDim(wall).toFloat(), 5f,
+                "${settings.wallDim} %") { v -> set { it.copy(wallDim = v.toInt()) } }
+            if (wall != null) WallpaperExportRow(wall, settings.wallDim)
         }
-        SliderRow(stringResource(R.string.wallpaper_dim), settings.wallDim.toFloat(), 0f, Wallpapers.maxDim(wall).toFloat(), 5f,
-            "${settings.wallDim} %") { v -> set { it.copy(wallDim = v.toInt()) } }
-        if (wall != null) WallpaperExportRow(wall, settings.wallDim)
     }
-    Fold(stringResource(R.string.theme), stringResource(themeName(settings.theme))) {
-        Chips(listOf(ThemeMode.System to stringResource(R.string.theme_system), ThemeMode.Light to stringResource(R.string.theme_light),
-            ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme) { v -> set { it.copy(theme = v) } }
+    VeilGroup(stringResource(R.string.look_group_text)) {
+        ChoiceSetting(stringResource(R.string.text_size), LauncherSettings.TEXT_SCALES.map { it to "${(it * 100).toInt()} %" }, settings.textScale,
+            { v -> set { it.copy(textScale = v) } }, anchor = StudioTarget.TextSize.anchor)
     }
-    Fold(stringResource(R.string.palette_section), stringResource(if (settings.palette.unified) R.string.palette_one else R.string.palette_places)) {
-        PaletteEditor(settings, set)
-    }
+    VeilGroup(stringResource(R.string.icons)) { IconSettings(settings, set) }
 }
 
 /** The system wallpaper, then Intelia's own, as small swatches in one scrolling row; the chosen one is ringed. */

@@ -1,6 +1,9 @@
 package dev.intelia.launcher.ui
 
 import dev.intelia.launcher.data.pulseMode
+import dev.intelia.launcher.pulse.MediaWatch
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import dev.intelia.launcher.pulse.PulseMode
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -112,75 +115,79 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 
-/** The main page, one page per section (Home has none: it opens the editor) and their sub-pages; [depth] drives the slide. */
+/** The main page, the five areas, the pages inside them and three tools; [depth] drives the slide. */
 private enum class StudioPane(val depth: Int) {
-    Main(1), Look(2), Icons(2), Favorites(2), Arc(2), Flow(2), Pulse(2), Gestures(2), Motion(2), Backup(2), System(2), About(2), Home(2),
+    Main(0), Look(1), Home(1), Controls(1), Actions(1), System(1),
+    Favorites(2), Pulse(2), Arc(2), Gestures(2), Motion(2), Backup(2),
     Hidden(3), Lens(3), Keys(3),
 }
 
-private fun StudioSection.pane() = when (this) {
-    StudioSection.Look -> StudioPane.Look
-    StudioSection.Icons -> StudioPane.Icons
-    StudioSection.Home -> StudioPane.Home
-    StudioSection.Favorites -> StudioPane.Favorites
-    StudioSection.Arc -> StudioPane.Arc
-    StudioSection.Flow -> StudioPane.Flow
-    StudioSection.Pulse -> StudioPane.Pulse
-    StudioSection.Gestures -> StudioPane.Gestures
-    StudioSection.Motion -> StudioPane.Motion
-    StudioSection.Backup -> StudioPane.Backup
-    StudioSection.System -> StudioPane.System
-    StudioSection.About -> StudioPane.About
-}
+private fun StudioSection.pane() = StudioPane.valueOf(name)
 
-/** Where Settings opens: its main page from Home, the same page from the editor's tray (Back returns to the editor), or PULSE calibration. */
-enum class StudioStart { Main, Editor, Lens }
+/** Where Settings opens: its main page from Home, the same page from the editor's tray, PULSE calibration or PULSE (editor). */
+enum class StudioStart { Main, Editor, Lens, Pulse }
 
 /**
- * Settings (Studio, Veil 3.0 B4): a live preview on the wallpaper, a search over every setting and one page per
- * section — Vzhled first, then Plocha, Ovládání and Data a systém — each sliding in; Back returns to the same row.
- * Every setting lives in exactly one place. Changes apply immediately and persist through SettingsStore.
+ * Settings (Studio, Veil 3.0): a search over every row and five areas — Vzhled, Plocha, Ovládání, Akce a FLOW,
+ * Systém a data — each sliding in. A search result opens its page on the row and lights it. Every setting lives in
+ * exactly one place; changes apply immediately and persist through SettingsStore.
  */
 @Composable
 fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onFlows: () -> Unit, onEditHome: () -> Unit,
     start: StudioStart = StudioStart.Main) {
-    var pane by rememberSaveable(start) { mutableStateOf(if (start == StudioStart.Lens) StudioPane.Lens else StudioPane.Main) }
-    /** The part a search result asked for; the page opens with it unfolded. */
-    var focus by rememberSaveable { mutableStateOf<StudioTarget?>(null) }
+    var pane by rememberSaveable(start) { mutableStateOf(when (start) {
+        StudioStart.Lens -> StudioPane.Lens
+        StudioStart.Pulse -> StudioPane.Pulse
+        else -> StudioPane.Main
+    }) }
+    /** The row a search result asked for; its page scrolls to it and lights it once. */
+    val focus = remember { SettingFocus(null) }
     /** Settings before a restore from a backup file (D17); offered back until Studio closes, never stored. */
     var beforeRestore by remember { mutableStateOf<LauncherSettings?>(null) }
-    // The page's scroll and open part survive a deeper page too, so Back lands on the same row (Veil 3.0 motion).
+    // The page's scroll survives a deeper page too, so Back lands on the same row (Veil 3.0 motion).
     val panes = rememberSaveableStateHolder()
     val ms = motionMs(VeilMotion.PAGE_MS)
-    /** Opened from the editor, leaving Settings goes back to the editor. */
-    val leave = if (start == StudioStart.Editor) onEditHome else onBack
+    /** Opened from the editor (its tray or the camera), leaving Settings goes back to the editor. */
+    val leave = if (start == StudioStart.Editor || start == StudioStart.Pulse) onEditHome else onBack
     fun up() {
-        pane = when (pane) {
-            StudioPane.Main -> { leave(); return }
+        val next = when (pane) {
+            StudioPane.Main -> null
             StudioPane.Hidden -> StudioPane.System
             StudioPane.Keys -> StudioPane.Gestures
             StudioPane.Lens -> if (start == StudioStart.Lens) StudioPane.Main else StudioPane.Pulse
-            else -> { panes.removeState(pane.name); focus = null; StudioPane.Main }
+            StudioPane.Pulse -> if (start == StudioStart.Pulse) null else StudioPane.Controls
+            else -> StudioSection.valueOf(pane.name).parent?.pane() ?: StudioPane.Main
         }
+        if (next == null) { leave(); return }
+        if (next.depth < pane.depth) panes.removeState(pane.name)
+        pane = next
     }
-    fun open(section: StudioSection, target: StudioTarget?) {
+    fun go(to: StudioPane) { panes.removeState(to.name); pane = to }
+    fun open(target: StudioTarget) {
         if (target == StudioTarget.EditHome) { onEditHome(); return }
-        focus = target; panes.removeState(section.pane().name); pane = section.pane()
+        focus.key = target.anchor
+        go(target.section.pane())
     }
-    BackHandler(enabled = pane != StudioPane.Main || start == StudioStart.Editor) { up() }
+    BackHandler(enabled = pane != StudioPane.Main || start != StudioStart.Main) { up() }
     val set: SettingsEdit = { model.updateSettings(it) }
+    CompositionLocalProvider(LocalSettingFocus provides focus) {
     AnimatedContent(pane, transitionSpec = {
         VeilMotion.page(if (targetState.depth >= initialState.depth) 1 else -1, ms)
     }, label = "studio-pane") { shown -> panes.SaveableStateProvider(shown.name) { when (shown) {
-        StudioPane.Main -> StudioMain(model, settings, leave, onEditHome, ::open)
+        StudioPane.Main -> StudioMain(model, settings, leave, onEditHome, ::open) { go(it.pane()) }
         StudioPane.Look -> StudioFrame(settings, model, stringResource(R.string.look), ::up, preview = true) {
-            LookPage(settings, focus, set)
+            LookSettings(settings, set)
+            ResetDefaults(stringResource(R.string.reset_look_what)) { set { it.withLookDefaults() } }
         }
-        StudioPane.Icons -> StudioFrame(settings, model, stringResource(R.string.icons), ::up, preview = true) {
-            CrystalBody { IconSettings(settings, set) }
+        StudioPane.Home -> StudioFrame(settings, model, stringResource(R.string.settings_group_home), ::up, preview = true) {
+            HomePage(settings, set, onEditHome) { go(StudioPane.Favorites) }
         }
-        StudioPane.Home -> StudioFrame(settings, model, stringResource(R.string.home_grid), ::up, preview = true) {
-            HomePage(settings, set, onEditHome)
+        StudioPane.Controls -> StudioFrame(settings, model, stringResource(R.string.settings_group_controls), ::up) {
+            ControlsArea(settings) { go(it) }
+        }
+        StudioPane.Actions -> StudioFrame(settings, model, stringResource(R.string.studio_area_actions), ::up) { FlowPage(settings, onFlows) }
+        StudioPane.System -> StudioFrame(settings, model, stringResource(R.string.studio_area_system), ::up) {
+            SystemPage(model, onHidden = { go(StudioPane.Hidden) }, onBackup = { go(StudioPane.Backup) })
         }
         StudioPane.Favorites -> StudioFrame(settings, model, stringResource(R.string.favorites_title), ::up, preview = true) {
             FavoritesPage(model, settings)
@@ -188,12 +195,11 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         StudioPane.Arc -> StudioFrame(settings, model, stringResource(R.string.arc_section), ::up) {
             ArcPage(model, settings)
         }
-        StudioPane.Flow -> StudioFrame(settings, model, stringResource(R.string.flow), ::up) { FlowPage(settings, onFlows) }
         StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up, preview = true) {
-            PulsePage(settings, set, onLens = { pane = StudioPane.Lens }, onControls = { pane = StudioPane.Gestures })
+            PulsePage(settings, set, onLens = { pane = StudioPane.Lens }, onControls = { go(StudioPane.Gestures) })
         }
         StudioPane.Gestures -> StudioFrame(settings, model, stringResource(R.string.gestures_title), ::up) {
-            ControlsPage(model, settings, onArc = { pane = StudioPane.Arc }, onKeys = { pane = StudioPane.Keys })
+            ControlsPage(model, settings, onArc = { go(StudioPane.Arc) }, onKeys = { pane = StudioPane.Keys })
         }
         StudioPane.Keys -> StudioFrame(settings, model, stringResource(R.string.keys_title), ::up) {
             KeysPage(onSeen = { code -> model.editControls { it.withKey(code) } })
@@ -202,16 +208,21 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         StudioPane.Backup -> StudioFrame(settings, model, stringResource(R.string.backup_title), ::up) {
             BackupPart(model, beforeRestore) { beforeRestore = it }
         }
-        StudioPane.System -> StudioFrame(settings, model, stringResource(R.string.studio_system), ::up) {
-            SystemPage(model, onHidden = { pane = StudioPane.Hidden })
-        }
-        StudioPane.About -> StudioFrame(settings, model, stringResource(R.string.about_title), ::up) { About() }
         StudioPane.Hidden -> HiddenApps(model, onBack = ::up)
         StudioPane.Lens -> LensCalibration(settings.pulseLens, onSave = { lens ->
             model.updateSettings { it.copy(pulseLens = lens) }
             up()
         }, onBack = ::up)
     } } }
+    }
+}
+
+/** Vzhled back to a new install's look: theme, accent and palette, material, wallpaper, text size and icons. */
+private fun LauncherSettings.withLookDefaults(): LauncherSettings {
+    val d = LauncherSettings.fresh()
+    return copy(theme = d.theme, accent = d.accent, palette = d.palette, glass = d.glass, veilSolid = d.veilSolid, veilShift = d.veilShift,
+        veilEdge = d.veilEdge, wallpaper = d.wallpaper, wallDim = d.wallDim, textScale = d.textScale, iconStyle = d.iconStyle,
+        iconShape = d.iconShape, iconSize = d.iconSize)
 }
 
 /**
@@ -259,119 +270,119 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
     }
 }
 
-/** Every searchable place, in the owner's language. */
+/** Every searchable row, named in the owner's language, with its full path ("Ovládání › PULSE › Hudba"). */
 @Composable
 private fun studioEntries(): List<StudioEntry> {
-    val look = stringResource(R.string.look)
-    val home = stringResource(R.string.settings_group_home)
-    val controls = stringResource(R.string.settings_group_controls)
-    val data = stringResource(R.string.settings_group_data)
+    val areas = mapOf(StudioSection.Look to stringResource(R.string.look), StudioSection.Home to stringResource(R.string.settings_group_home),
+        StudioSection.Controls to stringResource(R.string.settings_group_controls), StudioSection.Actions to stringResource(R.string.studio_area_actions),
+        StudioSection.System to stringResource(R.string.studio_area_system), StudioSection.Favorites to stringResource(R.string.favorites_title),
+        StudioSection.Pulse to stringResource(R.string.pulse), StudioSection.Arc to stringResource(R.string.arc_section),
+        StudioSection.Gestures to stringResource(R.string.gestures_title), StudioSection.Motion to stringResource(R.string.motion_section),
+        StudioSection.Backup to stringResource(R.string.backup_title))
     return StudioTarget.entries.map { t ->
-        val (label, section, kw) = when (t) {
-            StudioTarget.Material -> Triple(R.string.look_material, look, R.string.studio_kw_material)
-            StudioTarget.Wallpaper -> Triple(R.string.wallpaper, look, R.string.studio_kw_wallpaper)
-            StudioTarget.Theme -> Triple(R.string.theme, look, R.string.studio_kw_theme)
-            StudioTarget.Colors -> Triple(R.string.palette_section, look, R.string.studio_kw_colors)
-            StudioTarget.Icons -> Triple(R.string.icons, home, R.string.studio_kw_icons)
-            StudioTarget.EditHome -> Triple(R.string.edit_home, home, R.string.studio_kw_edit_home)
-            StudioTarget.Grid -> Triple(R.string.home_grid, home, R.string.studio_kw_grid)
-            StudioTarget.Favorites -> Triple(R.string.favorites_title, home, R.string.studio_kw_favorites)
-            StudioTarget.Arc -> Triple(R.string.arc_section, controls, R.string.studio_kw_arc)
-            StudioTarget.Shortcuts -> Triple(R.string.arc_ring_shortcuts, controls, R.string.studio_kw_shortcuts)
-            StudioTarget.Flows -> Triple(R.string.flow_manage, controls, R.string.studio_kw_flows)
-            StudioTarget.Pulse -> Triple(R.string.pulse, controls, R.string.studio_kw_pulse)
-            StudioTarget.Gestures -> Triple(R.string.gestures_title, controls, R.string.studio_kw_gestures)
-            StudioTarget.Motion -> Triple(R.string.motion_section, controls, R.string.studio_kw_motion)
-            StudioTarget.Backup -> Triple(R.string.backup_title, data, R.string.studio_kw_backup)
-            StudioTarget.Hidden -> Triple(R.string.hidden_manage, data, R.string.studio_kw_hidden)
-            StudioTarget.DefaultHome -> Triple(R.string.default_home_section, data, R.string.studio_kw_default_home)
-            StudioTarget.About -> Triple(R.string.about_title, data, R.string.studio_kw_about)
+        val (label, kw) = when (t) {
+            StudioTarget.Theme -> R.string.theme to R.string.studio_kw_theme
+            StudioTarget.Colors -> R.string.palette_section to R.string.studio_kw_colors
+            StudioTarget.Material -> R.string.look_material to R.string.studio_kw_material
+            StudioTarget.Wallpaper -> R.string.wallpaper to R.string.studio_kw_wallpaper
+            StudioTarget.TextSize -> R.string.text_size to R.string.studio_kw_text
+            StudioTarget.Icons -> R.string.icons to R.string.studio_kw_icons
+            StudioTarget.EditHome -> R.string.edit_home to R.string.studio_kw_edit_home
+            StudioTarget.Grid -> R.string.home_grid to R.string.studio_kw_grid
+            StudioTarget.Placement -> R.string.home_placement to R.string.studio_kw_placement
+            StudioTarget.Favorites -> R.string.favorites_title to R.string.studio_kw_favorites
+            StudioTarget.Pulse -> R.string.pulse_mode to R.string.studio_kw_pulse
+            StudioTarget.PulseLook -> R.string.pulse_opacity to R.string.studio_kw_pulse_look
+            StudioTarget.PulseEvents -> R.string.pulse_events to R.string.studio_kw_pulse_events
+            StudioTarget.PulseMusic -> R.string.pulse_music to R.string.studio_kw_pulse_music
+            StudioTarget.PulseLens -> R.string.pulse_lens to R.string.studio_kw_pulse_lens
+            StudioTarget.Arc -> R.string.arc_tab_lens to R.string.studio_kw_arc
+            StudioTarget.GlobalArc -> R.string.arc_tab_global to R.string.studio_kw_global_arc
+            StudioTarget.Shortcuts -> R.string.arc_ring_shortcuts to R.string.studio_kw_shortcuts
+            StudioTarget.Gestures -> R.string.gestures_title to R.string.studio_kw_gestures
+            StudioTarget.Keys -> R.string.keys_title to R.string.studio_kw_keys
+            StudioTarget.Motion -> R.string.motion to R.string.studio_kw_motion
+            StudioTarget.Haptics -> R.string.haptics to R.string.studio_kw_haptics
+            StudioTarget.Flows -> R.string.flow_manage to R.string.studio_kw_flows
+            StudioTarget.DefaultHome -> R.string.default_home_section to R.string.studio_kw_default_home
+            StudioTarget.Permissions -> R.string.permissions_title to R.string.studio_kw_permissions
+            StudioTarget.Hidden -> R.string.hidden_manage to R.string.studio_kw_hidden
+            StudioTarget.Backup -> R.string.backup_title to R.string.studio_kw_backup
+            StudioTarget.About -> R.string.about_title to R.string.studio_kw_about
         }
         val name = stringResource(label)
-        StudioEntry(t, name, "$section › $name", stringResource(kw))
+        // The path names every page on the way, never the row twice (no "Ovládání › Ovládání").
+        val path = generateSequence(t.section) { it.parent }.toList().asReversed().map { areas.getValue(it) }
+            .let { if (it.last() == name) it else it + name }.joinToString(" › ")
+        StudioEntry(t, name, path, stringResource(kw))
     }
 }
 
+/** The main page: search, the five areas with what is set in each, and a few direct ways to what is used most. */
 @Composable
 private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onEditHome: () -> Unit,
-    onOpen: (StudioSection, StudioTarget?) -> Unit) {
-    val ink = LocalInk.current
+    onOpen: (StudioTarget) -> Unit, onArea: (StudioSection) -> Unit) {
     val hidden by model.hiddenApps.collectAsStateWithLifecycle()
+    val favorites by model.favoriteApps.collectAsStateWithLifecycle()
     val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     val entries = studioEntries()
     val hits = remember(query, entries) { StudioIndex.search(entries, query) }
     val active = settings.home.activeLayout()
+    val controls = settings.controls
     StudioFrame(settings, model, stringResource(R.string.settings), onBack, preview = true) {
         StudioSearchField(query) { query = it }
         if (query.isNotBlank()) {
             if (hits.isEmpty()) Hint(stringResource(R.string.studio_no_results))
             // A result only opens on a tap; typing never navigates.
-            hits.forEach { e -> SectionRow(e.label, e.path) { onOpen(e.target.section, e.target) } }
+            else VeilGroup { hits.forEach { e -> SettingRow(e.label, e.path, { onOpen(e.target) }) } }
             return@StudioFrame
         }
-        // Vzhled first, on its own faintly lit plate: the one place for the launcher's look.
-        Group(null, lit = true) {
-            SectionRow(stringResource(R.string.look), listOf(stringResource(themeName(settings.theme)),
+        VeilGroup {
+            SettingRow(stringResource(R.string.look), listOf(stringResource(themeName(settings.theme)),
                 stringResource(if (settings.veilSolid) R.string.look_solid else glassName(settings.glass)),
-                stringResource(wallName(settings.wallpaper.ifEmpty { null }))).joinToString(" · ")) { onOpen(StudioSection.Look, null) }
+                stringResource(wallName(settings.wallpaper.ifEmpty { null }))).joinToString(" · "), { onArea(StudioSection.Look) }, glyph = Glyph.Palette)
+            SettingRow(stringResource(R.string.settings_group_home), listOf(active.name, "${active.grid.cols}×${active.grid.rows}",
+                stringResource(R.string.studio_favorites_n, favorites.size)).joinToString(" · "), { onArea(StudioSection.Home) }, glyph = Glyph.Grid)
+            SettingRow(stringResource(R.string.settings_group_controls), listOf(stringResource(R.string.pulse) + " " + pulseState(settings, everywhere),
+                stringResource(R.string.studio_arc_sets_n, controls.arcSets.size.coerceAtLeast(1)),
+                stringResource(R.string.studio_bound_n, controls.bindings.size)).joinToString(" · "), { onArea(StudioSection.Controls) }, glyph = Glyph.Touch)
+            SettingRow(stringResource(R.string.studio_area_actions), stringResource(R.string.studio_flow_sub, settings.aliases.size,
+                controls.arcSets.sumOf { set -> set.slots.count { it is Action.Flow } }), { onArea(StudioSection.Actions) }, glyph = Glyph.Flow)
+            SettingRow(stringResource(R.string.studio_area_system), stringResource(R.string.settings_system_sub, hidden.size),
+                { onArea(StudioSection.System) }, glyph = Glyph.Shield)
         }
-        Group(R.string.settings_group_home) {
-            SectionRow(stringResource(R.string.edit_home), active.name + " · " + placementLabel(active), onEditHome)
-            SectionRow(stringResource(R.string.home_grid), "${active.grid.cols}×${active.grid.rows}") { onOpen(StudioSection.Home, null) }
-            SectionRow(stringResource(R.string.icons), stringResource(R.string.settings_icons_sub, stringResource(iconStyleName(settings.iconStyle)),
-                settings.iconSize)) { onOpen(StudioSection.Icons, null) }
-            SectionRow(stringResource(R.string.favorites_title), stringResource(R.string.settings_favorites_sub, settings.favorites.size,
-                LauncherSettings.MAX_FAVORITES)) { onOpen(StudioSection.Favorites, null) }
-        }
-        Group(R.string.settings_group_controls) {
-            SectionRow(stringResource(R.string.arc_section), stringResource(R.string.settings_arc_sub, settings.controls.arcSets.size.coerceAtLeast(1), settings.controls.arc.slots)) {
-                onOpen(StudioSection.Arc, null)
-            }
-            SectionRow(stringResource(R.string.flow), stringResource(R.string.studio_flow_sub, settings.aliases.size, settings.controls.arcSets.sumOf { set -> set.slots.count { it is Action.Flow } })) {
-                onOpen(StudioSection.Flow, null)
-            }
-            SectionRow(stringResource(R.string.pulse), stringResource(when (settings.pulseMode()) {
-                PulseMode.Off -> R.string.off
-                PulseMode.Home -> R.string.pulse_home_only
-                PulseMode.Everywhere -> if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only
-            })) { onOpen(StudioSection.Pulse, null) }
-            SectionRow(stringResource(R.string.gestures_title), stringResource(R.string.settings_gestures_sub)) { onOpen(StudioSection.Gestures, null) }
-            SectionRow(stringResource(R.string.motion_section), stringResource(motionName(settings.motion)) + " · " +
-                stringResource(hapticsName(settings.haptics)) + " · " + "${(settings.textScale * 100).toInt()} %") { onOpen(StudioSection.Motion, null) }
-        }
-        Group(R.string.settings_group_data) {
-            SectionRow(stringResource(R.string.backup_title), stringResource(R.string.settings_backup_sub)) { onOpen(StudioSection.Backup, null) }
-            SectionRow(stringResource(R.string.studio_system), stringResource(R.string.settings_system_sub, hidden.size)) { onOpen(StudioSection.System, null) }
-            SectionRow(stringResource(R.string.about_title), stringResource(R.string.local_only)) { onOpen(StudioSection.About, null) }
-        }
-        Spacer(Modifier.height(8.dp))
+        // The few places owners come back to most; one tap away instead of two.
+        VeilCaption(stringResource(R.string.studio_quick))
+        VeilChoice(listOf(0 to stringResource(R.string.edit_home), 1 to stringResource(R.string.pulse), 2 to stringResource(R.string.arc_section)),
+            null, { when (it) { 0 -> onEditHome(); 1 -> onOpen(StudioTarget.Pulse); else -> onOpen(StudioTarget.Arc) } },
+            Modifier.padding(horizontal = 16.dp))
+        Spacer(Modifier.height(12.dp))
     }
 }
 
-/** A titled group of rows on a faint plate; [lit] gives the plate a hint of the accent (Vzhled). */
 @Composable
-private fun Group(title: Int?, lit: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val ink = LocalInk.current
-    if (title != null) Kicker(stringResource(title), Modifier.padding(start = 28.dp, end = 24.dp, top = 18.dp, bottom = 6.dp), color = ink.muted)
-    val shape = RoundedCornerShape(22.dp)
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = if (title == null) 6.dp else 0.dp).clip(shape)
-        .background(if (lit) ink.accent.copy(alpha = .10f) else ink.ink.copy(alpha = .045f))
-        .then(if (lit) Modifier.border(1.dp, ink.accent.copy(alpha = .35f), shape) else Modifier), content = content)
-}
+private fun pulseState(settings: LauncherSettings, everywhere: Boolean) = stringResource(when (settings.pulseMode()) {
+    PulseMode.Off -> R.string.off
+    PulseMode.Home -> R.string.pulse_home_only
+    PulseMode.Everywhere -> if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only
+})
 
-/** A section or a search result: its name and, below, its state or where it lives. */
+/** Ovládání: PULSE, ARC, every gesture and key, and how the launcher moves and answers touch. */
 @Composable
-private fun SectionRow(title: String, subtitle: String, onClick: () -> Unit) {
-    val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().heightIn(min = 62.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 18.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = InkText.body.copy(fontSize = 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, style = InkText.small, color = ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-        Text("  →", Modifier.clearAndSetSemantics { }, style = InkText.body, color = ink.muted)
+private fun ControlsArea(settings: LauncherSettings, onPage: (StudioPane) -> Unit) {
+    val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+    val controls = settings.controls
+    VeilGroup {
+        SettingRow(stringResource(R.string.pulse), pulseState(settings, everywhere), { onPage(StudioPane.Pulse) }, glyph = Glyph.Pulse)
+        SettingRow(stringResource(R.string.arc_section), stringResource(R.string.settings_arc_sub, controls.arcSets.size.coerceAtLeast(1),
+            controls.arc.slots), { onPage(StudioPane.Arc) }, glyph = Glyph.Arc)
+        SettingRow(stringResource(R.string.gestures_title), stringResource(R.string.studio_gestures_sub, controls.bindings.size, controls.keys.size),
+            { onPage(StudioPane.Gestures) }, glyph = Glyph.Touch)
+        SettingRow(stringResource(R.string.motion_section), stringResource(motionName(settings.motion)) + " · " +
+            stringResource(hapticsName(settings.haptics)), { onPage(StudioPane.Motion) }, glyph = Glyph.Wave)
     }
+    Hint(stringResource(R.string.studio_controls_hint))
 }
 
 @Composable
@@ -388,38 +399,30 @@ private fun StudioSearchField(query: String, onChange: (String) -> Unit) {
     }
 }
 
-/** The Crystal controls (chips, sliders, folds) at the sheet's margins. */
+/** Plocha: the editor, the active layout's grid and placement without opening it, and the favourites. */
 @Composable
-private fun CrystalBody(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp), content = content)
-}
-
-/** Vzhled: the launcher's look, unfolded at the part a search asked for. */
-@Composable
-private fun LookPage(settings: LauncherSettings, focus: StudioTarget?, set: SettingsEdit) {
-    val first = focus?.let { lookFoldTitle(it) }
-    val group = remember { FoldGroup().also { it.open = first } }
-    CompositionLocalProvider(LocalFoldGroup provides group) { CrystalBody { LookSettings(settings, set) } }
-}
-
-/** Plocha: the editor, then the active layout's grid and placement without opening it. */
-@Composable
-private fun HomePage(settings: LauncherSettings, set: SettingsEdit, onEditHome: () -> Unit) {
+private fun HomePage(settings: LauncherSettings, set: SettingsEdit, onEditHome: () -> Unit, onFavorites: () -> Unit) {
     val active = settings.home.activeLayout()
-    SectionRow(stringResource(R.string.edit_home), stringResource(R.string.home_edit_sub), onEditHome)
-    CrystalBody {
-        SliderRow(stringResource(R.string.home_grid_cols), active.grid.cols.toFloat(), 3f, 6f, 1f, active.grid.cols.toString()) { v ->
-            set { it.copy(home = it.home.withLayout { l -> l.copy(grid = l.grid.copy(cols = v.roundToInt())) }) }
+    VeilGroup {
+        SettingRow(stringResource(R.string.edit_home), stringResource(R.string.home_edit_sub), onEditHome, glyph = Glyph.Layers,
+            anchor = StudioTarget.EditHome.anchor)
+        SettingRow(stringResource(R.string.favorites_title), stringResource(R.string.settings_favorites_sub, settings.favorites.size,
+            LauncherSettings.MAX_FAVORITES), onFavorites, glyph = Glyph.Apps)
+    }
+    VeilGroup(stringResource(R.string.home_grid)) {
+        SettingBlock(StudioTarget.Grid.anchor) {
+            SliderRow(stringResource(R.string.home_grid_cols), active.grid.cols.toFloat(), 3f, 6f, 1f, active.grid.cols.toString()) { v ->
+                set { it.copy(home = it.home.withLayout { l -> l.copy(grid = l.grid.copy(cols = v.roundToInt())) }) }
+            }
+            SliderRow(stringResource(R.string.home_grid_rows), active.grid.rows.toFloat(), 4f, 8f, 1f, active.grid.rows.toString()) { v ->
+                set { it.copy(home = it.home.withLayout { l -> l.copy(grid = l.grid.copy(rows = v.roundToInt())) }) }
+            }
+            Text(stringResource(R.string.home_grid_hint), Modifier.padding(4.dp), style = InkText.small, color = LocalInk.current.muted)
         }
-        SliderRow(stringResource(R.string.home_grid_rows), active.grid.rows.toFloat(), 4f, 8f, 1f, active.grid.rows.toString()) { v ->
-            set { it.copy(home = it.home.withLayout { l -> l.copy(grid = l.grid.copy(rows = v.roundToInt())) }) }
-        }
-        Text(stringResource(R.string.home_grid_hint), Modifier.padding(vertical = 4.dp), style = CrystalType.caption, color = LocalCrystal.current.fg2)
-        Kick(stringResource(R.string.home_placement))
-        Chips(listOf(Placement.Grid to stringResource(R.string.placement_grid), Placement.Free to stringResource(R.string.placement_free),
-            Placement.Hybrid to stringResource(R.string.placement_hybrid)), active.placement) { v ->
-            set { it.copy(home = it.home.withLayout { l -> l.copy(placement = v) }) }
-        }
+        ChoiceSetting(stringResource(R.string.home_placement), listOf(Placement.Grid to stringResource(R.string.placement_grid),
+            Placement.Free to stringResource(R.string.placement_free), Placement.Hybrid to stringResource(R.string.placement_hybrid)),
+            active.placement, { v -> set { it.copy(home = it.home.withLayout { l -> l.copy(placement = v) }) } },
+            anchor = StudioTarget.Placement.anchor)
     }
 }
 
@@ -537,17 +540,21 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
     }
 }
 
-/** FLOW: the named commands; which of them ARC holds is chosen on the ARC page. */
+/** Akce a FLOW: the named commands; which of them ARC holds is chosen on the ARC page. */
 @Composable
 private fun FlowPage(settings: LauncherSettings, onFlows: () -> Unit) {
+    VeilGroup {
+        SettingRow(stringResource(R.string.flow_manage), stringResource(R.string.studio_flow_sub, settings.aliases.size,
+            settings.controls.arcSets.sumOf { set -> set.slots.count { it is Action.Flow } }), onFlows, glyph = Glyph.Flow,
+            anchor = StudioTarget.Flows.anchor)
+    }
     Hint(stringResource(R.string.onboarding_gestures_body))
-    NavRow(stringResource(R.string.flow_manage), settings.aliases.size.toString(), onFlows)
 }
 
 /** PULSE: the capsule, its events and calibration, and whether it works outside Intelia (D9); its gestures live in Ovládání. */
 @Composable
 private fun PulsePage(settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit, onControls: () -> Unit) {
-    CrystalBody { PulseInspector(settings, set, onLens) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) { PulseInspector(settings, set, onLens) }
     if (settings.pulse) NavRow(stringResource(R.string.pulse_gestures), stringResource(R.string.gestures_title), onControls)
 }
 
@@ -598,19 +605,20 @@ internal fun keyName(code: Int): String = when (code) {
     else -> android.view.KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
 }
 
-/** Animace a dotek: motion and haptics. */
+/** Animace a haptika: how the launcher moves (Vyp = Reduced Motion) and answers touch. */
 @Composable
 private fun MotionPage(settings: LauncherSettings, set: SettingsEdit) {
-    Stacked(stringResource(R.string.motion)) {
-        Segments(listOf(Motion.Calm to stringResource(R.string.motion_calm), Motion.Brisk to stringResource(R.string.motion_brisk),
-            Motion.Off to stringResource(R.string.off)), settings.motion, { v -> set { it.copy(motion = v) } })
+    VeilGroup {
+        ChoiceSetting(stringResource(R.string.motion), listOf(Motion.Calm to stringResource(R.string.motion_calm),
+            Motion.Brisk to stringResource(R.string.motion_brisk), Motion.Off to stringResource(R.string.off)), settings.motion,
+            { v -> set { it.copy(motion = v) } }, detail = stringResource(R.string.motion_detail), anchor = StudioTarget.Motion.anchor)
+        ChoiceSetting(stringResource(R.string.haptics), listOf(Haptics.Soft to stringResource(R.string.haptics_soft),
+            Haptics.Strong to stringResource(R.string.haptics_strong), Haptics.Off to stringResource(R.string.off)), settings.haptics,
+            { v -> set { it.copy(haptics = v) } }, detail = stringResource(R.string.haptics_detail), anchor = StudioTarget.Haptics.anchor)
     }
-    Stacked(stringResource(R.string.text_size)) {
-        Segments(LauncherSettings.TEXT_SCALES.map { it to "${(it * 100).toInt()} %" }, settings.textScale, { v -> set { it.copy(textScale = v) } })
-    }
-    Stacked(stringResource(R.string.haptics)) {
-        Segments(listOf(Haptics.Soft to stringResource(R.string.haptics_soft), Haptics.Strong to stringResource(R.string.haptics_strong),
-            Haptics.Off to stringResource(R.string.off)), settings.haptics, { v -> set { it.copy(haptics = v) } })
+    ResetDefaults(stringResource(R.string.reset_motion_what)) {
+        val d = LauncherSettings.fresh()
+        set { it.copy(motion = d.motion, haptics = d.haptics) }
     }
 }
 
@@ -626,18 +634,32 @@ private fun hapticsName(h: Haptics) = when (h) {
     Haptics.Off -> R.string.off
 }
 
-/** Systém: becoming the default home (only while it is not) and hidden apps. */
+/**
+ * Systém a data: what Intelia may do in Android (default home, the PULSE service, notification access for music),
+ * hidden apps, backup and about. Each permission row says its state and opens Android's own page; nothing is granted here.
+ */
 @Composable
-private fun SystemPage(model: HomeViewModel, onHidden: () -> Unit) {
+private fun SystemPage(model: HomeViewModel, onHidden: () -> Unit, onBackup: () -> Unit) {
+    val context = LocalContext.current
     val hidden by model.hiddenApps.collectAsStateWithLifecycle()
+    val service by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+    var media by remember { mutableStateOf(MediaWatch.allowed(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { media = MediaWatch.allowed(context) }
     val role = rememberHomeRole()
-    Section(R.string.default_home_section)
-    if (role.held) Hint(stringResource(R.string.default_home_active))
-    else {
-        Hint(stringResource(R.string.default_home_why))
-        Capsule(stringResource(R.string.default_home), role.request, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+    VeilGroup(stringResource(R.string.permissions_title), Modifier.settingAnchor(StudioTarget.Permissions.anchor)) {
+        SettingRow(stringResource(R.string.default_home_section), stringResource(if (role.held) R.string.default_home_active else R.string.default_home_why),
+            if (role.held) null else role.request, glyph = Glyph.Studio, anchor = StudioTarget.DefaultHome.anchor,
+            trailing = if (role.held) { { HomeGlyph(Glyph.Check, null, tint = LocalInk.current.accent) } } else null)
+        SettingRow(stringResource(R.string.permission_pulse), stringResource(if (service) R.string.permission_on else R.string.permission_pulse_off),
+            { PulseAccessibilityService.openSettings(context) }, glyph = Glyph.Pulse)
+        SettingRow(stringResource(R.string.permission_media), stringResource(if (media) R.string.permission_on else R.string.permission_media_off),
+            { MediaWatch.openSettings(context) }, glyph = Glyph.Play)
     }
-    NavRow(stringResource(R.string.hidden_manage), hidden.size.toString(), onHidden)
+    VeilGroup(stringResource(R.string.settings_group_data)) {
+        SettingRow(stringResource(R.string.hidden_manage), hidden.size.toString(), onHidden, glyph = Glyph.Close, anchor = StudioTarget.Hidden.anchor)
+        SettingRow(stringResource(R.string.backup_title), stringResource(R.string.settings_backup_sub), onBackup, glyph = Glyph.Layers)
+    }
+    VeilGroup(stringResource(R.string.about_title), Modifier.settingAnchor(StudioTarget.About.anchor)) { About() }
 }
 
 /**

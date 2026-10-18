@@ -292,7 +292,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
                     flowSteps = steps,
                     onSearch = { openSearch(true) },
                     onDrawer = ::openDrawer,
-                    onPulseLens = { studioStart = StudioStart.Lens; page = Page.Studio },
+                    onPulseLens = { studioStart = StudioStart.Pulse; page = Page.Studio },
                     onSettings = { studioStart = StudioStart.Editor; page = Page.Studio },
                     startEditing = editOnHome,
                     onEditingStarted = { editOnHome = false },
@@ -903,14 +903,8 @@ private fun Home(
                 } }
             }
 
-            if (selected == PULSE_ID && drag == null) {
-                val r = hole.radius / density.density + 10f
-                // Below the editor bar: the camera sits under the status bar, the card hangs from the bar.
-                InspectorCard(Zone(camera.x - r, barBottom - 12f - r, camera.x + r, barBottom - 12f), maxWidth.value, barBottom + EDIT_LABEL, null,
-                    stringResource(R.string.pulse), inspectorFrame) {
-                    PulseInspector(settings, set, onLens = { leave(onPulseLens) })
-                }
-            }
+            // PULSE has one home, Studio › PULSE: a tap on the camera in the editor goes there (unsaved edits are asked about first).
+            if (selected == PULSE_ID && drag == null) LaunchedEffect(Unit) { selected = null; leave(onPulseLens) }
             val sel = selected?.let(ed::item)
             val bow = remember(arc.look, arc.sets.size, lensPt, dock.edge, maxWidth, maxHeight) {
                 Dock.bow(arc.look, arc.sets.size.coerceAtLeast(1), dock.edge, lensPt, maxWidth.value, maxHeight.value)

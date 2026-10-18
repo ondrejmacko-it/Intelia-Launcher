@@ -34,8 +34,17 @@ class StudioIndexTest {
     }
 
     @Test fun everyTargetBelongsToASection() {
-        StudioSection.entries.filter { it != StudioSection.Home }.forEach { s ->
+        // Ovládání only leads to its pages; every other page has rows a search can open.
+        StudioSection.entries.filter { it != StudioSection.Controls }.forEach { s ->
             assertTrue("$s has no target", StudioTarget.entries.any { it.section == s })
         }
+    }
+
+    @Test fun noPageIsDeeperThanTwo() {
+        StudioSection.entries.forEach { s -> assertTrue("$s", s.depth <= 2 && s.parent?.parent == null) }
+    }
+
+    @Test fun anchorsAreUnique() {
+        assertEquals(StudioTarget.entries.size, StudioTarget.entries.map { it.anchor }.toSet().size)
     }
 }
