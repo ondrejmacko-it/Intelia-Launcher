@@ -512,7 +512,7 @@
     <string name="req_pulse">Vyžaduje službu PULSE (Přístupnost)</string>
     <string name="arc_explain_sets">Podrž LENS, sjeď na slot a pusť. Slot 1 je uprostřed, další střídavě vlevo a vpravo. Sadu přepneš tahem na šipku vedle LENS.</string>
     <string name="arc_tap_sets">Sada podle klepnutí</string>
-    <string name="arc_tap_sets_detail">Podržení = 1. sada, klepnutí + podržení = 2., dvě klepnutí + podržení = 3. Hledání se pak otevře asi o čtvrt sekundy později.</string>
+    <string name="arc_tap_sets_detail">Podržení = 1. sada, klepnutí + podržení = 2., dvě klepnutí + podržení = 3. Hledání se pak otevře o chvilku později.</string>
     <string name="arc_slots">Sloty</string>
     <string name="arc_size">Velikost</string>
     <string name="arc_angle">Oblouk</string>
@@ -662,7 +662,7 @@
     <string name="pulse_preview_rest">Skrytá</string>
     <string name="pulse_preview_music">Hudba</string>
     <string name="pulse_preview_expanded">Rozbalená</string>
-    <string name="pulse_preview_rest_note">V klidu PULSE není vidět, kamera zůstává čistá. Čárkovaně dotyková plocha; nabíjení nebo blízký budík přidají tichý kroužek.</string>
+    <string name="pulse_preview_rest_note">V klidu PULSE není vidět. Čárkovaně: kde reaguje na dotyk.</string>
     <string name="pulse_preview_music_note">Když něco hraje: vlevo pruhy, vpravo obal. Klepnutí otevře skladbu.</string>
     <string name="pulse_preview_expanded_note">Po klepnutí jen skladba: obal a název otevřou přehrávač, pod tím ovládání. Zavřeš klepnutím vedle, tahem nahoru nebo úchytem.</string>
     <string name="pulse_preview_arc_note">Podrž a posuň: Global ARC pod kamerou, puštění spustí slot, návrat ke kameře zruší.</string>
@@ -720,12 +720,12 @@
     <string name="show_advanced">Zobrazit pokročilé</string>
     <string name="pulse_preview_sample">Ukázka</string>
     <string name="pulse_calib_strip">Tečka patří pod kameru; čárkovaný čtverec přijímá dotyk.</string>
-    <string name="pulse_calib_body">Vyberte velikost dotykové plochy a vyzkoušejte ji. Během testu se nic nespustí a nic se neuloží, dokud nedáte Uložit.</string>
+    <string name="pulse_calib_body">Vyber velikost dotykové plochy a vyzkoušej ji. Změna platí až po Uložit.</string>
     <string name="pulse_calib_saved">Uloženo</string>
     <string name="pulse_calib_draft">Neuložené změny</string>
     <string name="pulse_hit_group">Dotyková plocha</string>
     <string name="pulse_test">Otestovat dotyky</string>
-    <string name="pulse_test_detail">Klepejte na kameru i vedle ní; nic se neotevře.</string>
+    <string name="pulse_test_detail">Klepej na kameru i vedle ní; nic se neotevře.</string>
     <string name="pulse_test_done">Hotovo</string>
     <string name="pulse_calib_advanced">Pokročilé: jemné posuny a kamera</string>
     <string name="pulse_calib_offsets">Posun dotykové plochy</string>

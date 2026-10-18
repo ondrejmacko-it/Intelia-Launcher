@@ -513,7 +513,7 @@
     <string name="req_pulse">Needs the PULSE service (Accessibility)</string>
     <string name="arc_explain_sets">Hold LENS, slide onto a slot, release. Slot 1 is in the middle, the next ones left and right in turn. Slide onto an arrow beside LENS for another set.</string>
     <string name="arc_tap_sets">Set by taps</string>
-    <string name="arc_tap_sets_detail">Hold = set 1, tap + hold = set 2, two taps + hold = set 3. Search then opens about a quarter of a second later.</string>
+    <string name="arc_tap_sets_detail">Hold = set 1, tap + hold = set 2, two taps + hold = set 3. Search opens a moment later.</string>
     <string name="arc_slots">Slots</string>
     <string name="arc_size">Size</string>
     <string name="arc_angle">Arc</string>
@@ -663,7 +663,7 @@
     <string name="pulse_preview_rest">Hidden</string>
     <string name="pulse_preview_music">Music</string>
     <string name="pulse_preview_expanded">Expanded</string>
-    <string name="pulse_preview_rest_note">At rest PULSE is invisible and the camera stays clear. Dashed: the touch target; charging or a near alarm add a quiet ring.</string>
+    <string name="pulse_preview_rest_note">At rest PULSE is invisible. Dashed: where it reacts to touch.</string>
     <string name="pulse_preview_music_note">While something plays: bars on the left, the artwork on the right. A tap opens the song.</string>
     <string name="pulse_preview_expanded_note">Tapped, only the song: artwork and title open the player, the controls below. Close it with a tap beside, a flick up or the handle.</string>
     <string name="pulse_preview_arc_note">Hold and slide: Global ARC under the camera, release runs the slot, back to the camera cancels.</string>
@@ -721,7 +721,7 @@
     <string name="show_advanced">Show advanced</string>
     <string name="pulse_preview_sample">Sample</string>
     <string name="pulse_calib_strip">The dot belongs under the camera; the dashed square takes the touch.</string>
-    <string name="pulse_calib_body">Pick how big the touch target is, then try it. Nothing runs during the test and nothing is kept until you save.</string>
+    <string name="pulse_calib_body">Choose the touch target size and try it. Nothing changes until you save.</string>
     <string name="pulse_calib_saved">Saved</string>
     <string name="pulse_calib_draft">Unsaved changes</string>
     <string name="pulse_hit_group">Touch target</string>
