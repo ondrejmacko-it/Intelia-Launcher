@@ -1,26 +1,33 @@
-Pokračujeme na Intelia Launcheru — **S4 část 3: dokončení ověření a zbytků** (`AGENTS.md` platí). Odpovídej česky, stručně.
-Limit ~200k tokenů: žádní agenti, soubory nečti celé, výstupy filtruj, screenshoty zmenšuj (PIL, výřezy).
+Pokračujeme na Intelia Launcheru — **M0: stabilizace Studia (scroll, nechtěné zavírání, přechody)** (`AGENTS.md` platí).
+Odpovídej česky, stručně. Limit ~200k tokenů: žádní agenti, soubory nečti celé, výstupy filtruj, screenshoty zmenšuj.
 
-Stav (2026-10-18): větev `feat/control-system-v1` (nemergovat do `main`). S4 část 2 hotová — viz `docs/STATUS.md`
-nahoře: mrtvé UI odebráno, Onboarding a app sheet na Veil, titulky na Roboto Flex, kratší nápovědy, bloom kreslený jen
-v rohu (Drawer 18–20 % janky, baseline 17 %). Screenshoty `docs/screens/s4.2/` (necommitovat).
+Stav (2026-10-18): větev `feat/control-system-v1` (nemergovat do `main`). S4.4 hotová a pushnutá — viz `docs/STATUS.md`
+nahoře (LENS ustupuje sousedům, Home mimo a11y strom pod Search/Drawerem, PULSE quick 2 × 2 při velkém písmu).
 
-Zbývá:
-1. Bez majitele nejde: text 130/150 % a TalkBack (systémová nastavení — požádej majitele, ať je zapne, pak
-   projdi Studio, Search, Drawer, PULSE kartu: ořezy, dotykové plochy ≥ 48 dp, popisky).
-2. Reduce motion (Intelia › Animace) a světlá tapeta — screenshot Home, Search, Drawer, Studio.
-3. PULSE „Jen na ploše“ jen se souhlasem majitele (přepnutí může vyžadovat znovu zapnout službu přístupnosti),
-   tlačítka glance (svítilna/budíky/oznámení — nespouštět bez souhlasu), nečinná nápověda Global ARC (držet ≥ 2 s).
-4. Studio první otevření: 18 % janky, p90 53 ms — změř 5×, zkus odložit náhled plochy o snímek, ověř zlepšení.
-5. Volitelně: FLOW stránky a kalibrace na plném papíře vs. Studio s tapetou — sjednotit, jen pokud to majitel chce.
-6. Action Picker na telefonu (screenshot), editor/inspector čtou `LocalCrystal` — přepis jen bez změny vzhledu.
+Schválený velký plán (milníky, každý = funkční celek + testy + Lab build + ověření na Phone (3) + commit):
+M0 Studio stabilizace → M1 PreviewHost (kontextové živé náhledy) → M2 jednotné Studio UX → M3 DeviceCapabilities →
+M4 Shizuku (volitelné) → M5 hardwarová tlačítka → M6 knihovna akcí + FLOW → M7 Onboarding V2 → M8 integrace.
+Inspirace KEA jen organizačně, žádný cizí kód ani grafika. Screenshoty `docs/screens/*` (necommitovat).
+
+M0 — úkoly:
+1. Zreprodukuj na telefonu: rychlý scroll dlouhého nastavení (Studio › Ovládání › PULSE) mění výšku sheetu až po zavření.
+   Příčina skoro jistě `ui/StudioSheet.kt` `NestedScrollConnection.onPostScroll` (nevyužitý scroll seznamu hýbe sheetem).
+2. Oprav: scroll seznamu nikdy nemění výšku; výšku mění jen tah za madlo (touch slop, velocity threshold, snap na
+   Preview / Balanced / Settings); zavření jen Back nebo jednoznačné gesto na madle; fling seznamu nic nezavře.
+   Zachovej polohu při otevření podstránky, Reduced Motion, TalkBack akce na madle.
+3. Přechody: otevření Studia z Home, změna polohy a podstránky bez bliknutí a skoku; nic dražšího než transformace.
+4. Testy: pure stav sheetu (snap, prahy) na JVM; na telefonu 10× rychlý scroll nahoru/dolů bez změny výšky (porovnej
+   bounds madla v dumpu před/po), tah za madlo mezi třemi polohami, Back. Scrolluj jen u levého okraje (x ≈ 20).
+5. Commit + push, STATUS, pak (zbude-li rozpočet) M1: návrh `PreviewHost` nad stávajícími renderery (PULSE, ARC, LENS,
+   Search, Home) — bezpečné náhledy, nic nespouští.
 
 Build/telefon: JAVA_HOME `C:/Users/Ondra/AppData/Local/lesnik-toolchain/jdk-17.0.20.1+1`,
 `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab` (ověř čas APK — tichý pád daemonu
-nechá staré APK; pak spusť znovu); APK `app/build/outputs/apk/lab/app-lab.apk`, `install -r`, NIKDY uninstall. adb
-v `lesnik-toolchain/sdk/platform-tools`, `MSYS_NO_PATHCONV=1`. Obrazovka 1080×2392; kamera ≈ (540, 63) px.
-Navigace: Home dlouhý stisk 540 1100 → Nastavení 907 2240 → rychlý přístup PULSE 476 2386.
-**Souřadnice z `uiautomator dump` bývají zastaralé** (po animaci/scrollu) — klepej podle čerstvého screenshotu a nikdy
-neklepej na odvozenou souřadnici, když hledání textu selže (minule to otevřelo panel oznámení).
-Majitelovy vazby (PULSE Podržení → Global ARC, Dvojí klepnutí → Spotify, Klepnutí a podržení → Svítilna) neměnit,
-hudbu nespouštět ani nezastavovat. `docs/screens/*` nemazat ani necommitovat.
+nechá staré APK); APK `app/build/outputs/apk/lab/app-lab.apk`, `install -r`, NIKDY uninstall. adb
+v `lesnik-toolchain/sdk/platform-tools`, `MSYS_NO_PATHCONV=1`. Obrazovka 1080×2392; kamera ≈ (540, 63) px; LENS (540, 2190).
+Navigace: Home dlouhý stisk 540 1100 → Nastavení 907 2240.
+Před každým `input` ověř, že top activity je `dev.intelia.launcher.lab` (majitel může telefon používat).
+**Souřadnice z `uiautomator dump` bývají zastaralé** — klepej podle čerstvého screenshotu, nikdy na odvozenou souřadnici,
+když hledání textu selže. Systémové písmo/density měň jen dočasně a vrať (1.0 / `wm density reset`).
+Majitelovy vazby (PULSE Podržení → Global ARC, Dvojí klepnutí → Spotify, Klepnutí a podržení → Svítilna), FLOW, ikony
+a rozložení neměnit, hudbu nespouštět. Mluvený TalkBack test s majitelem zatím neproběhl.

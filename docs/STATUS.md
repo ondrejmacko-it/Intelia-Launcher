@@ -2,6 +2,30 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — S4.4 UX regressions: dock targets, overlay accessibility, large text (`feat/control-system-v1`, f5d0a1f..)
+- Git: a56a738 and d6b30d1 were only local; pushed to `origin/feat/control-system-v1` (fast-forward, nothing rewritten).
+- Dock: `Dock.lensTouch` gives LENS's touch box (84 × 100 dp) a per-side extent; it gives way only on a neighbour's side,
+  along the cheaper axis, never below 24 dp from its centre (48 dp box). The LENS mark and ARC geometry stay centred on
+  LENS. The owner's layout, gap and pitch are unchanged. Measured from `uiautomator dump` on the Phone (3), owner's
+  Home (76 dp icon targets, four dock apps, an icon above LENS): 100 % — LENS 64 × 74 dp, every dock icon 74–76 dp, the
+  icon above 76 dp (was: LENS 84 × 100 over it); 130 % (`font_scale` 1.15, density 478) — LENS 63 × 74, icons 73–76;
+  150 % (1.3, 540, 320 dp wide) — LENS 48 × 74, Fotoaparát 60 dp (was 42), others 63–76; icons do not overlap (screenshot).
+  Taps at LENS's left edge (x = 468 px at 150 %) and its upper part open Search. Settings restored to 1.0 / 420.
+  Not done: a compact or two-row dock for narrow screens — with these targets every icon already has ≥ 48 dp; proposed for
+  M2 (Plocha › LENS řada) if the owner wants five or more dock apps.
+- Accessibility: under Search and the drawer Home's subtree is `clearAndSetSemantics` (still drawn and composed); Search and
+  the drawer carry a `paneTitle`; Action Picker / confirm / leave-editor dialog titles are headings. Dump with Search open:
+  only the results card and the focused field, no dock, LENS or PULSE nodes; drawer open: header, favourites and list only;
+  after Back the dock, clock and PULSE nodes are back. The options sheet and dialogs are their own windows.
+- PULSE glance: when a quick-button name would be cut (measured with the label style), the buttons go onto two rows of two,
+  each with half the card. 100 %: one row of four (unchanged); 130 % and 150 %: 2 × 2, „Oznámení“ and „Svítilna“ whole.
+- Veil: FLOW editor's name caption is a `VeilCaption` like „Kroky“; calibration's explanation is a `GroupNote` inside the
+  touch-area group. No new blur or cards; calibration keeps its solid page under the live strip.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (new `DockTest.lensGivesWayToItsNeighbours`); `install -r` of `app-lab.apk`; PULSE and KEA accessibility services stayed on.
+- Not verified: a spoken TalkBack walk-through with the owner (focus order checked from the tree only); ARC hold-slide on
+  the narrowed LENS box (code path uses LENS's centre, not the box's); side-edge docks; Action Picker on the device.
+
 ## 2026-10-18 — S4 Unified UI Polish, part 3: checks and leftovers (`feat/control-system-v1`)
 - Action Picker: with a host, a system action's requirement („Vyžaduje službu PULSE“) is shown only while unmet (the
   reason); without a host it still says what the action will need. Seen on the Phone (3): Oznámení reads „funguje i
