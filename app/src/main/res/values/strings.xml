@@ -752,4 +752,6 @@
     <string name="pulse_calib_camera">Camera</string>
     <string name="pulse_calib_camera_mode">Camera position</string>
     <string name="pulse_quick_icon_auto">Auto</string>
+    <string name="language_title">Language</string>
+    <string name="language_app">App language</string>
 </resources>

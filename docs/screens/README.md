@@ -4,6 +4,9 @@ Photo record of the launcher on the owner's phone (Nothing Phone (3), 1080 × 23
 50 %. Only the **newest** version folder is kept here; older ones are removed when a new sweep lands and stay in
 git history (`git log -- docs/screens`).
 
+Beta: [`v0.1.0-beta.1/`](v0.1.0-beta.1/) — three shots of the 0.1.0-beta.1 Lab build (ARC held, Studio, Systém a
+data with the language row), 2026-10-19, Nothing Phone (3); not a full sweep.
+
 Current: [`v0.1.0-2026-10-17c/`](v0.1.0-2026-10-17c/) — branch `claude/crystal-redesign`, full sweep of the whole
 launcher after D18 (larger text, 48 dp targets) and the icon pass (gear for Settings everywhere, magnifier at the
 left of every search field). The previous sweep [`v0.1.0-2026-10-17b/`](v0.1.0-2026-10-17b/) is kept until the

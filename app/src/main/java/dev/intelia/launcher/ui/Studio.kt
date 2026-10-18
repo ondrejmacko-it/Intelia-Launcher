@@ -20,6 +20,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.ColumnScope
 import android.content.pm.PackageManager
 import android.os.Build
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.Canvas
@@ -693,6 +696,19 @@ private fun SystemPage(model: HomeViewModel, onHidden: () -> Unit, onBackup: () 
             { PulseAccessibilityService.openSettings(context) }, glyph = Glyph.Pulse)
         SettingRow(stringResource(R.string.permission_media), stringResource(if (media) R.string.permission_on else R.string.permission_media_off),
             { MediaWatch.openSettings(context) }, glyph = Glyph.Play)
+    }
+    // Language: Czech or English through Android's per-app language page (locales_config.xml, Android 13+); older
+    // Android follows the system language, so the row is not shown there.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val locale = LocalConfiguration.current.locales[0]
+        VeilGroup(stringResource(R.string.language_title)) {
+            SettingRow(stringResource(R.string.language_app), locale.getDisplayLanguage(locale).replaceFirstChar { it.titlecase(locale) }, {
+                runCatching {
+                    context.startActivity(Intent(android.provider.Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            }, glyph = Glyph.Settings)
+        }
     }
     VeilGroup(stringResource(R.string.settings_group_data)) {
         SettingRow(stringResource(R.string.hidden_manage), hidden.size.toString(), onHidden, glyph = Glyph.Close, anchor = StudioTarget.Hidden.anchor)

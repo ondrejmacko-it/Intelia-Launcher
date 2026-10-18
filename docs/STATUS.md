@@ -2,6 +2,23 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-19 — 0.1.0-beta.1 release preparation (`feat/control-system-v1` → `main`)
+- D26: `versionCode` 2, `versionName` `0.1.0-beta.1`; optional release signing from git-ignored
+  `.signing/release.properties`; `locales_config.xml` + Studio › Systém a data › Jazyk (Android 13+ per-app language).
+  The app already had full EN (`values`) and CS (`values-cs`) strings; no hard-coded UI text found in Kotlin.
+- PASS: `./gradlew -q --max-workers=1 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab
+  :app:assembleRelease` (145 s, 235 tests, 0 failures). Lab APK SHA-256 `321aa38b…d57f`, v2 debug signature;
+  release APK unsigned (no production key — BLOCKED, owner decision).
+- Phone (3), Android 16, top activity checked before every input: `install -r` 00:08 (vc 1 → 2), HOME role and PULSE
+  service kept; Home, LENS → Search (+ keyboard), drawer, ARC hold + cancel, editor → Studio, Jazyk → Android's app
+  language page (Čeština / English) → Back. Nothing of the owner's setup changed.
+- Observed: Studio said „Služba PULSE: Vypnuto“ while `dumpsys accessibility` listed it bound (UX_BUGS U1, maybe the
+  dump rebind race).
+- Docs: README (EN) + README.cs.md, `docs/release/v0.1.0-beta.1/`, `docs/audit/BETA_0.1.0_BASELINE.md`,
+  `docs/audit/UX_BUGS.md`, `docs/product/MASTER_PLAN.md`; 3 screenshots in `docs/screens/v0.1.0-beta.1/`.
+- Not verified: lock/unlock, Recents → Home, PULSE over apps, Global ARC, process restart, TalkBack, light theme,
+  English UI on the device. Competitor / online research not done (MASTER_PLAN §13).
+
 ## 2026-10-18 — M2 step 2: haptic strength (D24) and a custom accent (D25) (`feat/control-system-v1`)
 - Owner approved D24 = B (`VIBRATE`) with automatic fallback to A, and D25 = one custom accent first, architecture
   ready for full palettes (see `DECISIONS.md`).

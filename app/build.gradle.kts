@@ -1,10 +1,15 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+val releaseSigning: Properties? = rootProject.file(".signing/release.properties").takeIf { it.isFile }
+    ?.let { f -> Properties().apply { f.inputStream().use(::load) } }
 
 android {
     namespace = "dev.intelia.launcher"
@@ -18,8 +23,9 @@ android {
         applicationId = "dev.intelia.launcher"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        // 0.1.0-beta.1 (D26): the first public prerelease. versionCode only ever goes up.
+        versionCode = 2
+        versionName = "0.1.0-beta.1"
     }
 
     signingConfigs {
@@ -29,6 +35,16 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+        // Production key (D26): only from `.signing/release.properties` on the owner's PC (git-ignored), never the
+        // repo's debug key. Without that file `assembleRelease` stays unsigned and cannot be published by mistake.
+        if (releaseSigning != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseSigning.getProperty("storeFile"))
+                storePassword = releaseSigning.getProperty("storePassword")
+                keyAlias = releaseSigning.getProperty("keyAlias")
+                keyPassword = releaseSigning.getProperty("keyPassword")
+            }
         }
     }
 
@@ -42,6 +58,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            if (releaseSigning != null) signingConfig = signingConfigs.getByName("release")
         }
         // The everyday build on the test phone (D16): release code (R8, not debuggable, AOT from the baseline
         // profile) under the Lab package and the shared debug key, so `install -r` swaps it with debug both ways.

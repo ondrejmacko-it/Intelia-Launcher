@@ -363,3 +363,18 @@ Step 1 is one owner-made accent for the whole launcher. Scope:
 - The stored colour is the owner's base; what is drawn is derived per theme by `AccentColors.derive` (pure, JVM
   tested): the hue and saturation are kept, lightness moves until it reaches 4.5:1 against the Veil base of that theme
   and the text on the accent keeps 4.5:1 too. No eyedropper (would need screen capture), no permission, no network.
+
+## D26 — 2026-10-19 — Versioning, release signing and app language for 0.1.0-beta.1
+- **Version:** `versionName = "0.1.0-beta.1"`, `versionCode = 2` (was 1). Build types add their suffix (`-lab`, `-dev`).
+  `versionCode` only ever goes up; every public build gets a new one.
+- **Packages:** `dev.intelia.launcher` is the distribution package; `dev.intelia.launcher.lab` (Lab, debug) is the
+  development package signed with the shared, public debug key (D4). The two install side by side and never update
+  each other. The debug key is public in git and must never sign a distributed build.
+- **Release signing:** `app/build.gradle.kts` reads an optional `.signing/release.properties` (`storeFile`,
+  `storePassword`, `keyAlias`, `keyPassword`; `.signing/` and `*.jks` are git-ignored). Without it
+  `assembleRelease` produces `app-release-unsigned.apk`, which cannot be installed or published by mistake.
+  Creating the long-lived key is the **owner's decision** (who holds it, where the backup lives); losing it means no
+  update path for anyone who installed a build signed with it.
+- **Language:** Intelia ships English (`values`) and Czech (`values-cs`). `res/xml/locales_config.xml` +
+  `android:localeConfig` enable Android 13+'s per-app language; Studio › Systém a data › Jazyk opens that system
+  page. No in-app locale override, no new dependency. Older Android follows the system language.

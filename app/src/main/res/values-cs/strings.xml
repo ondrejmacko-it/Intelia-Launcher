@@ -751,4 +751,6 @@
     <string name="pulse_calib_camera">Kamera</string>
     <string name="pulse_calib_camera_mode">Poloha kamery</string>
     <string name="pulse_quick_icon_auto">Auto</string>
+    <string name="language_title">Jazyk</string>
+    <string name="language_app">Jazyk aplikace</string>
 </resources>
