@@ -3,7 +3,6 @@ package dev.intelia.launcher.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
@@ -99,11 +97,15 @@ private fun ColumnScope.Intro() {
         "ARC" to R.string.onboarding_arc,
         "FLOW" to R.string.onboarding_flow,
         "PULSE" to R.string.onboarding_pulse,
-    ).forEach { (name, text) ->
-        Hairline()
-        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.Top) {
-            Kicker(name, Modifier.width(64.dp).padding(top = 3.dp), color = ink.accent)
-            Text(stringResource(text), style = InkText.small.copy(fontSize = 14.sp), color = ink.ink)
+    ).let { pillars ->
+        Column(Modifier.fillMaxWidth().veilPane(RoundedCornerShape(22.dp), ink)) {
+            pillars.forEachIndexed { i, (name, text) ->
+                if (i > 0) Hairline(Modifier.padding(horizontal = 16.dp))
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                    Kicker(name, Modifier.width(64.dp).padding(top = 3.dp), color = ink.accent)
+                    Text(stringResource(text), style = InkText.small.copy(fontSize = 14.sp), color = ink.ink)
+                }
+            }
         }
     }
 }
@@ -142,19 +144,18 @@ private fun LayoutChoice(settings: LauncherSettings, layout: HomeLayout, onSelec
         stringResource(R.string.onboarding_layout_body))
     Box(Modifier.fillMaxWidth().padding(top = 22.dp), contentAlignment = Alignment.Center) {
         HomePreview(settings.copy(layout = layout), emptyList(), now, ink.ink, ink.accent,
-            Modifier.size(176.dp, 330.dp).clip(RoundedCornerShape(28.dp)).background(ink.line.copy(alpha = .06f))
-                .border(1.dp, ink.line, RoundedCornerShape(28.dp)), scale = .46f)
+            Modifier.size(176.dp, 330.dp).veilPane(RoundedCornerShape(28.dp), ink), scale = .46f)
     }
-    Column(Modifier.padding(top = 18.dp).selectableGroup()) {
+    Column(Modifier.padding(top = 18.dp).fillMaxWidth().veilPane(RoundedCornerShape(22.dp), ink).selectableGroup()) {
         listOf(
             HomeLayout.Pure to (R.string.layout_pure to R.string.layout_pure_detail),
             HomeLayout.Essentials to (R.string.layout_essentials to R.string.layout_essentials_detail),
             HomeLayout.Custom to (R.string.layout_custom to R.string.layout_custom_detail),
-        ).forEach { (value, text) ->
+        ).forEachIndexed { i, (value, text) ->
             val on = value == layout
-            Hairline()
+            if (i > 0) Hairline(Modifier.padding(horizontal = 16.dp))
             Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).selectable(on, role = Role.RadioButton) { onSelect(value) }
-                .padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                .padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 RingToggle(on)
                 Column(Modifier.padding(start = 14.dp)) {
                     Text(stringResource(text.first), style = InkText.item.copy(fontSize = 22.sp))
@@ -176,15 +177,18 @@ private fun Gestures() {
         R.string.gesture_swipe_up to R.string.gesture_swipe_up_detail,
         R.string.gesture_hold_lens to R.string.gesture_hold_lens_detail,
         R.string.gesture_hold_home to R.string.gesture_hold_home_detail,
-    ).forEachIndexed { index, (title, detail) ->
-        Hairline()
-        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.Top) {
-            Text((index + 1).toString(), Modifier.width(28.dp), style = InkText.item.copy(fontSize = 22.sp), color = ink.accent)
-            Column {
-                Text(stringResource(title), style = InkText.body)
-                Text(stringResource(detail), style = InkText.small, color = ink.muted)
+    ).let { gestures ->
+        Column(Modifier.fillMaxWidth().veilPane(RoundedCornerShape(22.dp), ink)) {
+            gestures.forEachIndexed { index, (title, detail) ->
+                if (index > 0) Hairline(Modifier.padding(horizontal = 16.dp))
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                    Text((index + 1).toString(), Modifier.width(28.dp), style = InkText.item.copy(fontSize = 22.sp), color = ink.accent)
+                    Column {
+                        Text(stringResource(title), style = InkText.body)
+                        Text(stringResource(detail), style = InkText.small, color = ink.muted)
+                    }
+                }
             }
         }
     }
-    Hairline()
 }

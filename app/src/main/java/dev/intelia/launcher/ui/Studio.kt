@@ -388,7 +388,6 @@ private fun ControlsArea(settings: LauncherSettings, onPage: (StudioPane) -> Uni
         SettingRow(stringResource(R.string.motion_section), stringResource(motionName(settings.motion)) + " · " +
             stringResource(hapticsName(settings.haptics)), { onPage(StudioPane.Motion) }, glyph = Glyph.Wave)
     }
-    Hint(stringResource(R.string.studio_controls_hint))
 }
 
 @Composable
@@ -744,15 +743,6 @@ private fun Section(title: Int) {
 @Composable
 internal fun Hint(text: String) {
     Text(text, Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = InkText.small, color = LocalInk.current.muted)
-}
-
-/** A label with its choices on the line below, so long words never squeeze. */
-@Composable
-private fun Stacked(label: String, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 12.dp)) {
-        Text(label, style = InkText.body)
-        content()
-    }
 }
 
 @Composable

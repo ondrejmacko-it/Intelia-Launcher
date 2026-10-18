@@ -186,7 +186,7 @@
     <string name="reach">Dosah jednou rukou</string>
     <string name="favorites_count">Oblíbené · %1$d/%2$d</string>
     <string name="home_preview">Náhled plochy</string>
-    <string name="favorites_hint">Přidáš je podržením aplikace v šuplíku. Stojí nahoře v šuplíku a předlohy z nich skládají plochu; tvou vlastní plochu nemění.</string>
+    <string name="favorites_hint">Přidáš je podržením aplikace v šuplíku; stojí v něm nahoře.</string>
     <string name="arc_section">ARC</string>
     <string name="arc_explain">Čím dál táhneš od LENS, tím víc možností. Pozice se nemění, takže si je ruka zapamatuje.</string>
     <string name="arc_rings">Počet prstenců</string>
@@ -440,7 +440,7 @@
     <string name="inherit_own_a11y">Vlastní hodnota</string>
     <string name="inherit_reset_a11y">vrátit globální hodnotu</string>
     <string name="backup_title">Záloha</string>
-    <string name="backup_hint">Celá Intelia je jeden malý soubor s nastavením. Kam se uloží, volíte vy; Intelia nic nikam neposílá.</string>
+    <string name="backup_hint">Celé nastavení je jeden malý soubor. Kam ho uložíš, volíš ty; nic se nikam neposílá.</string>
     <string name="backup_export">Exportovat nastavení</string>
     <string name="backup_import">Obnovit ze souboru</string>
     <string name="backup_confirm">Nahradit celé nastavení? V souboru je FLOW příkazů: %1$d, oblíbených: %2$d, skrytých aplikací: %3$d.</string>
@@ -510,7 +510,7 @@
     <string name="arc_set_n">Sada %1$d</string>
     <string name="req_default_home">Vyžaduje Intelii jako výchozí plochu</string>
     <string name="req_pulse">Vyžaduje službu PULSE (Přístupnost)</string>
-    <string name="arc_explain_sets">Podrž LENS, sjeď na slot a pusť. Slot 1 je uprostřed oblouku, další střídavě vlevo a vpravo; pozice se nemění. Sadu přepneš tahem na šipku vedle LENS nebo na tečku.</string>
+    <string name="arc_explain_sets">Podrž LENS, sjeď na slot a pusť. Slot 1 je uprostřed, další střídavě vlevo a vpravo. Sadu přepneš tahem na šipku vedle LENS.</string>
     <string name="arc_tap_sets">Sada podle klepnutí</string>
     <string name="arc_tap_sets_detail">Podržení = 1. sada, klepnutí + podržení = 2., dvě klepnutí + podržení = 3. Hledání se pak otevře asi o čtvrt sekundy později.</string>
     <string name="arc_slots">Sloty</string>
@@ -531,7 +531,7 @@
     <string name="arc_release_run">pusť a spustí se</string>
     <string name="pulse_needs_home">Tahle akce se z PULSE spouští jen na Home.</string>
     <string name="pulse_gestures">Gesta kapsle</string>
-    <string name="pulse_gestures_hint">Mimo Intelii PULSE spouští jen systémové akce (svítilna, média, panely, zámek); aplikace a FLOW z něj běží na Home. Global ARC na podržení spustí aplikace, FLOW i Hledání všude.</string>
+    <string name="pulse_gestures_hint">Mimo plochu spouští PULSE jen systémové akce. Aplikace a FLOW otevře všude Global ARC.</string>
     <string name="pulse_gesture_tap">Klepnutí</string>
     <string name="pulse_gesture_double">Dvojí klepnutí</string>
     <string name="pulse_gesture_hold">Podržení</string>
@@ -546,26 +546,26 @@
     <string name="gesture_lens_left">Švihnutí LENS doleva</string>
     <string name="gesture_lens_right">Švihnutí LENS doprava</string>
     <string name="keys_title">Hardwarová tlačítka</string>
-    <string name="keys_hint">Stiskni tlačítko a uvidíš, jestli ho Intelia dostane. Nic se tu nespouští a hlasitost se nemění. Ověřené tlačítko se objeví v Ovládání a půjde mu dát akci.</string>
+    <string name="keys_hint">Stiskni tlačítko. Nic se nespustí; ověřené tlačítko pak najdeš v Ovládání.</string>
     <string name="keys_waiting">Čekám na tlačítko…</string>
     <string name="keys_caught">Intelia dostala: %1$s</string>
     <string name="keys_seen">%1$d× · kód %2$d</string>
     <string name="keys_seen_held">%1$d× a podrženo · kód %2$d</string>
     <string name="keys_never">K Intelii se nedostane</string>
-    <string name="keys_never_hint">Vypínač, Home a Přehled si nechává Android. Tlačítko, které se tu neukáže, Intelia nedostane ani přes službu PULSE.</string>
+    <string name="keys_never_hint">Vypínač, Home a Přehled si nechává Android.</string>
     <string name="key_volume_up">Hlasitost +</string>
     <string name="key_volume_down">Hlasitost −</string>
     <string name="key_camera">Fotoaparát</string>
     <string name="key_media">Tlačítko médií / sluchátek</string>
     <string name="controls_find">Hledej gesto nebo akci</string>
-    <string name="controls_hint">Jedno gesto, jedna akce. Klepnutím na řádek ji vybereš, křížek ji odebere nebo vrátí výchozí.</string>
+    <string name="controls_hint">Klepni na gesto a vyber mu akci.</string>
     <string name="controls_pulse">PULSE kapsle</string>
     <string name="controls_pulse_off">PULSE je vypnutý. Zapneš ho ve Studiu › PULSE.</string>
     <string name="controls_home">Home</string>
     <string name="controls_lens">LENS</string>
     <string name="controls_arc_sets">Sady ARC</string>
     <string name="controls_arc_count">%1$d míst obsazeno</string>
-    <string name="controls_arc_hint">ARC otevře podržení LENS. Co v něm je a v jakém pořadí, nastavíš v sadách.</string>
+    <string name="controls_arc_hint">Obsah a pořadí ARC nastavíš ve Studiu › ARC.</string>
     <string name="controls_open">rozbaleno</string>
     <string name="controls_closed">sbaleno</string>
     <string name="controls_none_bound">nic přiřazeno</string>
@@ -589,7 +589,7 @@
     <string name="keys_everywhere_detail">Služba PULSE vezme jen tlačítka s akcí, ostatní projdou beze změny. Nic neukládá ani neloguje. Při psaní v hledání Intelie a se zhasnutou obrazovkou nedělá nic.</string>
     <string name="keys_everywhere_needs_service">Tlačítka přemapuje služba PULSE. Klepnutím otevřeš nastavení přístupnosti a zapneš ji.</string>
     <string name="keys_add">Ověřit další tlačítko</string>
-    <string name="keys_bind_hint">Akci dostane jen tlačítko ověřené v diagnostice a jen se zapnutým přepínačem níž. Stisk bez akce dělá dál své (hlasitost); když má akci jen dvojí stisk, změní se hlasitost o chvilku později.</string>
+    <string name="keys_bind_hint">Akci dostane jen ověřené tlačítko se zapnutým přepínačem. Bez akce dělá dál své (hlasitost).</string>
     <string name="keys_forget">Zapomenout tlačítko</string>
     <string name="keys_forget_hint">Odebere tlačítko i jeho akce.</string>
     <string name="pick_media">Média</string>
@@ -610,7 +610,7 @@
     <string name="global_arc_cancel_hint">Návrat ke kameře gesto zruší.</string>
     <string name="arc_tab_lens">LENS ARC</string>
     <string name="arc_tab_global">Global ARC</string>
-    <string name="global_arc_explain">Global ARC se otevře pod kamerou na podržení PULSE (Ovládání). Má stejné sady a %1$d slotů jako LENS ARC; velikost, oblouk a ztmavení má vlastní.</string>
+    <string name="global_arc_explain">Otevře se pod kamerou podržením PULSE. Sady a %1$d slotů sdílí s LENS ARC, vzhled má vlastní.</string>
     <string name="global_arc_dim">Ztmavení nad aplikacemi</string>
     <string name="global_arc_dim_low">Slabé</string>
     <string name="global_arc_dim_high">Silné</string>
@@ -630,7 +630,6 @@
     <string name="studio_arc_sets_n">ARC sady: %1$d</string>
     <string name="studio_bound_n">gesta: %1$d</string>
     <string name="studio_gestures_sub">Přiřazeno: %1$d · tlačítka: %2$d</string>
-    <string name="studio_controls_hint">PULSE, ARC, gesta plochy a LENS i tlačítka vybírají ze stejných akcí.</string>
     <string name="motion_detail">Vyp zároveň omezí pohyb pro přístupnost.</string>
     <string name="haptics_detail">Pro celý launcher; ARC má vlastní ťuknutí.</string>
     <string name="permissions_title">Oprávnění</string>
@@ -656,8 +655,8 @@
     <string name="controls_default">Výchozí</string>
     <string name="controls_more">Další gesta</string>
     <string name="controls_more_count">Nevyužitá: %1$d</string>
-    <string name="controls_lens_locked">Pilíře LENS jsou pevné, aby čočka vždy znamenala hledání, šuplík a ARC. Švihnutí do stran jsou volná.</string>
-    <string name="controls_home_hint">Tah nahoru a podržení mohou dělat něco jiného; šuplík zůstává na LENS a editor ve Studiu › Plocha.</string>
+    <string name="controls_lens_locked">Klepnutí, tah nahoru a podržení jsou pevné. Švihnutí do stran jsou volná.</string>
+    <string name="controls_home_hint">Šuplík zůstává na LENS, editor plochy ve Studiu.</string>
     <string name="pulse_preview_label">Náhled PULSE</string>
     <string name="pulse_preview_off">PULSE je vypnutý. Kde má fungovat, vybereš v Chování.</string>
     <string name="pulse_preview_rest">Skrytá</string>
