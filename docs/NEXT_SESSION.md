@@ -1,32 +1,32 @@
-Pokračujeme na Intelia Launcheru — **UX stabilizace & Studio V4** (`AGENTS.md` platí). Odpovídej česky, stručně.
-Limit ~200k tokenů: žádní agenti, soubory nečti celé, výstupy filtruj, screenshoty zmenšuj (PIL, kontaktní listy).
+Pokračujeme na Intelia Launcheru — **S4 Unified UI Polish** (`AGENTS.md` platí). Odpovídej česky, stručně.
+Limit ~200k tokenů: žádní agenti, soubory nečti celé, výstupy filtruj, screenshoty zmenšuj (PIL, výřezy).
 
-Stav (2026-10-18): větev `feat/control-system-v1` (pushnutá, nemergovat do `main`). Původní kroky 5–7 (Veil 3.0)
-jsou **pozastavené**. Hotovo S0 + S1 (viz `docs/STATUS.md` nahoře): `ui/StudioNav.kt` (`StudioStack` zpětný stack,
-`SheetStops`), `ui/StudioSheet.kt` (jeden tažitelný Veil Focus sheet Preview / Balanced / Settings, sdílená poloha,
-zavření tahem madla → původ), `Studio.kt` už nemá pevné `up()` ani `PREVIEW_SHARE`.
+Stav (2026-10-18): větev `feat/control-system-v1` (pushnutá, nemergovat do `main`). Hotovo S0–S3 a **S3.1**
+(viz `docs/STATUS.md` nahoře): Quick Actions v `Controls.quick` + `ui/PulseQuick.kt`, `Action.Alarms`, glance
+materiál `veilGlass` + Veil Trace v `ui/PulseGlance.kt`, adaptivní náhledy a 6 skupin v `ui/PulseStudio.kt`,
+kalibrace na VeilKit v `ui/Calibration.kt`, nápověda Global ARC jen po 1,4 s nečinnosti.
 
-Zadání majitele (zkráceně, platí celé): PULSE neviditelný v klidu, užitečný při použití; věrné náhledy; ikony a popisky
-samostatně; přehledné podstránky; ARC jen polish Studia. Pořadí milníků:
+Zbývá z S3.1 (ověřit na telefonu, nic majiteli nespouštět bez souhlasu): tlačítka glance (svítilna / budíky /
+oznámení), nečinná nápověda ARC (držet ≥ 2 s), Global ARC nad aplikací, světlý motiv, text 130 %, TalkBack,
+plynulost otevření/zavření, režim Jen na ploše. Exit animace ve službě: okno se odebírá po animaci karty (ověřit).
 
-1. **S2 — Náhledy a Home prvky**: reprodukuj na telefonu chyby při zvětšení ikon a zapnutí popisků (grid/free/hybrid,
-   text 100/130/150 %, dlouhé české názvy), najdi přesnou příčinu. Sjednoť `HomePreview` s Home (společný layout
-   model / renderer, stejné měřítko, insets, pozice kamery a LENS). Ikona (velikost, vzhled, tvar, barva, průhlednost,
-   pozice) a popisek (zap/vyp, velikost, font/váha, barva, zarovnání, rozestup, max. řádky) jako globální výchozí +
-   výjimka v `HomeItem`; migrace přes `LauncherSettings.sanitized()`. Testy rozložení a ukládání.
-2. **S3 — PULSE UX**: hitbox ~48 dp oddělený od vizuální kapsle, kamery a systémových indikátorů (`lensTarget()`,
-   kalibrace, WindowManager overlay), kalibrace + test v nastavení; místo černého dashboardu minimalistický kontextový
-   panel (hudba / relevantní akce, nenápadné zavření); věrné náhledy Hidden / Music / Expanded / Global ARC.
-   Známá chyba: text „Návrat ke kameře gesto zruší“ u Global ARC se kreslí přes hodiny.
-3. **S4 — Polish**: podstránky (Základní / Přizpůsobení / Gesta a akce / Pokročilé), ARC Studio (náhled geometrie,
-   sady a sloty, Action Picker), barvy/typografie/haptika.
-
-Každý milník: testy, Lab build, `adb install -r`, ověření na telefonu, malý commit + push, `docs/STATUS.md`.
+Zadání majitele (platí celé, viz jeho zpráva k S3 review): jeden sjednocený design napříč Intelií — čistý, matný,
+čitelný „glass“ (inspirace: jemně tónovaná karta s hairline okrajem a světlem shora, text pod ní neruší), vlastní
+identita, nic nepředělávat od nuly. S4:
+1. Projít všechny podstránky Studia; odstranit duplicity, zbytečné instrukce, nepřehledné seznamy.
+2. Stránky s málem obsahu lépe rozvrhnout; sjednotit náhledy, slidery (`SliderRow`), přepínače, barvy, spacing, navigaci.
+3. Najít zbytky starého designu (Crystal/`LocalCrystal`, staré karty, `Kicker`/`Capsule` obrazovky) a převést na VeilKit
+   (`VeilGroup`, `SettingRow`, `SwitchRow`, `ChoiceSetting`, `veilGlass` pro plovoucí karty).
+4. ARC Studio dokončit bez změny fungujícího ARC V2; Action Picker a sheety na stejný materiál.
+5. Konzistentní akcent v Search, App Drawer a FLOW (jemně, ne jen přepínače); hodiny/Home beze změny rozvržení.
+6. Regresní testy, screenshoty, malé commity + push, `docs/STATUS.md`.
 
 Build/telefon: JAVA_HOME `C:/Users/Ondra/AppData/Local/lesnik-toolchain/jdk-17.0.20.1+1`,
-`./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (při pádu daemonu kvůli paměti
-`./gradlew --stop` a znovu); APK `app/build/outputs/apk/lab/app-lab.apk`, `install -r`, NIKDY uninstall. adb
-v `lesnik-toolchain/sdk/platform-tools`, `MSYS_NO_PATHCONV=1`. Telefon bývá zamčený — požádej majitele o odemčení.
-Navigace: Home dlouhý stisk 540 1000 → editor → Nastavení 907 2256; texty a souřadnice prvků přes
-`uiautomator dump` (hledat `text="…"` a `bounds`). Majitelovy vazby (PULSE Podržení → Svítilna, Dvojí klepnutí →
-Spotify) neměnit. `docs/screens/*.rar` nemazat ani necommitovat. Screenshoty majitele: `~/Downloads/Screenshot_20261018-16*.png`.
+`./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (ověř čas APK — tichý pád daemonu
+nechá staré APK; pak spusť znovu); APK `app/build/outputs/apk/lab/app-lab.apk`, `install -r`, NIKDY uninstall. adb
+v `lesnik-toolchain/sdk/platform-tools`, `MSYS_NO_PATHCONV=1`. Obrazovka 1080×2392; kamera ≈ (540, 63) px.
+Navigace: Home dlouhý stisk 540 1100 → Nastavení 907 2240 → rychlý přístup PULSE 476 2386.
+**Souřadnice z `uiautomator dump` bývají zastaralé** (po animaci/scrollu) — klepej podle čerstvého screenshotu a nikdy
+neklepej na odvozenou souřadnici, když hledání textu selže (minule to otevřelo panel oznámení).
+Majitelovy vazby (PULSE Podržení → Global ARC, Dvojí klepnutí → Spotify, Klepnutí a podržení → Svítilna) neměnit,
+hudbu nespouštět ani nezastavovat. `docs/screens/*` nemazat ani necommitovat.

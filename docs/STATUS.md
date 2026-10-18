@@ -2,6 +2,38 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — S3.1 PULSE UX finish: Quick Actions, Veil glance material, adaptive previews, calibration on VeilKit (`feat/control-system-v1`)
+- Quick Actions: `Controls.quick` (`QuickAction`: action, optional glyph, hidden; null = `DEFAULT_QUICK` torch / alarms /
+  notification shade), bounded in `Controls.sanitized()` (max 8, no FLOW-less / ARC actions, glyph names letters only).
+  New `Action.Alarms` (opens the clock's alarms), `PanelKind.viaService` (shade and Quick Settings report
+  `NeedsPulseService` without the service). `quickEntries()` resolves the visible ones on the device (max 4, missing apps,
+  shortcuts and service-only actions while the service is off are left out). Glance runs them through the Action Engine
+  (Home: `onAction`; service: `runFromArc`). `GlanceItem` / `glanceItems` removed. Battery shows first only while charging
+  with the charging event on. Studio › PULSE › Rychlé akce: change (shared `ActionPicker`), icon, hide, move, remove, add,
+  reset to defaults.
+- Glance look: `veilGlass` = dense matte card tinted 12 % by the accent, top light, hairline rim, shadow; 22 % scrim
+  behind; the long stem replaced by Veil Trace (accent ring round the lens + short fading thread). Enter scale+fade from
+  the lens, exit the same way before the action runs (Motion Off / Reduce motion = 0 ms). No blur.
+- Global ARC: the cancel hint shows only after the finger rests 1.4 s on no slot (`explain`), never in Studio.
+- Studio › PULSE: groups Režim / Obsah a rychlé akce / Gesta / Vzhled / Události · n ze 3 / Pokročilé (summary of touch
+  target + camera). Preview height per state (camera strip at rest, down to the card or the lowest ARC slot), soft fade,
+  „Ukázka“ badge on sample music / alarm, ARC from the owner's real geometry and set.
+- Calibration (Kamera a dotyk): live black strip with the real camera, Studio rows below: size chips 40/48/56/64 dp,
+  „Otestovat dotyky“ (counts only in test mode), advanced offsets + camera (Automaticky / Vlastní) on request,
+  Uloženo / Neuložené změny chip, Zrušit / Uložit (disabled without a change).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (218 tests, 0 failures; the
+  first run of the final build died in the Gradle daemon, the rerun passed).
+- Phone (Lab `install -r`), verified: glance over an app with Spotify **paused** shows the song with ▶; artwork tap opened
+  Spotify, playback stayed paused; glance on Home without music (music switch off temporarily, restored): 90 % · Svítilna
+  · 5:40 · Oznámení, tap beside closes; Studio previews Skrytá / Hudba (Ukázka) / Rozbalená / Global ARC without clock or
+  hint collisions; Quick Actions move up and reset to defaults; calibration: 56 dp → „Neuložené změny“, test „1 na ploše ·
+  1 vedle“, Zrušit kept 48 dp; Back from Gesta returns to PULSE; Global ARC opened on Home by hold and closed on release
+  at the camera without running anything. Crash found and fixed: `BackHandler` inside the service overlay (no dispatcher).
+- NOT verified: glance buttons actually run (torch / alarms / shade not pressed), idle ARC hint (hold ended early),
+  Global ARC over apps, light theme, 130 % text, TalkBack, frame timing of open/close, Home-only mode.
+- Incident: during testing a mis-aimed tap opened the notification shade and expanded one notification; it was closed
+  at once; the three taps landed near the top-left corner, no reply or action button (screenshots checked).
+
 ## 2026-10-18 — UX stabilisation S3: PULSE touch target, glance panel, faithful previews (`feat/control-system-v1`)
 - Touch target: `pulseHitbox()` (one function for Home and the service), a `PulseHit.size` square (default 48 dp)
   on the lens + owner offset, independent of the capsule / artwork / status icons; Home adds 24 dp under the status
