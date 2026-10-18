@@ -194,7 +194,7 @@ internal fun Modifier.veilGlass(shape: Shape, ink: InkPalette): Modifier {
             val bloom = glassBloom(ink.accent.copy(alpha = .06f), size.width, size.height)
             val glint = glassGlint(Color.White.copy(alpha = .16f), size.width, size.height)
             val stroke = Stroke(2.dp.toPx())
-            onDrawBehind { bloom?.let { drawOutline(outline, it) }; glint?.let { drawOutline(outline, it, style = stroke) } }
+            onDrawBehind { bloom?.let { drawBloom(it) }; glint?.let { drawOutline(outline, it, style = stroke) } }
         }
 }
 

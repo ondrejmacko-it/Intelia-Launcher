@@ -138,7 +138,7 @@ fun Modifier.veilPane(shape: Shape, ink: InkPalette, tint: Float = 1f): Modifier
     val stroke = Stroke(2.dp.toPx())
     onDrawWithContent {
         drawOutline(outline, fill)
-        bloom?.let { drawOutline(outline, it) }
+        bloom?.let { drawBloom(it) }
         drawContent()
         drawOutline(outline, edge, style = stroke)
         glint?.let { drawOutline(outline, it, style = stroke) }
