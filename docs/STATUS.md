@@ -2,6 +2,26 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — S4 Unified UI Polish, part 1: Veil glass on every pane (`feat/control-system-v1`, 3877521..e647adf)
+- Material (owner's glassmorphism references): `veilSurface` adds `glassBloom` (the accent bleeding in from the
+  top-left corner, ≤ 16 %, none on Matte) and `glassGlint` (hairline lit at the top-left, a smaller glint at the
+  bottom-right). New `Modifier.veilPane` (VeilKit) = the same look for in-page panes; `VeilGroup` uses it; the PULSE
+  glance card (`veilGlass`) gets the same bloom and glint. Tokens and contrast tests unchanged.
+- Studio › ARC on VeilKit: look in one `VeilGroup` (`GroupNote` + `ChoiceSetting` + `SwitchRow`) for LENS ARC and
+  Global ARC, each set a captioned group, „Přidat sadu“ as a row; empty slot reads „Prázdné“ (the TalkBack click label
+  still says choose). Favourites and Záloha on groups; `Section` = `VeilCaption`. ARC V2 logic untouched.
+- `Chips` (Home inspector, 32 uses) and Action Picker tabs/captions = the `VeilChoice` look (accent wash + edge).
+- Accent: Search glyph, drawer „Moje“ caption + favourites on a glass pane + index letters, FLOW list as glass cards,
+  „+ Nový příkaz“ glass button, FLOW editor „Kde“ as a `VeilGroup`. Home and clock layout unchanged.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (32 suites, 0 failures;
+  two daemon deaths from low system memory, the rerun passed). `install -r` of `app-lab.apk` on the Phone (3).
+- Verified on the device (screenshots, dark theme, owner's Frost preset): editor bar, Studio home + Ovládání, ARC page
+  (both scrolls), drawer, FLOW list, Search results card.
+- Not verified: light theme, 130 % text, TalkBack, the Action Picker and sheets on the device, Global ARC over an app;
+  remaining S3.1 checks (glance buttons, idle ARC hint, open/close smoothness, Jen na ploše) still open.
+- Open (S4 part 2): Ovládání hub note into its group, Studio sub-pages audit for duplicate hints, `Stacked` now unused
+  in Studio.kt, remaining `Kicker`/`Capsule` in Onboarding, Calibration, ControlsPage, HomeEditor/EditorLook Crystal.
+
 ## 2026-10-18 — S3.1 PULSE UX finish: Quick Actions, Veil glance material, adaptive previews, calibration on VeilKit (`feat/control-system-v1`)
 - Quick Actions: `Controls.quick` (`QuickAction`: action, optional glyph, hidden; null = `DEFAULT_QUICK` torch / alarms /
   notification shade), bounded in `Controls.sanitized()` (max 8, no FLOW-less / ARC actions, glyph names letters only).
