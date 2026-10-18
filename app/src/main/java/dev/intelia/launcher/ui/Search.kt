@@ -242,7 +242,7 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
         }
         .padding(start = 18.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).graphicsLayer { alpha = ((morph() - .5f) * 2f).coerceIn(0f, 1f) }, verticalAlignment = Alignment.CenterVertically) {
-            HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 20.dp)
+            HomeGlyph(Glyph.Search, null, tint = c.acc, size = 20.dp)
             BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).focusRequester(focus).semantics { contentDescription = description },
                 singleLine = true, textStyle = CrystalType.body.copy(fontSize = 17.sp, color = c.fg), cursorBrush = SolidColor(c.acc),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { onSubmit() }),
@@ -418,11 +418,11 @@ fun DrawerOverlay(
                 Box(Modifier.weight(1f).fillMaxWidth()) { Drawer(apps, favorites, list, onLaunch, onOptions) }
                 // The field opens Search in place: same pill, same spot at the thumb.
                 val solid = veil(VeilLevel.Focus).bottom.copy(alpha = 1f)
-                Row(Modifier.fillMaxWidth().padding(10.dp).height(52.dp).clip(CircleShape)
-                    .background(solid).background(c.fg.copy(alpha = .06f))
+                Row(Modifier.fillMaxWidth().padding(10.dp).height(52.dp).clip(CircleShape).background(solid)
+                    .veilPane(CircleShape, LocalInk.current)
                     .clickable(role = Role.Button, onClick = onSearch).padding(horizontal = 18.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 20.dp)
+                    HomeGlyph(Glyph.Search, null, tint = c.acc, size = 20.dp)
                     Text(stringResource(R.string.search), Modifier.padding(start = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg3)
                 }
             }
@@ -445,7 +445,7 @@ internal fun AppRow(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit,
         onLongClickLabel = stringResource(R.string.app_options), onClick = onClick, onLongClick = onLongClick)
         .padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (letter != null) Text(letter, Modifier.width(26.dp).semantics { hideFromAccessibility() },
-            style = CrystalType.label.copy(letterSpacing = 0.sp), color = ink.faint)
+            style = CrystalType.label.copy(letterSpacing = 0.sp), color = ink.accent.copy(alpha = .75f))
         AppIcon(app, Modifier.size(32.dp))
         Text(app.label, Modifier.padding(start = 16.dp).weight(1f), style = CrystalType.body.copy(fontSize = 17.sp),
             color = if (app.suspended) ink.faint else ink.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -462,10 +462,13 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, state: LazyL
     val haptics = rememberInkHaptics()
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp)) {
-            Text(stringResource(R.string.mine).uppercase(), Modifier.padding(start = 24.dp, bottom = 10.dp), style = CrystalType.label, color = ink.muted)
+            Text(stringResource(R.string.mine).uppercase(), Modifier.padding(start = 24.dp, bottom = 8.dp),
+                style = CrystalType.label.copy(letterSpacing = 1.4.sp), color = ink.accent.copy(alpha = .9f))
             if (favorites.isEmpty()) Text(stringResource(R.string.mine_empty), Modifier.padding(horizontal = 24.dp),
                 style = CrystalType.caption, color = ink.muted)
-            else Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+            // Favourites sit on one pane of Veil glass, like a Studio group.
+            else Row(Modifier.padding(horizontal = 12.dp).fillMaxWidth().veilPane(RoundedCornerShape(22.dp), ink)
+                .horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 8.dp)) {
                 favorites.forEach { app ->
                     Column(Modifier.width(72.dp).combinedClickable(role = Role.Button,
                         onLongClickLabel = stringResource(R.string.app_options), onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
@@ -479,7 +482,6 @@ private fun Drawer(apps: List<AppEntry>, favorites: List<AppEntry>, state: LazyL
                 }
             }
         }
-        Hairline()
         BoxWithConstraints(Modifier.weight(1f)) {
         // The rail needs room for 27 legible letters; above a raised keyboard it steps aside.
         val rail = maxHeight >= 380.dp
