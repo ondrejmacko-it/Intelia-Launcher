@@ -132,6 +132,8 @@ data class LauncherSettings(
     val pulseCharging: Boolean = true,
     /** M3.2 (D21): show the playing media session; needs the owner's notification-access switch. Off by default. */
     val pulseMusic: Boolean = false,
+    /** Veil 3.0: while music shows, a tap opens the player even when the tap has an action of its own. */
+    val pulseTapPlayer: Boolean = true,
     /** How close an alarm must be, in hours, before the capsule shows it. */
     val pulseAlarmHours: Int = 12,
     /** Capsule background opacity in percent; text stays opaque. */

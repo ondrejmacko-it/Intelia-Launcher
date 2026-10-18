@@ -600,6 +600,9 @@ class PulseAccessibilityService : AccessibilityService() {
      * it (FLOW keeps its preview rules there); elsewhere only system actions run, the rest says it needs Home.
      */
     private fun gesture(g: Gesture, assisted: Boolean = false) {
+        val player = g == Gesture.Tap && music != null && MediaWatch.now.value?.info?.visible == true &&
+            (application as InteliaApp).settings.state.value.pulseTapPlayer
+        if (player) return openMenu()
         val action = bound(g) ?: return if (g == Gesture.Tap) openMenu() else Unit
         if (action is Action.Arc) openArc(action, assisted) else runBound(action)
     }

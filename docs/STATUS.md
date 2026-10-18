@@ -2,6 +2,23 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Studio Veil 3.0, step 4: PULSE page (`feat/control-system-v1`)
+- `ui/PulseStudio.kt` replaces the old `PulseInspector` (removed from `EditorLook.kt`): an interactive drawn preview
+  (Klid / Hudba / Rozbalená / Global ARC; a drawing, nothing plays or runs; Global ARC beads sit where
+  `GlobalArcGeometry` puts them for the real slot count, size and angle; opacity follows the setting), then groups
+  Obsah a události (music + access, echo, charging, alarm + hours), Gesta (summary of capsule bindings → Gesta a
+  tlačítka; new switch), Vzhled (opacity), Chování (Vyp / Jen na ploše / Všude + service note), Pokročilé (camera
+  calibration, PULSE service). Anchors: Pulse, PulseLook, PulseEvents, PulseMusic, PulseLens.
+- New key `pulseTapPlayer` (default true): while music shows, a tap opens the player panel even when the tap has an
+  action; off → the tap runs its action, else the menu. Home (`Pulse.kt` tap) and the service (`gesture`) honour it;
+  nothing else in PULSE 2.0 logic changed. With the default and an unbound tap, behaviour is as before.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab`, no warnings.
+- Phone (Lab `install -r`), verified: the four preview states render (snapshot), groups render with real values
+  (opacity 75 %, events 3/3, summary „Klepnutí: Otevře menu · Podržení: Global ARC · Hlavní · +2“); Studio search
+  „kamery“ → „Ovládání › PULSE › Poloha kamery“ → PULSE scrolled to Pokročilé (the row ends at the screen's lower edge).
+- NOT verified: the tap-player switch in use (needs music playing; owner's music display is off), Všude with the
+  service mode chip (dumps make the service read „Vypnuto“ for a moment), light theme, 130 % text, TalkBack.
+
 ## 2026-10-18 — Studio Veil 3.0, step 3: gestures as rows, Home swipe up / hold rebindable (`feat/control-system-v1`)
 - Step 1 leftovers checked on the phone (Lab from `d962d83`): Plocha page (preview, Upravit plochu, Oblíbené 5 z 7,
   grid steppers); Systém a data (default home ✓, PULSE service „Povoleno“ — right after a `uiautomator dump` it reads

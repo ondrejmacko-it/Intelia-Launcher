@@ -658,4 +658,23 @@
     <string name="controls_more_count">Nevyužitá: %1$d</string>
     <string name="controls_lens_locked">Pilíře LENS jsou pevné, aby čočka vždy znamenala hledání, šuplík a ARC. Švihnutí do stran jsou volná.</string>
     <string name="controls_home_hint">Tah nahoru a podržení mohou dělat něco jiného; šuplík zůstává na LENS a editor ve Studiu › Plocha.</string>
+    <string name="pulse_preview_label">Náhled PULSE</string>
+    <string name="pulse_preview_off">PULSE je vypnutý. Kde má fungovat, vybereš v Chování.</string>
+    <string name="pulse_preview_rest">Klid</string>
+    <string name="pulse_preview_music">Hudba</string>
+    <string name="pulse_preview_expanded">Rozbalená</string>
+    <string name="pulse_preview_rest_note">Tichý kroužek u kamery; ukazuje se tu ozvěna, nabíjení a další budík.</string>
+    <string name="pulse_preview_music_note">Když něco hraje: vlevo pruhy, vpravo obal.</string>
+    <string name="pulse_preview_expanded_note">Panel po klepnutí: přehrávač s ovládáním, budík a baterie.</string>
+    <string name="pulse_preview_arc_note">Podrž a posuň: Global ARC pod kamerou, puštění spustí slot, návrat ke kameře zruší.</string>
+    <string name="pulse_group_content">Obsah a události</string>
+    <string name="pulse_group_gestures">Gesta</string>
+    <string name="pulse_group_look">Vzhled</string>
+    <string name="pulse_group_behaviour">Chování</string>
+    <string name="pulse_group_advanced">Pokročilé</string>
+    <string name="pulse_tap_player">Při hudbě klepnutí otevře přehrávač</string>
+    <string name="pulse_tap_player_detail">Jinak klepnutí spustí svou akci, nebo otevře menu.</string>
+    <string name="pulse_events_count">Zapnuté události: %1$d ze 3</string>
+    <string name="pulse_alarm_hours">Ukázat budík s předstihem</string>
+    <string name="pulse_lens_detail">Sladit kapsli s výřezem kamery</string>
 </resources>

@@ -195,8 +195,8 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         StudioPane.Arc -> StudioFrame(settings, model, stringResource(R.string.arc_section), ::up) {
             ArcPage(model, settings)
         }
-        StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up, preview = true) {
-            PulsePage(settings, set, onLens = { pane = StudioPane.Lens }, onControls = { go(StudioPane.Gestures) })
+        StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up) {
+            PulsePage(model, settings, set, onLens = { pane = StudioPane.Lens }, onControls = { go(StudioPane.Gestures) })
         }
         StudioPane.Gestures -> StudioFrame(settings, model, stringResource(R.string.gestures_title), ::up) {
             ControlsPage(model, settings, onArc = { go(StudioPane.Arc) }, onKeys = { pane = StudioPane.Keys })
@@ -549,13 +549,6 @@ private fun FlowPage(settings: LauncherSettings, onFlows: () -> Unit) {
             anchor = StudioTarget.Flows.anchor)
     }
     Hint(stringResource(R.string.onboarding_gestures_body))
-}
-
-/** PULSE: the capsule, its events and calibration, and whether it works outside Intelia (D9); its gestures live in Ovládání. */
-@Composable
-private fun PulsePage(settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit, onControls: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) { PulseInspector(settings, set, onLens) }
-    if (settings.pulse) NavRow(stringResource(R.string.pulse_gestures), stringResource(R.string.gestures_title), onControls)
 }
 
 /**

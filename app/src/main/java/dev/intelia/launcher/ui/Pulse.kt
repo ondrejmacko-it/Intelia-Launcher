@@ -310,7 +310,8 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             Gesture.SwipeLeft to stringResource(R.string.pulse_gesture_left), Gesture.SwipeRight to stringResource(R.string.pulse_gesture_right))
         val extras = gestureLabels.keys.filter(bound)
         val swipes = extras.any { it in PULSE_SWIPES }
-        val tap = { if (!onGesture(Gesture.Tap)) expanded = true }
+        // With music shown the tap opens the player first (owner can turn that off); otherwise its action, else the menu.
+        val tap = { if ((music != null && settings.pulseTapPlayer) || !onGesture(Gesture.Tap)) expanded = true }
         val camera = Pt(hx.value, hy.value)
         val window = LocalWindowInfo.current.containerSize
         val screenW = window.width / density.density

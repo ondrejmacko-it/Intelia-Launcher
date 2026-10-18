@@ -659,4 +659,23 @@
     <string name="controls_more_count">%1$d unused</string>
     <string name="controls_lens_locked">The LENS pillars stay fixed so LENS always means search, the drawer and ARC. Its flicks are free.</string>
     <string name="controls_home_hint">Swipe up and hold can do something else; the drawer stays on LENS and the editor in Studio › Plocha.</string>
+    <string name="pulse_preview_label">PULSE preview</string>
+    <string name="pulse_preview_off">PULSE is off. Choose where it works under Behaviour.</string>
+    <string name="pulse_preview_rest">Rest</string>
+    <string name="pulse_preview_music">Music</string>
+    <string name="pulse_preview_expanded">Expanded</string>
+    <string name="pulse_preview_rest_note">A quiet ring at the camera; the echo, charging and the next alarm show here.</string>
+    <string name="pulse_preview_music_note">While something plays: bars on the left, the artwork on the right.</string>
+    <string name="pulse_preview_expanded_note">The tap panel: player with its controls, alarm and battery.</string>
+    <string name="pulse_preview_arc_note">Hold and slide: Global ARC under the camera, release runs the slot, back to the camera cancels.</string>
+    <string name="pulse_group_content">Content and events</string>
+    <string name="pulse_group_gestures">Gestures</string>
+    <string name="pulse_group_look">Look</string>
+    <string name="pulse_group_behaviour">Behaviour</string>
+    <string name="pulse_group_advanced">Advanced</string>
+    <string name="pulse_tap_player">Tap opens the player while music plays</string>
+    <string name="pulse_tap_player_detail">Otherwise a tap runs its own action, or opens the menu.</string>
+    <string name="pulse_events_count">Events on: %1$d of 3</string>
+    <string name="pulse_alarm_hours">Show the alarm this long before</string>
+    <string name="pulse_lens_detail">Fit the capsule to the camera cut-out</string>
 </resources>
