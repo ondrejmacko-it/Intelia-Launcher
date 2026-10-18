@@ -1,5 +1,6 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.Canvas
 import dev.intelia.launcher.search.AppSearch
 import androidx.compose.ui.graphics.SolidColor
@@ -930,7 +931,7 @@ fun ConfirmDialog(title: String, action: String, onConfirm: () -> Unit, onDismis
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().veilSurface(veil(VeilLevel.Dense), VeilOrigin.Top)
             .padding(horizontal = 20.dp, vertical = 18.dp)) {
-            Text(title, Modifier.padding(bottom = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
+            Text(title, Modifier.padding(bottom = 12.dp).semantics { heading() }, style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
             Action(stringResource(R.string.preset_cancel), c.fg2, onDismiss)
             Action(action, c.acc, onConfirm)
         }

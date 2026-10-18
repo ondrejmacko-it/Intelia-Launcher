@@ -1,5 +1,7 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.border
@@ -115,7 +117,7 @@ fun ActionPicker(
     }
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().heightIn(max = 600.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Bottom).padding(vertical = 12.dp)) {
-            Text(title, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
+            Text(title, Modifier.padding(horizontal = 20.dp, vertical = 8.dp).semantics { heading() }, style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
             var filter by remember { mutableStateOf("") }
             var tab by remember { mutableStateOf(-1) }
             PickerFilter(filter, stringResource(R.string.pick_find)) { filter = it }

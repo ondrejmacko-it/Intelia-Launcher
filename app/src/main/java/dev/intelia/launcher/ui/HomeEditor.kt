@@ -2,6 +2,7 @@
 
 package dev.intelia.launcher.ui
 
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
@@ -328,7 +329,7 @@ fun LeaveEditorDialog(onKeep: () -> Unit, onDiscard: () -> Unit, onSave: () -> U
         Column(Modifier.widthIn(max = 320.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Top)
             .padding(horizontal = 20.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(stringResource(R.string.edit_unsaved), style = CrystalType.date.copy(fontSize = 17.sp, letterSpacing = 0.sp), color = c.fg,
-                modifier = Modifier.padding(bottom = 8.dp))
+                modifier = Modifier.padding(bottom = 8.dp).semantics { heading() })
             DialogRow(stringResource(R.string.edit_keep), c.fg, onKeep)
             DialogRow(stringResource(R.string.edit_discard), c.fg2, onDiscard)
             DialogRow(stringResource(R.string.edit_save), c.acc, onSave)

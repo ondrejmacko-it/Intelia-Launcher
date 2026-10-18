@@ -290,7 +290,10 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
         }, label = "page") { target -> pages.SaveableStateProvider(target.name) {
             when (target) {
                 Page.Home -> Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().veilBackdrop(depth, backdropBlur)) { Home(
+                // S4.4: under Search or the drawer Home stays drawn but leaves the accessibility tree, so TalkBack's focus
+                // order is the overlay's alone; it comes back as the overlay closes.
+                Box(Modifier.fillMaxSize().veilBackdrop(depth, backdropBlur)
+                    .then(if (focusOpen) Modifier.clearAndSetSemantics { } else Modifier)) { Home(
                     settings = settings,
                     apps = remember(favorites, visible) { (visible + favorites).associateBy { it.key } },
                     arc = arc,

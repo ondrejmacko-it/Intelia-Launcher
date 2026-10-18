@@ -83,6 +83,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -188,7 +189,8 @@ fun SearchOverlay(
 
     // Home under Search: the shared Focus depth (blurred, scaled, tinted), never replaced (§5.6, D15).
     VeilDepthSource(VeilLevel.Focus) { morph.value }
-    Box(Modifier.fillMaxSize()) {
+    val pane = stringResource(R.string.search)
+    Box(Modifier.fillMaxSize().semantics { paneTitle = pane }) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = morph.value }.background(veilScrim())
             .pointerInput(Unit) { detectTapGestures { leave() } })
         Box(Modifier.fillMaxSize()) {
@@ -395,6 +397,7 @@ fun DrawerOverlay(
     BackHandler(enabled = open) { leave() }
 
     VeilDepthSource(VeilLevel.Focus) { shown.value }
+    val drawerPane = stringResource(R.string.apps)
     // Parked: off-screen, not drawn, out of the accessibility tree and of hit testing, so Home works as if absent.
     Box(Modifier.fillMaxSize().then(if (parked) Modifier.offset { IntOffset(0, 100_000) }.graphicsLayer { alpha = 0f }
         .clearAndSetSemantics { } else Modifier)) {
@@ -405,6 +408,7 @@ fun DrawerOverlay(
             .graphicsLayer { alpha = shown.value; translationY = (1f - shown.value) * 32.dp.toPx()
                 compositingStrategy = CompositingStrategy.ModulateAlpha }
             .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Bottom)
+            .semantics { if (open) paneTitle = drawerPane }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}) {
             CompositionLocalProvider(LocalInk provides veilInk()) {
                 Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 6.dp, top = 6.dp).heightIn(min = 56.dp),
