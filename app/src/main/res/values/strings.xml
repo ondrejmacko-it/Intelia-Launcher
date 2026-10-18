@@ -678,4 +678,7 @@
     <string name="pulse_events_count">Events on: %1$d of 3</string>
     <string name="pulse_alarm_hours">Show the alarm this long before</string>
     <string name="pulse_lens_detail">Fit the capsule to the camera cut-out</string>
+    <string name="studio_sheet_handle">Sheet handle</string>
+    <string name="studio_sheet_more_preview">Larger preview</string>
+    <string name="studio_sheet_more_settings">More settings</string>
 </resources>

@@ -677,4 +677,7 @@
     <string name="pulse_events_count">Zapnuté události: %1$d ze 3</string>
     <string name="pulse_alarm_hours">Ukázat budík s předstihem</string>
     <string name="pulse_lens_detail">Sladit kapsli s výřezem kamery</string>
+    <string name="studio_sheet_handle">Madlo panelu</string>
+    <string name="studio_sheet_more_preview">Větší náhled</string>
+    <string name="studio_sheet_more_settings">Víc nastavení</string>
 </resources>

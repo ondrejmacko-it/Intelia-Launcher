@@ -135,11 +135,18 @@ enum class StudioStart { Main, Editor, Lens, Pulse }
 @Composable
 fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onFlows: () -> Unit, onEditHome: () -> Unit,
     start: StudioStart = StudioStart.Main) {
-    var pane by rememberSaveable(start) { mutableStateOf(when (start) {
+    val root = when (start) {
         StudioStart.Lens -> StudioPane.Lens
         StudioStart.Pulse -> StudioPane.Pulse
         else -> StudioPane.Main
-    }) }
+    }
+    /** Where Back goes: the pages you came through, saved by name (S1). Empty = leave Studio. */
+    var saved by rememberSaveable(start) { mutableStateOf(root.name) }
+    val stack = StudioStack.restore(saved) { n -> StudioPane.entries.any { it.name == n } }.map(StudioPane::valueOf).ifEmpty { listOf(root) }
+    val pane = stack.last()
+    /** The sheet's resting height, kept across pages so a deeper page opens as the last one was left. */
+    var sheet by rememberSaveable { mutableStateOf(SheetStop.Balanced) }
+    var forward by remember { mutableStateOf(true) }
     /** The row a search result asked for; its page scrolls to it and lights it once. */
     val focus = remember { SettingFocus(null) }
     /** Settings before a restore from a backup file (D17); offered back until Studio closes, never stored. */
@@ -149,30 +156,31 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     val ms = motionMs(VeilMotion.PAGE_MS)
     /** Opened from the editor (its tray or the camera), leaving Settings goes back to the editor. */
     val leave = if (start == StudioStart.Editor || start == StudioStart.Pulse) onEditHome else onBack
-    fun up() {
-        val next = when (pane) {
-            StudioPane.Main -> null
-            StudioPane.Hidden -> StudioPane.System
-            StudioPane.Keys -> StudioPane.Gestures
-            StudioPane.Lens -> if (start == StudioStart.Lens) StudioPane.Main else StudioPane.Pulse
-            StudioPane.Pulse -> if (start == StudioStart.Pulse) null else StudioPane.Controls
-            else -> StudioSection.valueOf(pane.name).parent?.pane() ?: StudioPane.Main
-        }
-        if (next == null) { leave(); return }
-        if (next.depth < pane.depth) panes.removeState(pane.name)
-        pane = next
+    fun show(next: List<StudioPane>) {
+        // Pages that leave the stack forget their scroll; the one returned to keeps it.
+        stack.filter { it !in next }.forEach { panes.removeState(it.name) }
+        forward = next.size > stack.size
+        saved = StudioStack.save(next.map { it.name })
     }
-    fun go(to: StudioPane) { panes.removeState(to.name); pane = to }
+    fun up() {
+        val next = StudioStack.pop(stack)
+        if (next.isEmpty()) leave() else show(next)
+    }
+    fun go(to: StudioPane) {
+        if (to !in stack) panes.removeState(to.name)
+        show(StudioStack.push(stack, to))
+    }
     fun open(target: StudioTarget) {
         if (target == StudioTarget.EditHome) { onEditHome(); return }
         focus.key = target.anchor
         go(target.section.pane())
     }
-    BackHandler(enabled = pane != StudioPane.Main || start != StudioStart.Main) { up() }
+    BackHandler(enabled = stack.size > 1 || start != StudioStart.Main) { up() }
+    val sheetState = StudioSheetState(sheet, { sheet = it }, leave)
     val set: SettingsEdit = { model.updateSettings(it) }
-    CompositionLocalProvider(LocalSettingFocus provides focus) {
+    CompositionLocalProvider(LocalSettingFocus provides focus, LocalStudioSheet provides sheetState) {
     AnimatedContent(pane, transitionSpec = {
-        VeilMotion.page(if (targetState.depth >= initialState.depth) 1 else -1, ms)
+        VeilMotion.page(if (forward) 1 else -1, ms)
     }, label = "studio-pane") { shown -> panes.SaveableStateProvider(shown.name) { when (shown) {
         StudioPane.Main -> StudioMain(model, settings, leave, onEditHome, ::open) { go(it.pane()) }
         StudioPane.Look -> StudioFrame(settings, model, stringResource(R.string.look), ::up, preview = true) {
@@ -196,10 +204,10 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
             ArcPage(model, settings)
         }
         StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up) {
-            PulsePage(model, settings, set, onLens = { pane = StudioPane.Lens }, onControls = { go(StudioPane.Gestures) })
+            PulsePage(model, settings, set, onLens = { go(StudioPane.Lens) }, onControls = { go(StudioPane.Gestures) })
         }
         StudioPane.Gestures -> StudioFrame(settings, model, stringResource(R.string.gestures_title), ::up) {
-            ControlsPage(model, settings, onArc = { go(StudioPane.Arc) }, onKeys = { pane = StudioPane.Keys })
+            ControlsPage(model, settings, onArc = { go(StudioPane.Arc) }, onKeys = { go(StudioPane.Keys) })
         }
         StudioPane.Keys -> StudioFrame(settings, model, stringResource(R.string.keys_title), ::up) {
             KeysPage(onSeen = { code -> model.editControls { it.withKey(code) } })
@@ -226,9 +234,9 @@ private fun LauncherSettings.withLookDefaults(): LauncherSettings {
 }
 
 /**
- * One Settings page: the header (gear and title) on the wallpaper and a Veil Focus sheet below it that scrolls. Where
- * a change shows on Home, the live Home miniature takes half the room under the header and the sheet the other half;
- * elsewhere the sheet takes it all.
+ * One Settings page: the header (gear and title) on the wallpaper and the Veil Focus sheet below it (S1). Where a
+ * change shows on Home, the live Home miniature sits above the sheet and the sheet rests at the shared stop
+ * (Preview / Balanced / Settings); elsewhere the sheet takes the whole room.
  */
 @Composable
 private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title: String, onBack: () -> Unit, preview: Boolean = false,
@@ -236,10 +244,12 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
     val homeInk = LocalHomeInk.current
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
     val now by rememberNow()
+    val sheet = LocalStudioSheet.current
     SystemBarIcons(darkIcons = homeInk.luminance() < .5f)
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val screenW = maxWidth
         val screenH = maxHeight
+        val density = androidx.compose.ui.platform.LocalDensity.current
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -248,22 +258,20 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
                 Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
             }
-            // Home as a true miniature of the screen: every size and distance at one scale, fitted to its half.
-            if (preview) BoxWithConstraints(Modifier.weight(PREVIEW_SHARE).fillMaxWidth().padding(bottom = 10.dp), contentAlignment = Alignment.Center) {
-                val scale = minOf(maxHeight / screenH, maxWidth / screenW)
+            val previewLabel = stringResource(R.string.home_preview)
+            StudioSheet(sheet.stop, sheet.onStop, sheet.onClose, Modifier.weight(1f), preview = if (!preview) null else { full ->
+                // Home as a true miniature of the screen: every size and distance at one scale, fitted to the Preview stop.
+                val roomH = with(density) { full.toDp() } - 12.dp
+                val scale = minOf(roomH / screenH, (screenW - 32.dp) / screenW).coerceAtLeast(.05f)
                 val shape = RoundedCornerShape(16.dp)
                 // TalkBack hears one "Home preview", not the live time and date as if they were content.
-                val previewLabel = stringResource(R.string.home_preview)
-                Box(Modifier.size(screenW * scale, screenH * scale).clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)
+                Box(Modifier.padding(top = 4.dp).size(screenW * scale, screenH * scale).clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)
                     .clearAndSetSemantics { contentDescription = previewLabel }) {
                     // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
                     HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
                         scale = scale, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
                 }
-            }
-            Column(Modifier.weight(if (preview) 1f - PREVIEW_SHARE else 1f).fillMaxWidth()
-                .veilSurface(veil(VeilLevel.Focus), VeilOrigin.Top, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .verticalScroll(rememberScrollState()).navigationBarsPadding().padding(top = 8.dp, bottom = 24.dp), content = content)
+            }, content = content)
         }
         // Live capsule at the real camera while PULSE is on: width and opacity change as you drag.
         if (preview && settings.pulse) Pulse(settings, preview = true)
@@ -859,9 +867,6 @@ fun HomePreview(
         }
     }
 }
-
-/** The share of the room under Studio's header that the Home miniature takes; the settings sheet gets the rest. */
-private const val PREVIEW_SHARE = .5f
 
 /** Lays the content out [k] times larger than the room and draws it scaled by [k] from the top start. */
 private fun Modifier.shrink(k: Float) = layout { m, c ->
