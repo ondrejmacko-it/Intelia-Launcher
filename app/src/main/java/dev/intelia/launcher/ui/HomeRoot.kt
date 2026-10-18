@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.action.ActionResult
 import dev.intelia.launcher.action.Reason
+import dev.intelia.launcher.action.Gesture
 import dev.intelia.launcher.action.Trigger
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -89,6 +90,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -483,14 +485,29 @@ private fun Home(
     fun leave(then: () -> Unit) { if (editor?.dirty == true) leaveThen = then else { close(); then() } }
     BackHandler(enabled = editor != null) { leave {} }
 
+    // M4: free Home gestures run only when bound; an unbound double tap never delays anything.
+    val homeDouble = settings.controls.bound(Trigger.Home(Gesture.DoubleTap))
+    val homeDown by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeDown)))
+    val homeLabels = listOf(stringResource(R.string.gesture_home_double), stringResource(R.string.gesture_home_down))
+    val homeActions = listOfNotNull(homeDouble?.let { a -> CustomAccessibilityAction(homeLabels[0]) { onAction(a); true } },
+        homeDown?.let { a -> CustomAccessibilityAction(homeLabels[1]) { onAction(a); true } })
+    val lensLabels = listOf(stringResource(R.string.gesture_lens_left), stringResource(R.string.gesture_lens_right))
+    val lensFlicks = listOf(Gesture.SwipeLeft, Gesture.SwipeRight).mapIndexedNotNull { i, g ->
+        settings.controls.bound(Trigger.Lens(g))?.let { a -> CustomAccessibilityAction(lensLabels[i]) { onAction(a); true } }
+    }
     // The chain stays the same in edit mode: swapping modifiers mid-gesture would cancel an icon's hold-and-drag.
     BoxWithConstraints(Modifier.fillMaxSize()
         .pointerInput(Unit) {
             var drag = 0f
             detectVerticalDragGestures(onDragStart = { drag = 0f }, onVerticalDrag = { _, amount -> drag += amount },
-                onDragEnd = { if (drag < -swipe && editor == null) onDrawer() })
+                onDragEnd = {
+                    if (editor != null) return@detectVerticalDragGestures
+                    if (drag < -swipe) onDrawer() else if (drag > swipe) homeDown?.let(onAction)
+                })
         }.combinedClickable(interactionSource = null, indication = null, onLongClickLabel = editLabel, onClick = {},
-            onLongClick = { if (editor == null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openRequested = true } })) {
+            onDoubleClick = if (homeDouble != null && editor == null) ({ onAction(homeDouble) }) else null,
+            onLongClick = { if (editor == null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openRequested = true } })
+        .semantics { if (homeActions.isNotEmpty() && editor == null) customActions = homeActions }) {
         val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
         val statusTop = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp() }
         val saved = settings.home.activeLayout()
@@ -721,12 +738,14 @@ private fun Home(
             onAction = onAction, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
             lensFilled = lensItem?.style == LensStyle.Filled.name,
             // TalkBack moves LENS in the editor without a drag (§5.5), each as one undo step.
-            editActions = if (ed == null) emptyList() else listOf(
+            // Outside the editor TalkBack gets the bound LENS flicks instead (M4).
+            editActions = if (ed == null) lensFlicks else listOf(
                 CustomAccessibilityAction(lensLeft) { ed.setLensDx(ed.layout.lensDx() - LENS_A11Y_STEP).also { refresh() } },
                 CustomAccessibilityAction(lensRight) { ed.setLensDx(ed.layout.lensDx() + LENS_A11Y_STEP).also { refresh() } },
                 CustomAccessibilityAction(lensCentre) { ed.setLensDx(0f).also { refresh() } },
             ),
-            onEditSelect = if (ed == null) null else { { selected = ed.lensId(); refresh() } }) }
+            onEditSelect = if (ed == null) null else { { selected = ed.lensId(); refresh() } },
+            onFlick = { g -> settings.controls.bound(Trigger.Lens(g))?.let { onAction(it); true } ?: false }) }
         if (ed != null) {
             // Editor layer above LENS: a hold on LENS never opens ARC here; drags move elements.
             Box(Modifier.fillMaxSize()

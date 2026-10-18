@@ -73,7 +73,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -264,6 +266,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         val controls = settings.controls
         val double = controls.bound(Trigger.Pulse(Gesture.DoubleTap)) != null
         val hold = controls.bound(Trigger.Pulse(Gesture.Hold)) != null
+        val doubleLabel = stringResource(R.string.pulse_gesture_double)
         if (!preview && !expanded && !global) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
             .size(64.dp, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
             .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
@@ -272,7 +275,12 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
                 onDoubleClick = if (double) ({ onGesture(Gesture.DoubleTap) }) else null) {
                 if (!onGesture(Gesture.Tap)) expanded = true
             }
-            .semantics { contentDescription = label; if (restState.isNotEmpty()) stateDescription = restState })
+            .semantics {
+                contentDescription = label
+                if (restState.isNotEmpty()) stateDescription = restState
+                // TalkBack has no double tap of its own; a bound one is offered as a custom action.
+                if (double) customActions = listOf(CustomAccessibilityAction(doubleLabel) { onGesture(Gesture.DoubleTap) })
+            })
 
         if (expanded) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() },
             indication = null, onClickLabel = stringResource(R.string.close)) { expanded = false })

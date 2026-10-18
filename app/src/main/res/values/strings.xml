@@ -461,7 +461,7 @@
     <string name="settings_group_data">Data and system</string>
     <string name="favorites_title">Favourites</string>
     <string name="gestures_title">Gestures</string>
-    <string name="gestures_hint">Gestures are fixed and work anywhere on Home. Nothing runs while typing.</string>
+    <string name="gestures_hint">These gestures are fixed and work anywhere on Home. Nothing runs while typing.</string>
     <string name="gesture_hold_home_edit">Hold Home</string>
     <string name="gesture_hold_home_edit_detail">Edit Home: move, add, resize and pick layouts.</string>
     <string name="gesture_tap_camera">Tap the ring at the camera</string>
@@ -540,4 +540,22 @@
     <string name="pulse_gesture_none">Nothing</string>
     <string name="pulse_gesture_choose">Choose an action</string>
     <string name="pulse_gesture_reset">Reset</string>
+    <string name="gestures_own">Your gestures</string>
+    <string name="gestures_own_hint">Free gestures do nothing until you give them an action. Tap, swipe up and hold on LENS stay as they are.</string>
+    <string name="gesture_home_double">Double tap Home</string>
+    <string name="gesture_home_down">Swipe down on Home</string>
+    <string name="gesture_lens_left">Flick LENS left</string>
+    <string name="gesture_lens_right">Flick LENS right</string>
+    <string name="keys_title">Hardware keys</string>
+    <string name="keys_hint">Press a key to see whether Intelia gets it. Nothing runs here and the volume stays as it is. Only keys proven here can get an action later.</string>
+    <string name="keys_waiting">Waiting for a key…</string>
+    <string name="keys_caught">Intelia gets: %1$s</string>
+    <string name="keys_seen">%1$d× · code %2$d</string>
+    <string name="keys_seen_held">%1$d× and held · code %2$d</string>
+    <string name="keys_never">Never reaches Intelia</string>
+    <string name="keys_never_hint">Power, Home and Recents stay with Android. Keys reach Intelia only while it is in front; catching them in other apps would need the PULSE service to filter keys, which is not decided.</string>
+    <string name="key_volume_up">Volume up</string>
+    <string name="key_volume_down">Volume down</string>
+    <string name="key_camera">Camera</string>
+    <string name="key_media">Media / headset button</string>
 </resources>

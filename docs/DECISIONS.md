@@ -275,3 +275,11 @@ be chosen in that picker). Automatic sync needs, before any code: the `INTERNET`
 today), a Google Cloud project with an OAuth client owned by the owner, Credential Manager / Google Identity and a
 Drive `appDataFolder` client (licences and APK size to check), conflict rules between phones, and a list of what
 leaves the phone (D17 envelope: package names, FLOW names, wallpaper choice). Waiting for the owner's decision.
+
+## D20 — 2026-10-18 — Hardware keys: diagnostics only, foreground only (no new capability)
+M4 adds Studio › Ovládání › Gesta › Hardwarová tlačítka: a focused screen that shows which key codes reach
+Intelia (and consumes them there, so volume does not change); nothing runs and nothing is bound. Keys reach an
+app only while it is in front; Power, Home and Recents never do. Catching keys in other apps would need
+`flagRequestFilterKeyEvents` on the PULSE accessibility service, which lets it see every key press system-wide:
+not enabled, waiting for an explicit owner decision. `Trigger.Key` stays valid in the model, but no surface reads
+it until a key was proven here and the owner decided where it may act.

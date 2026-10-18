@@ -81,6 +81,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.intelia.launcher.R
 import dev.intelia.launcher.data.DockEdge
 import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.Gesture
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.FlowAlias
@@ -141,6 +142,8 @@ fun LensArc(
     editActions: List<CustomAccessibilityAction> = emptyList(),
     /** In the Home Editor: a click (TalkBack double tap, Enter) selects LENS instead of opening Search; no ARC. */
     onEditSelect: (() -> Unit)? = null,
+    /** M4: a bound sideways flick; true when it ran, false lets the touch end as nothing. */
+    onFlick: (Gesture) -> Boolean = { false },
 ) {
     val homeInk = LocalHomeInk.current
     val selectLabel = stringResource(R.string.a11y_select)
@@ -155,6 +158,7 @@ fun LensArc(
     var track by remember { mutableStateOf(BowTrack()) }
     val latestContent by rememberUpdatedState(content)
     val openChanged by rememberUpdatedState(onOpenChange)
+    val flick by rememberUpdatedState(onFlick)
     val sets = content.sets.size.coerceAtLeast(1)
     val set = track.set.coerceIn(0, sets - 1)
 
@@ -365,6 +369,8 @@ fun LensArc(
                                 val swipe = with(density) { lensSwipeSearch(delta.x.toDp().value, delta.y.toDp().value) }
                                 if (!change.pressed) {
                                     if (swipe) { onDrawer(); return@awaitEachGesture }
+                                    val side = with(density) { lensSideFlick(delta.x.toDp().value, delta.y.toDp().value) }
+                                    if (side != null && onEditSelect == null && flick(side)) return@awaitEachGesture
                                     tapped = delta.getDistance() < viewConfiguration.touchSlop
                                     break
                                 }

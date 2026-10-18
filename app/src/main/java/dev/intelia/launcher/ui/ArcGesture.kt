@@ -1,5 +1,7 @@
 package dev.intelia.launcher.ui
 
+import dev.intelia.launcher.action.Gesture
+
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.asin
@@ -264,3 +266,13 @@ fun <T : Any> fillFromCentre(items: List<T?>, n: Int): List<T?> {
 
 /** Upward flick from LENS opens search; mostly vertical, tolerant of thumb arcs. */
 fun lensSwipeSearch(x: Float, y: Float): Boolean = y <= -48f && abs(x) <= maxOf(72f, -y * .7f)
+
+/**
+ * M4: a sideways flick from LENS (screen dp) for a bound [Gesture.SwipeLeft]/[Gesture.SwipeRight]; clearly horizontal,
+ * so it never takes an upward flick (drawer) or a thumb arc. Checked after [lensSwipeSearch].
+ */
+fun lensSideFlick(x: Float, y: Float): Gesture? = when {
+    abs(x) < 56f || abs(y) > abs(x) * .5f -> null
+    x < 0 -> Gesture.SwipeLeft
+    else -> Gesture.SwipeRight
+}

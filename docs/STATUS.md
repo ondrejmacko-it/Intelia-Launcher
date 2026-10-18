@@ -2,6 +2,27 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Control System V1: M3 TalkBack actions, M4 Home/LENS gestures, key diagnostics (`feat/control-system-v1`)
+- PULSE double tap for TalkBack: on Home a `CustomAccessibilityAction` when bound; in the service an
+  `AccessibilityDelegateCompat` on the lens view, read at query time (double tap as custom action, long press only
+  when hold is bound).
+- `Trigger.Home(DoubleTap | SwipeDown)` and `Trigger.Lens(SwipeLeft | SwipeRight)` → `Controls.bound` → `perform`;
+  all do nothing until bound, an unbound Home double tap adds no delay. LENS side flick (`lensSideFlick`, ≥ 56 dp,
+  clearly horizontal) never overlaps the upward drawer flick (`LensFlickTest`). TalkBack gets custom actions for
+  bound Home and LENS gestures. Studio › Gesta › Vlastní gesta: four rows with the shared picker (`GestureBindings`,
+  also used for PULSE now).
+- Studio › Gesta › Hardwarová tlačítka (D20): shows the keys that reach Intelia, with press count and hold;
+  `KeyProbe` unit tested. No key binding, no new permission.
+- `./gradlew :app:testDebugUnitTest :app:assembleLab` PASS; Lab installed with `install -r`.
+- Phone: Home double tap → torch on, again → off; Home swipe down → notification shade (`mCurrentFocus`
+  NotificationShade); LENS flick left → torch toggled; LENS flick right unbound → nothing; LENS tap still opens
+  Search with the keyboard. In Android Settings a PULSE double tap bound to "Oznámení" opened the shade through the
+  service. Key screen with `adb input keyevent` 24, 24, 25, long 25, 27: "Hlasitost + 2×", "Hlasitost − 2× a
+  podrženo", "Fotoaparát 1×"; `volume_music_speaker` stayed 0. Physical keys not pressed (adb-injected only).
+- Not verified: TalkBack itself (actions are in code, not tried with TalkBack on), LENS flick with LENS on a side edge,
+  media/lock/screenshot through PULSE. Phone keeps PULSE Hold → torch, Double tap → Spotify (owner's), Home double
+  tap → torch, Home swipe down → notifications, LENS left → torch (test bindings).
+
 ## 2026-10-18 — Control System V1: M3 PULSE gestures (`feat/control-system-v1`)
 - `Trigger.Pulse(Tap | DoubleTap | Hold)` → `Controls.bound` → Home's `perform` (`Pulse.kt`, `combinedClickable`):
   an unbound tap still opens the panel; double tap and hold exist only when bound, so tap never waits.

@@ -15,6 +15,7 @@ import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -85,6 +86,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -241,6 +245,25 @@ class PulseAccessibilityService : AccessibilityService() {
                 gesture(Gesture.Hold)
                 true
             }
+            // Read at query time, so TalkBack offers exactly the gestures bound now: double tap as a custom action,
+            // long press only when hold is bound.
+            ViewCompat.setAccessibilityDelegate(this, object : AccessibilityDelegateCompat() {
+                override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                    super.onInitializeAccessibilityNodeInfo(host, info)
+                    if (bound(Gesture.Hold) == null) {
+                        info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
+                        info.isLongClickable = false
+                    }
+                    if (bound(Gesture.DoubleTap) != null) info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                        R.id.pulse_double_tap, getString(R.string.pulse_gesture_double)))
+                }
+
+                override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                    if (action != R.id.pulse_double_tap) return super.performAccessibilityAction(host, action, args)
+                    gesture(Gesture.DoubleTap)
+                    return true
+                }
+            })
         }
         if (lens == null) {
             windows.addView(view, params)

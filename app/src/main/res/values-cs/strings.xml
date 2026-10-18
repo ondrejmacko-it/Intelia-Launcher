@@ -460,7 +460,7 @@
     <string name="settings_group_data">Data a systém</string>
     <string name="favorites_title">Oblíbené</string>
     <string name="gestures_title">Gesta</string>
-    <string name="gestures_hint">Gesta jsou pevná a platí všude na ploše. Při psaní se nic nespouští.</string>
+    <string name="gestures_hint">Tato gesta jsou pevná a platí všude na ploše. Při psaní se nic nespouští.</string>
     <string name="gesture_hold_home_edit">Podrž plochu</string>
     <string name="gesture_hold_home_edit_detail">Úprava plochy: přesouvej, přidávej, měň velikost a předlohy.</string>
     <string name="gesture_tap_camera">Klepni na kroužek u kamery</string>
@@ -539,4 +539,22 @@
     <string name="pulse_gesture_none">Nic</string>
     <string name="pulse_gesture_choose">Vyber akci</string>
     <string name="pulse_gesture_reset">Obnovit výchozí</string>
+    <string name="gestures_own">Vlastní gesta</string>
+    <string name="gestures_own_hint">Volná gesta nedělají nic, dokud jim nedáš akci. Klepnutí, tah nahoru a podržení LENS zůstávají.</string>
+    <string name="gesture_home_double">Dvojí klepnutí na Home</string>
+    <string name="gesture_home_down">Tah dolů na Home</string>
+    <string name="gesture_lens_left">Švihnutí LENS doleva</string>
+    <string name="gesture_lens_right">Švihnutí LENS doprava</string>
+    <string name="keys_title">Hardwarová tlačítka</string>
+    <string name="keys_hint">Stiskni tlačítko a uvidíš, jestli ho Intelia dostane. Nic se tu nespouští a hlasitost se nemění. Akci půjde později dát jen tlačítkům ověřeným tady.</string>
+    <string name="keys_waiting">Čekám na tlačítko…</string>
+    <string name="keys_caught">Intelia dostala: %1$s</string>
+    <string name="keys_seen">%1$d× · kód %2$d</string>
+    <string name="keys_seen_held">%1$d× a podrženo · kód %2$d</string>
+    <string name="keys_never">K Intelii se nedostane</string>
+    <string name="keys_never_hint">Vypínač, Home a Přehled si nechává Android. Tlačítka Intelia dostane jen v popředí; v jiných aplikacích by je musela filtrovat služba PULSE, a to rozhodnuté není.</string>
+    <string name="key_volume_up">Hlasitost +</string>
+    <string name="key_volume_down">Hlasitost −</string>
+    <string name="key_camera">Fotoaparát</string>
+    <string name="key_media">Tlačítko médií / sluchátek</string>
 </resources>
