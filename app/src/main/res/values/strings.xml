@@ -574,6 +574,7 @@
     <string name="controls_closed">collapsed</string>
     <string name="controls_none_bound">nothing bound</string>
     <string name="controls_bound">%1$d bound</string>
+    <string name="controls_group_count">%1$s · %2$d/%3$d bound</string>
     <string name="controls_fixed">Fixed</string>
     <string name="controls_elsewhere">Same action elsewhere too (%1$d×)</string>
     <string name="gesture_left">Swipe left</string>

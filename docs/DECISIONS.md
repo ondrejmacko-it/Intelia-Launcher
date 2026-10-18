@@ -335,3 +335,24 @@ hold → torch**, everything rebindable. Scope:
 - M1 step 2 (built): Arc on ARC, Pulse on PULSE, Lens on Gesta a tlačítka (what LENS's gestures act on), Search on
   Akce a FLOW (FLOWs run from Search by exact name; the sample query is the owner's first FLOW name). Each preview shows
   only the strip it is about (`PreviewPlan.stripTop`).
+
+## D24 — 2026-10-18 — M2 order; haptic strength slider: PROPOSED, needs the owner
+M2 order: (1) counters in binding-group captions and (2) Motiv preview tiles need no decision (built 2026-10-18);
+(3) haptic slider and (4) free colour picker wait for D24 / D25.
+Haptics today go through `View.performHapticFeedback` (no permission), which has no strength: only the system's
+fixed effects. Two ways to a 0–100 % slider:
+- **A (recommended, no permission):** the slider snaps to 4 stops — Vypnuto / Jemná / Střední / Silná — mapped to
+  system effects (`CLOCK_TICK`, `KEYBOARD_TAP`, `CONFIRM`/`LONG_PRESS`). Honest steps, follows the system haptics switch.
+  Settings: `haptics` enum gains `Medium`; old documents keep their value.
+- **B:** a true amplitude slider through `Vibrator`/`VibrationEffect.createOneShot(ms, amplitude)`. Needs
+  `android.permission.VIBRATE` (normal, auto-granted, but a new permission under AGENTS.md) and ignores the system
+  haptics switch unless we read it ourselves. Amplitude control depends on the motor (`hasAmplitudeControl`).
+Nothing is built until the owner picks A or B.
+
+## D25 — 2026-10-18 — Free colour picker: PROPOSED, needs the owner
+Today every colour is an `Accent` enum value (`AccentColors`), per place in `Palette`. A free colour needs a data
+change: `Accent.Custom` plus one stored `customArgb` (main accent; per-place customs later), validated in
+`LauncherSettings.sanitized()` (opaque, and lightness clamped so ink on it and it on paper keep 4.5:1 in both themes;
+the dark-theme variant derived by the same rule as the presets). UI: hue ring + one lightness/saturation track,
+a hex field, preview on the existing swatch; no eyedropper (would need screen capture). No permission, no network.
+Open for the owner: one custom colour for the whole launcher first (recommended), or per place at once.

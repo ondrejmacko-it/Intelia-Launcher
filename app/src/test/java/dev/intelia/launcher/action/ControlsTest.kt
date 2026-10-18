@@ -204,4 +204,16 @@ class ControlsTest {
         val json = Json.encodeToString(Controls.serializer(), torch.bind(hold, Action.Drawer))
         assertEquals(Action.Drawer, Json.decodeFromString(Controls.serializer(), json).sanitized(emptySet()).effective(hold))
     }
+
+    @Test fun captionCountersCountBindingsDefaultsAndThePulseMenu() {
+        val pulse = listOf(Gesture.Tap, Gesture.DoubleTap, Gesture.Hold).map { Trigger.Pulse(it) }
+        val c = Controls()
+        // Unbound PULSE tap still opens the menu; nothing else is bound yet.
+        assertEquals(1, c.boundCount(pulse))
+        assertEquals(2, c.bind(Trigger.Pulse(Gesture.Hold), Action.Torch).boundCount(pulse))
+        // Home's defaults count as bound, an unbound swipe does not.
+        val home = listOf(Trigger.Home(Gesture.SwipeUp), Trigger.Home(Gesture.SwipeLeft))
+        assertEquals(1, c.boundCount(home))
+        assertEquals(0, c.boundCount(emptyList()))
+    }
 }

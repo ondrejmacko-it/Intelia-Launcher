@@ -573,6 +573,7 @@
     <string name="controls_closed">sbaleno</string>
     <string name="controls_none_bound">nic přiřazeno</string>
     <string name="controls_bound">%1$d přiřazeno</string>
+    <string name="controls_group_count">%1$s · %2$d/%3$d přiřazeno</string>
     <string name="controls_fixed">Pevné</string>
     <string name="controls_elsewhere">Stejná akce je i jinde (%1$d×)</string>
     <string name="gesture_left">Tah doleva</string>

@@ -91,7 +91,10 @@ internal fun ControlsPage(model: HomeViewModel, settings: LauncherSettings, onAr
             l.trigger?.let(controls::effective) != null
         val (main, extra) = if (fq.isNotEmpty()) lines to emptyList() else lines.partition(::used)
         val more = g.id in opened
-        VeilGroup(g.title) {
+        // KEA-style counter (M2): "PULSE · 4/7 přiřazeno"; the locked LENS pillars count as bound.
+        val total = g.lines.size
+        val bound = g.lines.count { it.fixed != null } + controls.boundCount(g.lines.mapNotNull { it.trigger })
+        VeilGroup(if (total == 0) g.title else stringResource(R.string.controls_group_count, g.title, bound, total)) {
             g.hint?.let { GroupNote(it) }
             main.forEach { Line(it, controls, ::entry, pick, unbind) }
             if (extra.isNotEmpty()) {

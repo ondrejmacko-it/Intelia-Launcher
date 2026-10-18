@@ -190,6 +190,12 @@ data class Controls(
     fun effective(trigger: Trigger): Action? = bound(trigger) ?: defaultOf(trigger)
 
     /**
+     * How many of [triggers] do something (M2 caption counters): a binding or a default; PULSE's tap always opens
+     * the PULSE menu when nothing else is bound, so it always counts.
+     */
+    fun boundCount(triggers: List<Trigger>): Int = triggers.count { effective(it) != null || it == Trigger.Pulse(Gesture.Tap) }
+
+    /**
      * Binds [action] to [trigger], replacing what it had; null unbinds (a gesture with a default goes back to it, so
      * binding the default itself stores nothing). ARC slots are edited with [setSlot].
      */

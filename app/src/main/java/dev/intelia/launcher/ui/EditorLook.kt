@@ -1,5 +1,13 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import kotlin.math.roundToInt
 import dev.intelia.launcher.data.iconLook
 import dev.intelia.launcher.data.IconOverride
@@ -141,9 +149,10 @@ fun IconSettings(settings: LauncherSettings, set: SettingsEdit) {
 @Composable
 fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
     VeilGroup(stringResource(R.string.look_group_theme)) {
-        ChoiceSetting(stringResource(R.string.theme), listOf(ThemeMode.System to stringResource(R.string.theme_system),
-            ThemeMode.Light to stringResource(R.string.theme_light), ThemeMode.Dark to stringResource(R.string.theme_dark)), settings.theme,
-            { v -> set { it.copy(theme = v) } }, anchor = StudioTarget.Theme.anchor)
+        SettingBlock(StudioTarget.Theme.anchor) {
+            Text(stringResource(R.string.theme), Modifier.padding(start = 4.dp, top = 4.dp), style = InkText.body.copy(fontSize = 16.sp))
+            ThemeTiles(settings.theme, settings) { v -> set { it.copy(theme = v) } }
+        }
         SettingBlock(StudioTarget.Colors.anchor) {
             Text(stringResource(R.string.palette_section), Modifier.padding(start = 4.dp, top = 4.dp), style = InkText.body.copy(fontSize = 16.sp))
             PaletteEditor(settings, set)
@@ -179,6 +188,53 @@ fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
             { v -> set { it.copy(textScale = v) } }, anchor = StudioTarget.TextSize.anchor)
     }
     VeilGroup(stringResource(R.string.icons)) { IconSettings(settings, set) }
+}
+
+/**
+ * Motiv as preview tiles (M2): each tile is a tiny Studio sheet drawn with that theme's own ink and the owner's accent,
+ * Systém split light / dark. Radio group; the chosen tile is ringed in the accent.
+ */
+@Composable
+private fun ThemeTiles(chosen: ThemeMode, settings: LauncherSettings, onPick: (ThemeMode) -> Unit) {
+    val ink = LocalInk.current
+    val light = inkPalette(false, accentColor(settings.accent, false))
+    val dark = inkPalette(true, accentColor(settings.accent, true))
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(ThemeMode.System to R.string.theme_system, ThemeMode.Light to R.string.theme_light, ThemeMode.Dark to R.string.theme_dark)
+            .forEach { (mode, name) ->
+                val on = mode == chosen
+                val shape = RoundedCornerShape(14.dp)
+                Column(Modifier.weight(1f).clip(shape).selectable(on, role = Role.RadioButton) { onPick(mode) }.padding(bottom = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    Canvas(Modifier.fillMaxWidth().height(84.dp).clip(shape)
+                        .border(if (on) 2.dp else 1.dp, if (on) ink.accent else ink.line, shape)) {
+                        when (mode) {
+                            ThemeMode.Light -> miniSheet(light)
+                            ThemeMode.Dark -> miniSheet(dark)
+                            ThemeMode.System -> {
+                                clipRect(right = size.width / 2) { miniSheet(light) }
+                                clipRect(left = size.width / 2) { miniSheet(dark) }
+                            }
+                        }
+                    }
+                    Text(stringResource(name), Modifier.padding(top = 6.dp), style = InkText.small, color = if (on) ink.ink else ink.muted,
+                        maxLines = 1)
+                }
+            }
+    }
+}
+
+/** A Studio sheet in miniature: paper, a title line, two rows and an accent switch. */
+private fun DrawScope.miniSheet(p: InkPalette) {
+    val u = size.width / 10f
+    drawRect(p.paper)
+    drawRoundRect(p.ink.copy(alpha = .75f), Offset(u, u * 1.2f), Size(u * 4.5f, u * .7f), CornerRadius(u * .35f))
+    repeat(2) { i ->
+        val y = u * (3f + i * 2.4f)
+        drawRoundRect(p.line, Offset(u * .6f, y - u * .5f), Size(u * 8.8f, u * 2f), CornerRadius(u * .6f))
+        drawRoundRect(p.muted, Offset(u * 1.2f, y + u * .2f), Size(u * 4f, u * .5f), CornerRadius(u * .25f))
+        drawRoundRect(if (i == 0) p.accent else p.faint, Offset(u * 6.6f, y), Size(u * 2.2f, u), CornerRadius(u * .5f))
+    }
 }
 
 /** The system wallpaper, then Intelia's own, as small swatches in one scrolling row; the chosen one is ringed. */

@@ -12,6 +12,9 @@ class PreviewPlanTest {
 
     @Test fun controlPagesShowWhatTheyChange() {
         assertEquals(PreviewKind.Arc, PreviewPlan.kind(StudioSection.Arc))
+        assertEquals(PreviewKind.GlobalArc, PreviewPlan.kind(StudioSection.Arc, globalArc = true))
+        // The tab only matters on the ARC page.
+        assertEquals(PreviewKind.Pulse, PreviewPlan.kind(StudioSection.Pulse, globalArc = true))
         assertEquals(PreviewKind.Pulse, PreviewPlan.kind(StudioSection.Pulse))
         assertEquals(PreviewKind.Lens, PreviewPlan.kind(StudioSection.Gestures))
         assertEquals(PreviewKind.Search, PreviewPlan.kind(StudioSection.Actions))
@@ -31,7 +34,15 @@ class PreviewPlanTest {
         assertEquals(0f, PreviewPlan.stripTop(PreviewKind.Home, h, lens, 200f, true))
         assertEquals(lens - PreviewPlan.LENS_STRIP, PreviewPlan.stripTop(PreviewKind.Lens, h, lens, 200f, true))
         assertEquals(lens - 200f - PreviewPlan.ARC_HEAD, PreviewPlan.stripTop(PreviewKind.Arc, h, lens, 200f, true))
-        assertEquals(h - PreviewPlan.SEARCH_STRIP, PreviewPlan.stripTop(PreviewKind.Search, h, lens, 200f, true))
+        assertEquals(h - PreviewPlan.SEARCH_STRIP - PreviewPlan.SEARCH_HEAD, PreviewPlan.stripTop(PreviewKind.Search, h, lens, 200f, true))
+    }
+
+    @Test fun searchStripFollowsTheMeasuredCard() {
+        // A short card (no FLOW, few results) shows a short strip; a tall one more, never above the screen.
+        assertEquals(600f - PreviewPlan.SEARCH_HEAD, PreviewPlan.stripTop(PreviewKind.Search, 900f, 820f, 0f, true, searchTop = 600f))
+        assertEquals(300f - PreviewPlan.SEARCH_HEAD, PreviewPlan.stripTop(PreviewKind.Search, 900f, 820f, 0f, true, searchTop = 300f))
+        assertEquals(0f, PreviewPlan.stripTop(PreviewKind.Search, 900f, 820f, 0f, true, searchTop = 5f))
+        assertEquals(900f - PreviewPlan.MIN_STRIP, PreviewPlan.stripTop(PreviewKind.Search, 900f, 820f, 0f, true, searchTop = 880f))
     }
 
     @Test fun aSideDockOrATinyScreenShowsMoreNeverLess() {

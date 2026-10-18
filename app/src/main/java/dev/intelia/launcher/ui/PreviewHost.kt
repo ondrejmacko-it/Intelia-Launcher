@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +32,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -61,6 +65,8 @@ enum class PreviewKind {
     Home,
     /** LENS ARC open on the owner's first set, no slot picked. */
     Arc,
+    /** Global ARC open under the camera on the set PULSE's hold opens, no slot picked (ARC page, Global ARC tab). */
+    GlobalArc,
     /** The LENS row: dock icons around LENS. */
     Lens,
     /** The Search card for a sample query, marked as a sample; no focus, no keyboard. */
@@ -71,10 +77,10 @@ enum class PreviewKind {
 
 /** Which preview each Studio page gets, and which part of the screen it shows. Pure, so it is tested on the JVM. */
 object PreviewPlan {
-    /** [section] null = Studio's main page. */
-    fun kind(section: StudioSection?): PreviewKind = when (section) {
+    /** [section] null = Studio's main page; [globalArc] = the ARC page shows its Global ARC tab. */
+    fun kind(section: StudioSection?, globalArc: Boolean = false): PreviewKind = when (section) {
         null, StudioSection.Look, StudioSection.Home, StudioSection.Favorites -> PreviewKind.Home
-        StudioSection.Arc -> PreviewKind.Arc
+        StudioSection.Arc -> if (globalArc) PreviewKind.GlobalArc else PreviewKind.Arc
         StudioSection.Pulse -> PreviewKind.Pulse
         // Gestures says what LENS's tap, swipe and hold do; the row it sits on is what they act on.
         StudioSection.Gestures -> PreviewKind.Lens
@@ -86,12 +92,13 @@ object PreviewPlan {
     /**
      * The top of the strip a preview shows, dp from the screen's top: Home shows the whole screen, LENS the dock row,
      * ARC the arc above LENS, Search the card above the field. With LENS on a side or top edge ARC and LENS show the
-     * whole screen. Never less than [MIN_STRIP] tall.
+     * whole screen. [searchTop] is the measured top of the Search card (null until it was laid out once, then the strip
+     * guesses [SEARCH_STRIP]). Never less than [MIN_STRIP] tall.
      */
-    fun stripTop(kind: PreviewKind, screenH: Float, lensY: Float, arcReach: Float, bottomDock: Boolean): Float = when {
+    fun stripTop(kind: PreviewKind, screenH: Float, lensY: Float, arcReach: Float, bottomDock: Boolean, searchTop: Float? = null): Float = when {
         kind == PreviewKind.Lens && bottomDock -> lensY - LENS_STRIP
         kind == PreviewKind.Arc && bottomDock -> lensY - arcReach - ARC_HEAD
-        kind == PreviewKind.Search -> screenH - SEARCH_STRIP
+        kind == PreviewKind.Search -> (searchTop ?: (screenH - SEARCH_STRIP)) - SEARCH_HEAD
         else -> 0f
     }.coerceIn(0f, (screenH - MIN_STRIP).coerceAtLeast(0f))
 
@@ -99,10 +106,14 @@ object PreviewPlan {
     fun sampleQuery(flows: List<String>, apps: List<String>): String =
         flows.firstOrNull { it.isNotBlank() }?.trim() ?: apps.map { it.trim() }.firstOrNull { it.length >= 2 }?.take(3).orEmpty()
 
-    /** dp above LENS the dock strip starts, room above the arc for its set dots and caption, the Search strip's height. */
+    /**
+     * dp above LENS the dock strip starts, room above the arc for its set dots and caption, the Search strip's guess
+     * before the card was measured, room above the measured card (the „Ukázka“ badge sits there).
+     */
     const val LENS_STRIP = 130f
     const val ARC_HEAD = 90f
     const val SEARCH_STRIP = 420f
+    const val SEARCH_HEAD = 48f
     const val MIN_STRIP = 120f
 }
 
@@ -133,7 +144,11 @@ fun PreviewCover(label: String, modifier: Modifier = Modifier, content: @Composa
 internal fun StudioPreview(kind: PreviewKind, settings: LauncherSettings, model: HomeViewModel, room: Dp, screenW: Dp, screenH: Dp,
     pulseLook: PulseLook) {
     if (kind == PreviewKind.None) return
-    if (kind == PreviewKind.Pulse) { PulseStage(model, settings, pulseLook, room, screenW, Modifier.padding(top = 4.dp)); return }
+    if (kind == PreviewKind.Pulse || kind == PreviewKind.GlobalArc) {
+        // Global ARC lives under the camera, so it is PULSE's stage in its ARC state.
+        PulseStage(model, settings, if (kind == PreviewKind.GlobalArc) PulseLook.Arc else pulseLook, room, screenW, Modifier.padding(top = 4.dp))
+        return
+    }
     val homeInk = LocalHomeInk.current
     val density = LocalDensity.current
     val now by rememberNow()
@@ -143,7 +158,9 @@ internal fun StudioPreview(kind: PreviewKind, settings: LauncherSettings, model:
     val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp().value }
     val lens = Dock.centre(home.dock, home.lensDx(), screenW.value, screenH.value, statusTop, bottomInset)
     val reach = Dock.bow(arc.look, arc.sets.size.coerceAtLeast(1), home.dock.edge, lens, screenW.value, screenH.value).reach
-    val top = PreviewPlan.stripTop(kind, screenH.value, lens.y, reach, home.dock.edge == DockEdge.Bottom)
+    // The Search card's real top on the screen, dp, once it was laid out (its height follows the results).
+    var searchTop by remember { mutableStateOf<Float?>(null) }
+    val top = PreviewPlan.stripTop(kind, screenH.value, lens.y, reach, home.dock.edge == DockEdge.Bottom, searchTop)
     val stripH = screenH - top.dp
     val scale = minOf(room / stripH, (screenW - 32.dp) / screenW).coerceAtLeast(.05f)
     val shape = RoundedCornerShape(16.dp)
@@ -175,7 +192,7 @@ internal fun StudioPreview(kind: PreviewKind, settings: LauncherSettings, model:
                     // Home under Search as the Focus depth draws it: blurred 18 dp and at 97 % (D15).
                     HomeMiniature(settings, home, now, model::entry, scale, Modifier.fillMaxSize().blur((18f * scale).dp)
                         .graphicsLayer { scaleX = .97f; scaleY = .97f })
-                    Box(Modifier.fillMaxSize().scaled(scale, screenW.value, screenH.value)) { SearchSample(model, settings, screenW, bottomInset) }
+                    Box(Modifier.fillMaxSize().scaled(scale, screenW.value, screenH.value)) { SearchSample(model, settings, screenW, bottomInset) { searchTop = it } }
                 }
                 else -> HomeMiniature(settings, home, now, model::entry, scale, Modifier.fillMaxSize())
             }
@@ -186,7 +203,8 @@ internal fun StudioPreview(kind: PreviewKind, settings: LauncherSettings, model:
 
 /** Search as LENS opens it, over Home's scrim, for [PreviewPlan.sampleQuery]; nothing is focused or typed into. */
 @Composable
-private fun BoxScope.SearchSample(model: HomeViewModel, settings: LauncherSettings, screenW: Dp, bottomInset: Float) {
+private fun BoxScope.SearchSample(model: HomeViewModel, settings: LauncherSettings, screenW: Dp, bottomInset: Float, onTop: (Float) -> Unit) {
+    val density = LocalDensity.current
     val apps by model.visibleApps.collectAsStateWithLifecycle()
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
     val query = remember(settings.aliases, apps) { PreviewPlan.sampleQuery(settings.aliases.map { it.name }, apps.map { it.label }) }
@@ -195,8 +213,9 @@ private fun BoxScope.SearchSample(model: HomeViewModel, settings: LauncherSettin
         SearchPicks.of(query, AppSearch.rank(apps, query) { it.searchKey }, Flow.suggest(settings.aliases, query), exact, favorites)
     }
     Box(Modifier.fillMaxSize().background(veilScrim()))
+    // Laid out at the real screen size (the scale is a layer), so the position is in screen dp.
     Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = (bottomInset.dp + LensLift - 28.dp))
-        .padding(horizontal = 12.dp)) {
+        .padding(horizontal = 12.dp).onGloballyPositioned { c -> onTop(with(density) { c.positionInParent().y.toDp().value }) }) {
         ResultsCard(query, rows, model::entry, { 1f }, {}, {})
         Spacer(Modifier.height(8.dp))
         SearchField(query, remember { FocusRequester() }, { 1f }, lensShift(settings.home.lensDx(), screenW), exactMatch = exact != null,

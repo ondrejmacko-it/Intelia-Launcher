@@ -145,6 +145,8 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     var sheet by rememberSaveable { mutableStateOf(SheetStop.Balanced) }
     /** The PULSE state its page previews (S3.1), picked on the page and drawn in the host above it. */
     var pulseLook by rememberSaveable { mutableStateOf(PulseLook.Rest) }
+    // The ARC page's tab, hoisted so its preview shows the ARC being edited (LENS ARC or Global ARC).
+    var arcGlobal by rememberSaveable { mutableStateOf(false) }
     var forward by remember { mutableStateOf(true) }
     /** The row a search result asked for; its page scrolls to it and lights it once. */
     val focus = remember { SettingFocus(null) }
@@ -199,8 +201,8 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         StudioPane.Favorites -> StudioFrame(settings, model, stringResource(R.string.favorites_title), ::up, preview = PreviewPlan.kind(StudioSection.Favorites)) {
             FavoritesPage(model, settings)
         }
-        StudioPane.Arc -> StudioFrame(settings, model, stringResource(R.string.arc_section), ::up, preview = PreviewPlan.kind(StudioSection.Arc)) {
-            ArcPage(model, settings)
+        StudioPane.Arc -> StudioFrame(settings, model, stringResource(R.string.arc_section), ::up, preview = PreviewPlan.kind(StudioSection.Arc, arcGlobal)) {
+            ArcPage(model, settings, arcGlobal) { arcGlobal = it }
         }
         StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up, preview = PreviewPlan.kind(StudioSection.Pulse),
             pulseLook = pulseLook) {
@@ -440,7 +442,7 @@ private fun FavoritesPage(model: HomeViewModel, settings: LauncherSettings) {
  * the next ones left and right alternately; an empty slot stays where it is. Each edit writes `controlConfig`.
  */
 @Composable
-private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
+private fun ArcPage(model: HomeViewModel, settings: LauncherSettings, global: Boolean, onGlobal: (Boolean) -> Unit) {
     val ink = LocalInk.current
     val arc by model.arc.collectAsStateWithLifecycle()
     val apps by model.visibleApps.collectAsStateWithLifecycle()
@@ -452,7 +454,6 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
     val look = controls.arc
     var picking by remember { mutableStateOf<Pair<String, Int>?>(null) }
     // Two ARCs, one page: LENS ARC on Home and Global ARC under the camera each have their own look; sets are shared.
-    var global by rememberSaveable { mutableStateOf(false) }
     fun look(transform: (ArcLook) -> ArcLook) = model.editControls { it.withLook(transform(it.arc)) }
     fun globalLook(transform: (GlobalArcLook) -> GlobalArcLook) = model.editControls { it.withGlobalLook(transform(it.globalArc)) }
     val sizes = listOf(ArcLook.RADIUS_S to "S", ArcLook.RADIUS_M to "M", ArcLook.RADIUS_L to "L")
@@ -460,7 +461,7 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
         ArcLook.SPAN_L to stringResource(R.string.arc_angle_wide))
 
     Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-        Chips(listOf(false to stringResource(R.string.arc_tab_lens), true to stringResource(R.string.arc_tab_global)), global) { global = it }
+        Chips(listOf(false to stringResource(R.string.arc_tab_lens), true to stringResource(R.string.arc_tab_global)), global, onSelect = onGlobal)
     }
     if (!global) {
         VeilGroup {

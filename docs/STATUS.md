@@ -2,6 +2,27 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — M1 follow-ups and M2 step 1: caption counters, Motiv tiles (`feat/control-system-v1`)
+- ARC page: the LENS ARC / Global ARC tab is hoisted to Studio; `PreviewPlan.kind(section, globalArc)` → new
+  `PreviewKind.GlobalArc`, drawn as PULSE's stage in its ARC state (Global ARC under the camera, owner's hold set).
+- Search preview: the strip starts at the Search card's measured top (`onGloballyPositioned`, real-size layout) less
+  `SEARCH_HEAD` 48 dp for the „Ukázka“ badge; 420 dp is only the guess before the first layout.
+- Gesta a tlačítka: each binding group's caption counts what does something (`Controls.boundCount`: binding, default,
+  PULSE tap = menu; locked LENS pillars count): „PULSE KAPSLE · 4/7 PŘIŘAZENO“, „HOME · 4/6“, „LENS · 4/5“. Groups
+  without gesture rows (ARC, Hardwarová tlačítka) keep a plain caption.
+- Vzhled › Motiv: three preview tiles (Systém split light/dark, Světlý, Tmavý) drawn with each theme's `inkPalette`
+  and the owner's accent; radio group, the chosen one ringed.
+- DECISIONS D24 (haptic slider, A no permission vs B `VIBRATE`) and D25 (free colour, data change) — PROPOSED.
+- PASS: `./gradlew -q --max-workers=1 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (228 tests; new `PreviewPlanTest.searchStripFollowsTheMeasuredCard`, `ControlsTest.captionCountersCount…`).
+  Earlier runs failed on Windows page-file memory and on a stale Gradle test worker holding `classes.jar` (killed).
+- Phone (3), top activity checked before every input, build 23:15: Vzhled shows the tiles (dump: Systém `checked=true`,
+  Světlý / Tmavý checkable); Gesta captions as above (scroll at x = 20); ARC › Global ARC preview shows the arc under
+  the camera, LENS ARC tab still the LENS arc; Akce a FLOW: strip fits the „pocty“ card and field (no empty band).
+- Not verified: the 23:20 build (SEARCH_HEAD 16 → 48 dp) — after its install the phone showed the system Recents in
+  use, so no input was sent; Search preview with no FLOW on the device (owner's FLOWs not touched; the app-name sample
+  path is JVM tested); Global ARC preview with PULSE off (shows Home's top and the camera only); TalkBack speech.
+
 ## 2026-10-18 — M1 step 2: Arc, Search, Lens and Pulse previews (`feat/control-system-v1`)
 - `PreviewPlan.kind`: ARC → `Arc`, PULSE → `Pulse`, Gesta a tlačítka → `Lens`, Akce a FLOW → `Search`; Home pages
   unchanged. `PreviewPlan.stripTop` (pure) picks the strip: dock row, arc above LENS, Search card, whole screen with
