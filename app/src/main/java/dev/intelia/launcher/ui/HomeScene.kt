@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -197,7 +198,9 @@ private fun Modifier.labelAt(box: LabelBox) = layout { m, c ->
  */
 @Composable
 internal fun HomeMiniature(settings: LauncherSettings, layout: LayoutSpec, now: LocalDateTime, entry: (String) -> AppEntry?, scale: Float,
-    modifier: Modifier = Modifier) {
+    modifier: Modifier = Modifier,
+    /** Drawn instead of the LENS mark, at the real size, given LENS's centre and edge: a preview's open ARC or Search. */
+    lensOverlay: (@Composable BoxScope.(lens: Pt, edge: DockEdge) -> Unit)? = null) {
     val density = LocalDensity.current
     val homeInk = LocalHomeInk.current
     val places = LocalPlaces.current
@@ -235,7 +238,8 @@ internal fun HomeMiniature(settings: LauncherSettings, layout: LayoutSpec, now: 
                 }
             }
             val lens = layout.items.firstOrNull { it.kind == ItemKind.Lens }
-            Box(Modifier.centerAt(lensSpot.x.dp, lensSpot.y.dp)) {
+            if (lensOverlay != null) lensOverlay(lensSpot, layout.dock.edge)
+            else Box(Modifier.centerAt(lensSpot.x.dp, lensSpot.y.dp)) {
                 LensMark(homeInk, ring = lens?.lensDp()?.dp ?: CrystalDims.lensRing, filled = lens?.style == LensStyle.Filled.name)
             }
         }
@@ -247,7 +251,7 @@ internal fun rowIcon(layout: LayoutSpec, settings: LauncherSettings): Float =
     layout.items.filter { it.anchor.type == AnchorType.LensRow }.maxOfOrNull { it.iconLook(settings).sizeDp.toFloat() } ?: 0f
 
 /** Lays the content out at [w] × [h] dp and draws it scaled by [k] from the top start, filling the parent. */
-private fun Modifier.scaled(k: Float, w: Float, h: Float) = layout { m, c ->
+internal fun Modifier.scaled(k: Float, w: Float, h: Float) = layout { m, c ->
     val p = m.measure(Constraints.fixed(w.dp.roundToPx(), h.dp.roundToPx()))
     layout(c.maxWidth, c.maxHeight) {
         p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = TransformOrigin(0f, 0f) }

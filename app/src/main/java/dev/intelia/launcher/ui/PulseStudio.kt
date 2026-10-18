@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -63,8 +64,8 @@ import dev.intelia.launcher.data.pulseMode
 import dev.intelia.launcher.pulse.MediaWatch
 import dev.intelia.launcher.pulse.PulseMode
 
-/** What [PulsePreview] shows; a drawing of each state, never the live capsule, so nothing here can run. */
-private enum class PulseLook { Rest, Music, Expanded, Arc }
+/** What [PulseStage] shows; a drawing of each state, never the live capsule, so nothing here can run. */
+internal enum class PulseLook { Rest, Music, Expanded, Arc }
 
 /**
  * Studio › PULSE (S3.1): the preview with the mode, then Obsah a rychlé akce, Gesta, Vzhled, Události and, on request,
@@ -72,7 +73,8 @@ private enum class PulseLook { Rest, Music, Expanded, Arc }
  * [Pulse] and the service.
  */
 @Composable
-internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit, onControls: () -> Unit) {
+internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: SettingsEdit, look: PulseLook, onLook: (PulseLook) -> Unit,
+    onLens: () -> Unit, onControls: () -> Unit) {
     val context = LocalContext.current
     val service by PulseAccessibilityService.running.collectAsStateWithLifecycle()
     var access by remember { mutableStateOf(MediaWatch.allowed(context)) }
@@ -80,7 +82,7 @@ internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: Se
     val mode = settings.pulseMode()
     var quickOpen by rememberSaveable { mutableStateOf(false) }
     var advanced by rememberSaveable { mutableStateOf(false) }
-    PulsePreview(model, settings)
+    PulseLookPicker(settings, look, onLook)
     VeilGroup(stringResource(R.string.pulse_group_mode)) {
         // M3.1: one choice for where PULSE lives; Everywhere still needs the service the owner switches on in Android.
         ChoiceSetting(stringResource(R.string.pulse_mode), listOf(PulseMode.Off to stringResource(R.string.off),
@@ -155,6 +157,28 @@ private fun pulseGestureSummary(model: HomeViewModel, controls: Controls): Strin
     return parts.joinToString(" · ")
 }
 
+/** What the state shown in [PulseStage] is, said under the picture and to TalkBack. */
+@Composable
+private fun pulseNote(settings: LauncherSettings, look: PulseLook): String = stringResource(when {
+    !settings.pulse -> R.string.pulse_preview_off
+    look == PulseLook.Rest -> R.string.pulse_preview_rest_note
+    look == PulseLook.Music -> R.string.pulse_preview_music_note
+    look == PulseLook.Expanded -> if (settings.pulseMusic) R.string.pulse_preview_expanded_note else R.string.pulse_preview_expanded_plain
+    else -> R.string.pulse_preview_arc_note
+})
+
+/** The state chips at the top of the PULSE page; the picture itself is the page's preview in the host (M1). */
+@Composable
+private fun PulseLookPicker(settings: LauncherSettings, look: PulseLook, onLook: (PulseLook) -> Unit) {
+    val ink = LocalInk.current
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+        Text(pulseNote(settings, look), Modifier.padding(horizontal = 6.dp), style = InkText.small, color = ink.muted)
+        if (settings.pulse) VeilChoice(listOf(PulseLook.Rest to stringResource(R.string.pulse_preview_rest),
+            PulseLook.Music to stringResource(R.string.pulse_preview_music), PulseLook.Expanded to stringResource(R.string.pulse_preview_expanded),
+            PulseLook.Arc to stringResource(R.string.global_arc)), look, onLook, Modifier.padding(top = 8.dp))
+    }
+}
+
 /**
  * S3.1: the capsule's states as the phone shows them: the top of Home (the same [HomeMiniature] as Home) laid out at
  * the screen's real size and scaled, with the real PULSE pieces at the real lens. Each state shows only the strip it
@@ -163,23 +187,16 @@ private fun pulseGestureSummary(model: HomeViewModel, controls: Controls): Strin
  * set, without its cancel hint. A cover takes every touch, so nothing here plays or runs.
  */
 @Composable
-private fun PulsePreview(model: HomeViewModel, settings: LauncherSettings) {
+internal fun PulseStage(model: HomeViewModel, settings: LauncherSettings, look: PulseLook, room: Dp, screenWidth: Dp, modifier: Modifier = Modifier) {
     val ink = LocalInk.current
     val context = LocalContext.current
     val density = LocalDensity.current
-    var look by rememberSaveable { mutableStateOf(PulseLook.Rest) }
     val now by rememberNow()
     val arc by model.arc.collectAsStateWithLifecycle()
     val apps by model.visibleApps.collectAsStateWithLifecycle()
     val service by PulseAccessibilityService.running.collectAsStateWithLifecycle()
     val label = stringResource(R.string.pulse_preview_label)
-    val note = stringResource(when {
-        !settings.pulse -> R.string.pulse_preview_off
-        look == PulseLook.Rest -> R.string.pulse_preview_rest_note
-        look == PulseLook.Music -> R.string.pulse_preview_music_note
-        look == PulseLook.Expanded -> if (settings.pulseMusic) R.string.pulse_preview_expanded_note else R.string.pulse_preview_expanded_plain
-        else -> R.string.pulse_preview_arc_note
-    })
+    val note = pulseNote(settings, look)
     val sample = remember(context) {
         Playing(NowPlaying(context.packageName, context.getString(R.string.pulse_sample_title), context.getString(R.string.pulse_sample_artist),
             NowPlaying.STATE_PLAYING, NowPlaying.ACTION_SKIP_TO_PREVIOUS or NowPlaying.ACTION_SKIP_TO_NEXT or NowPlaying.ACTION_PLAY_PAUSE,
@@ -210,57 +227,46 @@ private fun PulsePreview(model: HomeViewModel, settings: LauncherSettings) {
     }.coerceIn(PREVIEW_MIN_DP, screenH)
     val shownH by animateFloatAsState(stageH, tween(motionMs(220)), label = "pulse-preview-height")
     val sampled = settings.pulse && (look == PulseLook.Music || (look == PulseLook.Expanded))
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val k = (maxWidth.value / screenW).coerceAtMost(1f)
-            Box(Modifier.size((screenW * k).dp, (shownH * k).dp).clip(shape).background(Color.Black.copy(alpha = .28f))
-                .border(1.dp, ink.accent.copy(alpha = .30f), shape).clearAndSetSemantics { contentDescription = "$label. $note" }) {
-                Box(Modifier.stage(k, screenW, screenH)) {
-                    val home = settings.home.activeLayout()
-                    HomeMiniature(settings, home, now, model::entry, 1f, Modifier.fillMaxSize())
-                    if (settings.pulse) when (look) {
-                        PulseLook.Rest -> Canvas(Modifier.fillMaxSize()) {
-                            val box = pulseHitbox(hx, hy, settings.pulseHit, screenW)
-                            drawRoundRect(ink.accent.copy(alpha = .9f), Offset(box.left.dp.toPx(), box.top.dp.toPx()),
-                                Size(box.width.dp.toPx(), box.height.dp.toPx()), CornerRadius(12.dp.toPx()),
-                                style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))))
-                        }
-                        PulseLook.Music -> {
-                            val mc = musicCapsule(hx, hy, hr, statusBar)
-                            Box(Modifier.offset(mc.left.dp, mc.top.dp)) { MusicCompact(sample, mc, lens.radius, settings.pulseOpacity, null) }
-                        }
-                        PulseLook.Expanded -> {
-                            val (left, width) = menuLeftAndWidth(screenW, hx, 12f, glanceWidth(glance).value)
-                            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .22f)))
-                            Canvas(Modifier.fillMaxSize()) {
-                                val half = (hr + 4f).dp.toPx()
-                                drawCircle(ink.accent.copy(alpha = .55f), half, Offset(hx.dp.toPx(), hy.dp.toPx()), style = Stroke(1.dp.toPx()))
-                            }
-                            GlanceCard(glance, width.dp, {}, {}, {}, {}, Modifier.offset(left.dp, glanceTop.dp))
-                        }
-                        PulseLook.Arc -> {
-                            val hold = settings.controls.bound(Trigger.Pulse(Gesture.Hold)) as? Action.Arc
-                            val set = arc.sets.firstOrNull { s -> hold != null && s.id == settings.controls.arcSetFor(hold).id } ?: arc.sets.firstOrNull()
-                            GlobalArc(set, arcLook, Pt(hx, hy), open = true, pick = null, flowSteps = { emptyList() }, explain = false)
-                        }
-                    }
-                    // The camera itself, so the picture reads like the phone.
-                    Canvas(Modifier.fillMaxSize()) { drawCircle(Color.Black, lens.radius, Offset(lens.x, lens.y)) }
+    // The strip fits the room above the sheet and the width less a margin, like every Studio preview.
+    val k = minOf((screenWidth.value - 32f) / screenW, room.value / shownH, 1f).coerceAtLeast(.05f)
+    PreviewCover("$label. $note", modifier.size((screenW * k).dp, (shownH * k).dp).clip(shape).background(Color.Black.copy(alpha = .28f))
+        .border(1.dp, ink.accent.copy(alpha = .30f), shape)) {
+        Box(Modifier.stage(k, screenW, screenH)) {
+            val home = settings.home.activeLayout()
+            HomeMiniature(settings, home, now, model::entry, 1f, Modifier.fillMaxSize())
+            if (settings.pulse) when (look) {
+                PulseLook.Rest -> Canvas(Modifier.fillMaxSize()) {
+                    val box = pulseHitbox(hx, hy, settings.pulseHit, screenW)
+                    drawRoundRect(ink.accent.copy(alpha = .9f), Offset(box.left.dp.toPx(), box.top.dp.toPx()),
+                        Size(box.width.dp.toPx(), box.height.dp.toPx()), CornerRadius(12.dp.toPx()),
+                        style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))))
                 }
-                // The strip ends softly instead of cutting Home in half.
-                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(32.dp)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, ink.paper.copy(alpha = .92f)))))
-                if (sampled) Text(stringResource(R.string.pulse_preview_sample), Modifier.align(Alignment.BottomEnd).padding(8.dp)
-                    .clip(RoundedCornerShape(10.dp)).background(ink.accent.copy(alpha = .22f)).padding(horizontal = 8.dp, vertical = 2.dp),
-                    style = InkText.label, color = ink.ink)
-                // Nothing in the preview takes a touch: its music buttons must never reach the real player.
-                Box(Modifier.matchParentSize().pointerInput(Unit) { awaitEachGesture { awaitFirstDown(requireUnconsumed = false).consume() } })
+                PulseLook.Music -> {
+                    val mc = musicCapsule(hx, hy, hr, statusBar)
+                    Box(Modifier.offset(mc.left.dp, mc.top.dp)) { MusicCompact(sample, mc, lens.radius, settings.pulseOpacity, null) }
+                }
+                PulseLook.Expanded -> {
+                    val (left, width) = menuLeftAndWidth(screenW, hx, 12f, glanceWidth(glance).value)
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .22f)))
+                    Canvas(Modifier.fillMaxSize()) {
+                        val half = (hr + 4f).dp.toPx()
+                        drawCircle(ink.accent.copy(alpha = .55f), half, Offset(hx.dp.toPx(), hy.dp.toPx()), style = Stroke(1.dp.toPx()))
+                    }
+                    GlanceCard(glance, width.dp, {}, {}, {}, {}, Modifier.offset(left.dp, glanceTop.dp))
+                }
+                PulseLook.Arc -> {
+                    val hold = settings.controls.bound(Trigger.Pulse(Gesture.Hold)) as? Action.Arc
+                    val set = arc.sets.firstOrNull { s -> hold != null && s.id == settings.controls.arcSetFor(hold).id } ?: arc.sets.firstOrNull()
+                    GlobalArc(set, arcLook, Pt(hx, hy), open = true, pick = null, flowSteps = { emptyList() }, explain = false)
+                }
             }
+            // The camera itself, so the picture reads like the phone.
+            Canvas(Modifier.fillMaxSize()) { drawCircle(Color.Black, lens.radius, Offset(lens.x, lens.y)) }
         }
-        Text(note, Modifier.padding(start = 6.dp, end = 6.dp, top = 8.dp), style = InkText.small, color = ink.muted)
-        if (settings.pulse) VeilChoice(listOf(PulseLook.Rest to stringResource(R.string.pulse_preview_rest),
-            PulseLook.Music to stringResource(R.string.pulse_preview_music), PulseLook.Expanded to stringResource(R.string.pulse_preview_expanded),
-            PulseLook.Arc to stringResource(R.string.global_arc)), look, { look = it }, Modifier.padding(top = 8.dp))
+        // The strip ends softly instead of cutting Home in half.
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(32.dp)
+            .background(Brush.verticalGradient(listOf(Color.Transparent, ink.paper.copy(alpha = .92f)))))
+        if (sampled) SampleBadge(Modifier.align(Alignment.BottomEnd).padding(8.dp))
     }
 }
 

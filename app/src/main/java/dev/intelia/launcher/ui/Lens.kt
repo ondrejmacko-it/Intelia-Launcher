@@ -147,7 +147,10 @@ fun LensArc(
     onFlick: (Gesture) -> Boolean = { false },
     /** LENS's touch box, dp: [Dock.lensTouch] narrows it beside the dock's icons (S4.4). */
     touch: LensTouch = LensTouch.Default,
+    /** In a preview ([LocalPreviewMode]): drawn open on the first set, no slot picked; nothing reacts or runs. */
+    shown: Boolean = false,
 ) {
+    val preview = LocalPreviewMode.current
     val homeInk = LocalHomeInk.current
     val selectLabel = stringResource(R.string.a11y_select)
     val ink = LocalInk.current
@@ -155,7 +158,7 @@ fun LensArc(
     val haptics = rememberInkHaptics()
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
-    var open by remember { mutableStateOf(false) }
+    var open by remember { mutableStateOf(shown && preview) }
     /** Opened by TalkBack or a keyboard: slots and set dots become ordinary buttons, nothing follows a finger. */
     var assisted by remember { mutableStateOf(false) }
     var track by remember { mutableStateOf(BowTrack()) }
@@ -173,9 +176,12 @@ fun LensArc(
         chosen?.let { haptics.confirm(); onAction(it.action) }
     }
 
-    LaunchedEffect(open) { openChanged(open) }
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { close() }
-    BackHandler(enabled = open) { close() }
+    // A preview never tells Home ARC is open, never closes on stop and never takes Back.
+    if (!preview) {
+        LaunchedEffect(open) { openChanged(open) }
+        LifecycleEventEffect(Lifecycle.Event.ON_STOP) { close() }
+        BackHandler(enabled = open) { close() }
+    }
 
     val reveal by animateFloatAsState(if (open) 1f else 0f, tween(motionMs(130)), label = "arc-reveal")
     val searchLabel = stringResource(R.string.search)
@@ -334,7 +340,7 @@ fun LensArc(
                         onLongClick(label = arcAction) { open = true; assisted = true; track = BowTrack(); true }
                     }
                 }
-                .onKeyEvent { event ->
+                .then(if (preview) Modifier else Modifier.onKeyEvent { event ->
                     // Up opens ARC on key down: otherwise focus search moves away from LENS before the key comes up.
                     if (event.key == Key.DirectionUp && onEditSelect == null) {
                         if (event.type == KeyEventType.KeyDown && !open) { open = true; assisted = true; track = BowTrack() }
@@ -410,7 +416,7 @@ fun LensArc(
                             if (open && !assisted) close()
                         }
                     }
-                },
+                }),
             contentAlignment = Alignment.Center,
         ) {
             LensMark(homeInk, Modifier.offset(((touch.left - touch.right) / 2f).dp, ((touch.top - touch.bottom) / 2f).dp),

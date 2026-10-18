@@ -143,6 +143,8 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     val pane = stack.last()
     /** The sheet's resting height, kept across pages so a deeper page opens as the last one was left. */
     var sheet by rememberSaveable { mutableStateOf(SheetStop.Balanced) }
+    /** The PULSE state its page previews (S3.1), picked on the page and drawn in the host above it. */
+    var pulseLook by rememberSaveable { mutableStateOf(PulseLook.Rest) }
     var forward by remember { mutableStateOf(true) }
     /** The row a search result asked for; its page scrolls to it and lights it once. */
     val focus = remember { SettingFocus(null) }
@@ -190,20 +192,21 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         StudioPane.Controls -> StudioFrame(settings, model, stringResource(R.string.settings_group_controls), ::up) {
             ControlsArea(settings) { go(it) }
         }
-        StudioPane.Actions -> StudioFrame(settings, model, stringResource(R.string.studio_area_actions), ::up) { FlowPage(settings, onFlows) }
+        StudioPane.Actions -> StudioFrame(settings, model, stringResource(R.string.studio_area_actions), ::up, preview = PreviewPlan.kind(StudioSection.Actions)) { FlowPage(settings, onFlows) }
         StudioPane.System -> StudioFrame(settings, model, stringResource(R.string.studio_area_system), ::up) {
             SystemPage(model, onHidden = { go(StudioPane.Hidden) }, onBackup = { go(StudioPane.Backup) })
         }
         StudioPane.Favorites -> StudioFrame(settings, model, stringResource(R.string.favorites_title), ::up, preview = PreviewPlan.kind(StudioSection.Favorites)) {
             FavoritesPage(model, settings)
         }
-        StudioPane.Arc -> StudioFrame(settings, model, stringResource(R.string.arc_section), ::up) {
+        StudioPane.Arc -> StudioFrame(settings, model, stringResource(R.string.arc_section), ::up, preview = PreviewPlan.kind(StudioSection.Arc)) {
             ArcPage(model, settings)
         }
-        StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up) {
-            PulsePage(model, settings, set, onLens = { go(StudioPane.Lens) }, onControls = { go(StudioPane.Gestures) })
+        StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up, preview = PreviewPlan.kind(StudioSection.Pulse),
+            pulseLook = pulseLook) {
+            PulsePage(model, settings, set, pulseLook, { pulseLook = it }, onLens = { go(StudioPane.Lens) }, onControls = { go(StudioPane.Gestures) })
         }
-        StudioPane.Gestures -> StudioFrame(settings, model, stringResource(R.string.gestures_title), ::up) {
+        StudioPane.Gestures -> StudioFrame(settings, model, stringResource(R.string.gestures_title), ::up, preview = PreviewPlan.kind(StudioSection.Gestures)) {
             ControlsPage(model, settings, onArc = { go(StudioPane.Arc) }, onKeys = { go(StudioPane.Keys) })
         }
         StudioPane.Keys -> StudioFrame(settings, model, stringResource(R.string.keys_title), ::up) {
@@ -237,7 +240,7 @@ private fun LauncherSettings.withLookDefaults(): LauncherSettings {
  */
 @Composable
 private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title: String, onBack: () -> Unit, preview: PreviewKind = PreviewKind.None,
-    content: @Composable ColumnScope.() -> Unit) {
+    pulseLook: PulseLook = PulseLook.Rest, content: @Composable ColumnScope.() -> Unit) {
     val homeInk = LocalHomeInk.current
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
     val now by rememberNow()
@@ -255,19 +258,9 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
                 Text(title.uppercase(), style = InkText.label.copy(shadow = homeShadow(homeInk)), color = homeInk, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
             }
-            val previewLabel = stringResource(R.string.home_preview)
             StudioSheet(sheet.stop, sheet.onStop, sheet.onClose, Modifier.weight(1f), preview = if (preview == PreviewKind.None) null else { full ->
-                // Home as a true miniature of the screen: every size and distance at one scale, fitted to the Preview stop.
-                val roomH = with(density) { full.toDp() } - 12.dp
-                val scale = minOf(roomH / screenH, (screenW - 32.dp) / screenW).coerceAtLeast(.05f)
-                val shape = RoundedCornerShape(16.dp)
-                // TalkBack hears one "Home preview", not the live time and date as if they were content.
-                PreviewCover(previewLabel, Modifier.padding(top = 4.dp).size(screenW * scale, screenH * scale).clip(shape)
-                    .border(1.dp, homeInk.copy(alpha = .35f), shape)) {
-                    // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
-                    HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
-                        scale = scale, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
-                }
+                // A true miniature of the screen: every size and distance at one scale, fitted to the Preview stop.
+                StudioPreview(preview, settings, model, with(density) { full.toDp() } - 12.dp, screenW, screenH, pulseLook)
             }, content = content)
         }
         // Live capsule at the real camera while PULSE is on: width and opacity change as you drag.

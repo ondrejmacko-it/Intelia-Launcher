@@ -214,7 +214,7 @@ fun SearchOverlay(
 
 /** The Veil pill: drawn from the LENS ring (morph 0) to the full field (morph 1); layout never changes. */
 @Composable
-private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float, lensDx: Dp, exactMatch: Boolean,
+internal fun SearchField(query: String, focus: FocusRequester, morph: () -> Float, lensDx: Dp, exactMatch: Boolean,
                         onChange: (String) -> Unit, onSubmit: () -> Unit) {
     val c = LocalCrystal.current
     val tokens = veil(VeilLevel.Dense)
@@ -245,7 +245,10 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
         .padding(start = 18.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).graphicsLayer { alpha = ((morph() - .5f) * 2f).coerceIn(0f, 1f) }, verticalAlignment = Alignment.CenterVertically) {
             HomeGlyph(Glyph.Search, null, tint = c.acc, size = 20.dp)
-            BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).focusRequester(focus).semantics { contentDescription = description },
+            // A preview shows the text only: no field that could take focus or bring up the keyboard.
+            if (LocalPreviewMode.current) Text(query, Modifier.weight(1f).padding(start = 12.dp), style = CrystalType.body.copy(fontSize = 17.sp),
+                color = c.fg, maxLines = 1)
+            else BasicTextField(query, onChange, Modifier.weight(1f).padding(start = 12.dp).focusRequester(focus).semantics { contentDescription = description },
                 singleLine = true, textStyle = CrystalType.body.copy(fontSize = 17.sp, color = c.fg), cursorBrush = SolidColor(c.acc),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { onSubmit() }),
                 decorationBox = { inner ->
@@ -255,14 +258,14 @@ private fun SearchField(query: String, focus: FocusRequester, morph: () -> Float
                     }
                 })
             if (exactMatch) Text(stringResource(R.string.enter_runs).uppercase(), Modifier.padding(horizontal = 6.dp), style = CrystalType.label, color = c.acc)
-            if (query.isNotEmpty()) IconAction(Glyph.Close, stringResource(R.string.clear), { onChange("") }, tint = c.fg2)
+            if (query.isNotEmpty() && !LocalPreviewMode.current) IconAction(Glyph.Close, stringResource(R.string.clear), { onChange("") }, tint = c.fg2)
         }
     }
 }
 
 /** Veil Dense card of at most [SearchPicks.MAX] rows, first row (Enter) nearest the field and lit in the accent. */
 @Composable
-private fun ResultsCard(
+internal fun ResultsCard(
     query: String,
     rows: List<SearchPick<AppEntry>>,
     resolve: (String) -> AppEntry?,

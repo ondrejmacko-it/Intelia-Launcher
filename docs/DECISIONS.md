@@ -332,3 +332,6 @@ hold → torch**, everything rebindable. Scope:
 - Next kinds, same rules: `Arc` (ARC page: the owner's first set drawn open at LENS, no slot picked), `Lens` (LENS
   calibration: the dock strip), `Search` (Search card with a marked sample query and the owner's apps, no field focus,
   no keyboard), `Pulse` (move the in-list S3.1 state preview into the host). No new permission, service or network.
+- M1 step 2 (built): Arc on ARC, Pulse on PULSE, Lens on Gesta a tlačítka (what LENS's gestures act on), Search on
+  Akce a FLOW (FLOWs run from Search by exact name; the sample query is the owner's first FLOW name). Each preview shows
+  only the strip it is about (`PreviewPlan.stripTop`).

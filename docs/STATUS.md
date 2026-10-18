@@ -2,6 +2,28 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — M1 step 2: Arc, Search, Lens and Pulse previews (`feat/control-system-v1`)
+- `PreviewPlan.kind`: ARC → `Arc`, PULSE → `Pulse`, Gesta a tlačítka → `Lens`, Akce a FLOW → `Search`; Home pages
+  unchanged. `PreviewPlan.stripTop` (pure) picks the strip: dock row, arc above LENS, Search card, whole screen with
+  LENS on a side/top edge. `StudioPreview` draws every kind at the real screen size, scaled, inside `PreviewCover`.
+- Arc: `LensArc(shown = true)` on the owner's first set, no slot picked; in `LocalPreviewMode` it skips its
+  open-change effect, ON_STOP close, `BackHandler`, key handling, focus and the gesture. Drawn through a new
+  `HomeMiniature(lensOverlay)` hook in place of the LENS mark.
+- Search: `ResultsCard` and `SearchField` internal; sample query = first FLOW name, else the first 3 letters of an app
+  (`PreviewPlan.sampleQuery`), marked „Ukázka“; the field renders plain text in preview (no `BasicTextField`, no clear
+  button), no `PulseAccessibilityService.typing`, `model.query` untouched. Home under it blurred 18 dp, 97 %.
+- Pulse: the S3.1 picture moved into the host as `PulseStage`; the page keeps the note and state chips
+  (`PulseLookPicker`), the state is hoisted to Studio. Sample music still marked „Ukázka“.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (`PreviewPlanTest` 6 tests); `install -r` of `app-lab.apk` (23:04).
+- Phone (3), top activity checked before input: step 1 — Vzhled miniature as before (screenshot), a tap on it changes
+  nothing in the dump, one „Náhled plochy“ node. Akce a FLOW: Search card for „pocty“ with Spustit and ENTER SPUSTÍ,
+  „Ukázka“, `mInputShown=false` after a tap on the preview, dump unchanged. ARC: set „Hlavní“ open, 8 slots, three set
+  dots, no pick; tap changes nothing, Back leaves the page. Gesta: dock row strip. PULSE: Rozbalená (sample song) and
+  Global ARC states. 3 fast scrolls at x = 20 on PULSE: handle stays at y 1248.
+- Not verified: TalkBack speech (labels only seen in the dump), Reduced Motion, frame timing, side-dock layouts,
+  the Search preview with no FLOWs, light theme. The ARC preview shows LENS ARC also on the Global ARC tab.
+
 ## 2026-10-18 — M1 step 1: PreviewHost core (`feat/control-system-v1`)
 - `ui/PreviewHost.kt`: `PreviewKind`, `PreviewPlan.kind(section)` (pure), `PreviewCover` (consumes every touch on the
   Initial pass, one TalkBack label, sets `LocalPreviewMode`). `StudioFrame` takes a `PreviewKind` instead of a Boolean;

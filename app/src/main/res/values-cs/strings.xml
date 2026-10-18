@@ -186,6 +186,9 @@
     <string name="reach">Dosah jednou rukou</string>
     <string name="favorites_count">Oblíbené · %1$d/%2$d</string>
     <string name="home_preview">Náhled plochy</string>
+    <string name="arc_preview">Náhled ARC</string>
+    <string name="lens_preview">Náhled řady LENS</string>
+    <string name="search_preview">Náhled hledání s ukázkovým dotazem</string>
     <string name="favorites_hint">Přidáš je podržením aplikace v šuplíku; stojí v něm nahoře.</string>
     <string name="arc_section">ARC</string>
     <string name="arc_explain">Čím dál táhneš od LENS, tím víc možností. Pozice se nemění, takže si je ruka zapamatuje.</string>
