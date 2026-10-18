@@ -41,8 +41,8 @@ Requires Android 8.0 (API 26) or newer. Only tested on Android 16.
 
 | Package | What it is |
 |---|---|
-| `dev.intelia.launcher` | The distribution build. Signed with the project's release key once it exists. |
-| `dev.intelia.launcher.lab` | The development build (Lab). Signed with the **public** debug key in this repo — for testing only. |
+| `dev.intelia.launcher` | The distribution build. Signed with the project's release key (certificate SHA-256 `5ddb08b2…dd99d3`, see [SECURITY.md](SECURITY.md)). |
+| `dev.intelia.launcher.lab` | The development build (Lab). Development build, never published. Its old debug key was public in the git history — never install a Lab APK from anyone. |
 
 They install side by side and never update each other. Settings are not shared; move them with Backup.
 
@@ -95,7 +95,15 @@ private notifications or messages.
 
 Read [AGENTS.md](AGENTS.md) first. Code is Apache-2.0; no code copied from other launchers.
 
-## Licence
+## Licence and legal
 
-Apache License 2.0 — see [LICENSE](LICENSE). Bundled fonts are under the SIL Open Font License 1.1 (see
-[DECISIONS D11/D14](docs/DECISIONS.md)).
+- **Code:** Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). You may use, modify and redistribute it,
+  but every copy must keep the licence, the NOTICE and the copyright notices and mark what was changed. Provided
+  **without warranty**.
+- **Name and logo:** "Intelia", the logo and the LENS / ARC / PULSE / FLOW product names are not licensed — see
+  [TRADEMARKS.md](TRADEMARKS.md). Forks must use their own name and application ID.
+- **Official builds** come only from this repository's Releases and are signed with the project key; verify them as in
+  [SECURITY.md](SECURITY.md).
+- **Inspiration and third-party components:** [CREDITS.md](CREDITS.md). Bundled fonts: SIL Open Font License 1.1.
+
+Copyright 2026 The Intelia Launcher Authors.

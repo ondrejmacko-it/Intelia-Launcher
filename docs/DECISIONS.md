@@ -378,3 +378,20 @@ Step 1 is one owner-made accent for the whole launcher. Scope:
 - **Language:** Intelia ships English (`values`) and Czech (`values-cs`). `res/xml/locales_config.xml` +
   `android:localeConfig` enable Android 13+'s per-app language; Studio › Systém a data › Jazyk opens that system
   page. No in-app locale override, no new dependency. Older Android follows the system language.
+
+## D27 — 2026-10-19 — Repository hardening for the public beta (owner request: "security first")
+- **Release key** created by the owner (RSA 4096, PKCS12, `CN=Intelia Launcher, O=Intelia, C=CZ`, certificate SHA-256
+  `5ddb08b20d7f3eb02c0ae26a7d8b6a75fb284fe97616f42260ded24cd6dd99d3`), stored only in `.signing/` with offline backups.
+- **Debug key out of the repo:** `keystore/debug.keystore` is no longer tracked (supersedes the shared-key part of D4).
+  Gradle uses `.signing/debug.keystore` when present (same key, so `install -r` of the Lab keeps working on the
+  owner's phone), else the PC's own Android debug key. The old key stays in git history and is treated as **public**:
+  it only ever signed `dev.intelia.launcher.lab`, which is never distributed.
+- **History not rewritten:** removing the key or the author e-mail from history needs a force push to `main`
+  (AGENTS.md: owner approval) and would not reach existing clones, forks or GitHub's PR refs. Proposed, not done.
+- **Visible refs:** only `main`, tags and Releases; merged and backed-up work branches are deleted on GitHub after a
+  local `git bundle` backup outside the repo.
+- **Legal:** Apache-2.0 stays (already granted for every published commit; relicensing future versions is a separate
+  owner decision). Added `NOTICE` (must be kept in redistributions, Apache §4), `TRADEMARKS.md` (name and logo not
+  licensed, Apache §6), `SECURITY.md` (private reporting, verifying downloads), `CREDITS.md` (functional inspiration,
+  no copied code; third-party licences).
+- `.gitignore` also blocks `*.p12`, `*.pem`, `*.apk`, `*.aab`, `*.bundle`, `*.rar`, crash dumps.

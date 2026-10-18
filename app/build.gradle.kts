@@ -29,12 +29,16 @@ android {
     }
 
     signingConfigs {
-        // Debug-only key committed to the repo so every PC produces updatable builds (D4).
-        getByName("debug") {
-            storeFile = rootProject.file("keystore/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+        // Lab/debug key (D27): kept only on the owner's PC in `.signing/debug.keystore` (git-ignored). Without it
+        // Gradle signs debug builds with this PC's own Android debug key. It never signs a distributed build.
+        val labKey = rootProject.file(".signing/debug.keystore")
+        if (labKey.isFile) {
+            getByName("debug") {
+                storeFile = labKey
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
         }
         // Production key (D26): only from `.signing/release.properties` on the owner's PC (git-ignored), never the
         // repo's debug key. Without that file `assembleRelease` stays unsigned and cannot be published by mistake.
@@ -61,7 +65,7 @@ android {
             if (releaseSigning != null) signingConfig = signingConfigs.getByName("release")
         }
         // The everyday build on the test phone (D16): release code (R8, not debuggable, AOT from the baseline
-        // profile) under the Lab package and the shared debug key, so `install -r` swaps it with debug both ways.
+        // profile) under the Lab package and the Lab debug key, so `install -r` swaps it with debug both ways.
         create("lab") {
             initWith(getByName("release"))
             applicationIdSuffix = ".lab"

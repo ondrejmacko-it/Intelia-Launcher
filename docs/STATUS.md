@@ -2,6 +2,17 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-19 — 0.1.0-beta.1 signed and hardened (`claude/release-beta1-final` → `main`)
+- `main` had two more commits after PR #4 (`9bc8846`, `c89d6b7`: editor bar, Studio previews) merged outside this
+  session; they are in the release build. Not device-checked by this session.
+- Signed release: see `docs/release/v0.1.0-beta.1/RELEASE_CHECKLIST.md` (236 tests PASS, release cert `5ddb08b2…`,
+  APK SHA-256 `3dd122a7…dff7`).
+- D27: debug key untracked (kept in `.signing/`, Lab still `install -r`-compatible: cert `82e25e9b…` unchanged), NOTICE,
+  TRADEMARKS, SECURITY, CREDITS, first research round (`docs/research/COMPETITOR_RESEARCH.md`).
+- Backup before deleting GitHub branches: `../git-backup-2026-10-19/intelia-all-branches.bundle` (`git bundle verify`
+  OK, 17 refs) and local branches `backup/*`. `claude/standalone-foundation` was not merged (one docs commit `4ac6078`).
+- Not verified: the signed release APK on a device (installing it beside the Lab is safe but was not done).
+
 ## 2026-10-19 — 0.1.0-beta.1 release preparation (`feat/control-system-v1` → `main`)
 - D26: `versionCode` 2, `versionName` `0.1.0-beta.1`; optional release signing from git-ignored
   `.signing/release.properties`; `locales_config.xml` + Studio › Systém a data › Jazyk (Android 13+ per-app language).

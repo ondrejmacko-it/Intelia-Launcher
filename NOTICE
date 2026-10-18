@@ -1,0 +1,14 @@
+Intelia Launcher
+Copyright 2026 The Intelia Launcher Authors (https://github.com/ondrejmacko-it/Intelia-Launcher)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+Redistributions of the source or of binaries, modified or not, must keep this NOTICE file,
+the LICENSE file, all copyright notices, and state clearly which files were changed (Apache-2.0, section 4).
+
+"Intelia", "Intelia Launcher", LENS, ARC, PULSE and FLOW as product names, and the Intelia logo, are not licensed
+under Apache-2.0 (section 6). A modified version must not be published under these names or with the logo
+without written permission; see TRADEMARKS.md.
+
+This product bundles fonts licensed under the SIL Open Font License 1.1:
+Roboto Flex, Inter, Space Grotesk, DM Serif Display, JetBrains Mono, Bodoni Moda, Unbounded.
+Licence texts: app/src/main/assets/licenses/.
