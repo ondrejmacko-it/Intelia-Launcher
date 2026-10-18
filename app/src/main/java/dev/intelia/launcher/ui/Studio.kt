@@ -67,7 +67,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -181,11 +180,11 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         VeilMotion.page(if (forward) 1 else -1, ms)
     }, label = "studio-pane") { shown -> panes.SaveableStateProvider(shown.name) { when (shown) {
         StudioPane.Main -> StudioMain(model, settings, leave, onEditHome, ::open) { go(it.pane()) }
-        StudioPane.Look -> StudioFrame(settings, model, stringResource(R.string.look), ::up, preview = true) {
+        StudioPane.Look -> StudioFrame(settings, model, stringResource(R.string.look), ::up, preview = PreviewPlan.kind(StudioSection.Look)) {
             LookSettings(settings, set)
             ResetDefaults(stringResource(R.string.reset_look_what)) { set { it.withLookDefaults() } }
         }
-        StudioPane.Home -> StudioFrame(settings, model, stringResource(R.string.settings_group_home), ::up, preview = true) {
+        StudioPane.Home -> StudioFrame(settings, model, stringResource(R.string.settings_group_home), ::up, preview = PreviewPlan.kind(StudioSection.Home)) {
             HomePage(settings, set, onEditHome) { go(StudioPane.Favorites) }
         }
         StudioPane.Controls -> StudioFrame(settings, model, stringResource(R.string.settings_group_controls), ::up) {
@@ -195,7 +194,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         StudioPane.System -> StudioFrame(settings, model, stringResource(R.string.studio_area_system), ::up) {
             SystemPage(model, onHidden = { go(StudioPane.Hidden) }, onBackup = { go(StudioPane.Backup) })
         }
-        StudioPane.Favorites -> StudioFrame(settings, model, stringResource(R.string.favorites_title), ::up, preview = true) {
+        StudioPane.Favorites -> StudioFrame(settings, model, stringResource(R.string.favorites_title), ::up, preview = PreviewPlan.kind(StudioSection.Favorites)) {
             FavoritesPage(model, settings)
         }
         StudioPane.Arc -> StudioFrame(settings, model, stringResource(R.string.arc_section), ::up) {
@@ -237,7 +236,7 @@ private fun LauncherSettings.withLookDefaults(): LauncherSettings {
  * (Preview / Balanced / Settings); elsewhere the sheet takes the whole room.
  */
 @Composable
-private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title: String, onBack: () -> Unit, preview: Boolean = false,
+private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title: String, onBack: () -> Unit, preview: PreviewKind = PreviewKind.None,
     content: @Composable ColumnScope.() -> Unit) {
     val homeInk = LocalHomeInk.current
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
@@ -257,14 +256,14 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
                     overflow = TextOverflow.Ellipsis)
             }
             val previewLabel = stringResource(R.string.home_preview)
-            StudioSheet(sheet.stop, sheet.onStop, sheet.onClose, Modifier.weight(1f), preview = if (!preview) null else { full ->
+            StudioSheet(sheet.stop, sheet.onStop, sheet.onClose, Modifier.weight(1f), preview = if (preview == PreviewKind.None) null else { full ->
                 // Home as a true miniature of the screen: every size and distance at one scale, fitted to the Preview stop.
                 val roomH = with(density) { full.toDp() } - 12.dp
                 val scale = minOf(roomH / screenH, (screenW - 32.dp) / screenW).coerceAtLeast(.05f)
                 val shape = RoundedCornerShape(16.dp)
                 // TalkBack hears one "Home preview", not the live time and date as if they were content.
-                Box(Modifier.padding(top = 4.dp).size(screenW * scale, screenH * scale).clip(shape).border(1.dp, homeInk.copy(alpha = .35f), shape)
-                    .clearAndSetSemantics { contentDescription = previewLabel }) {
+                PreviewCover(previewLabel, Modifier.padding(top = 4.dp).size(screenW * scale, screenH * scale).clip(shape)
+                    .border(1.dp, homeInk.copy(alpha = .35f), shape)) {
                     // The clock and date as Home draws them (font, size, colour, plate), not the old global clock style.
                     HomePreview(settings, favorites, now, homeInk, LocalWallPlaces.current[PaletteTarget.Clock], Modifier.fillMaxSize(),
                         scale = scale, onWallpaper = true, home = settings.home.activeLayout(), entry = model::entry)
@@ -272,7 +271,7 @@ private fun StudioFrame(settings: LauncherSettings, model: HomeViewModel, title:
             }, content = content)
         }
         // Live capsule at the real camera while PULSE is on: width and opacity change as you drag.
-        if (preview && settings.pulse) Pulse(settings, preview = true)
+        if (preview != PreviewKind.None && settings.pulse) Pulse(settings, preview = true)
     }
 }
 
@@ -336,7 +335,7 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack:
     val hits = remember(query, entries) { StudioIndex.search(entries, query) }
     val active = settings.home.activeLayout()
     val controls = settings.controls
-    StudioFrame(settings, model, stringResource(R.string.settings), onBack, preview = true) {
+    StudioFrame(settings, model, stringResource(R.string.settings), onBack, preview = PreviewPlan.kind(null)) {
         StudioSearchField(query) { query = it }
         if (query.isNotBlank()) {
             if (hits.isEmpty()) Hint(stringResource(R.string.studio_no_results))

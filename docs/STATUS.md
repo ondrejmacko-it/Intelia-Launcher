@@ -2,6 +2,16 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — M1 step 1: PreviewHost core (`feat/control-system-v1`)
+- `ui/PreviewHost.kt`: `PreviewKind`, `PreviewPlan.kind(section)` (pure), `PreviewCover` (consumes every touch on the
+  Initial pass, one TalkBack label, sets `LocalPreviewMode`). `StudioFrame` takes a `PreviewKind` instead of a Boolean;
+  the Home miniature (main page, Vzhled, Plocha, Oblíbené) is drawn inside `PreviewCover`. Design: `DECISIONS.md` D23.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (new `PreviewPlanTest`); `install -r` of `app-lab.apk` (22:45).
+- Not verified on the device: after the install the phone showed the system Recents (owner may have been using it), so
+  no input was sent. Open: the miniature looks unchanged, a tap on it does nothing, the dump has one „Náhled plochy“
+  node. Arc / Lens / Search / Pulse kinds are not built yet (D23).
+
 ## 2026-10-18 — M0 Studio sheet stability (`feat/control-system-v1`)
 - Cause: `StudioSheet`'s `NestedScrollConnection` fed the list's unused scroll into the sheet's top (`onPostScroll`) and
   re-settled it in `onPreFling`, so a fast scroll moved the sheet. Removed: the list scrolls and flings inside the sheet

@@ -321,3 +321,14 @@ hold → torch**, everything rebindable. Scope:
   `AppRepository` (public `LauncherApps`; shortcuts only while Intelia is the default home). Search and cards bring
   Home forward and run there via an in-process request (never an intent extra, so no other app can inject actions).
   Every other PULSE gesture keeps the M3 rule: system actions only outside Home. No new permission.
+
+## D23 — 2026-10-18 — PreviewHost: one way to show live previews in Studio (M1)
+- Every Studio preview is the renderer the real surface uses, fed with the owner's settings, wrapped in
+  `PreviewCover`: all touches are consumed on the Initial pass, TalkBack hears one label, `LocalPreviewMode` is true.
+  Renderers that start side effects (focus, keyboard, haptics, actions, `PulseAccessibilityService.typing`) must skip
+  them when `LocalPreviewMode` is set. Sample data (music, alarm, a query) is always marked as a sample.
+- `PreviewPlan.kind(section)` (pure, JVM tested) is the only place that says which page shows which preview.
+  M1 step 1: Home miniature (main page, Vzhled, Plocha, Oblíbené) moved onto it, unchanged look.
+- Next kinds, same rules: `Arc` (ARC page: the owner's first set drawn open at LENS, no slot picked), `Lens` (LENS
+  calibration: the dock strip), `Search` (Search card with a marked sample query and the owner's apps, no field focus,
+  no keyboard), `Pulse` (move the in-list S3.1 state preview into the host). No new permission, service or network.
