@@ -1,5 +1,8 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.draw.drawWithCache
 import android.content.BroadcastReceiver
@@ -222,12 +225,34 @@ internal fun GlanceCard(state: GlanceState, width: androidx.compose.ui.unit.Dp, 
         .padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
         val music = state.music
         if (music != null) MusicCard(music, onOpen = onOpenPlayer)
-        else Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            // Equal shares of the card: when the screen is narrower than the card wants, every button gives a little.
-            val slot = Modifier.weight(1f).widthIn(max = GLANCE_SLOT.dp)
-            state.battery?.let { b -> GlanceSlot(Glyph.Bolt, "${b.percent} %", on = false, act = Modifier, modifier = slot) }
-            state.quick.take(if (state.battery != null) MAX_GLANCE - 1 else MAX_GLANCE).forEach { entry -> QuickButton(entry, state, onTorch, onAction, slot) }
-            if (state.quick.isEmpty() && state.battery == null) Text(stringResource(R.string.pulse_quick_empty),
+        else BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+            val buttons: List<Pair<String, @Composable (Modifier) -> Unit>> = buildList {
+                state.battery?.let { b -> val t = "${b.percent} %"; add(t to { m -> GlanceSlot(Glyph.Bolt, t, on = false, act = Modifier, modifier = m) }) }
+                state.quick.take(if (state.battery != null) MAX_GLANCE - 1 else MAX_GLANCE).forEach { entry ->
+                    add(quickText(entry, state) to { m -> QuickButton(entry, state, onTorch, onAction, m) })
+                }
+            }
+            // S4.4: at a large text size a name that would be cut sends the buttons onto two rows of two, where each
+            // gets half the card; the button's accessible name is the full text either way.
+            val measurer = rememberTextMeasurer()
+            val style = InkText.small
+            val density = LocalDensity.current
+            val share = maxWidth / buttons.size.coerceAtLeast(1)
+            val fits = buttons.all { (t, _) ->
+                with(density) { measurer.measure(t, style, maxLines = 1).size.width.toDp() } <= minOf(share, GLANCE_SLOT.dp) - 8.dp
+            }
+            val cols = if (fits || buttons.size <= 2) buttons.size.coerceAtLeast(1) else 2
+            Column(Modifier.fillMaxWidth()) {
+                buttons.chunked(cols).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        // Equal shares: when the screen is narrower than the card wants, every button gives a little.
+                        val slot = Modifier.weight(1f).let { if (fits) it.widthIn(max = GLANCE_SLOT.dp) else it }
+                        row.forEach { (_, button) -> button(slot) }
+                        repeat(cols - row.size) { Spacer(slot) }
+                    }
+                }
+            }
+            if (buttons.isEmpty()) Text(stringResource(R.string.pulse_quick_empty),
                 Modifier.padding(vertical = 14.dp), style = InkText.small, color = ink.onNight.copy(alpha = .7f))
         }
         // The quiet way out: a short handle, a 48 dp target around it.
@@ -241,11 +266,15 @@ internal fun GlanceCard(state: GlanceState, width: androidx.compose.ui.unit.Dp, 
 }
 
 @Composable
+private fun quickText(entry: QuickEntry, state: GlanceState): String =
+    if (entry.slot.action == Action.Alarms && state.alarm != null) state.alarm else slotLabel(entry.slot)
+
+@Composable
 private fun QuickButton(entry: QuickEntry, state: GlanceState, onTorch: (Boolean) -> Unit, onAction: (Action) -> Unit, modifier: Modifier) {
     val action = entry.slot.action
     val torch = action == Action.Torch
     val on = torch && state.torch
-    val label = if (action == Action.Alarms && state.alarm != null) state.alarm else slotLabel(entry.slot)
+    val label = quickText(entry, state)
     val act = if (torch) Modifier.toggleable(on, role = Role.Switch) { onTorch(it) }.semantics { stateDescription = if (on) "on" else "off" }
     else Modifier.clickable(role = Role.Button) { onAction(action) }
     GlanceSlot(entry.glyph, label, on, act, entry.slot, modifier)
