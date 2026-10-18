@@ -3,6 +3,7 @@ package dev.intelia.launcher.ui
 import dev.intelia.launcher.data.DockEdge
 import dev.intelia.launcher.data.DockSpec
 import dev.intelia.launcher.data.LensAt
+import kotlin.math.abs
 
 /**
  * The LENS row on any edge (§5.5, D13): where LENS sits, and how ARC turns so its rings always open towards the
@@ -79,32 +80,52 @@ object Dock {
     const val LENS_ALONG = 84f
     const val LENS_ACROSS = 100f
     const val MIN_LENS_TOUCH = 48f
+    /** LENS reaches at least this far from its centre on every side, dp. */
+    const val MIN_LENS_SIDE = 24f
 
     /**
-     * LENS's touch box (width, height in screen dp) beside the [targets] around it, each a centre and its touch side:
-     * LENS gives way so that a neighbour keeps its whole target (S4.4: at a large display size the dock camera kept
-     * only 42 dp). It shrinks along the axis that costs it less and never below [MIN_LENS_TOUCH]; a neighbour closer
-     * than that keeps the overlap rather than taking LENS's own target away.
+     * LENS's touch box beside the [targets] around it, each a centre and its touch side (S4.4: at a large display size
+     * the dock camera kept only 42 dp, an icon above LENS 45 dp). LENS gives way only on the side of each neighbour,
+     * along the axis that costs it less, so the neighbour keeps its whole target. No side goes below [MIN_LENS_SIDE]
+     * from the centre (a [MIN_LENS_TOUCH] box at least); a neighbour closer than that keeps a small overlap.
      */
-    fun lensTouch(lens: Pt, vertical: Boolean, targets: List<Pair<Pt, Float>>): Pair<Float, Float> {
-        var hw = (if (vertical) LENS_ACROSS else LENS_ALONG) / 2f
-        var hh = (if (vertical) LENS_ALONG else LENS_ACROSS) / 2f
-        val min = MIN_LENS_TOUCH / 2f
+    fun lensTouch(lens: Pt, vertical: Boolean, targets: List<Pair<Pt, Float>>): LensTouch {
+        val across = LENS_ACROSS / 2f
+        val along = LENS_ALONG / 2f
+        val e = floatArrayOf(if (vertical) across else along, if (vertical) along else across,
+            if (vertical) across else along, if (vertical) along else across) // left, top, right, bottom
         for ((c, side) in targets) {
             val half = side / 2f
-            val dx = kotlin.math.abs(c.x - lens.x)
-            val dy = kotlin.math.abs(c.y - lens.y)
-            if (dx >= hw + half || dy >= hh + half) continue
-            val w = (dx - half).coerceAtLeast(min)
-            val h = (dy - half).coerceAtLeast(min)
-            // Keep the larger box of the two ways out; a way that still overlaps counts as no way.
-            val wFree = dx >= w + half
-            val hFree = dy >= h + half
+            val dx = c.x - lens.x
+            val dy = c.y - lens.y
+            val h = if (dx < 0) 0 else 2
+            val v = if (dy < 0) 1 else 3
+            if (abs(dx) >= e[h] + half || abs(dy) >= e[v] + half) continue
+            val wGap = abs(dx) - half
+            val hGap = abs(dy) - half
+            val wOk = wGap >= MIN_LENS_SIDE
+            val hOk = hGap >= MIN_LENS_SIDE
+            // Keep the larger of the two boxes; a way that would cut LENS below its minimum is no way.
+            val wArea = (wGap + e[2 - h]) * (e[1] + e[3])
+            val hArea = (hGap + e[4 - v]) * (e[0] + e[2])
             when {
-                wFree && (!hFree || w * hh >= hw * h) -> hw = w
-                hFree -> hh = h
+                wOk && (!hOk || wArea >= hArea) -> e[h] = wGap
+                hOk -> e[v] = hGap
+                // Too close either way: LENS keeps its minimum on the side with more room, the overlap stays small.
+                wGap >= hGap -> e[h] = minOf(e[h], MIN_LENS_SIDE)
+                else -> e[v] = minOf(e[v], MIN_LENS_SIDE)
             }
         }
-        return hw * 2f to hh * 2f
+        return LensTouch(e[0], e[1], e[2], e[3])
+    }
+}
+
+/** How far LENS's touch box reaches from its centre on each side, dp ([Dock.lensTouch]). */
+data class LensTouch(val left: Float, val top: Float, val right: Float, val bottom: Float) {
+    val width get() = left + right
+    val height get() = top + bottom
+
+    companion object {
+        val Default = LensTouch(Dock.LENS_ALONG / 2f, Dock.LENS_ACROSS / 2f, Dock.LENS_ALONG / 2f, Dock.LENS_ACROSS / 2f)
     }
 }

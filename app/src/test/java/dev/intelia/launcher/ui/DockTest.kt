@@ -125,16 +125,16 @@ class DockTest {
     @Test fun lensGivesWayToItsNeighbours() {
         val lens = Pt(160f, 700f)
         // Nothing near: the full 84 × 100 dp.
-        assertEquals(84f to 100f, Dock.lensTouch(lens, false, emptyList()))
-        // The dock camera 62 dp away keeps its whole 48 dp target; LENS narrows to 76 dp.
-        assertEquals(76f to 100f, Dock.lensTouch(lens, false, listOf(Pt(222f, 700f) to 48f)))
-        // An icon above LENS: LENS gets shorter instead of narrower.
-        val above = Dock.lensTouch(lens, false, listOf(Pt(170f, 640f) to 48f))
-        assertEquals(84f to 72f, above)
-        // Never below 48 dp, even when a neighbour sits on top of LENS.
-        val (w, h) = Dock.lensTouch(lens, false, listOf(Pt(170f, 700f) to 48f))
-        assertTrue(w >= Dock.MIN_LENS_TOUCH && h >= Dock.MIN_LENS_TOUCH)
+        assertEquals(LensTouch.Default, Dock.lensTouch(lens, false, emptyList()))
+        // The dock camera 62 dp to the right keeps its whole 48 dp target; LENS gives way on that side only.
+        assertEquals(LensTouch(42f, 50f, 38f, 50f), Dock.lensTouch(lens, false, listOf(Pt(222f, 700f) to 48f)))
+        // A big icon (76 dp target) 58 dp above LENS (the owner's Home, S4.4): LENS's top comes down to it.
+        assertEquals(LensTouch(42f, 24f, 42f, 50f), Dock.lensTouch(lens, false, listOf(Pt(160f, 642f) to 76f)))
+        // Never below the minimum, even when a neighbour sits on top of LENS.
+        val t = Dock.lensTouch(lens, false, listOf(Pt(170f, 700f) to 48f))
+        assertTrue(t.width >= Dock.MIN_LENS_TOUCH && t.height >= Dock.MIN_LENS_TOUCH)
         // A side row runs down the edge: LENS is 100 wide and 84 tall there.
-        assertEquals(100f to 84f, Dock.lensTouch(lens, true, emptyList()))
+        val side = Dock.lensTouch(lens, true, emptyList())
+        assertEquals(100f to 84f, side.width to side.height)
     }
 }

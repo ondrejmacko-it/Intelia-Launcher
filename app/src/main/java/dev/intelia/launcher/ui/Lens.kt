@@ -2,6 +2,7 @@
 
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.activity.compose.BackHandler
@@ -145,7 +146,7 @@ fun LensArc(
     /** M4: a bound sideways flick; true when it ran, false lets the touch end as nothing. */
     onFlick: (Gesture) -> Boolean = { false },
     /** LENS's touch box, dp: [Dock.lensTouch] narrows it beside the dock's icons (S4.4). */
-    touch: Pair<Float, Float> = Dock.LENS_ALONG to Dock.LENS_ACROSS,
+    touch: LensTouch = LensTouch.Default,
 ) {
     val homeInk = LocalHomeInk.current
     val selectLabel = stringResource(R.string.a11y_select)
@@ -321,7 +322,7 @@ fun LensArc(
 
         // LENS itself.
         Box(
-            Modifier.centerAt(cx, cy).size(touch.first.dp, touch.second.dp)
+            Modifier.centerAt(cx + ((touch.right - touch.left) / 2f).dp, cy + ((touch.bottom - touch.top) / 2f).dp).size(touch.width.dp, touch.height.dp)
                 .semantics {
                     role = Role.Button
                     contentDescription = "$lensDescription (LENS)"
@@ -347,7 +348,7 @@ fun LensArc(
                     }
                 }
                 .focusable()
-                .pointerInput(bow, edge, look.tapSets, sets) {
+                .pointerInput(bow, edge, look.tapSets, sets, touch) {
                     awaitEachGesture {
                         var down = awaitFirstDown(requireUnconsumed = true)
                         // LENS owns this touch: Home's own tap, hold (Studio) and swipe must not see it.
@@ -394,8 +395,8 @@ fun LensArc(
                                 val event = awaitPointerEvent()
                                 val change = event.changes.find { it.id == down.id }
                                 if (change == null || event.changes.size != 1 || change.isConsumed) { close(); break }
-                                val local = Dock.toLocal(edge, with(density) { (change.position.x - size.width / 2f).toDp().value },
-                                    with(density) { (change.position.y - size.height / 2f).toDp().value })
+                                val local = Dock.toLocal(edge, with(density) { change.position.x.toDp().value } - touch.left,
+                                    with(density) { change.position.y.toDp().value } - touch.top)
                                 val x = local.x
                                 val y = local.y
                                 val before = track
@@ -412,7 +413,8 @@ fun LensArc(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            LensMark(homeInk, active = open, ring = lensRing, filled = lensFilled)
+            LensMark(homeInk, Modifier.offset(((touch.left - touch.right) / 2f).dp, ((touch.top - touch.bottom) / 2f).dp),
+                active = open, ring = lensRing, filled = lensFilled)
         }
     }
 }
