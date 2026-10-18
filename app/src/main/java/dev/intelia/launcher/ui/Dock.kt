@@ -74,4 +74,37 @@ object Dock {
     /** The shallow ARC (M2) for [look] with [sets] sets around LENS at [lens]. */
     fun bow(look: dev.intelia.launcher.action.ArcLook, sets: Int, edge: DockEdge, lens: Pt, width: Float, height: Float): ArcBow =
         room(edge, lens, width, height).let { (l, r) -> ArcBow(look.slots, look.radius.toFloat(), look.span.toFloat(), l, r, sets) }
+
+    /** LENS's touch box: 84 dp along its edge, 100 dp across (S4.4), at least [MIN_LENS_TOUCH] each way. */
+    const val LENS_ALONG = 84f
+    const val LENS_ACROSS = 100f
+    const val MIN_LENS_TOUCH = 48f
+
+    /**
+     * LENS's touch box (width, height in screen dp) beside the [targets] around it, each a centre and its touch side:
+     * LENS gives way so that a neighbour keeps its whole target (S4.4: at a large display size the dock camera kept
+     * only 42 dp). It shrinks along the axis that costs it less and never below [MIN_LENS_TOUCH]; a neighbour closer
+     * than that keeps the overlap rather than taking LENS's own target away.
+     */
+    fun lensTouch(lens: Pt, vertical: Boolean, targets: List<Pair<Pt, Float>>): Pair<Float, Float> {
+        var hw = (if (vertical) LENS_ACROSS else LENS_ALONG) / 2f
+        var hh = (if (vertical) LENS_ALONG else LENS_ACROSS) / 2f
+        val min = MIN_LENS_TOUCH / 2f
+        for ((c, side) in targets) {
+            val half = side / 2f
+            val dx = kotlin.math.abs(c.x - lens.x)
+            val dy = kotlin.math.abs(c.y - lens.y)
+            if (dx >= hw + half || dy >= hh + half) continue
+            val w = (dx - half).coerceAtLeast(min)
+            val h = (dy - half).coerceAtLeast(min)
+            // Keep the larger box of the two ways out; a way that still overlaps counts as no way.
+            val wFree = dx >= w + half
+            val hFree = dy >= h + half
+            when {
+                wFree && (!hFree || w * hh >= hw * h) -> hw = w
+                hFree -> hh = h
+            }
+        }
+        return hw * 2f to hh * 2f
+    }
 }

@@ -144,6 +144,8 @@ fun LensArc(
     onEditSelect: (() -> Unit)? = null,
     /** M4: a bound sideways flick; true when it ran, false lets the touch end as nothing. */
     onFlick: (Gesture) -> Boolean = { false },
+    /** LENS's touch box, dp: [Dock.lensTouch] narrows it beside the dock's icons (S4.4). */
+    touch: Pair<Float, Float> = Dock.LENS_ALONG to Dock.LENS_ACROSS,
 ) {
     val homeInk = LocalHomeInk.current
     val selectLabel = stringResource(R.string.a11y_select)
@@ -319,7 +321,7 @@ fun LensArc(
 
         // LENS itself.
         Box(
-            Modifier.centerAt(cx, cy).size(CrystalDims.lensTouchW, CrystalDims.lensTouch)
+            Modifier.centerAt(cx, cy).size(touch.first.dp, touch.second.dp)
                 .semantics {
                     role = Role.Button
                     contentDescription = "$lensDescription (LENS)"

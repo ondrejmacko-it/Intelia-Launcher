@@ -728,7 +728,17 @@ private fun Home(
             }
         }
 
-        AccentScope(PaletteTarget.Lens) { LensArc(arc, lensSpot, dock.edge, flowSteps, onSearch = onSearch, onDrawer = onDrawer,
+        // S4.4: LENS gives way to the icons around it, so each keeps a whole 48 dp target at any display size.
+        val lensTouch = remember(layout, geometry, settings, apps, flows) {
+            val targets = layout.items.mapNotNull { item ->
+                if ((item.kind != ItemKind.App && item.kind != ItemKind.Flow) || !item.anchor.type.isPlaced()) return@mapNotNull null
+                if (apps[item.target] == null && flows[item.target] == null) return@mapNotNull null
+                val p = geometry.position(item, layout) ?: return@mapNotNull null
+                p to maxOf(CrystalDims.touch.value, item.iconLook(settings).sizeDp + 8f)
+            }
+            Dock.lensTouch(lensSpot, dock.edge.vertical, targets)
+        }
+        AccentScope(PaletteTarget.Lens) { LensArc(arc, lensSpot, dock.edge, flowSteps, onSearch = onSearch, onDrawer = onDrawer, touch = lensTouch,
             onAction = onAction, onOpenChange = { arcOpen = it }, lensRing = lensItem?.lensDp()?.dp ?: CrystalDims.lensRing,
             lensFilled = lensItem?.style == LensStyle.Filled.name,
             // TalkBack moves LENS in the editor without a drag (§5.5), each as one undo step.
