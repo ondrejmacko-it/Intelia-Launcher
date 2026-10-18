@@ -187,12 +187,14 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
         }
         StudioPane.Flow -> StudioFrame(settings, model, stringResource(R.string.flow), ::up) { FlowPage(settings, onFlows) }
         StudioPane.Pulse -> StudioFrame(settings, model, stringResource(R.string.pulse), ::up, preview = true) {
-            PulsePage(model, settings, set, onLens = { pane = StudioPane.Lens })
+            PulsePage(settings, set, onLens = { pane = StudioPane.Lens }, onControls = { pane = StudioPane.Gestures })
         }
         StudioPane.Gestures -> StudioFrame(settings, model, stringResource(R.string.gestures_title), ::up) {
-            GesturesPage(model, settings, onKeys = { pane = StudioPane.Keys })
+            ControlsPage(model, settings, onArc = { pane = StudioPane.Arc }, onKeys = { pane = StudioPane.Keys })
         }
-        StudioPane.Keys -> StudioFrame(settings, model, stringResource(R.string.keys_title), ::up) { KeysPage() }
+        StudioPane.Keys -> StudioFrame(settings, model, stringResource(R.string.keys_title), ::up) {
+            KeysPage(onSeen = { code -> model.editControls { it.withKey(code) } })
+        }
         StudioPane.Motion -> StudioFrame(settings, model, stringResource(R.string.motion_section), ::up) { MotionPage(settings, set) }
         StudioPane.Backup -> StudioFrame(settings, model, stringResource(R.string.backup_title), ::up) {
             BackupPart(model, beforeRestore) { beforeRestore = it }
@@ -519,106 +521,24 @@ private fun FlowPage(settings: LauncherSettings, onFlows: () -> Unit) {
     NavRow(stringResource(R.string.flow_manage), settings.aliases.size.toString(), onFlows)
 }
 
-/** PULSE: the capsule, its events and calibration, and whether it works outside Intelia (D9). */
+/** PULSE: the capsule, its events and calibration, and whether it works outside Intelia (D9); its gestures live in Ovládání. */
 @Composable
-private fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit) {
+private fun PulsePage(settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit, onControls: () -> Unit) {
     val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
     val context = LocalContext.current
     CrystalBody { PulseInspector(settings, set, onLens) }
     // D9: the switch only mirrors the service; Android settings are where it is turned on or off.
     if (settings.pulse) ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
         detail = stringResource(R.string.pulse_everywhere_detail))
-    if (settings.pulse) {
-        Section(R.string.pulse_gestures)
-        Hint(stringResource(R.string.pulse_gestures_hint))
-        GestureBindings(model, settings, listOf(Trigger.Pulse(Gesture.Tap) to R.string.pulse_gesture_tap,
-            Trigger.Pulse(Gesture.DoubleTap) to R.string.pulse_gesture_double, Trigger.Pulse(Gesture.Hold) to R.string.pulse_gesture_hold))
-    }
+    if (settings.pulse) NavRow(stringResource(R.string.pulse_gestures), stringResource(R.string.gestures_title), onControls)
 }
 
 /**
- * Rows of bindable gestures (M3 PULSE, M4 Home and LENS): each picks an action with the shared [ActionPicker] or
- * drops it; nothing runs here. An unbound PULSE tap still opens the menu, every other unbound gesture does nothing.
+ * M4: which hardware keys reach Intelia at all. A press here is only shown (and kept from changing the volume) and
+ * its key code offered in Ovládání; nothing runs here. Back still goes back.
  */
 @Composable
-private fun GestureBindings(model: HomeViewModel, settings: LauncherSettings, rows: List<Pair<Trigger, Int>>) {
-    val ink = LocalInk.current
-    val apps by model.visibleApps.collectAsStateWithLifecycle()
-    val all by model.allApps.collectAsStateWithLifecycle()
-    val shortcuts by model.shortcuts.collectAsStateWithLifecycle()
-    val role = rememberHomeRole()
-    val host = rememberActionHost(model) { }
-    var picking by remember { mutableStateOf<Trigger?>(null) }
-    fun entry(a: Action): ArcEntry? = when (a) {
-        is Action.App -> apps.firstOrNull { it.key == a.component }?.let { ArcEntry(a, app = it) }
-        is Action.Flow -> settings.aliases.firstOrNull { it.id == a.id }?.let { ArcEntry(a, flow = it) }
-        is Action.Shortcut -> shortcuts.firstOrNull { it.packageName == a.pkg && it.id == a.id }?.let { ArcEntry(a, shortcut = it) }
-        else -> ArcEntry(a)
-    }
-
-    rows.forEach { (trigger, name) ->
-        val menu = trigger == Trigger.Pulse(Gesture.Tap)
-        val raw = settings.controls.bound(trigger)
-        val shown = raw?.let(::entry)
-        val detail = when {
-            shown != null -> slotLabel(shown)
-            raw != null -> stringResource(R.string.arc_slot_unavailable)
-            menu -> stringResource(R.string.pulse_gesture_menu)
-            else -> stringResource(R.string.pulse_gesture_none)
-        }
-        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button,
-            onClickLabel = stringResource(R.string.pulse_gesture_choose)) { picking = trigger }
-            .padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (shown != null) ActionIcon(shown.action, detail, 28.dp, ink.ink, app = shown.app, shortcut = shown.shortcut)
-            else HomeGlyph(Glyph.Plus, null, tint = ink.faint, size = 22.dp)
-            Column(Modifier.padding(start = 14.dp).weight(1f)) {
-                Text(stringResource(name), style = InkText.body)
-                Text(detail, style = InkText.small, color = if (shown != null) ink.muted else ink.faint, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            if (raw != null) IconAction(Glyph.Close, stringResource(if (menu) R.string.pulse_gesture_reset else R.string.remove),
-                { model.editControls { it.bind(trigger, null) } }, tint = ink.muted)
-        }
-    }
-
-    picking?.let { trigger ->
-        val names = remember(all) { all.filter { it.mainProfile }.associate { it.component.packageName to it.label } }
-        ActionPicker(stringResource(R.string.pulse_gesture_choose),
-            apps = apps.sortedBy { it.label.lowercase() }, flows = settings.aliases, shortcuts = shortcuts, system = SystemActions,
-            host = host, appNames = names,
-            shortcutsNote = stringResource(if (role.held) R.string.shortcuts_none else R.string.shortcuts_need_home),
-            onPick = { action -> model.editControls { it.bind(trigger, action) }; picking = null },
-            onDismiss = { picking = null })
-    }
-}
-
-/** Gesta: what each gesture does, so nobody has to guess; the pillar gestures are fixed, the free ones below are bindable. */
-@Composable
-private fun GesturesPage(model: HomeViewModel, settings: LauncherSettings, onKeys: () -> Unit) {
-    val ink = LocalInk.current
-    Hint(stringResource(R.string.gestures_hint))
-    listOf(R.string.gesture_tap_lens to R.string.gesture_tap_lens_detail, R.string.gesture_swipe_up to R.string.gesture_swipe_up_detail,
-        R.string.gesture_hold_lens to R.string.gesture_hold_lens_detail, R.string.gesture_hold_home_edit to R.string.gesture_hold_home_edit_detail,
-        R.string.gesture_tap_camera to R.string.gesture_tap_camera_detail).forEach { (what, does) ->
-        Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }.padding(horizontal = 24.dp, vertical = 10.dp)) {
-            Text(stringResource(what), style = InkText.body)
-            Text(stringResource(does), style = InkText.small, color = ink.muted)
-        }
-    }
-    // M4: free gestures that touch no pillar; each does nothing until the owner binds it.
-    Section(R.string.gestures_own)
-    Hint(stringResource(R.string.gestures_own_hint))
-    GestureBindings(model, settings, listOf(Trigger.Home(Gesture.DoubleTap) to R.string.gesture_home_double,
-        Trigger.Home(Gesture.SwipeDown) to R.string.gesture_home_down, Trigger.Lens(Gesture.SwipeLeft) to R.string.gesture_lens_left,
-        Trigger.Lens(Gesture.SwipeRight) to R.string.gesture_lens_right))
-    NavRow(stringResource(R.string.keys_title), null, onKeys)
-}
-
-/**
- * M4: which hardware keys reach Intelia at all. A press here is only shown (and kept from changing the volume);
- * nothing runs and nothing is bound. Back still goes back.
- */
-@Composable
-private fun KeysPage() {
+private fun KeysPage(onSeen: (Int) -> Unit) {
     val ink = LocalInk.current
     var seen by remember { mutableStateOf(emptyList<KeyHit>()) }
     val focus = remember { FocusRequester() }
@@ -630,7 +550,11 @@ private fun KeysPage() {
             .onPreviewKeyEvent { e ->
                 val key = e.nativeKeyEvent
                 if (key.keyCode == android.view.KeyEvent.KEYCODE_BACK) return@onPreviewKeyEvent false
-                if (e.type == KeyEventType.KeyDown) seen = KeyProbe.record(seen, key.keyCode, key.repeatCount)
+                if (e.type == KeyEventType.KeyDown) {
+                    seen = KeyProbe.record(seen, key.keyCode, key.repeatCount)
+                    // Only the code is kept, so Ovládání can offer this key; never what or when it was pressed.
+                    if (key.repeatCount == 0) onSeen(key.keyCode)
+                }
                 true
             }
             .semantics { liveRegion = LiveRegionMode.Polite }
@@ -648,7 +572,7 @@ private fun KeysPage() {
 }
 
 @Composable
-private fun keyName(code: Int): String = when (code) {
+internal fun keyName(code: Int): String = when (code) {
     android.view.KeyEvent.KEYCODE_VOLUME_UP -> stringResource(R.string.key_volume_up)
     android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> stringResource(R.string.key_volume_down)
     android.view.KeyEvent.KEYCODE_CAMERA -> stringResource(R.string.key_camera)
@@ -771,7 +695,7 @@ private fun Section(title: Int) {
 }
 
 @Composable
-private fun Hint(text: String) {
+internal fun Hint(text: String) {
     Text(text, Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = InkText.small, color = LocalInk.current.muted)
 }
 

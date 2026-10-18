@@ -2,6 +2,43 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Control System V1: M5 Studio „Ovládání“, PULSE swipes, Home side swipes, D20 key remap (`feat/control-system-v1`)
+- Studio › Ovládání (`ui/ControlsPage.kt`, replaces the old Gesta page and the PULSE page's gesture rows): one search
+  over gestures, surfaces and bound action names (diacritics-insensitive, `AppSearch.fold`); foldable groups PULSE
+  kapsle · Home · LENS · ARC (link to the sets, filled-slot count) · Hardwarová tlačítka · one group per proven key,
+  each with "n přiřazeno". A line is gesture → action (icon + name), tap = picker, cross = unbind; "Stejná akce je i
+  jinde (n×)" is informative only. Pillar gestures (LENS tap/up/hold, Home up/hold) are shown locked as „Pevné“.
+- `ActionPicker`: search always on top, category tabs Vše/Aplikace/FLOW/Zkratky/Systém/Média/Panely, „Už použité“
+  first (actions bound anywhere), and for PULSE/key triggers a „funguje i mimo Home“ / „jen na Home“ tag.
+- PULSE swipes down/left/right (`pulseSwipe`, ≥ 36 dp, dominant axis 1.5×): in the service via an `OnTouchListener`
+  on the lens view (a recognised bound swipe cancels the view's tap/hold), on Home via `detectDragGestures` added only
+  while a swipe is bound. TalkBack custom actions for every bound swipe (service and Home).
+- Home swipe left/right (`homeSideSwipe`, ≥ 72 dp) through `detectHorizontalDragGestures`, so vertical drags stay the
+  drawer / swipe down; TalkBack custom actions when bound.
+- D20 approved and implemented (see DECISIONS): `canRequestFilterKeyEvents` in `pulse_accessibility.xml`; the service
+  requests `FLAG_REQUEST_FILTER_KEY_EVENTS` at run time only while `keysEverywhere` is on and a proven key has a
+  binding. `action/KeyRemap.kt` (pure): tap / double / hold per key, unbound presses replayed (volume via
+  `adjustSuggestedStreamVolume`, media keys via `dispatchMediaKeyEvent`). Passes everything while Intelia search is
+  open (`PulseAccessibilityService.typing`) or the screen is not interactive. `Controls.keys` (proven codes, max 8;
+  Back/Home/Power/Recents refused), `withKey`/`withoutKey`/`keyBound`/`triggersOf`; key bindings on unproven codes or
+  with other gestures than Tap/DoubleTap/Hold are dropped by `sanitized()`. The diagnostics page stores the seen code.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug :app:assembleLab`
+  (new `KeyRemapTest` 7, `PulseSwipeTest` 3, `ControlsTest` +2); `compileDebugKotlin` without warnings.
+- Phone (Nothing Phone (3)), verified: Lab and debug `install -r`; the PULSE service rebinds by itself after the update
+  with `capabilities=8` (filter key events granted, no re-enable needed). With a test binding (key 24 double → torch,
+  `keysEverywhere`) written into prefs via the debug build, the service logged `want=true has=false` and requested the
+  filter (temporary log, removed before commit). Owner prefs restored from the pulled copy before Lab was reinstalled.
+- Phone, measured: `getevent -pl`: `gpio-keys` (event0) reports KEY_VOLUMEUP and scan code `0x00fa` (250);
+  `/system/usr/keylayout/gpio-keys.kl` maps 115/114/102/528/766 only, so 250 has no Android key code in that layout
+  (likely the Essential Key, not proven). Another installed accessibility service (Kea, `com.techiboystudios.kea`)
+  holds the key-filter capability (capabilities=41).
+- NOT verified: any physical key press (the owner was away for the 15-minute `getevent -lt` capture, nothing came);
+  whether the Essential Key reaches apps or the accessibility key filter at all; `input keyevent` injection never
+  reaches accessibility key filters (onKeyEvent got nothing), `sendevent` is denied (`/dev/input` root/input only),
+  so the remap itself is untested on the phone. Volume delay with only a double press bound not measured.
+  The Ovládání page, the picker tabs and all new swipes were not seen on the phone: it was locked (keyguard) and
+  unlocking needs the owner. Export/import of the new `keys`/`keysEverywhere` fields not checked.
+
 ## 2026-10-18 — Control System V1: M3 TalkBack actions, M4 Home/LENS gestures, key diagnostics (`feat/control-system-v1`)
 - PULSE double tap for TalkBack: on Home a `CustomAccessibilityAction` when bound; in the service an
   `AccessibilityDelegateCompat` on the lens view, read at query time (double tap as custom action, long press only

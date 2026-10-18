@@ -1,6 +1,10 @@
 package dev.intelia.launcher.ui
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.os.PowerManager
+import android.view.MotionEvent
+import dev.intelia.launcher.action.KeyRemap
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -126,6 +130,9 @@ class PulseAccessibilityService : AccessibilityService() {
     private var host: AndroidActionHost? = null
     private var pendingTap: Runnable? = null
     private var note: View? = null
+    /** D20 key remap: only key codes and timers, nothing about what is typed; see [KeyRemap]. */
+    private val remap = KeyRemap { code, g -> controls().bound(Trigger.Key(code, g)) != null }
+    private val keyTimers = HashMap<Int, Runnable>()
 
     override fun onServiceConnected() {
         windows = getSystemService(WindowManager::class.java)
@@ -136,6 +143,75 @@ class PulseAccessibilityService : AccessibilityService() {
         }
         placeLens()
         relayout = { main.post { if (lens != null) placeLens() } }
+        applyKeyFilter()
+    }
+
+    private fun controls() = (application as InteliaApp).settings.state.value.controls
+
+    /** D20: the key filter is requested only while the owner has it on and a key is bound; otherwise no key passes us. */
+    private fun applyKeyFilter() {
+        val c = controls()
+        val want = c.keysEverywhere && c.keys.any(c::keyBound)
+        val info = serviceInfo ?: return
+        val has = info.flags and AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS != 0
+        if (want == has) return
+        info.flags = if (want) info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+            else info.flags and AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS.inv()
+        serviceInfo = info
+        if (!want) keyEffects(remap.reset())
+    }
+
+    /**
+     * D20: a bound key is taken and turned into its gesture; every other key, and every key while Intelia's search
+     * is being typed in or the screen is off, goes on untouched. Nothing is logged or stored.
+     */
+    override fun onKeyEvent(event: KeyEvent): Boolean {
+        val c = controls()
+        val code = event.keyCode
+        if (!c.keysEverywhere || typing || !remap.takes(code)) return false
+        if (getSystemService(PowerManager::class.java)?.isInteractive != true) { keyEffects(remap.reset()); return false }
+        when (event.action) {
+            KeyEvent.ACTION_DOWN -> keyEffects(remap.down(code, event.repeatCount))
+            KeyEvent.ACTION_UP -> keyEffects(remap.up(code))
+        }
+        return true
+    }
+
+    private fun keyEffects(effects: List<KeyRemap.Effect>): Unit = effects.forEach { e ->
+        when (e) {
+            is KeyRemap.Effect.Run -> controls().bound(Trigger.Key(e.code, e.gesture))?.let { a ->
+                lens?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                runBound(a)
+            }
+            is KeyRemap.Effect.Replay -> replay(e.code)
+            is KeyRemap.Effect.StartHold -> keyTimer(HOLD, ViewConfiguration.getLongPressTimeout().toLong()) { keyEffects(remap.hold(e.code)) }
+            KeyRemap.Effect.CancelHold -> keyTimers.remove(HOLD)?.let(main::removeCallbacks)
+            is KeyRemap.Effect.StartTap -> keyTimer(TAP, ViewConfiguration.getDoubleTapTimeout().toLong()) { keyEffects(remap.tapTimeout(e.code)) }
+            KeyRemap.Effect.CancelTap -> keyTimers.remove(TAP)?.let(main::removeCallbacks)
+        }
+    }
+
+    private fun keyTimer(slot: Int, ms: Long, run: () -> Unit) {
+        keyTimers.remove(slot)?.let(main::removeCallbacks)
+        val r = Runnable { keyTimers.remove(slot); run() }
+        keyTimers[slot] = r
+        main.postDelayed(r, ms)
+    }
+
+    /** What a taken key does without Intelia, for the presses the owner left unbound: volume steps, media keys. */
+    private fun replay(code: Int) {
+        val audio = getSystemService(AudioManager::class.java) ?: return
+        when (code) {
+            KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN -> audio.adjustSuggestedStreamVolume(
+                if (code == KeyEvent.KEYCODE_VOLUME_UP) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
+                AudioManager.USE_DEFAULT_STREAM_TYPE, AudioManager.FLAG_SHOW_UI)
+            KeyEvent.KEYCODE_VOLUME_MUTE -> audio.adjustSuggestedStreamVolume(AudioManager.ADJUST_TOGGLE_MUTE,
+                AudioManager.USE_DEFAULT_STREAM_TYPE, AudioManager.FLAG_SHOW_UI)
+            else -> if (KeyEvent.isMediaSessionKey(code)) {
+                audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
+                audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+            }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
@@ -164,6 +240,7 @@ class PulseAccessibilityService : AccessibilityService() {
         lens = null
         pendingTap?.let(main::removeCallbacks)
         pendingTap = null
+        keyEffects(remap.reset())
         host?.let { h -> getSystemService(CameraManager::class.java)?.unregisterTorchCallback(h.torchCallback) }
         host = null
         relayout = null
@@ -228,6 +305,25 @@ class PulseAccessibilityService : AccessibilityService() {
         }
         val view = lens ?: View(this).apply {
             contentDescription = getString(R.string.pulse)
+            // M5: a bound swipe from the capsule (down, left, right); an unbound one stays whatever the touch was.
+            var downX = 0f
+            var downY = 0f
+            setOnTouchListener { v, e ->
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; false }
+                    MotionEvent.ACTION_UP -> {
+                        val swipe = pulseSwipe((e.rawX - downX) / dp, (e.rawY - downY) / dp)?.takeIf { bound(it) != null }
+                        if (swipe == null) false else {
+                            // Cancel, so the view drops its pending tap and hold, then run the swipe.
+                            MotionEvent.obtain(e).also { it.action = MotionEvent.ACTION_CANCEL; v.onTouchEvent(it); it.recycle() }
+                            v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                            gesture(swipe)
+                            true
+                        }
+                    }
+                    else -> false
+                }
+            }
             setOnClickListener {
                 performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 // An unbound double tap never delays the tap; a bound one waits the system double-tap time.
@@ -254,13 +350,14 @@ class PulseAccessibilityService : AccessibilityService() {
                         info.removeAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK)
                         info.isLongClickable = false
                     }
-                    if (bound(Gesture.DoubleTap) != null) info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(
-                        R.id.pulse_double_tap, getString(R.string.pulse_gesture_double)))
+                    PULSE_A11Y.forEach { (g, id, label) ->
+                        if (bound(g) != null) info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(id, getString(label)))
+                    }
                 }
 
                 override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
-                    if (action != R.id.pulse_double_tap) return super.performAccessibilityAction(host, action, args)
-                    gesture(Gesture.DoubleTap)
+                    val g = PULSE_A11Y.firstOrNull { it.second == action }?.first ?: return super.performAccessibilityAction(host, action, args)
+                    gesture(g)
                     return true
                 }
             })
@@ -280,7 +377,10 @@ class PulseAccessibilityService : AccessibilityService() {
      * it (FLOW keeps its preview rules there); elsewhere only system actions run, the rest says it needs Home.
      */
     private fun gesture(g: Gesture) {
-        val action = bound(g) ?: return if (g == Gesture.Tap) openMenu() else Unit
+        runBound(bound(g) ?: return if (g == Gesture.Tap) openMenu() else Unit)
+    }
+
+    private fun runBound(action: Action) {
         home?.let { it(action); return }
         if (!action.outsideHome) return toast(R.string.pulse_needs_home)
         val result = action.run(host ?: return)
@@ -380,6 +480,14 @@ class PulseAccessibilityService : AccessibilityService() {
         val running: StateFlow<Boolean> = _running.asStateFlow()
 
         private const val NOTE_MS = 2200L
+        private const val HOLD = 0
+        private const val TAP = 1
+
+        /** True while Intelia's search field takes text: no key is remapped then (nothing runs while typing). */
+        @Volatile var typing = false
+
+        /** Settings changed (key bindings or the D20 switch): the running service re-requests or drops the key filter. */
+        fun refreshKeys() { instance?.let { s -> s.main.post { s.applyKeyFilter() } } }
         @Volatile private var editing = false
 
         /** Set by Home while it is resumed: bound PULSE gestures then run through Home's Action Engine entry. */
@@ -650,3 +758,11 @@ private fun Chip(text: String, on: Boolean, modifier: Modifier, onClick: () -> U
         Text(text, style = InkText.small, color = ink.onNight, maxLines = 1)
     }
 }
+
+/** PULSE gestures TalkBack offers as custom actions while they are bound (tap is the click, hold the long click). */
+private val PULSE_A11Y = listOf(
+    Triple(Gesture.DoubleTap, R.id.pulse_double_tap, R.string.pulse_gesture_double),
+    Triple(Gesture.SwipeDown, R.id.pulse_swipe_down, R.string.pulse_gesture_down),
+    Triple(Gesture.SwipeLeft, R.id.pulse_swipe_left, R.string.pulse_gesture_left),
+    Triple(Gesture.SwipeRight, R.id.pulse_swipe_right, R.string.pulse_gesture_right),
+)

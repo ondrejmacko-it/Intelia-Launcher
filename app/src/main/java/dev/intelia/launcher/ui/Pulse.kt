@@ -32,6 +32,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -267,8 +269,19 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         val double = controls.bound(Trigger.Pulse(Gesture.DoubleTap)) != null
         val hold = controls.bound(Trigger.Pulse(Gesture.Hold)) != null
         val doubleLabel = stringResource(R.string.pulse_gesture_double)
+        val swipes = listOf(Gesture.SwipeDown, Gesture.SwipeLeft, Gesture.SwipeRight).filter { controls.bound(Trigger.Pulse(it)) != null }
+        val swipeLabels = mapOf(Gesture.SwipeDown to stringResource(R.string.pulse_gesture_down),
+            Gesture.SwipeLeft to stringResource(R.string.pulse_gesture_left), Gesture.SwipeRight to stringResource(R.string.pulse_gesture_right))
+        val density = androidx.compose.ui.platform.LocalDensity.current.density
         if (!preview && !expanded && !global) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
             .size(64.dp, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
+            // M5: swipes from the capsule exist only when bound, so an unbound capsule never waits on a drag.
+            .then(if (swipes.isEmpty()) Modifier else Modifier.pointerInput(swipes) {
+                var total = androidx.compose.ui.geometry.Offset.Zero
+                detectDragGestures(onDragStart = { total = androidx.compose.ui.geometry.Offset.Zero },
+                    onDrag = { change, d -> change.consume(); total += d },
+                    onDragEnd = { pulseSwipe(total.x / density, total.y / density)?.takeIf { it in swipes }?.let { onGesture(it) } })
+            })
             .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
                 role = Role.Button,
                 onLongClick = if (hold) ({ onGesture(Gesture.Hold) }) else null,
@@ -279,7 +292,9 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
                 contentDescription = label
                 if (restState.isNotEmpty()) stateDescription = restState
                 // TalkBack has no double tap of its own; a bound one is offered as a custom action.
-                if (double) customActions = listOf(CustomAccessibilityAction(doubleLabel) { onGesture(Gesture.DoubleTap) })
+                val extra = (if (double) listOf(CustomAccessibilityAction(doubleLabel) { onGesture(Gesture.DoubleTap) }) else emptyList()) +
+                    swipes.map { g -> CustomAccessibilityAction(swipeLabels.getValue(g)) { onGesture(g) } }
+                if (extra.isNotEmpty()) customActions = extra
             })
 
         if (expanded) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() },

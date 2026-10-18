@@ -276,3 +276,26 @@ fun lensSideFlick(x: Float, y: Float): Gesture? = when {
     x < 0 -> Gesture.SwipeLeft
     else -> Gesture.SwipeRight
 }
+
+/**
+ * M5: a swipe that starts on the PULSE capsule (screen dp): down, left or right, clearly along one axis. Up is the
+ * screen edge, so there is none. Shorter moves stay a tap or a hold, so an unbound swipe changes nothing.
+ */
+fun pulseSwipe(x: Float, y: Float): Gesture? = when {
+    maxOf(abs(x), abs(y)) < PULSE_SWIPE_DP -> null
+    y > 0 && y >= abs(x) * 1.5f -> Gesture.SwipeDown
+    abs(x) >= abs(y) * 1.5f -> if (x < 0) Gesture.SwipeLeft else Gesture.SwipeRight
+    else -> null
+}
+
+const val PULSE_SWIPE_DP = 36f
+
+/**
+ * M5: a sideways swipe on empty Home (screen dp) for a bound [Gesture.SwipeLeft]/[Gesture.SwipeRight]; Home has no
+ * pager, so nothing else listens sideways. Vertical drags stay the drawer (up) and the bound swipe down.
+ */
+fun homeSideSwipe(x: Float, y: Float): Gesture? = when {
+    abs(x) < 72f || abs(y) > abs(x) * .6f -> null
+    x < 0 -> Gesture.SwipeLeft
+    else -> Gesture.SwipeRight
+}

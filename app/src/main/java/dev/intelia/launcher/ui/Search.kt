@@ -135,6 +135,11 @@ fun SearchOverlay(
     onRun: (FlowAlias) -> Unit,
     onOptions: (AppEntry) -> Unit,
 ) {
+    // D20: while search is open no key is remapped, so nothing runs while typing.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        PulseAccessibilityService.typing = true
+        onDispose { PulseAccessibilityService.typing = false }
+    }
     val query by model.query.collectAsStateWithLifecycle()
     val results by model.results.collectAsStateWithLifecycle()
     val flows by model.flowMatches.collectAsStateWithLifecycle()

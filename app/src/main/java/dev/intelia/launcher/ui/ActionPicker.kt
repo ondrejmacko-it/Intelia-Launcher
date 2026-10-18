@@ -1,6 +1,13 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,12 +42,33 @@ import dev.intelia.launcher.search.AppSearch
 private class PickRow(val action: Action, val label: String, val detail: String?, val section: Int, val fold: String,
     val app: AppEntry? = null, val shortcut: ShortcutEntry? = null)
 
+/** Picker categories (M5): the order of the tabs and of the sections in "All". */
+private const val CAT_APPS = 0
+private const val CAT_FLOW = 1
+private const val CAT_SHORTCUTS = 2
+private const val CAT_SYSTEM = 3
+private const val CAT_MEDIA = 4
+private const val CAT_PANELS = 5
+private const val CAT_COUNT = 6
+
+private fun Action.category(): Int = when (this) {
+    is Action.App -> CAT_APPS
+    is Action.Flow -> CAT_FLOW
+    is Action.Shortcut -> CAT_SHORTCUTS
+    is Action.Media -> CAT_MEDIA
+    is Action.SystemPanel -> CAT_PANELS
+    else -> CAT_SYSTEM
+}
+
 /**
- * The shared action picker (Control System M2): Apps, FLOW, Shortcuts and System sections on Veil Dense from the
- * bottom, with a diacritics-insensitive filter ranked like Search. Picking only returns the action; nothing runs here.
- * With a [host], each row says why it cannot run now (or what it needs), so a choice is never a surprise later.
+ * The shared action picker (Control System M2, M5): category tabs (All, Apps, FLOW, Shortcuts, System, Media, Panels)
+ * over one diacritics-insensitive filter ranked like Search, on Veil Dense from the bottom. Actions already used
+ * somewhere come first. Picking only returns the action; nothing runs here. With a [host], each row says why it
+ * cannot run now (or what it needs), so a choice is never a surprise later; with [showReach] it also says whether the
+ * action works outside Home (PULSE and keys run there).
  *
  * @param appNames shortcut package → app label, shown under each shortcut.
+ * @param used actions bound somewhere already, offered first.
  */
 @Composable
 fun ActionPicker(
@@ -55,44 +83,74 @@ fun ActionPicker(
     appNames: Map<String, String> = emptyMap(),
     /** Shown in the Shortcuts section when the system offers none (e.g. Intelia is not the default home). */
     shortcutsNote: String? = null,
+    used: List<Action> = emptyList(),
+    showReach: Boolean = false,
 ) {
     val c = LocalCrystal.current
     val sections = listOf(stringResource(R.string.arc_ring_apps), stringResource(R.string.flow), stringResource(R.string.arc_ring_shortcuts),
-        stringResource(R.string.act_system))
+        stringResource(R.string.act_system), stringResource(R.string.pick_media), stringResource(R.string.pick_panels))
+    val everywhere = stringResource(R.string.pick_everywhere)
+    val homeOnly = stringResource(R.string.pick_home_only)
+    fun reach(a: Action): String? = if (!showReach) null else if (a.outsideHome) everywhere else homeOnly
+    fun join(vararg parts: String?): String? = parts.filterNotNull().joinToString(" · ").ifEmpty { null }
     val systemRows = system.map { a ->
         val label = systemActionLabel(a)
-        PickRow(a, label, host?.let { a.unavailableReason(it) }?.let { reasonNote(it) } ?: requirementNote(a.requirement), 3, AppSearch.fold(label))
+        PickRow(a, label, join(host?.let { a.unavailableReason(it) }?.let { reasonNote(it) } ?: requirementNote(a.requirement), reach(a)),
+            a.category(), AppSearch.fold(label))
     }
-    val rows = remember(apps, flows, shortcuts, systemRows.map { it.detail }) {
-        apps.map { PickRow(Action.App(it.key), it.label, null, 0, it.searchKey, app = it) } +
-            flows.map { PickRow(Action.Flow(it.id), it.name, null, 1, AppSearch.fold(it.name)) } +
-            shortcuts.map { PickRow(Action.Shortcut(it.packageName, it.id), it.label, appNames[it.packageName], 2, AppSearch.fold(it.label), shortcut = it) } +
+    val rows = remember(apps, flows, shortcuts, systemRows.map { it.detail }, showReach) {
+        apps.map { PickRow(Action.App(it.key), it.label, reach(Action.App(it.key)), CAT_APPS, it.searchKey, app = it) } +
+            flows.map { PickRow(Action.Flow(it.id), it.name, reach(Action.Flow(it.id)), CAT_FLOW, AppSearch.fold(it.name)) } +
+            shortcuts.map { PickRow(Action.Shortcut(it.packageName, it.id), it.label, join(appNames[it.packageName], reach(Action.Shortcut(it.packageName, it.id))),
+                CAT_SHORTCUTS, AppSearch.fold(it.label), shortcut = it) } +
             systemRows
     }
     Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 560.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Bottom).padding(vertical = 12.dp)) {
+        Column(Modifier.fillMaxWidth().heightIn(max = 600.dp).veilSurface(veil(VeilLevel.Dense), VeilOrigin.Bottom).padding(vertical = 12.dp)) {
             Text(title, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = CrystalType.body.copy(fontSize = 17.sp), color = c.fg)
             var filter by remember { mutableStateOf("") }
-            if (rows.size > PICKER_FILTER_FROM) PickerFilter(filter) { filter = it }
-            val shown = if (filter.isBlank()) rows else AppSearch.rank(rows, filter) { it.fold }
-            if (shown.isEmpty()) Text(stringResource(R.string.pick_none), Modifier.padding(20.dp), style = CrystalType.body.copy(fontSize = 14.sp), color = c.fg2)
-            // Sections only when the list is not filtered and holds more than one kind.
-            val grouped = filter.isBlank() && (rows.map { it.section }.distinct().size > 1 || shortcutsNote != null)
+            var tab by remember { mutableStateOf(-1) }
+            PickerFilter(filter, stringResource(R.string.pick_find)) { filter = it }
+            val present = rows.map { it.section }.toSet() + (if (shortcutsNote != null) setOf(CAT_SHORTCUTS) else emptySet())
+            val tabs = listOf(-1) + (0 until CAT_COUNT).filter { it in present }
+            if (tabs.size > 2) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                tabs.forEach { t -> PickTab(if (t < 0) stringResource(R.string.pick_all) else sections[t], tab == t) { tab = t } }
+            }
+            val inTab = if (tab < 0) rows else rows.filter { it.section == tab }
+            val shown = if (filter.isBlank()) inTab else AppSearch.rank(inTab, filter) { it.fold }
+            val first = if (filter.isBlank() && tab < 0) used.mapNotNull { a -> rows.firstOrNull { it.action == a } }.distinctBy { it.action } else emptyList()
+            val note = if (tab == CAT_SHORTCUTS || (tab < 0 && filter.isBlank())) shortcutsNote?.takeIf { rows.none { it.section == CAT_SHORTCUTS } } else null
+            if (shown.isEmpty() && note == null) Text(stringResource(R.string.pick_none), Modifier.padding(20.dp), style = CrystalType.body.copy(fontSize = 14.sp), color = c.fg2)
+            // Sections only in "All" without a filter; a tab or a filter is one flat, ranked list.
+            val grouped = filter.isBlank() && tab < 0
             LazyColumn {
-                (if (grouped) 0..3 else 0..0).forEach { section ->
+                if (first.isNotEmpty()) {
+                    item(key = "used") { Kicker(stringResource(R.string.pick_used), Modifier.padding(start = 20.dp, top = 14.dp, bottom = 2.dp), color = LocalInk.current.accent) }
+                    items(first, key = { "u" + it.action.toString() }) { row -> PickerRow(row) { onPick(row.action) } }
+                }
+                (if (grouped) 0 until CAT_COUNT else 0..0).forEach { section ->
                     val inSection = if (grouped) shown.filter { it.section == section } else shown
-                    val note = if (grouped && section == 2 && inSection.isEmpty()) shortcutsNote else null
-                    if (grouped && (inSection.isNotEmpty() || note != null)) item(key = "s$section") {
+                    val sectionNote = if (grouped && section == CAT_SHORTCUTS && inSection.isEmpty()) note else if (!grouped && section == 0) note else null
+                    if (grouped && (inSection.isNotEmpty() || sectionNote != null)) item(key = "s$section") {
                         Kicker(sections[section], Modifier.padding(start = 20.dp, top = 14.dp, bottom = 2.dp), color = LocalInk.current.accent)
                     }
-                    if (note != null) item(key = "n$section") {
-                        Text(note, Modifier.padding(horizontal = 20.dp, vertical = 6.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2)
+                    if (sectionNote != null) item(key = "n$section") {
+                        Text(sectionNote, Modifier.padding(horizontal = 20.dp, vertical = 6.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.fg2)
                     }
                     items(inSection, key = { it.section.toString() + it.action.toString() }) { row -> PickerRow(row) { onPick(row.action) } }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PickTab(text: String, on: Boolean, onClick: () -> Unit) {
+    val c = LocalCrystal.current
+    Text(text, Modifier.clip(CircleShape).background(if (on) c.fg.copy(alpha = 0.16f) else c.fg.copy(alpha = 0.05f))
+        .selectable(on, role = Role.Tab, onClick = onClick).heightIn(min = 40.dp).padding(horizontal = 14.dp, vertical = 10.dp),
+        style = CrystalType.body.copy(fontSize = 14.sp), color = if (on) c.fg else c.fg2, maxLines = 1)
 }
 
 @Composable

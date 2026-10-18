@@ -97,4 +97,24 @@ class ControlsTest {
         assertEquals(false, Action.App("a/A").outsideHome || Action.Flow("f").outsideHome || Action.Search.outsideHome ||
             Action.Shortcut("p", "s").outsideHome || Action.Card("c").outsideHome)
     }
+
+    @Test fun keyBindingsNeedAVerifiedKey() {
+        val torch = Binding(Trigger.Key(24, Gesture.DoubleTap), Action.Torch)
+        val unverified = Controls(bindings = listOf(torch)).sanitized(emptySet())
+        assertEquals(emptyList<Binding>(), unverified.bindings)
+        val verified = Controls(bindings = listOf(torch, Binding(Trigger.Key(24, Gesture.SwipeUp), Action.Torch)), keys = listOf(24, 24, 4))
+            .sanitized(emptySet())
+        assertEquals(listOf(torch), verified.bindings)
+        assertEquals(listOf(24), verified.keys)
+        assertEquals(Controls(), Controls().withKey(4).withKey(26))
+        val forgotten = verified.withoutKey(24)
+        assertEquals(emptyList<Binding>(), forgotten.bindings)
+        assertEquals(false, forgotten.keyBound(24))
+    }
+
+    @Test fun triggersOfFindsEveryPlace() {
+        val c = Controls(arcSets = listOf(ArcSet("main", slots = listOf(null, Action.Torch))))
+            .bind(Trigger.Home(Gesture.DoubleTap), Action.Torch)
+        assertEquals(listOf(Trigger.Home(Gesture.DoubleTap), Trigger.ArcSlot("main", 1)), c.triggersOf(Action.Torch))
+    }
 }

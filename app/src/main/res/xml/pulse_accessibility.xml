@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PULSE everywhere (D9): no events, no window content, no gestures or key filtering. Only the lens overlay. -->
+<!-- PULSE everywhere (D9): no events, no window content, no gestures. Only the lens overlay, plus (D20) the key
+     filter the service requests at run time only while the owner turned on key remapping and bound a key. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
+    android:canRequestFilterKeyEvents="true"
     android:canRetrieveWindowContent="false"
     android:description="@string/pulse_service_description"
     android:isAccessibilityTool="false"

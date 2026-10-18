@@ -67,6 +67,10 @@ data class Controls(
     val arcSets: List<ArcSet> = emptyList(),
     val bindings: List<Binding> = emptyList(),
     val arc: ArcLook = ArcLook(),
+    /** Key codes the M4 diagnostics proved reach Intelia; only these can carry a [Trigger.Key]. */
+    val keys: List<Int> = emptyList(),
+    /** D20 (APPROVED 2026-10-18): the PULSE service filters bound keys in every app; off until the owner turns it on. */
+    val keysEverywhere: Boolean = false,
 ) {
 
     fun arcSet(id: String): ArcSet? = arcSets.firstOrNull { it.id == id }
@@ -138,6 +142,22 @@ data class Controls(
         return copy(bindings = if (action == null) rest else (rest + Binding(trigger, action)).takeLast(MAX_BINDINGS))
     }
 
+    /** Every trigger [action] is bound to (ARC slots included), for "where else is this" hints and the global search. */
+    fun triggersOf(action: Action): List<Trigger> =
+        bindings.filter { it.action == action }.map { it.trigger } +
+            arcSets.flatMap { set -> set.slots.mapIndexedNotNull { i, a -> if (a == action) Trigger.ArcSlot(set.id, i) else null } }
+
+    /** Remembers a key code the diagnostics saw; newest first, capped. */
+    fun withKey(code: Int): Controls =
+        if (code !in 1..MAX_KEY_CODE || code in RESERVED_KEYS || keys.firstOrNull() == code) this else copy(keys = (listOf(code) + keys.filterNot { it == code }).take(MAX_KEYS))
+
+    /** Forgets key [code] and every binding on it. */
+    fun withoutKey(code: Int): Controls =
+        copy(keys = keys.filterNot { it == code }, bindings = bindings.filterNot { (it.trigger as? Trigger.Key)?.code == code })
+
+    /** Whether any gesture of key [code] is bound (the key filter lets every other key through untouched). */
+    fun keyBound(code: Int): Boolean = bindings.any { (it.trigger as? Trigger.Key)?.code == code }
+
     /** The single validation gate for restored data: drops malformed actions, caps sizes, one binding per trigger. */
     fun sanitized(flowIds: Set<String>): Controls {
         fun ok(a: Action): Boolean = a.wellFormed() && (a !is Action.Flow || a.id in flowIds)
@@ -148,11 +168,13 @@ data class Controls(
             .map { set -> set.copy(name = set.name.filterNot(Char::isISOControl).take(MAX_NAME),
                 slots = set.slots.take(MAX_SLOTS).map { a -> a?.takeIf(::ok) }) }
             .toList()
+        val codes = keys.filter { it in 1..MAX_KEY_CODE && it !in RESERVED_KEYS }.distinct().take(MAX_KEYS)
         val seen = HashSet<Trigger>()
         val kept = bindings.asSequence()
             .filter { it.trigger !is Trigger.ArcSlot && it.trigger.valid() && ok(it.action) && seen.add(it.trigger) }
+            .filter { b -> (b.trigger as? Trigger.Key)?.let { it.code in codes && it.gesture in KEY_GESTURES } ?: true }
             .take(MAX_BINDINGS).toList()
-        return Controls(sets, kept, arc.sanitized())
+        return Controls(sets, kept, arc.sanitized(), codes, keysEverywhere)
     }
 
     companion object {
@@ -161,6 +183,9 @@ data class Controls(
         const val MAX_SLOTS = 12
         const val MAX_BINDINGS = 64
         private const val MAX_NAME = 32
+        const val MAX_KEYS = 8
+        /** What a hardware key can carry (M6): press, double press, hold. */
+        val KEY_GESTURES = listOf(Gesture.Tap, Gesture.DoubleTap, Gesture.Hold)
 
         const val FLOW_SET = "flow"
         const val SHORTCUT_SET = "shortcuts"
@@ -190,3 +215,6 @@ private fun Trigger.valid(): Boolean = when (this) {
 }
 
 private const val MAX_KEY_CODE = 400
+
+/** Back, Home, Power and Recents are never remapped: the phone must stay usable whatever the bindings say. */
+private val RESERVED_KEYS = setOf(3, 4, 26, 187)

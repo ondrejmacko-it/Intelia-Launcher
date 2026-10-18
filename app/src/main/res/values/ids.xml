@@ -2,4 +2,7 @@
 <resources>
     <!-- Custom accessibility action of the PULSE lens: the bound double tap. -->
     <item name="pulse_double_tap" type="id" />
+    <item name="pulse_swipe_down" type="id" />
+    <item name="pulse_swipe_left" type="id" />
+    <item name="pulse_swipe_right" type="id" />
 </resources>

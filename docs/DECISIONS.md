@@ -283,3 +283,17 @@ app only while it is in front; Power, Home and Recents never do. Catching keys i
 `flagRequestFilterKeyEvents` on the PULSE accessibility service, which lets it see every key press system-wide:
 not enabled, waiting for an explicit owner decision. `Trigger.Key` stays valid in the model, but no surface reads
 it until a key was proven here and the owner decided where it may act.
+
+## D20a — 2026-10-18 — APPROVED by the owner: hardware-key remap outside Intelia
+The owner asked for remapping "like Essential Key Remap", also outside Intelia. Scope:
+- `android:canRequestFilterKeyEvents="true"` on the PULSE accessibility service; `flagRequestFilterKeyEvents` is not
+  in the XML but requested at run time only while Studio › Ovládání › „Tlačítka i mimo Intelii“ is on **and** a
+  proven key has a binding. Off by default; the switch needs the PULSE service on.
+- The filter takes only keys with a binding; every other key goes on untouched. Back, Home, Power and Recents are
+  never accepted. Only key codes proven in the diagnostics page can be bound (`Controls.keys`, sanitized).
+- Nothing is logged or stored about presses; no text is ever seen, only key codes and two timers (hold, double).
+- Nothing runs while typing: while Intelia's search is open every key passes. Text fields of other apps cannot be
+  detected without window content, which the service does not request; that limit is accepted and stated here.
+- With the screen off (not interactive) every key passes; screen-off gestures are not offered.
+- Unbound presses of a taken key keep their job (volume step, media key); with only a double press bound a single
+  press acts one double-tap timeout later.

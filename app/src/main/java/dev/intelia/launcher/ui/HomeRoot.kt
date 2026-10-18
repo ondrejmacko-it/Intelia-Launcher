@@ -13,6 +13,7 @@ import dev.intelia.launcher.action.Reason
 import dev.intelia.launcher.action.Gesture
 import dev.intelia.launcher.action.Trigger
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -488,9 +489,13 @@ private fun Home(
     // M4: free Home gestures run only when bound; an unbound double tap never delays anything.
     val homeDouble = settings.controls.bound(Trigger.Home(Gesture.DoubleTap))
     val homeDown by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeDown)))
-    val homeLabels = listOf(stringResource(R.string.gesture_home_double), stringResource(R.string.gesture_home_down))
-    val homeActions = listOfNotNull(homeDouble?.let { a -> CustomAccessibilityAction(homeLabels[0]) { onAction(a); true } },
-        homeDown?.let { a -> CustomAccessibilityAction(homeLabels[1]) { onAction(a); true } })
+    val homeLeft by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeLeft)))
+    val homeRight by rememberUpdatedState(settings.controls.bound(Trigger.Home(Gesture.SwipeRight)))
+    val homeLabels = listOf(stringResource(R.string.gesture_home_double), stringResource(R.string.gesture_home_down),
+        stringResource(R.string.gesture_home_left), stringResource(R.string.gesture_home_right))
+    val homeActions = listOf(homeDouble, homeDown, homeLeft, homeRight).mapIndexedNotNull { i, bound ->
+        bound?.let { a -> CustomAccessibilityAction(homeLabels[i]) { onAction(a); true } }
+    }
     val lensLabels = listOf(stringResource(R.string.gesture_lens_left), stringResource(R.string.gesture_lens_right))
     val lensFlicks = listOf(Gesture.SwipeLeft, Gesture.SwipeRight).mapIndexedNotNull { i, g ->
         settings.controls.bound(Trigger.Lens(g))?.let { a -> CustomAccessibilityAction(lensLabels[i]) { onAction(a); true } }
@@ -503,6 +508,20 @@ private fun Home(
                 onDragEnd = {
                     if (editor != null) return@detectVerticalDragGestures
                     if (drag < -swipe) onDrawer() else if (drag > swipe) homeDown?.let(onAction)
+                })
+        }
+        .pointerInput(Unit) {
+            // M5: sideways swipes do nothing unless bound; Home has no pager, so nothing else listens sideways.
+            // A horizontal detector locks onto sideways moves only, so vertical drags stay the drawer and swipe down.
+            var dx = 0f
+            detectHorizontalDragGestures(onDragStart = { dx = 0f }, onHorizontalDrag = { _, d -> dx += d },
+                onDragEnd = {
+                    if (editor != null) return@detectHorizontalDragGestures
+                    when (homeSideSwipe(dx / density.density, 0f)) {
+                        Gesture.SwipeLeft -> homeLeft?.let(onAction)
+                        Gesture.SwipeRight -> homeRight?.let(onAction)
+                        else -> Unit
+                    }
                 })
         }.combinedClickable(interactionSource = null, indication = null, onLongClickLabel = editLabel, onClick = {},
             onDoubleClick = if (homeDouble != null && editor == null) ({ onAction(homeDouble) }) else null,

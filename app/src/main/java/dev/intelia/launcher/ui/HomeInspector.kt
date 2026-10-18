@@ -773,9 +773,9 @@ internal const val PICKER_FILTER_FROM = 8
 
 /** The picker's filter row: diacritics-insensitive, the same ranking as Search; never runs anything. */
 @Composable
-internal fun PickerFilter(value: String, onChange: (String) -> Unit) {
+internal fun PickerFilter(value: String, hint: String? = null, onChange: (String) -> Unit) {
     val c = LocalCrystal.current
-    val label = stringResource(R.string.flow_find_app)
+    val label = hint ?: stringResource(R.string.flow_find_app)
     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp).heightIn(min = 48.dp).clip(CircleShape)
         .background(c.fg.copy(alpha = 0.06f)).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         HomeGlyph(Glyph.Search, null, tint = c.fg2, size = 18.dp)
