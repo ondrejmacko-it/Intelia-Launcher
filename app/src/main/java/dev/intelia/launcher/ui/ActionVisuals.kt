@@ -71,7 +71,7 @@ val SystemActions: List<Action> = listOf(
     Action.Search, Action.Drawer, Action.EditHome, Action.Torch, Action.Media(MediaKey.PlayPause), Action.Media(MediaKey.Next), Action.Media(MediaKey.Previous),
     Action.SoundMode, Action.SystemPanel(PanelKind.Internet), Action.SystemPanel(PanelKind.Wifi), Action.SystemPanel(PanelKind.Bluetooth),
     Action.SystemPanel(PanelKind.Sound), Action.SystemPanel(PanelKind.Display), Action.SystemPanel(PanelKind.Notifications),
-    Action.SystemPanel(PanelKind.QuickSettings), Action.Screenshot, Action.Lock,
+    Action.SystemPanel(PanelKind.QuickSettings), Action.Screenshot, Action.Lock, Action.Alarms,
 )
 
 /** Name of a system action; apps, FLOWs and shortcuts are named by what they resolve to. */
@@ -96,6 +96,7 @@ fun systemActionLabel(action: Action): String = stringResource(when (action) {
     }
     Action.Screenshot -> R.string.act_screenshot
     Action.Lock -> R.string.pulse_lock
+    Action.Alarms -> R.string.act_alarms
     Action.Drawer -> R.string.act_drawer
     Action.EditHome -> R.string.act_edit_home
     is Action.Arc -> R.string.global_arc
@@ -154,7 +155,8 @@ private fun glyphOf(action: Action): Glyph? = when (action) {
         PanelKind.QuickSettings -> Glyph.Layers
         else -> Glyph.Settings
     }
-    Action.Screenshot -> Glyph.Grid
+    Action.Screenshot -> Glyph.Shot
+    Action.Alarms -> Glyph.Bell
     is Action.Arc -> Glyph.Apps
     Action.Drawer -> Glyph.Up
     Action.EditHome -> Glyph.Layers

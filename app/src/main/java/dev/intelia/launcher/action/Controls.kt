@@ -28,6 +28,12 @@ sealed interface Trigger {
 @Serializable data class Binding(val trigger: Trigger, val action: Action)
 
 /**
+ * S3.1: one Quick Action of the expanded PULSE without music, in the owner's order. [glyph] overrides the action's own
+ * icon (a `Glyph` name, unknown names fall back); [hidden] keeps the item and its settings but leaves it off the card.
+ */
+@Serializable data class QuickAction(val action: Action, val glyph: String? = null, val hidden: Boolean = false)
+
+/**
  * One switchable ARC set: mixed apps, FLOWs, shortcuts and other actions; null is an empty slot.
  * Slots are in priority order: slot 0 sits in the middle of the arc, then left and right alternately (D6).
  */
@@ -97,7 +103,24 @@ data class Controls(
     val keys: List<Int> = emptyList(),
     /** D20 (APPROVED 2026-10-18): the PULSE service filters bound keys in every app; off until the owner turns it on. */
     val keysEverywhere: Boolean = false,
+    /** S3.1: PULSE Quick Actions; null = not edited yet, [DEFAULT_QUICK] applies. */
+    val quick: List<QuickAction>? = null,
 ) {
+    /** The Quick Actions in order, hidden ones included; the defaults until the owner edits them. */
+    fun quickActions(): List<QuickAction> = quick ?: DEFAULT_QUICK
+
+    fun withQuick(items: List<QuickAction>): Controls = copy(quick = items.distinctBy { it.action }.take(MAX_QUICK))
+
+    fun moveQuick(index: Int, delta: Int): Controls {
+        val list = quickActions().toMutableList()
+        val to = index + delta
+        if (index !in list.indices || to !in list.indices) return this
+        list.add(to, list.removeAt(index))
+        return withQuick(list)
+    }
+
+    fun editQuick(index: Int, transform: (QuickAction) -> QuickAction?): Controls =
+        withQuick(quickActions().mapIndexedNotNull { i, q -> if (i == index) transform(q) else q })
 
     fun arcSet(id: String): ArcSet? = arcSets.firstOrNull { it.id == id }
 
@@ -214,7 +237,11 @@ data class Controls(
                 (ok(it.action) || (it.action is Action.Arc && it.action.wellFormed() && opensArc(it.trigger))) }
             .filter { b -> (b.trigger as? Trigger.Key)?.let { it.code in codes && it.gesture in KEY_GESTURES } ?: true }
             .take(MAX_BINDINGS).toList()
-        return Controls(sets, kept, arc.sanitized(), globalArc.sanitized(), codes, keysEverywhere)
+        val quickKept = quick?.asSequence()
+            ?.filter { ok(it.action) }
+            ?.map { q -> q.copy(glyph = q.glyph?.takeIf { g -> g.length <= MAX_NAME && g.all(Char::isLetter) }) }
+            ?.distinctBy { it.action }?.take(MAX_QUICK)?.toList()
+        return Controls(sets, kept, arc.sanitized(), globalArc.sanitized(), codes, keysEverywhere, quickKept)
     }
 
     companion object {
@@ -224,6 +251,10 @@ data class Controls(
         const val MAX_BINDINGS = 64
         private const val MAX_NAME = 32
         const val MAX_KEYS = 8
+        const val MAX_QUICK = 8
+        /** What the glance offers until the owner edits it: at most three, all of them reachable everywhere. */
+        val DEFAULT_QUICK: List<QuickAction> = listOf(QuickAction(Action.Torch), QuickAction(Action.Alarms),
+            QuickAction(Action.SystemPanel(PanelKind.Notifications)))
         /** What a hardware key can carry (M6): press, double press, hold. */
         val KEY_GESTURES = listOf(Gesture.Tap, Gesture.DoubleTap, Gesture.Hold)
 

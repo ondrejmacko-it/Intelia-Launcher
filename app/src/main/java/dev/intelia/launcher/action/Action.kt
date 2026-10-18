@@ -36,6 +36,9 @@ sealed interface Action {
 
     @Serializable @SerialName("lock") data object Lock : Action
 
+    /** The clock app's alarms (S3.1 Quick Action); the glance shows the next alarm on it. */
+    @Serializable @SerialName("alarms") data object Alarms : Action
+
     /** The app drawer; Home's default for a swipe up, which can now carry something else (Veil 3.0). */
     @Serializable @SerialName("drawer") data object Drawer : Action
 
@@ -70,9 +73,11 @@ sealed interface Action {
         Torch -> if (host.hasTorch()) null else Reason.Unsupported
         Screenshot -> if (host.hasPulseService()) null else Reason.NeedsPulseService
         SoundMode -> null
-        is SystemPanel -> null
+        // The shade opens through the PULSE service only; the Settings panels need nothing.
+        is SystemPanel -> if (kind.viaService && !host.hasPulseService()) Reason.NeedsPulseService else null
         is Card -> if (wellFormed(id) && host.hasCard(id)) null else Reason.CardMissing
         Lock -> if (host.hasPulseService()) null else Reason.NeedsPulseService
+        Alarms -> null
         Drawer, EditHome -> null
         is Arc -> if (wellFormed(set)) null else Reason.Invalid
     }
@@ -81,6 +86,7 @@ sealed interface Action {
     val requirement: Requirement get() = when (this) {
         is Shortcut -> Requirement.DefaultHome
         Screenshot, Lock -> Requirement.PulseService
+        is SystemPanel -> if (kind.viaService) Requirement.PulseService else Requirement.None
         else -> Requirement.None
     }
 
@@ -89,7 +95,7 @@ sealed interface Action {
      * Apps, FLOWs, Search, shortcuts and cards stay on Home, where FLOW keeps its preview and Search its sheet.
      */
     val outsideHome: Boolean get() = when (this) {
-        is Media, Torch, Screenshot, SoundMode, is SystemPanel, Lock, is Arc -> true
+        is Media, Torch, Screenshot, SoundMode, is SystemPanel, Lock, Alarms, is Arc -> true
         is App, is Flow, Search, is Shortcut, is Card, Drawer, EditHome -> false
     }
 
@@ -123,6 +129,7 @@ sealed interface Action {
             is SystemPanel -> return opened(host.openPanel(kind))
             is Card -> return opened(host.openCard(id))
             Lock -> host.lockScreen()
+            Alarms -> return opened(host.openAlarms())
             Drawer -> return opened(host.openDrawer())
             EditHome -> return opened(host.editHome())
             // Drawn and tracked by the surface that recognised the hold; reaching here means no surface can.
@@ -143,7 +150,12 @@ sealed interface Action {
 @Serializable enum class MediaKey { PlayPause, Next, Previous }
 
 /** System panels; Wi-Fi, Bluetooth and mobile data cannot be toggled by an app, only opened (D10, honesty). */
-@Serializable enum class PanelKind { Internet, Wifi, Bluetooth, Sound, Display, Notifications, QuickSettings }
+@Serializable enum class PanelKind {
+    Internet, Wifi, Bluetooth, Sound, Display, Notifications, QuickSettings;
+
+    /** The notification shade and Quick Settings open through the PULSE service; the rest are Settings screens. */
+    val viaService: Boolean get() = this == Notifications || this == QuickSettings
+}
 
 enum class Requirement { None, DefaultHome, PulseService }
 
@@ -185,6 +197,7 @@ interface ActionHost {
     fun openCard(id: String): Boolean
     fun lockScreen(): Boolean
     /** Home's own screens; a host without Home (the PULSE service outside it) cannot open them. */
+    fun openAlarms(): Boolean = false
     fun openDrawer(): Boolean = false
     fun editHome(): Boolean = false
 }

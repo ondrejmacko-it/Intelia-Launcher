@@ -19,7 +19,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,7 +95,15 @@ fun GlobalArc(
     onDismiss: () -> Unit = {},
     overApps: Boolean = false,
     dim: Float = GlobalArcLook.DIM_M / 100f,
+    /** False in Studio's preview: the plate then only says what release would run, never how to cancel. */
+    explain: Boolean = true,
 ) {
+    // S3.1: ARC stays bare while the finger moves; how to cancel is said only when it rests on no slot for a while.
+    var idle by remember { mutableStateOf(false) }
+    LaunchedEffect(open, pick) {
+        idle = false
+        if (explain && open && pick == null) { delay(IDLE_HINT_MS); idle = true }
+    }
     val reveal by animateFloatAsState(if (open) 1f else 0f, tween(motionMs(130)), label = "global-arc")
     if (reveal <= 0f) return
     val homeInk = if (overApps) Color.White else LocalHomeInk.current
@@ -157,6 +169,8 @@ fun GlobalArc(
         val half = minOf(GLOBAL_LABEL_MAX / 2f, maxWidth.value / 2f - 16f)
         val lx = camera.x.coerceIn(half + 16f, maxWidth.value - half - 16f)
         val plateInk = Color.White
+        val plate = chosenSlot != null || empty || onSlot != null || idle
+        if (plate) {
         // S3: the label hangs under the lowest slot on a plate of its own, so it never prints over Home's clock or an app.
         val low = (0 until bow.count).maxOfOrNull { GlobalArcGeometry.slot(bow, camera, it).y } ?: (camera.y + bow.lift)
         Box(Modifier.offset(x = (lx - half).dp, y = (low + 34f).dp).width((2 * half).dp).graphicsLayer { alpha = reveal },
@@ -182,5 +196,9 @@ fun GlobalArc(
                 textAlign = TextAlign.Center)
         }
         }
+        }
     }
 }
+
+/** How long a finger rests on no slot before Global ARC says how to cancel. */
+private const val IDLE_HINT_MS = 1400L

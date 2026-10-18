@@ -588,9 +588,13 @@ private fun Home(
         val hole = rememberLens(settings.pulseLens)
         val camera = Pt(hole.x / density.density, hole.y / density.density)
         if (ed != null) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
+        val pulseService by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+        val quick = remember(settings.controls, apps, settings.aliases, pulseService) {
+            quickEntries(settings.controls, apps.values.toList(), settings.aliases, pulseService)
+        }
         // PULSE stays at the camera, outside the editor's scaled Home.
         if (settings.pulse && ed == null) Pulse(settings, onGesture = { g -> settings.controls.bound(Trigger.Pulse(g))?.let { onAction(it); true } ?: false },
-            arc = arc, onArcAction = onAction, flowSteps = flowSteps)
+            arc = arc, onArcAction = onAction, flowSteps = flowSteps, quick = quick)
         if (ed != null) {
             if (settings.pulse) Pulse(settings, preview = true)
             CameraMark(camera, selected == PULSE_ID)

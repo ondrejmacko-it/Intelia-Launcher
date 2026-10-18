@@ -673,7 +673,11 @@ class PulseAccessibilityService : AccessibilityService() {
                 val settings by (application as InteliaApp).settings.state.collectAsState()
                 InteliaTheme(settings) {
                     val now = rememberPlaying(settings.pulseMusic)?.takeIf { it.info.visible }
-                    PulseGlance(hole, statusBar, width, now, global = true, ::act,
+                    val apps by (application as InteliaApp).apps.apps.collectAsState()
+                    val quick = remember(settings.controls, apps, settings.aliases) {
+                        quickEntries(settings.controls, apps.orEmpty(), settings.aliases, service = true)
+                    }
+                    PulseGlance(hole, statusBar, width, now, quick, settings.pulseCharging, ::act,
                         onOpenPlayer = { pkg -> playerIntent(this@PulseAccessibilityService, pkg)?.let(::open) ?: closeMenu() }, onClose = ::closeMenu)
                 }
             }
@@ -692,15 +696,11 @@ class PulseAccessibilityService : AccessibilityService() {
         if (watching) showMusic()
     }
 
-    private fun act(item: GlanceItem) {
+    /** A Quick Action from the glance: the card has already left; it runs exactly like a released Global ARC slot. */
+    private fun act(action: Action) {
         closeMenu()
-        when (item) {
-            // Wait for the menu window to leave the screen so it is not in the picture.
-            GlanceItem.Screenshot -> if (Build.VERSION.SDK_INT >= 28) main.postDelayed({ performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT) }, 350)
-            GlanceItem.Notifications -> performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
-            GlanceItem.Alarm -> open(Intent(AlarmClock.ACTION_SHOW_ALARMS))
-            GlanceItem.Torch, GlanceItem.Battery -> Unit // toggled or shown inside the glance
-        }
+        // Let the window leave the screen first so a screenshot shows the app, not the card.
+        if (action == Action.Screenshot) main.postDelayed({ runFromArc(action) }, 250) else runFromArc(action)
     }
 
     private fun open(intent: Intent) {

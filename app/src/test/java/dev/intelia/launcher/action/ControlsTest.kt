@@ -7,6 +7,24 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ControlsTest {
+    @Test fun quickActionsAreEditedAndSanitized() {
+        val c = Controls()
+        assertNull(c.quick)
+        assertEquals(Controls.DEFAULT_QUICK, c.quickActions())
+        val moved = c.moveQuick(0, 1)
+        assertEquals(listOf(Action.Alarms, Action.Torch), moved.quickActions().take(2).map { it.action })
+        assertEquals(c.quickActions().size - 1, moved.editQuick(0) { null }.quickActions().size)
+        val dirty = Controls(quick = listOf(QuickAction(Action.Flow("gone")), QuickAction(Action.Torch, glyph = "../x"),
+            QuickAction(Action.Torch), QuickAction(Action.Arc())) + List(20) { QuickAction(Action.App("p$it/.A")) })
+        val clean = dirty.sanitized(emptySet())
+        assertEquals(Action.Torch, clean.quickActions().first().action)
+        assertNull(clean.quickActions().first().glyph)
+        assertEquals(Controls.MAX_QUICK, clean.quickActions().size)
+        // Round trip through settings JSON.
+        val json = Json { ignoreUnknownKeys = true }
+        assertEquals(clean, json.decodeFromString(Controls.serializer(), json.encodeToString(Controls.serializer(), clean)))
+    }
+
     @Test fun migrationKeepsLegacyContentAndOrder() {
         val c = Controls.migrate(listOf("b/B", "a/A"), listOf("f2", "f1"), listOf("com.x/open", "bad", "com.y/a/b"))
         assertEquals(listOf(Action.App("b/B"), Action.App("a/A")), c.arcSet(Controls.MAIN_SET)!!.slots)

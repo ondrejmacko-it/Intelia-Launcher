@@ -1,6 +1,7 @@
 package dev.intelia.launcher.ui
 
-import android.os.Build
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -66,8 +67,9 @@ import dev.intelia.launcher.pulse.PulseMode
 private enum class PulseLook { Rest, Music, Expanded, Arc }
 
 /**
- * Studio › PULSE (Veil 3.0): an interactive preview of the capsule's states, then Obsah a události, Gesta, Vzhled,
- * Chování and Pokročilé on the shared kit. Settings only; PULSE 2.0's own logic stays in [Pulse] and the service.
+ * Studio › PULSE (S3.1): the preview with the mode, then Obsah a rychlé akce, Gesta, Vzhled, Události and, on request,
+ * Pokročilé, all on the shared kit with a short summary of what is on. Settings only; PULSE's own logic stays in
+ * [Pulse] and the service.
  */
 @Composable
 internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit, onControls: () -> Unit) {
@@ -76,37 +78,10 @@ internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: Se
     var access by remember { mutableStateOf(MediaWatch.allowed(context)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { access = MediaWatch.allowed(context) }
     val mode = settings.pulseMode()
+    var quickOpen by rememberSaveable { mutableStateOf(false) }
+    var advanced by rememberSaveable { mutableStateOf(false) }
     PulsePreview(model, settings)
-    if (settings.pulse) {
-        val events = listOf(settings.pulseEcho, settings.pulseCharging, settings.pulseAlarm).count { it }
-        VeilGroup(stringResource(R.string.pulse_group_content)) {
-            SwitchRow(stringResource(R.string.pulse_music), settings.pulseMusic, { v ->
-                set { it.copy(pulseMusic = v) }
-                if (v && !access) MediaWatch.openSettings(context)
-            }, detail = if (settings.pulseMusic && !access) stringResource(R.string.pulse_music_needs_access) else null,
-                glyph = Glyph.Play, anchor = StudioTarget.PulseMusic.anchor)
-            if (settings.pulseMusic && !access) SettingRow(stringResource(R.string.pulse_music_open_settings), null, { MediaWatch.openSettings(context) })
-            SwitchRow(stringResource(R.string.pulse_echo), settings.pulseEcho, { v -> set { it.copy(pulseEcho = v) } },
-                glyph = Glyph.Wave, anchor = StudioTarget.PulseEvents.anchor)
-            SwitchRow(stringResource(R.string.pulse_charging), settings.pulseCharging, { v -> set { it.copy(pulseCharging = v) } }, glyph = Glyph.Bolt)
-            SwitchRow(stringResource(R.string.pulse_alarm), settings.pulseAlarm, { v -> set { it.copy(pulseAlarm = v) } },
-                detail = stringResource(R.string.pulse_events_count, events), glyph = Glyph.Bell)
-            if (settings.pulseAlarm) ChoiceSetting(stringResource(R.string.pulse_alarm_hours),
-                listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours, { v -> set { it.copy(pulseAlarmHours = v) } })
-        }
-        VeilGroup(stringResource(R.string.pulse_group_gestures)) {
-            SettingRow(stringResource(R.string.pulse_gestures), pulseGestureSummary(model, settings.controls), onControls, glyph = Glyph.Touch)
-            SwitchRow(stringResource(R.string.pulse_tap_player), settings.pulseTapPlayer, { v -> set { it.copy(pulseTapPlayer = v) } },
-                detail = stringResource(R.string.pulse_tap_player_detail), glyph = Glyph.Play)
-        }
-        VeilGroup(stringResource(R.string.pulse_group_look)) {
-            SettingBlock(StudioTarget.PulseLook.anchor) {
-                SliderRow(stringResource(R.string.pulse_opacity), settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(),
-                    100f, 5f, "${settings.pulseOpacity} %") { v -> set { it.copy(pulseOpacity = v.toInt()) } }
-            }
-        }
-    }
-    VeilGroup(stringResource(R.string.pulse_group_behaviour)) {
+    VeilGroup(stringResource(R.string.pulse_group_mode)) {
         // M3.1: one choice for where PULSE lives; Everywhere still needs the service the owner switches on in Android.
         ChoiceSetting(stringResource(R.string.pulse_mode), listOf(PulseMode.Off to stringResource(R.string.off),
             PulseMode.Home to stringResource(R.string.pulse_home_only), PulseMode.Everywhere to stringResource(R.string.pulse_everywhere_short)), mode,
@@ -116,11 +91,46 @@ internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: Se
             }, detail = if (mode == PulseMode.Everywhere && !service) stringResource(R.string.pulse_mode_needs_service) else null,
             anchor = StudioTarget.Pulse.anchor)
     }
-    if (settings.pulse) VeilGroup(stringResource(R.string.pulse_group_advanced)) {
-        SettingRow(stringResource(R.string.pulse_lens), stringResource(R.string.pulse_lens_detail), onLens, glyph = Glyph.Pulse,
-            anchor = StudioTarget.PulseLens.anchor)
-        SettingRow(stringResource(R.string.permission_pulse), stringResource(if (service) R.string.permission_on else R.string.permission_pulse_off),
+    if (!settings.pulse) return
+    VeilGroup(stringResource(R.string.pulse_group_content)) {
+        SwitchRow(stringResource(R.string.pulse_music), settings.pulseMusic, { v ->
+            set { it.copy(pulseMusic = v) }
+            if (v && !access) MediaWatch.openSettings(context)
+        }, detail = if (settings.pulseMusic && !access) stringResource(R.string.pulse_music_needs_access) else stringResource(R.string.pulse_music_detail),
+            glyph = Glyph.Play, anchor = StudioTarget.PulseMusic.anchor)
+        if (settings.pulseMusic && !access) SettingRow(stringResource(R.string.pulse_music_open_settings), null, { MediaWatch.openSettings(context) })
+        SettingRow(stringResource(R.string.pulse_quick), quickSummary(settings.controls, model), { quickOpen = !quickOpen }, glyph = Glyph.Bolt,
+            trailing = { Text(if (quickOpen) "⌃" else "⌄", style = InkText.body, color = LocalInk.current.muted) })
+        if (quickOpen) QuickActionsEditor(model, settings)
+    }
+    VeilGroup(stringResource(R.string.pulse_group_gestures)) {
+        SettingRow(stringResource(R.string.pulse_gestures), pulseGestureSummary(model, settings.controls), onControls, glyph = Glyph.Touch)
+        SwitchRow(stringResource(R.string.pulse_tap_player), settings.pulseTapPlayer, { v -> set { it.copy(pulseTapPlayer = v) } },
+            detail = stringResource(R.string.pulse_tap_player_detail), glyph = Glyph.Play)
+    }
+    VeilGroup(stringResource(R.string.pulse_group_look)) {
+        SettingBlock(StudioTarget.PulseLook.anchor) {
+            SliderRow(stringResource(R.string.pulse_opacity), settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(),
+                100f, 5f, "${settings.pulseOpacity} %") { v -> set { it.copy(pulseOpacity = v.toInt()) } }
+        }
+    }
+    val events = listOf(settings.pulseEcho, settings.pulseCharging, settings.pulseAlarm).count { it }
+    VeilGroup(stringResource(R.string.pulse_group_events) + " · " + stringResource(R.string.pulse_events_short, events)) {
+        SwitchRow(stringResource(R.string.pulse_echo), settings.pulseEcho, { v -> set { it.copy(pulseEcho = v) } },
+            glyph = Glyph.Wave, anchor = StudioTarget.PulseEvents.anchor)
+        SwitchRow(stringResource(R.string.pulse_charging), settings.pulseCharging, { v -> set { it.copy(pulseCharging = v) } }, glyph = Glyph.Bolt)
+        SwitchRow(stringResource(R.string.pulse_alarm), settings.pulseAlarm, { v -> set { it.copy(pulseAlarm = v) } }, glyph = Glyph.Bell)
+        if (settings.pulseAlarm) ChoiceSetting(stringResource(R.string.pulse_alarm_hours),
+            listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours, { v -> set { it.copy(pulseAlarmHours = v) } })
+    }
+    VeilGroup(stringResource(R.string.pulse_group_advanced)) {
+        val touch = stringResource(R.string.pulse_touch_summary, settings.pulseHit.size.toInt(),
+            stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short else R.string.pulse_lens_custom))
+        SettingRow(stringResource(R.string.pulse_lens), touch, onLens, glyph = Glyph.Pulse, anchor = StudioTarget.PulseLens.anchor)
+        if (advanced || !service) SettingRow(stringResource(R.string.permission_pulse),
+            stringResource(if (service) R.string.permission_on else R.string.permission_pulse_off),
             { PulseAccessibilityService.openSettings(context) }, glyph = Glyph.Shield)
+        if (!advanced && service) SettingRow(stringResource(R.string.show_advanced), null, { advanced = true })
     }
 }
 
@@ -146,10 +156,11 @@ private fun pulseGestureSummary(model: HomeViewModel, controls: Controls): Strin
 }
 
 /**
- * S3: the capsule's states as the phone shows them, not a sketch: the top of Home (the same [HomeMiniature] as Home)
- * laid out at the screen's real size and scaled down, with the real PULSE pieces on top at the real lens: Skrytá (the
- * invisible rest, its touch target dashed), Hudba ([MusicCompact]), Rozbalená ([GlanceCard]) and Global ARC
- * ([GlobalArc] with the owner's own set). Sample music only; a cover takes every touch, so nothing here plays or runs.
+ * S3.1: the capsule's states as the phone shows them: the top of Home (the same [HomeMiniature] as Home) laid out at
+ * the screen's real size and scaled, with the real PULSE pieces at the real lens. Each state shows only the strip it
+ * needs (the camera's surroundings at rest, down to the card or the lowest ARC slot otherwise) and ends in a soft
+ * fade, never on half a clock. Sample music and alarm are marked as such; Global ARC uses the owner's own geometry and
+ * set, without its cancel hint. A cover takes every touch, so nothing here plays or runs.
  */
 @Composable
 private fun PulsePreview(model: HomeViewModel, settings: LauncherSettings) {
@@ -159,6 +170,8 @@ private fun PulsePreview(model: HomeViewModel, settings: LauncherSettings) {
     var look by rememberSaveable { mutableStateOf(PulseLook.Rest) }
     val now by rememberNow()
     val arc by model.arc.collectAsStateWithLifecycle()
+    val apps by model.visibleApps.collectAsStateWithLifecycle()
+    val service by PulseAccessibilityService.running.collectAsStateWithLifecycle()
     val label = stringResource(R.string.pulse_preview_label)
     val note = stringResource(when {
         !settings.pulse -> R.string.pulse_preview_off
@@ -175,20 +188,36 @@ private fun PulsePreview(model: HomeViewModel, settings: LauncherSettings) {
     val lens = rememberLens(settings.pulseLens)
     val statusBar = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp().value }
     val shape = RoundedCornerShape(22.dp)
+    val hx = with(density) { lens.x.toDp().value }
+    val hy = with(density) { lens.y.toDp().value }
+    val hr = with(density) { lens.radius.toDp().value }
+    val screen = LocalConfiguration.current
+    val screenW = screen.screenWidthDp.toFloat()
+    val screenH = screen.screenHeightDp + statusBar
+    val arcLook = settings.controls.globalArc.over(settings.controls.arc)
+    val quick = remember(settings.controls, apps, settings.aliases, service) { quickEntries(settings.controls, apps, settings.aliases, service) }
+    val glance = GlanceState(if (settings.pulseMusic) sample else null, quick, alarm = "6:30")
+    val glanceTop = menuTop(statusBar, hy, hr, 4f, 8f)
+    // How much of the screen's top each state needs, dp, plus room for the fade.
+    val stageH = when {
+        !settings.pulse -> hy + hr + 56f
+        look == PulseLook.Rest -> pulseHitbox(hx, hy, settings.pulseHit, screenW).let { it.top + it.height } + 48f
+        look == PulseLook.Music -> musicCapsule(hx, hy, hr, statusBar).let { it.top + it.height } + 48f
+        look == PulseLook.Expanded -> glanceTop + (if (glance.music != null) GLANCE_MUSIC_DP else GLANCE_ROW_DP) + 16f
+        else -> GlobalArcGeometry.bow(arcLook, Pt(hx, hy), screenW, screenH).let { bow ->
+            (0 until bow.count).maxOfOrNull { GlobalArcGeometry.slot(bow, Pt(hx, hy), it).y } ?: (hy + bow.lift)
+        } + 64f
+    }.coerceIn(PREVIEW_MIN_DP, screenH)
+    val shownH by animateFloatAsState(stageH, tween(motionMs(220)), label = "pulse-preview-height")
+    val sampled = settings.pulse && (look == PulseLook.Music || (look == PulseLook.Expanded))
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val screen = LocalConfiguration.current
-            val screenW = screen.screenWidthDp.toFloat()
-            val screenH = (screen.screenHeightDp + statusBar).coerceAtLeast(PREVIEW_STAGE_DP)
             val k = (maxWidth.value / screenW).coerceAtMost(1f)
-            Box(Modifier.size((screenW * k).dp, (PREVIEW_STAGE_DP * k).dp).clip(shape).background(Color.Black.copy(alpha = .28f))
+            Box(Modifier.size((screenW * k).dp, (shownH * k).dp).clip(shape).background(Color.Black.copy(alpha = .28f))
                 .border(1.dp, ink.accent.copy(alpha = .30f), shape).clearAndSetSemantics { contentDescription = "$label. $note" }) {
                 Box(Modifier.stage(k, screenW, screenH)) {
                     val home = settings.home.activeLayout()
                     HomeMiniature(settings, home, now, model::entry, 1f, Modifier.fillMaxSize())
-                    val hx = with(density) { lens.x.toDp().value }
-                    val hy = with(density) { lens.y.toDp().value }
-                    val hr = with(density) { lens.radius.toDp().value }
                     if (settings.pulse) when (look) {
                         PulseLook.Rest -> Canvas(Modifier.fillMaxSize()) {
                             val box = pulseHitbox(hx, hy, settings.pulseHit, screenW)
@@ -201,31 +230,29 @@ private fun PulsePreview(model: HomeViewModel, settings: LauncherSettings) {
                             Box(Modifier.offset(mc.left.dp, mc.top.dp)) { MusicCompact(sample, mc, lens.radius, settings.pulseOpacity, null) }
                         }
                         PulseLook.Expanded -> {
-                            val state = GlanceState(if (settings.pulseMusic) sample else null,
-                                glanceItems(settings.pulseMusic, torch = true, charging = false, global = settings.pulseEverywhere, sdk = Build.VERSION.SDK_INT),
-                                alarm = "6:30")
-                            val (left, width) = menuLeftAndWidth(screenW, hx, 12f, glanceWidth(state).value)
-                            val top = menuTop(statusBar, hy, hr, 4f, 8f)
+                            val (left, width) = menuLeftAndWidth(screenW, hx, 12f, glanceWidth(glance).value)
+                            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .22f)))
                             Canvas(Modifier.fillMaxSize()) {
                                 val half = (hr + 4f).dp.toPx()
-                                drawRoundRect(ink.night.copy(alpha = .5f), Offset(hx.dp.toPx() - half, hy.dp.toPx() - half),
-                                    Size(2f * half, (top + 24f).dp.toPx() - (hy.dp.toPx() - half)), CornerRadius(half))
+                                drawCircle(ink.accent.copy(alpha = .55f), half, Offset(hx.dp.toPx(), hy.dp.toPx()), style = Stroke(1.dp.toPx()))
                             }
-                            GlanceCard(state, width.dp, {}, {}, {}, {}, Modifier.offset(left.dp, top.dp))
+                            GlanceCard(glance, width.dp, {}, {}, {}, {}, Modifier.offset(left.dp, glanceTop.dp))
                         }
                         PulseLook.Arc -> {
                             val hold = settings.controls.bound(Trigger.Pulse(Gesture.Hold)) as? Action.Arc
                             val set = arc.sets.firstOrNull { s -> hold != null && s.id == settings.controls.arcSetFor(hold).id } ?: arc.sets.firstOrNull()
-                            GlobalArc(set, settings.controls.globalArc.over(settings.controls.arc), Pt(hx, hy), open = true, pick = null,
-                                flowSteps = { emptyList() })
+                            GlobalArc(set, arcLook, Pt(hx, hy), open = true, pick = null, flowSteps = { emptyList() }, explain = false)
                         }
                     }
                     // The camera itself, so the picture reads like the phone.
                     Canvas(Modifier.fillMaxSize()) { drawCircle(Color.Black, lens.radius, Offset(lens.x, lens.y)) }
                 }
-                // The stage ends softly instead of cutting Home's clock in half.
-                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(56.dp)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFF16141C)))))
+                // The strip ends softly instead of cutting Home in half.
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(32.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, ink.paper.copy(alpha = .92f)))))
+                if (sampled) Text(stringResource(R.string.pulse_preview_sample), Modifier.align(Alignment.BottomEnd).padding(8.dp)
+                    .clip(RoundedCornerShape(10.dp)).background(ink.accent.copy(alpha = .22f)).padding(horizontal = 8.dp, vertical = 2.dp),
+                    style = InkText.label, color = ink.ink)
                 // Nothing in the preview takes a touch: its music buttons must never reach the real player.
                 Box(Modifier.matchParentSize().pointerInput(Unit) { awaitEachGesture { awaitFirstDown(requireUnconsumed = false).consume() } })
             }
@@ -243,5 +270,7 @@ private fun Modifier.stage(k: Float, w: Float, h: Float) = layout { m, c ->
     layout(c.maxWidth, c.maxHeight) { p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = TransformOrigin(0f, 0f) } }
 }
 
-/** How much of the screen's top the preview shows, dp: the camera, the expanded glance and Global ARC with its label. */
-private const val PREVIEW_STAGE_DP = 340f
+/** The shortest strip the preview shows, dp, and the glance card's height with the song or with a row of actions. */
+private const val PREVIEW_MIN_DP = 110f
+private const val GLANCE_MUSIC_DP = 190f
+private const val GLANCE_ROW_DP = 116f

@@ -188,7 +188,9 @@ internal fun torchCamera(manager: CameraManager): String? = try {
 @Composable
 fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false, onGesture: (Gesture) -> Boolean = { false },
     /** Global ARC (M3.3): what its sets hold now, and where a released slot goes (null = no Global ARC here). */
-    arc: ArcContent? = null, onArcAction: (Action) -> Unit = {}, flowSteps: (FlowAlias) -> List<String?> = { emptyList() }) {
+    arc: ArcContent? = null, onArcAction: (Action) -> Unit = {}, flowSteps: (FlowAlias) -> List<String?> = { emptyList() },
+    /** S3.1: the glance's Quick Actions, resolved by the caller ([quickEntries]). */
+    quick: List<QuickEntry> = emptyList()) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val ink = LocalInk.current
@@ -358,19 +360,11 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             })
 
         // S3: the glance replaces the old dashboard: the song while music shows, else one row of what matters now.
-        if (expanded) PulseGlance(h, with(density) { statusBar.dp.toPx() }, window.width.toFloat(), music, global,
-            onItem = { item ->
-                when (item) {
-                    GlanceItem.Alarm -> try {
-                        context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    } catch (_: ActivityNotFoundException) {
-                    }
-                    GlanceItem.Notifications -> PulseAccessibilityService.performGlobal(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
-                    GlanceItem.Screenshot -> if (Build.VERSION.SDK_INT >= 28) Handler(Looper.getMainLooper()).postDelayed({
-                        PulseAccessibilityService.performGlobal(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) }, 350)
-                    else -> Unit
-                }
+        if (expanded) PulseGlance(h, with(density) { statusBar.dp.toPx() }, window.width.toFloat(), music, quick, settings.pulseCharging,
+            onAction = { action ->
                 expanded = false
+                // The card has left the screen by now, so a screenshot shows what lies under it.
+                onArcAction(action)
             },
             onOpenPlayer = { pkg ->
                 playerIntent(context, pkg)?.let { try { context.startActivity(it) } catch (_: ActivityNotFoundException) { } }

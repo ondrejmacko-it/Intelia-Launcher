@@ -4,18 +4,28 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.Controls
+import dev.intelia.launcher.action.PanelKind
+import dev.intelia.launcher.action.QuickAction
 import dev.intelia.launcher.data.PulseHit
 
 class PulseMenuTest {
-    @Test fun glanceWithMusicIsOnlyTheSong() {
-        assertTrue(glanceItems(music = true, torch = true, charging = true, global = true, sdk = 36).isEmpty())
+    @Test fun quickActionsDefaultToThreeEverywhereItems() {
+        val shown = quickEntries(Controls(), emptyList(), emptyList(), service = true).map { it.slot.action }
+        assertEquals(listOf(Action.Torch, Action.Alarms, Action.SystemPanel(PanelKind.Notifications)), shown)
+        // Without the PULSE service the shade cannot open, so it is left out instead of drawn as a dead button.
+        assertEquals(listOf(Action.Torch, Action.Alarms), quickEntries(Controls(), emptyList(), emptyList(), service = false).map { it.slot.action })
     }
 
-    @Test fun glanceOffersWhatIsRelevant() {
-        assertEquals(listOf(GlanceItem.Torch, GlanceItem.Alarm), glanceItems(false, torch = true, charging = false, global = false, sdk = 36))
-        assertEquals(listOf(GlanceItem.Alarm, GlanceItem.Battery), glanceItems(false, torch = false, charging = true, global = false, sdk = 36))
-        assertEquals(GlanceItem.entries.toList(), glanceItems(false, torch = true, charging = true, global = true, sdk = 36))
-        assertFalse(GlanceItem.Screenshot in glanceItems(false, torch = true, charging = false, global = true, sdk = 27))
+    @Test fun quickActionsKeepOrderSkipHiddenAndMissing() {
+        val c = Controls().withQuick(listOf(QuickAction(Action.Alarms, glyph = "Torch"), QuickAction(Action.Torch, hidden = true),
+            QuickAction(Action.App("gone.pkg/.Main")), QuickAction(Action.Screenshot), QuickAction(Action.Lock), QuickAction(Action.SoundMode),
+            QuickAction(Action.Search)))
+        val shown = quickEntries(c, emptyList(), emptyList(), service = true)
+        assertEquals(listOf(Action.Alarms, Action.Screenshot, Action.Lock, Action.SoundMode), shown.map { it.slot.action })
+        assertEquals(Glyph.Torch, shown.first().glyph)
+        assertTrue(quickEntries(c, emptyList(), emptyList(), service = false).none { it.slot.action == Action.Screenshot })
     }
 
     @Test fun hitboxIs48dpCentredOnPhone3Lens() {

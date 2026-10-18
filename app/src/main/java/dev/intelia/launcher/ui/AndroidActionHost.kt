@@ -10,6 +10,7 @@ import android.hardware.camera2.CameraManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.SystemClock
+import android.provider.AlarmClock
 import android.provider.Settings
 import android.view.KeyEvent
 import androidx.compose.runtime.Composable
@@ -124,6 +125,15 @@ class AndroidActionHost(
         } catch (_: SecurityException) {
             false
         }
+    }
+
+    override fun openAlarms(): Boolean = try {
+        context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    } catch (_: SecurityException) {
+        false
     }
 
     override fun openPanel(kind: PanelKind): Boolean {
