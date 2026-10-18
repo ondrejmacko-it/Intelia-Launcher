@@ -50,6 +50,13 @@ data class SheetStops(val preview: Float, val balanced: Float, val settings: Flo
         return order.minBy { abs(it.second - top) }.first
     }
 
+    /**
+     * What releasing the handle at [top] with [velocity] px/s does: past [dismissAt] (below the Preview stop) and not
+     * flung back up, the page closes; otherwise the sheet [settle]s. Only the handle calls this — the list never does.
+     */
+    fun release(top: Float, velocity: Float, fling: Float, dismissAt: Float): SheetRelease =
+        if (top > dismissAt && velocity > -fling) SheetRelease.Dismiss else SheetRelease.Settle(settle(top, velocity, fling))
+
     companion object {
         /**
          * Stops for a room [room] px tall at [density] px per dp: Preview leaves the sheet at least 176 dp (its handle
@@ -65,4 +72,10 @@ data class SheetStops(val preview: Float, val balanced: Float, val settings: Flo
             return SheetStops(preview = preview, balanced = balanced)
         }
     }
+}
+
+/** The outcome of releasing the sheet's handle. */
+sealed interface SheetRelease {
+    data object Dismiss : SheetRelease
+    data class Settle(val stop: SheetStop) : SheetRelease
 }

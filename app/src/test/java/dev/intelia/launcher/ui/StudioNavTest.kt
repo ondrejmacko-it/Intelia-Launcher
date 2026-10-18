@@ -49,4 +49,18 @@ class StudioNavTest {
         // A fling past the last stop stays there.
         assertEquals(SheetStop.Preview, s.settle(1500f, 3000f, 2000f))
     }
+
+    @Test fun onlyAClearHandleDragClosesThePage() {
+        val s = SheetStops(preview = 1500f, balanced = 800f)
+        val dismissAt = 1800f
+        // Past the line, released still or moving down: close.
+        assertEquals(SheetRelease.Dismiss, s.release(1900f, 0f, 2000f, dismissAt))
+        assertEquals(SheetRelease.Dismiss, s.release(1900f, 5000f, 2000f, dismissAt))
+        // Past the line but flung back up: stays open, back on the Preview stop.
+        assertEquals(SheetRelease.Settle(SheetStop.Preview), s.release(1900f, -3000f, 2000f, dismissAt))
+        // A fast downward fling from Settings only moves one stop, never closes.
+        assertEquals(SheetRelease.Settle(SheetStop.Balanced), s.release(40f, 9000f, 2000f, dismissAt))
+        // Short of the line: the nearest stop.
+        assertEquals(SheetRelease.Settle(SheetStop.Preview), s.release(1700f, 0f, 2000f, dismissAt))
+    }
 }

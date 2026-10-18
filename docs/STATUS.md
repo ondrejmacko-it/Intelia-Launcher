@@ -2,6 +2,25 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — M0 Studio sheet stability (`feat/control-system-v1`)
+- Cause: `StudioSheet`'s `NestedScrollConnection` fed the list's unused scroll into the sheet's top (`onPostScroll`) and
+  re-settled it in `onPreFling`, so a fast scroll moved the sheet. Removed: the list scrolls and flings inside the sheet
+  only. The handle alone moves it (`draggable`, system touch slop, 900 dp/s fling to the next stop, else the nearest).
+- Closing: `SheetStops.release` (pure, JVM tested) closes only when the handle is let go below the Preview stop + 96 dp
+  **and** at least 40 % of the room down, and not flung back up. Before, a page without a preview (e.g. PULSE) closed
+  after a 96 dp pull — a 684 px slow drag on Ovládání › PULSE closed Studio on the device.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (new `StudioNavTest.onlyAClearHandleDragClosesThePage`); one earlier run failed on Windows page-file memory, passed
+  after `gradlew --stop`. `install -r` of `app-lab.apk` (22:37).
+- Phone (3), handle bounds from `uiautomator dump`, swipes at x = 20: Ovládání › PULSE (no preview, top 274) 10× fast
+  up/down + 5 flings → 274 before and after. Nastavení: Balanced 1248 → 10× fast scroll → 1248; slow handle drag up →
+  Settings 274; fast flick down → Balanced 1248; slow drag down → Preview 1884; 10× fast scroll inside the peek → 1884;
+  150 px pull below Preview → back to 1884; 380 px pull → Studio closed. Vzhled opened from Balanced keeps 1248; Back →
+  Nastavení 1248; Back → editor.
+- Not verified: transitions measured by frames (no `gfxinfo` run this time, no visible flash in screenshots); Reduced
+  Motion path (unchanged code: `motionMs` 0 = jump); TalkBack handle actions (semantics unchanged, not spoken).
+- Docs: `docs/KEA_PARITY.md` — KEA screenshots reviewed as organisational inspiration and mapped onto M1–M8.
+
 ## 2026-10-18 — S4.4 UX regressions: dock targets, overlay accessibility, large text (`feat/control-system-v1`, f5d0a1f..)
 - Git: a56a738 and d6b30d1 were only local; pushed to `origin/feat/control-system-v1` (fast-forward, nothing rewritten).
 - Dock: `Dock.lensTouch` gives LENS's touch box (84 × 100 dp) a per-side extent; it gives way only on a neighbour's side,

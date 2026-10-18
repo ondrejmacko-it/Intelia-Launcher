@@ -31,10 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -42,7 +38,6 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import dev.intelia.launcher.R
 import kotlinx.coroutines.Job
@@ -51,9 +46,9 @@ import kotlin.math.roundToInt
 
 /**
  * The Veil Focus sheet of a Studio page (S1): one sheet with a handle, resting at [SheetStop.Preview],
- * [SheetStop.Balanced] or [SheetStop.Settings]. The handle drags it; the list scrolls first and only its overscroll
- * moves the sheet, so scrolling never fights the drag. Dragging the handle well below the Preview stop calls
- * [onDismiss]. Without a [preview] the sheet fills the room and keeps only the dismiss drag.
+ * [SheetStop.Balanced] or [SheetStop.Settings]. Only the handle moves it (M0): the list scrolls and flings inside the
+ * sheet and never changes its height or closes it. Dragging the handle well below the Preview stop calls [onDismiss]
+ * ([SheetStops.release]). Without a [preview] the sheet fills the room and keeps only the dismiss drag.
  *
  * [preview] is drawn at the size it has at the Preview stop ([full] = its room in px) and scaled down evenly as the
  * sheet rises, so it never deforms and is not laid out again on every frame.
@@ -78,36 +73,17 @@ fun StudioSheet(stop: SheetStop, onStop: (SheetStop) -> Unit, onDismiss: () -> U
                 if (ms == 0) top = target else animate(top, target, animationSpec = tween(ms)) { v, _ -> top = v }
             }
         }
-        fun settle(velocity: Float) {
-            val target = if (preview == null) SheetStop.Settings else stops.settle(top, velocity, FLING_DP * density)
+        fun settle(target: SheetStop) {
             onStop(target)
             moveTo(stops.top(target))
         }
         // A new room (rotation, a different page's stop) or a stop chosen elsewhere: rest there.
         LaunchedEffect(stops, shown) { moveTo(stops.top(shown)) }
-        val dismissAt = stops.preview + DISMISS_DP * density
+        // Closing takes a clear pull: below the Preview stop, and on a page without a preview at least 40 % of the room.
+        val dismissAt = maxOf(stops.preview + DISMISS_DP * density, room * DISMISS_ROOM)
         val drag = rememberDraggableState { d ->
             job[0]?.cancel()
             top = (top + d).coerceIn(0f, dismissAt + DISMISS_DP * density)
-        }
-        val nested = remember(stops) {
-            object : NestedScrollConnection {
-                // Only what the list could not use moves the sheet, and never past the Preview stop.
-                override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                    if (source != NestedScrollSource.UserInput || available.y == 0f || preview == null) return Offset.Zero
-                    val next = (top + available.y).coerceIn(0f, stops.preview)
-                    val used = next - top
-                    if (used != 0f) { job[0]?.cancel(); top = next }
-                    return Offset(0f, used)
-                }
-
-                override suspend fun onPreFling(available: Velocity): Velocity {
-                    val resting = listOf(stops.settings, stops.balanced, stops.preview).any { kotlin.math.abs(it - top) < 1f }
-                    if (resting || preview == null) return Velocity.Zero
-                    settle(available.y)
-                    return available
-                }
-            }
         }
         val ink = LocalInk.current
         val more = stringResource(R.string.studio_sheet_more_settings)
@@ -138,7 +114,10 @@ fun StudioSheet(stop: SheetStop, onStop: (SheetStop) -> Unit, onDismiss: () -> U
             // The handle strip along the sheet's top edge, dragged or used through TalkBack's actions.
             Box(Modifier.fillMaxWidth().height(32.dp)
                 .draggable(drag, Orientation.Vertical, onDragStopped = { v ->
-                    if (top > dismissAt) onDismiss() else settle(v)
+                    when (val r = stops.release(top, v, FLING_DP * density, dismissAt)) {
+                        SheetRelease.Dismiss -> onDismiss()
+                        is SheetRelease.Settle -> settle(if (preview == null) SheetStop.Settings else r.stop)
+                    }
                 })
                 .semantics {
                     contentDescription = handleLabel
@@ -156,7 +135,7 @@ fun StudioSheet(stop: SheetStop, onStop: (SheetStop) -> Unit, onDismiss: () -> U
                 }, contentAlignment = Alignment.Center) {
                 Box(Modifier.size(36.dp, 4.dp).background(ink.muted.copy(alpha = .6f), CircleShape))
             }
-            Column(Modifier.fillMaxWidth().weight(1f).nestedScroll(nested).verticalScroll(rememberScrollState())
+            Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
                 .navigationBarsPadding().padding(bottom = 24.dp), content = content)
         }
     }
@@ -172,3 +151,6 @@ private const val FLING_DP = 900f
 
 /** How far below the Preview stop the handle has to be dragged to close the page. */
 private const val DISMISS_DP = 96f
+
+/** The least share of the room the handle has to be pulled down to close a page. */
+private const val DISMISS_ROOM = .4f
