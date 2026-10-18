@@ -2,6 +2,31 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — S4 Unified UI Polish, part 2 (`feat/control-system-v1`, 065c02b..)
+- Dead UI removed (no references in main or test): `CrystalArc`, `StudioRow`, `LiveCapsule`, `CrystalSurface`,
+  `crystalMat`, `ArcSlot`/`ArcEnd` (Crystal.kt), `Segments`, `ToggleRow`, `ChoiceRow`, `NavRow`, `TideDash` (Kit.kt),
+  `Stacked` (Studio.kt). `LocalCrystal` stays: it is the palette the Home editor, Search and sheets read.
+- Look: secondary `Capsule` on Veil glass instead of an ink outline; `InkText.title` on the Veil display face (Roboto
+  Flex, as the drawer and Studio) — serif stays for Home lists, ARC labels and FLOW names. Onboarding lists, layout
+  choice and preview on `veilPane` plates with inner hairlines. App sheet: sans title, accent check instead of the dash.
+- Copy: Controls/PULSE/Home/LENS/ARC/keys/favourites/backup/Global ARC/calibration hints shortened (cs + en); the
+  Ovládání hub note removed (the four rows say it); calibration says „ty“ like the rest.
+- Performance (Phone (3), lab build, drawer 5× swipe-up + Back, `dumpsys gfxinfo`): S4.1 material 19–24 % janky, p50
+  21–22 ms; bloom + glint off 17 %, p50 18–19 ms (= the earlier 16.9–17.1 % baseline); bloom filled only over the corner
+  it reaches (`drawBloom`) 18–20 %, p50 18–19 ms, GPU p90 22 ms. Backdrop blur off made no difference (22 %). Search 5×
+  open/close: 4.3 % janky, p95 23 ms. Studio first open: 18 %, p90 53 ms (one run; composition).
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`
+  (32 suites, 0 failures; `-Xmx2g` failed on a too-small page file). `install -r` of `app-lab.apk` on the Phone (3).
+- Verified on the device (screenshots, `docs/screens/s4.2/`, not committed): dark — Home, Search, drawer, app sheet,
+  FLOW list, LENS ARC, Home editor, Studio home, Ovládání, Gesta a tlačítka, ARC, PULSE (both scrolls), calibration,
+  Global ARC over Android Settings (opens, slide back + release closes the overlay, nothing launched); light (Intelia
+  theme set to Světlý, then back to Systém) — Vzhled, Gesta, drawer, FLOW, Search.
+- Not verified: 130/150 % text and TalkBack (system settings, left to the owner), Reduce motion, light wallpaper,
+  PULSE „Jen na ploše“ (switching the owner's mode may need the accessibility service re-enabled), glance quick
+  buttons, idle ARC hint, Action Picker on the device.
+- Open: the Home editor and inspector still read `LocalCrystal` colours (look matches, code is the older palette
+  API); FLOW pages and calibration sit on solid paper while Studio shows the wallpaper; Studio first-open jank.
+
 ## 2026-10-18 — S4 Unified UI Polish, part 1: Veil glass on every pane (`feat/control-system-v1`, 3877521..e647adf)
 - Material (owner's glassmorphism references): `veilSurface` adds `glassBloom` (the accent bleeding in from the
   top-left corner, ≤ 16 %, none on Matte) and `glassGlint` (hairline lit at the top-left, a smaller glint at the
