@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** Gestures a trigger surface can report; each surface offers only the ones it can really detect. */
-@Serializable enum class Gesture { Tap, DoubleTap, TripleTap, Hold, SwipeLeft, SwipeRight, SwipeUp, SwipeDown }
+@Serializable enum class Gesture { Tap, DoubleTap, TripleTap, Hold, SwipeLeft, SwipeRight, SwipeUp, SwipeDown, DoubleTapHold }
 
 /**
  * Where an [Action] is started from (Control System V1). Typed and open for new surfaces; every trigger runs

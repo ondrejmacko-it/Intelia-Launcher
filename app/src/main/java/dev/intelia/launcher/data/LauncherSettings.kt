@@ -3,6 +3,7 @@ package dev.intelia.launcher.data
 import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
+import dev.intelia.launcher.pulse.PulseMode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -119,6 +120,11 @@ data class LauncherSettings(
     val textScale: Float = 1f,
     val iconStyle: IconStyle = IconStyle.System,
     val pulse: Boolean = true,
+    /**
+     * M3.1: with PULSE on, false keeps it on Home only even while the PULSE service runs (the service then shows no
+     * lens target at all). True: above other apps whenever the owner has the service switched on.
+     */
+    val pulseEverywhere: Boolean = true,
     /** Null: use the display cutout reported by the system. */
     val pulseLens: PulseLens? = null,
     val pulseEcho: Boolean = true,
@@ -324,4 +330,11 @@ object SettingsCodec {
     }
 
     fun encode(settings: LauncherSettings): String = json.encodeToString(LauncherSettings.serializer(), settings)
+}
+
+/** M3.1: Off / Home / Everywhere as the owner chose it; Everywhere still needs the PULSE service to be running. */
+fun LauncherSettings.pulseMode(): PulseMode = when {
+    !pulse -> PulseMode.Off
+    !pulseEverywhere -> PulseMode.Home
+    else -> PulseMode.Everywhere
 }

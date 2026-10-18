@@ -1,5 +1,9 @@
 package dev.intelia.launcher.ui
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
+import dev.intelia.launcher.pulse.PulseMode
+import dev.intelia.launcher.data.pulseMode
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -241,7 +245,20 @@ internal fun Kick(text: String) {
 @Composable
 fun PulseInspector(settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit) {
     val c = LocalCrystal.current
-    Toggle(stringResource(R.string.pulse_toggle), settings.pulse) { v -> set { it.copy(pulse = v) } }
+    // M3.1: one choice for where PULSE lives; Everywhere still needs the service the owner switches on in Android.
+    val mode = settings.pulseMode()
+    val service by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    Kick(stringResource(R.string.pulse_mode))
+    Chips(listOf(PulseMode.Off to stringResource(R.string.off), PulseMode.Home to stringResource(R.string.pulse_home_only),
+        PulseMode.Everywhere to stringResource(R.string.pulse_everywhere_short)), mode) { m ->
+        set { it.copy(pulse = m != PulseMode.Off, pulseEverywhere = if (m == PulseMode.Off) it.pulseEverywhere else m == PulseMode.Everywhere) }
+        if (m == PulseMode.Everywhere && !service) PulseAccessibilityService.openSettings(context)
+    }
+    if (mode == PulseMode.Everywhere && !service) {
+        Text(stringResource(R.string.pulse_mode_needs_service), Modifier.padding(vertical = 6.dp), style = CrystalType.label, color = c.fg2)
+        Action(stringResource(R.string.pulse_mode_open_settings), c.acc) { PulseAccessibilityService.openSettings(context) }
+    }
     if (!settings.pulse) return
     SliderRow(stringResource(R.string.pulse_opacity), settings.pulseOpacity.toFloat(), LauncherSettings.MIN_PULSE_OPACITY.toFloat(), 100f, 5f,
         "${settings.pulseOpacity} %") { v -> set { it.copy(pulseOpacity = v.toInt()) } }

@@ -31,8 +31,6 @@ import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -79,6 +77,9 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -107,6 +108,8 @@ internal data class Battery(val percent: Int, val charging: Boolean)
 
 /** Where the camera cut-out sits, in window px. */
 internal data class Hole(val x: Float, val y: Float, val radius: Float)
+
+internal val PULSE_SWIPES = setOf(Gesture.SwipeDown, Gesture.SwipeUp, Gesture.SwipeLeft, Gesture.SwipeRight)
 
 /**
  * The camera hole as the system describes it. The cutout path is exact; some builds report a bounding
@@ -266,35 +269,30 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         // M3: tap opens the panel unless the owner bound it; double tap and hold exist only when bound, so an
         // unbound capsule never waits for a second tap.
         val controls = settings.controls
-        val double = controls.bound(Trigger.Pulse(Gesture.DoubleTap)) != null
-        val hold = controls.bound(Trigger.Pulse(Gesture.Hold)) != null
-        val doubleLabel = stringResource(R.string.pulse_gesture_double)
-        val swipes = listOf(Gesture.SwipeDown, Gesture.SwipeLeft, Gesture.SwipeRight).filter { controls.bound(Trigger.Pulse(it)) != null }
-        val swipeLabels = mapOf(Gesture.SwipeDown to stringResource(R.string.pulse_gesture_down),
+        val bound = { g: Gesture -> controls.bound(Trigger.Pulse(g)) != null }
+        val hold = bound(Gesture.Hold)
+        val holdLabel = stringResource(R.string.pulse_gesture_hold)
+        val gestureLabels = mapOf(Gesture.DoubleTap to stringResource(R.string.pulse_gesture_double),
+            Gesture.DoubleTapHold to stringResource(R.string.pulse_gesture_double_hold),
+            Gesture.SwipeDown to stringResource(R.string.pulse_gesture_down),
             Gesture.SwipeLeft to stringResource(R.string.pulse_gesture_left), Gesture.SwipeRight to stringResource(R.string.pulse_gesture_right))
-        val density = androidx.compose.ui.platform.LocalDensity.current.density
-        if (!preview && !expanded && !global) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
+        val extras = gestureLabels.keys.filter(bound)
+        val swipes = extras.any { it in PULSE_SWIPES }
+        val tap = { if (!onGesture(Gesture.Tap)) expanded = true }
+        // With PULSE everywhere on (D9) and the service running, the service owns the lens; Lab draws no second target.
+        if (!preview && !expanded && !(global && settings.pulseEverywhere)) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
             .size(64.dp, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
-            // M5: swipes from the capsule exist only when bound, so an unbound capsule never waits on a drag.
-            .then(if (swipes.isEmpty()) Modifier else Modifier.pointerInput(swipes) {
-                var total = androidx.compose.ui.geometry.Offset.Zero
-                detectDragGestures(onDragStart = { total = androidx.compose.ui.geometry.Offset.Zero },
-                    onDrag = { change, d -> change.consume(); total += d },
-                    onDragEnd = { pulseSwipe(total.x / density, total.y / density)?.takeIf { it in swipes }?.let { onGesture(it) } })
-            })
-            .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = label,
-                role = Role.Button,
-                onLongClick = if (hold) ({ onGesture(Gesture.Hold) }) else null,
-                onDoubleClick = if (double) ({ onGesture(Gesture.DoubleTap) }) else null) {
-                if (!onGesture(Gesture.Tap)) expanded = true
-            }
+            // M3.1: one recognizer for every capsule gesture (shared with the PULSE service); a shorter gesture
+            // waits only while a longer bound one can still follow.
+            .pulseTouch(bound, swipes) { g -> if (g == Gesture.Tap) tap() else onGesture(g) }
             .semantics {
+                role = Role.Button
                 contentDescription = label
                 if (restState.isNotEmpty()) stateDescription = restState
-                // TalkBack has no double tap of its own; a bound one is offered as a custom action.
-                val extra = (if (double) listOf(CustomAccessibilityAction(doubleLabel) { onGesture(Gesture.DoubleTap) }) else emptyList()) +
-                    swipes.map { g -> CustomAccessibilityAction(swipeLabels.getValue(g)) { onGesture(g) } }
-                if (extra.isNotEmpty()) customActions = extra
+                onClick(label) { tap(); true }
+                if (hold) onLongClick(holdLabel) { onGesture(Gesture.Hold) }
+                // TalkBack has no double tap or swipe of its own; bound ones are offered as custom actions.
+                if (extras.isNotEmpty()) customActions = extras.map { g -> CustomAccessibilityAction(gestureLabels.getValue(g)) { onGesture(g) } }
             })
 
         if (expanded) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() },

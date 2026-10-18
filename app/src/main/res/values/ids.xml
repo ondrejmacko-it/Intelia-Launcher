@@ -5,4 +5,5 @@
     <item name="pulse_swipe_down" type="id" />
     <item name="pulse_swipe_left" type="id" />
     <item name="pulse_swipe_right" type="id" />
+    <item name="pulse_double_hold" type="id" />
 </resources>

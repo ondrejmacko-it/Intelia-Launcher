@@ -143,7 +143,8 @@ private fun controlGroups(settings: LauncherSettings): List<ControlGroup> {
     val up = stringResource(R.string.gesture_up)
     val pulse = ControlGroup(PULSE, stringResource(R.string.controls_pulse),
         if (!settings.pulse) emptyList() else listOf(ControlLine(tap, Trigger.Pulse(Gesture.Tap)), ControlLine(double, Trigger.Pulse(Gesture.DoubleTap)),
-            ControlLine(hold, Trigger.Pulse(Gesture.Hold)), ControlLine(down, Trigger.Pulse(Gesture.SwipeDown)),
+            ControlLine(hold, Trigger.Pulse(Gesture.Hold)), ControlLine(stringResource(R.string.pulse_gesture_double_hold), Trigger.Pulse(Gesture.DoubleTapHold)),
+            ControlLine(down, Trigger.Pulse(Gesture.SwipeDown)),
             ControlLine(left, Trigger.Pulse(Gesture.SwipeLeft)), ControlLine(right, Trigger.Pulse(Gesture.SwipeRight))),
         hint = stringResource(if (settings.pulse) R.string.pulse_gestures_hint else R.string.controls_pulse_off))
     val home = ControlGroup(HOME, stringResource(R.string.controls_home), listOf(

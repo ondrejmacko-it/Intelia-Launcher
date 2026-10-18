@@ -1,5 +1,7 @@
 package dev.intelia.launcher.ui
 
+import dev.intelia.launcher.data.pulseMode
+import dev.intelia.launcher.pulse.PulseMode
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.focusable
@@ -328,8 +330,11 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack:
             SectionRow(stringResource(R.string.flow), stringResource(R.string.studio_flow_sub, settings.aliases.size, settings.controls.arcSets.sumOf { set -> set.slots.count { it is Action.Flow } })) {
                 onOpen(StudioSection.Flow, null)
             }
-            SectionRow(stringResource(R.string.pulse), stringResource(if (!settings.pulse) R.string.off
-                else if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only)) { onOpen(StudioSection.Pulse, null) }
+            SectionRow(stringResource(R.string.pulse), stringResource(when (settings.pulseMode()) {
+                PulseMode.Off -> R.string.off
+                PulseMode.Home -> R.string.pulse_home_only
+                PulseMode.Everywhere -> if (everywhere) R.string.pulse_everywhere_short else R.string.pulse_home_only
+            })) { onOpen(StudioSection.Pulse, null) }
             SectionRow(stringResource(R.string.gestures_title), stringResource(R.string.settings_gestures_sub)) { onOpen(StudioSection.Gestures, null) }
             SectionRow(stringResource(R.string.motion_section), stringResource(motionName(settings.motion)) + " · " +
                 stringResource(hapticsName(settings.haptics)) + " · " + "${(settings.textScale * 100).toInt()} %") { onOpen(StudioSection.Motion, null) }
@@ -524,12 +529,7 @@ private fun FlowPage(settings: LauncherSettings, onFlows: () -> Unit) {
 /** PULSE: the capsule, its events and calibration, and whether it works outside Intelia (D9); its gestures live in Ovládání. */
 @Composable
 private fun PulsePage(settings: LauncherSettings, set: SettingsEdit, onLens: () -> Unit, onControls: () -> Unit) {
-    val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     CrystalBody { PulseInspector(settings, set, onLens) }
-    // D9: the switch only mirrors the service; Android settings are where it is turned on or off.
-    if (settings.pulse) ToggleRow(stringResource(R.string.pulse_everywhere), everywhere, { PulseAccessibilityService.openSettings(context) },
-        detail = stringResource(R.string.pulse_everywhere_detail))
     if (settings.pulse) NavRow(stringResource(R.string.pulse_gestures), stringResource(R.string.gestures_title), onControls)
 }
 

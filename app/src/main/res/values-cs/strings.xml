@@ -579,6 +579,10 @@
     <string name="gesture_home_left">Tah doleva na Home</string>
     <string name="gesture_home_right">Tah doprava na Home</string>
     <string name="pulse_gesture_down">Tah dolů z kapsle</string>
+    <string name="pulse_gesture_double_hold">Dvojí klepnutí a podržení</string>
+    <string name="pulse_mode">Kde PULSE funguje</string>
+    <string name="pulse_mode_needs_service">Všude potřebuje službu PULSE. Zapni ji v nastavení Androidu; do té doby PULSE funguje na ploše.</string>
+    <string name="pulse_mode_open_settings">Otevřít nastavení Androidu</string>
     <string name="pulse_gesture_left">Tah doleva z kapsle</string>
     <string name="pulse_gesture_right">Tah doprava z kapsle</string>
     <string name="keys_everywhere">Tlačítka i mimo Intelii</string>

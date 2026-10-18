@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.os.PowerManager
 import android.view.MotionEvent
 import dev.intelia.launcher.action.KeyRemap
+import android.app.KeyguardManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -107,6 +108,16 @@ import dev.intelia.launcher.action.ActionResult
 import dev.intelia.launcher.action.Gesture
 import dev.intelia.launcher.action.Reason
 import dev.intelia.launcher.action.Trigger
+import dev.intelia.launcher.data.pulseMode
+import dev.intelia.launcher.pulse.PulseGestures
+import dev.intelia.launcher.pulse.PulseMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -128,7 +139,10 @@ class PulseAccessibilityService : AccessibilityService() {
     private var owner: OverlayOwner? = null
     /** System actions only: without Home's model, apps and FLOWs report missing and stay on Home (M3). */
     private var host: AndroidActionHost? = null
-    private var pendingTap: Runnable? = null
+    private var scope: CoroutineScope? = null
+    /** Keyguard up or screen off: no lens target, nothing above the lock screen (M3.1). */
+    private var locked = false
+    private var screenReceiver: BroadcastReceiver? = null
     private var note: View? = null
     /** D20 key remap: only key codes and timers, nothing about what is typed; see [KeyRemap]. */
     private val remap = KeyRemap { code, g -> controls().bound(Trigger.Key(code, g)) != null }
@@ -141,7 +155,28 @@ class PulseAccessibilityService : AccessibilityService() {
         host = AndroidActionHost(this, null) { false }.also { h ->
             getSystemService(CameraManager::class.java)?.registerTorchCallback(h.torchCallback, main)
         }
-        placeLens()
+        locked = getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+        screenReceiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: Intent) {
+                locked = when (intent.action) {
+                    Intent.ACTION_SCREEN_OFF -> true
+                    Intent.ACTION_USER_PRESENT -> false
+                    else -> getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+                }
+                updateLens()
+            }
+        }.also { r ->
+            ContextCompat.registerReceiver(this, r, IntentFilter(Intent.ACTION_SCREEN_OFF).apply {
+                addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
+            }, ContextCompat.RECEIVER_NOT_EXPORTED)
+        }
+        // Event driven: the lens follows the owner's mode (Off / Home / Everywhere), no polling.
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { s ->
+            s.launch {
+                (application as InteliaApp).settings.state.map { it.pulseMode() == PulseMode.Everywhere }.distinctUntilChanged()
+                    .collect { updateLens() }
+            }
+        }
         relayout = { main.post { if (lens != null) placeLens() } }
         applyKeyFilter()
     }
@@ -238,8 +273,12 @@ class PulseAccessibilityService : AccessibilityService() {
         hideNote()
         lens?.let { runCatching { windows.removeView(it) } }
         lens = null
-        pendingTap?.let(main::removeCallbacks)
-        pendingTap = null
+        main.removeCallbacks(gestureTimer)
+        gestures.reset()
+        screenReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenReceiver = null
+        scope?.cancel()
+        scope = null
         keyEffects(remap.reset())
         host?.let { h -> getSystemService(CameraManager::class.java)?.unregisterTorchCallback(h.torchCallback) }
         host = null
@@ -295,6 +334,19 @@ class PulseAccessibilityService : AccessibilityService() {
         title = "Intelia PULSE"
     }
 
+    /** The lens target exists only in Everywhere mode with the phone unlocked; otherwise there is no overlay at all. */
+    private fun updateLens() {
+        if ((application as InteliaApp).settings.state.value.pulseMode() == PulseMode.Everywhere && !locked) placeLens() else removeLens()
+    }
+
+    private fun removeLens() {
+        main.removeCallbacks(gestureTimer)
+        gestures.reset()
+        closeMenu()
+        lens?.let { runCatching { windows.removeView(it) } }
+        lens = null
+    }
+
     private fun placeLens() {
         val h = hole()
         val box = lensTarget(h.x, h.y, h.radius, 10f * dp, 32f * dp)
@@ -305,42 +357,11 @@ class PulseAccessibilityService : AccessibilityService() {
         }
         val view = lens ?: View(this).apply {
             contentDescription = getString(R.string.pulse)
-            // M5: a bound swipe from the capsule (down, left, right); an unbound one stays whatever the touch was.
-            var downX = 0f
-            var downY = 0f
-            setOnTouchListener { v, e ->
-                when (e.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; false }
-                    MotionEvent.ACTION_UP -> {
-                        val swipe = pulseSwipe((e.rawX - downX) / dp, (e.rawY - downY) / dp)?.takeIf { bound(it) != null }
-                        if (swipe == null) false else {
-                            // Cancel, so the view drops its pending tap and hold, then run the swipe.
-                            MotionEvent.obtain(e).also { it.action = MotionEvent.ACTION_CANCEL; v.onTouchEvent(it); it.recycle() }
-                            v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                            gesture(swipe)
-                            true
-                        }
-                    }
-                    else -> false
-                }
-            }
-            setOnClickListener {
-                performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                // An unbound double tap never delays the tap; a bound one waits the system double-tap time.
-                val waiting = pendingTap
-                when {
-                    bound(Gesture.DoubleTap) == null -> gesture(Gesture.Tap)
-                    waiting != null -> { main.removeCallbacks(waiting); pendingTap = null; gesture(Gesture.DoubleTap) }
-                    else -> pendingTap = Runnable { pendingTap = null; gesture(Gesture.Tap) }
-                        .also { main.postDelayed(it, ViewConfiguration.getDoubleTapTimeout().toLong()) }
-                }
-            }
-            setOnLongClickListener {
-                if (bound(Gesture.Hold) == null) return@setOnLongClickListener false
-                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                gesture(Gesture.Hold)
-                true
-            }
+            // M3.1: every touch goes through the shared recognizer (as on Home); click and long click are only the
+            // TalkBack paths, the touch listener takes all real touches.
+            setOnTouchListener { _, e -> touch(e); true }
+            setOnClickListener { gesture(Gesture.Tap) }
+            setOnLongClickListener { if (bound(Gesture.Hold) == null) false else { gesture(Gesture.Hold); true } }
             // Read at query time, so TalkBack offers exactly the gestures bound now: double tap as a custom action,
             // long press only when hold is bound.
             ViewCompat.setAccessibilityDelegate(this, object : AccessibilityDelegateCompat() {
@@ -368,6 +389,36 @@ class PulseAccessibilityService : AccessibilityService() {
         } else {
             windows.updateViewLayout(view, params)
         }
+    }
+
+    private val gestures by lazy {
+        val vc = ViewConfiguration.get(this)
+        PulseGestures({ bound(it) != null }, PulseGestures.Timing(ViewConfiguration.getDoubleTapTimeout().toLong(),
+            ViewConfiguration.getLongPressTimeout().toLong(), vc.scaledTouchSlop / dp))
+    }
+    private val gestureTimer = Runnable { gestureOut(gestures.timeout()) }
+
+    private fun touch(e: MotionEvent) {
+        val x = e.rawX / dp
+        val y = e.rawY / dp
+        gestureOut(when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> gestures.down(x, y)
+            MotionEvent.ACTION_MOVE -> gestures.move(x, y)
+            MotionEvent.ACTION_UP -> gestures.up(x, y)
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> gestures.cancel()
+            else -> return
+        })
+    }
+
+    private fun gestureOut(out: PulseGestures.Out) {
+        if (out.timer != PulseGestures.KEEP) {
+            main.removeCallbacks(gestureTimer)
+            out.timer?.let { main.postDelayed(gestureTimer, it) }
+        }
+        val g = out.run ?: return
+        lens?.performHapticFeedback(if (g == Gesture.Hold || g == Gesture.DoubleTapHold) HapticFeedbackConstants.LONG_PRESS
+            else HapticFeedbackConstants.VIRTUAL_KEY)
+        gesture(g)
     }
 
     private fun bound(g: Gesture): Action? = (application as InteliaApp).settings.state.value.controls.bound(Trigger.Pulse(g))
@@ -765,4 +816,5 @@ private val PULSE_A11Y = listOf(
     Triple(Gesture.SwipeDown, R.id.pulse_swipe_down, R.string.pulse_gesture_down),
     Triple(Gesture.SwipeLeft, R.id.pulse_swipe_left, R.string.pulse_gesture_left),
     Triple(Gesture.SwipeRight, R.id.pulse_swipe_right, R.string.pulse_gesture_right),
+    Triple(Gesture.DoubleTapHold, R.id.pulse_double_hold, R.string.pulse_gesture_double_hold),
 )

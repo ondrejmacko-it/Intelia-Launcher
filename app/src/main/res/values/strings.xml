@@ -580,6 +580,10 @@
     <string name="gesture_home_left">Swipe left on Home</string>
     <string name="gesture_home_right">Swipe right on Home</string>
     <string name="pulse_gesture_down">Swipe down from the capsule</string>
+    <string name="pulse_gesture_double_hold">Double tap and hold</string>
+    <string name="pulse_mode">Where PULSE works</string>
+    <string name="pulse_mode_needs_service">Everywhere needs the PULSE service. Switch it on in Android settings; until then PULSE works on Home.</string>
+    <string name="pulse_mode_open_settings">Open Android settings</string>
     <string name="pulse_gesture_left">Swipe left from the capsule</string>
     <string name="pulse_gesture_right">Swipe right from the capsule</string>
     <string name="keys_everywhere">Keys outside Intelia too</string>
