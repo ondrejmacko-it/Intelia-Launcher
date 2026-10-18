@@ -2,6 +2,23 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — S4 Unified UI Polish, part 3: checks and leftovers (`feat/control-system-v1`)
+- Action Picker: with a host, a system action's requirement („Vyžaduje službu PULSE“) is shown only while unmet (the
+  reason); without a host it still says what the action will need. Seen on the Phone (3): Oznámení reads „funguje i
+  mimo Home“ with the service on.
+- Studio open (lab build, editor → Nastavení, `dumpsys gfxinfo` reset after the editor opens): warm 3–6 % janky, p90
+  24–29 ms (8 runs). Cold = first open after `install -r`: 9–11 % janky, p90 32–38 ms, p95 42–57 ms (3 runs; the
+  earlier 18 % / 53 ms included the editor). Composing `HomePreview` one frame later: 7–12 %, p90 36–46 ms (4 runs) —
+  no gain, reverted. The cold cost is first-use class loading / JIT, not the miniature.
+- PASS: `./gradlew -q --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleLab`;
+  `install -r` of `app-lab.apk` (PULSE accessibility service stays enabled across `install -r`).
+- Verified on the device (screenshots `docs/screens/s4.3/`, not committed): Intelia wallpaper Papír (light) — Home dark
+  type and dark status icons, Vzhled, Search, drawer; Pohyb Vyp — Animace page, Search, drawer, Studio open fully;
+  idle Global ARC hint („Návrat ke kameře gesto zruší.“) after a 3.5 s still hold on PULSE, release launched nothing.
+  Owner's look restored (Soumrak, Klidný).
+- Not done: `LocalCrystal` → Veil API in the Home editor / inspector (32 uses; no visible change to gain, risk of
+  one). Still with the owner: 130/150 % text, TalkBack, PULSE „Jen na ploše“, glance quick buttons.
+
 ## 2026-10-18 — S4 Unified UI Polish, part 2 (`feat/control-system-v1`, 065c02b..)
 - Dead UI removed (no references in main or test): `CrystalArc`, `StudioRow`, `LiveCapsule`, `CrystalSurface`,
   `crystalMat`, `ArcSlot`/`ArcEnd` (Crystal.kt), `Segments`, `ToggleRow`, `ChoiceRow`, `NavRow`, `TideDash` (Kit.kt),

@@ -101,7 +101,9 @@ fun ActionPicker(
     fun join(vararg parts: String?): String? = parts.filterNotNull().joinToString(" · ").ifEmpty { null }
     val systemRows = system.map { a ->
         val label = labels[a] ?: systemActionLabel(a)
-        PickRow(a, label, join(host?.let { a.unavailableReason(it) }?.let { reasonNote(it) } ?: requirementNote(a.requirement), reach(a)),
+        // With a host the requirement is said only while unmet (the reason); without one, what it will need.
+        val note = if (host != null) a.unavailableReason(host)?.let { reasonNote(it) } else requirementNote(a.requirement)
+        PickRow(a, label, join(note, reach(a)),
             a.category(), AppSearch.fold(label))
     }
     val rows = remember(apps, flows, shortcuts, systemRows.map { it.detail }, showReach) {
