@@ -40,6 +40,18 @@ class StudioNavTest {
         }
     }
 
+    @Test fun aShortPreviewLetsTheSheetRiseUnderIt() {
+        val d = 2.625f
+        val s = SheetStops.of(2100f, d, content = 300f)
+        // Preview and Balanced both show the 300 px preview whole, right above the sheet.
+        assertEquals(300f + 8f * d, s.preview, 1e-3f)
+        assertEquals(s.preview, s.balanced, 1e-3f)
+        // A tall preview keeps 280 dp of sheet at Balanced and is shown whole at Preview when it fits.
+        val tall = SheetStops.of(2100f, d, content = 1500f)
+        assertEquals(2100f - 280f * d, tall.balanced, 1e-3f)
+        assertTrue(tall.preview <= 2100f - 176f * d && tall.balanced <= tall.preview)
+    }
+
     @Test fun releaseSettlesNearestOrFlingsToNext() {
         val s = SheetStops(preview = 1500f, balanced = 800f)
         assertEquals(SheetStop.Balanced, s.settle(900f, 0f, 2000f))
