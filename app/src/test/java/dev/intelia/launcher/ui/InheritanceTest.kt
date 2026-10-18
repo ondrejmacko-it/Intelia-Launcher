@@ -1,5 +1,7 @@
 package dev.intelia.launcher.ui
 
+import dev.intelia.launcher.data.LabelOverride
+import dev.intelia.launcher.data.IconOverride
 import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.GridSpec
 import dev.intelia.launcher.data.HomeItem
@@ -25,7 +27,14 @@ class InheritanceTest {
     @Test fun defaultsFollowTheGlobalValue() {
         val plain = HomeItem("c", ItemKind.Clock)
         ItemProp.entries.forEach { assertFalse(it.name, it.isOwn(plain)) }
-        ItemProp.entries.forEach { assertTrue(it.name, it.isOwn(clock)) }
+        val iconProps = setOf(ItemProp.Label, ItemProp.LabelLook, ItemProp.Icon)
+        ItemProp.entries.filter { it !in iconProps }.forEach { assertTrue(it.name, it.isOwn(clock)) }
+        // S2: an icon's label switch, label look and icon look; returning one leaves the others.
+        val own = app.copy(labelLook = LabelOverride(lines = 2), icon = IconOverride(alpha = .5f))
+        iconProps.forEach { assertTrue(it.name, it.isOwn(own)) }
+        assertEquals(own.copy(icon = null), ItemProp.Icon.inherit(own))
+        assertEquals(own.copy(label = null), ItemProp.Label.inherit(own))
+        assertEquals(StudioTarget.Icons, ItemProp.LabelLook.source(ItemKind.App))
     }
 
     @Test fun inheritDropsOnlyThatProperty() {
@@ -64,7 +73,7 @@ class InheritanceTest {
         e.edit("a", "size") { it.copy(sizeDp = 64) }
         assertTrue(e.inherit("a", ItemProp.Size))
         assertEquals(0, e.item("a")!!.sizeDp)
-        assertTrue(e.item("a")!!.label)
+        assertEquals(true, e.item("a")!!.label)
         e.undo()
         assertEquals(64, e.item("a")!!.sizeDp)
         e.undo()

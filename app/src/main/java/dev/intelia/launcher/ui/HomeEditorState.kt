@@ -41,6 +41,8 @@ class HomeGeometry(
     val dock: DockSpec = DockSpec(),
     /** Height of the navigation bar, dp; the content area stops above it when the row is not at the bottom. */
     val bottomInset: Float = 0f,
+    /** S2: the largest icon on the LENS row, dp; slots move apart so icons this big do not overlap (0 = the spec's steps). */
+    val rowIcon: Float = 0f,
 ) {
     private val edge get() = dock.edge
     val areaLeft = if (edge == DockEdge.Left) lensX + SIDE_BAND else MARGIN
@@ -58,7 +60,7 @@ class HomeGeometry(
     /** The same screen with [spec]'s own LENS row (edge, end, offset): a preset's miniature must not follow the live one. */
     fun forLayout(spec: LayoutSpec): HomeGeometry {
         val c = Dock.centre(spec.dock, spec.lensDx(), width, height, statusTop, bottomInset)
-        return HomeGeometry(width, height, statusTop, c.x, c.y, spec.dock, bottomInset)
+        return HomeGeometry(width, height, statusTop, c.x, c.y, spec.dock, bottomInset, rowIcon)
     }
 
     fun toFree(p: Pt) = Anchor.free(((p.x - areaLeft) / areaW).coerceIn(0f, 1f), ((p.y - areaTop) / areaH).coerceIn(0f, 1f))
@@ -78,8 +80,10 @@ class HomeGeometry(
     fun lensSlot(slot: Int): Pt {
         val vertical = edge.vertical
         val at = if (vertical) lensY else lensX
-        val lo = if (vertical) statusTop + EDGE else EDGE
-        val hi = if (vertical) height - bottomInset - EDGE else width - EDGE
+        // A big icon keeps its whole disc on the screen.
+        val edge = maxOf(EDGE, rowIcon / 2f + 4f)
+        val lo = if (vertical) statusTop + edge else edge
+        val hi = if (vertical) height - bottomInset - edge else width - edge
         // On a side the row runs down the edge; "start" is the top. LENS before or after all four: one pitch apart.
         val k = Anchor.LENS_SLOTS.sorted().indexOf(slot).coerceAtLeast(0)
         val n = Anchor.LENS_SLOTS.size
@@ -101,8 +105,9 @@ class HomeGeometry(
             val step = (room / n).coerceAtLeast(MIN_STEP)
             return step to step
         }
-        val gap = dock.gap.toFloat()
-        val pitch = dock.pitch.toFloat()
+        // Big icons push the slots apart: LENS's half and the icon's half, and icon to icon, keep [ROW_AIR] between them.
+        val gap = maxOf(dock.gap.toFloat(), LENS_HALF + rowIcon / 2f + ROW_AIR)
+        val pitch = maxOf(dock.pitch.toFloat(), rowIcon + ROW_AIR)
         val need = if (dock.lensAt == LensAt.Middle) 2 * (gap + pitch) else gap + (n - 1) * pitch
         val fit = ((hi - lo) / need).coerceAtMost(1f)
         return gap * fit to pitch * fit
@@ -114,7 +119,7 @@ class HomeGeometry(
         val room = if (side > 0) hi - at else at - lo
         val step = room / 2f
         return if (step >= MIN_STEP) at + side * step * abs(slot)
-        else middleSlot(slot, at, lo, hi, DockSpec.GAP.toFloat(), DockSpec.PITCH.toFloat())
+        else rowSteps(at, lo, hi).let { (gap, pitch) -> middleSlot(slot, at, lo, hi, gap, pitch) }
     }
 
     private fun middleSlot(slot: Int, at: Float, lo: Float, hi: Float, gap: Float, pitch: Float): Float {
@@ -571,19 +576,53 @@ fun ItemKind.isText() = this == ItemKind.Clock || this == ItemKind.Date
  * Names on one line share the gap between their centres; a name narrower than [LABEL_MIN] is left out.
  * [labelled] maps item ids to icon centres; unlabelled icons sit above the name line and never meet it.
  */
-fun labelWidths(labelled: Map<String, Pt>, lens: Pt?, maxWidth: Float = LABEL_MAX): Map<String, Float> =
-    labelled.mapNotNull { (id, p) ->
-        var half = maxWidth / 2
-        labelled.forEach { (other, q) -> if (other != id && kotlin.math.abs(q.y - p.y) < LABEL_LINE) half = minOf(half, kotlin.math.abs(q.x - p.x) / 2 - LABEL_GAP) }
-        if (lens != null && kotlin.math.abs(lens.y - p.y) < LABEL_LINE) half = minOf(half, kotlin.math.abs(lens.x - p.x) - LENS_HALF - LABEL_GAP)
-        (half * 2).takeIf { it >= LABEL_MIN }?.let { id to it }
+/** One icon on Home as the label layout sees it; [labelled] icons get a name, the others are only obstacles. */
+data class LabelIcon(val id: String, val at: Pt, val icon: Float, val labelled: Boolean = false, val gap: Float = 4f,
+    val lineH: Float = 15f, val lines: Int = 1)
+
+/** Where a name goes (S2): [width] wide, centred on [x]; its top edge at [y], or its bottom edge when [above]. */
+data class LabelBox(val x: Float, val y: Float, val width: Float, val lines: Int, val above: Boolean)
+
+/**
+ * Names under Home icons, laid out once for Home and its Studio miniature. A name keeps clear of neighbours on its row
+ * (half the distance to a named one, up to the edge of a plain one), of LENS and of the screen edges, and wraps to
+ * the lines that fit before the next icon below or [bottom] (above the navigation bar). With no line of room below,
+ * it goes above the icon; with none there either, or narrower than [LABEL_MIN], it is not shown.
+ */
+fun labelBoxes(icons: List<LabelIcon>, lens: Pt?, width: Float, top: Float, bottom: Float): Map<String, LabelBox> =
+    icons.filter { it.labelled }.mapNotNull { p ->
+        var half = maxOf(LABEL_MAX, p.icon + 16f) / 2f
+        half = minOf(half, p.at.x - LABEL_EDGE, width - LABEL_EDGE - p.at.x)
+        val others = icons.filter { it.id != p.id }
+        others.forEach { q ->
+            if (abs(q.at.y - p.at.y) < (q.icon + p.icon) / 2f) {
+                val dx = abs(q.at.x - p.at.x)
+                half = minOf(half, if (q.labelled) dx / 2f - LABEL_GAP else dx - q.icon / 2f - LABEL_GAP)
+            }
+        }
+        if (lens != null && abs(lens.y - p.at.y) < p.icon / 2f + LENS_HALF) half = minOf(half, abs(lens.x - p.at.x) - LENS_HALF - LABEL_GAP)
+        if (half * 2 < LABEL_MIN) return@mapNotNull null
+        // Obstacles straight below or above the name: other icons (with the room their own name may take below them) and LENS.
+        val column = others.filter { abs(it.at.x - p.at.x) < half + maxOf(it.icon / 2f, if (it.labelled) LABEL_MAX / 2f else 0f) }
+            .map { Triple(it.at.y - it.icon / 2f, it.at.y + it.icon / 2f + if (it.labelled) it.gap + it.lines * it.lineH else 0f, it.at.y) } +
+            listOfNotNull(lens?.takeIf { abs(it.x - p.at.x) < half + LENS_HALF }?.let { Triple(it.y - LENS_HALF, it.y + LENS_HALF, it.y) })
+        val belowY = p.at.y + p.icon / 2f + p.gap
+        val floor = column.filter { it.third > p.at.y }.minOfOrNull { it.first - LABEL_GAP }?.let { minOf(it, bottom) } ?: bottom
+        val below = ((floor - belowY) / p.lineH).toInt().coerceAtMost(p.lines)
+        if (below >= 1) return@mapNotNull p.id to LabelBox(p.at.x, belowY, half * 2, below, above = false)
+        val aboveY = p.at.y - p.icon / 2f - p.gap
+        val ceiling = column.filter { it.third < p.at.y }.maxOfOrNull { it.second + LABEL_GAP }?.let { maxOf(it, top) } ?: top
+        val above = ((aboveY - ceiling) / p.lineH).toInt().coerceAtMost(p.lines)
+        if (above >= 1) p.id to LabelBox(p.at.x, aboveY, half * 2, above, above = true) else null
     }.toMap()
 
 const val LABEL_MAX = 76f
 const val LABEL_MIN = 48f
-private const val LABEL_LINE = 24f
 private const val LABEL_GAP = 2f
+private const val LABEL_EDGE = 4f
 private const val LENS_HALF = 28f
+/** Room between neighbours on the LENS row, dp. */
+private const val ROW_AIR = 6f
 
 /**
  * The editor's view of Home (D15): the same Home drawn at [scale] around 50 % / [ORIGIN_Y] of the screen, so the

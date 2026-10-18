@@ -86,9 +86,7 @@ import dev.intelia.launcher.action.Trigger
 import dev.intelia.launcher.data.PaletteTarget
 import dev.intelia.launcher.data.AnchorType
 import dev.intelia.launcher.data.HomeItem
-import dev.intelia.launcher.data.HomeSketch
 import dev.intelia.launcher.data.LayoutSpec
-import dev.intelia.launcher.data.sketch
 import dev.intelia.launcher.data.ItemKind
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.layout
@@ -801,9 +799,9 @@ private fun HiddenApps(model: HomeViewModel, onBack: () -> Unit) {
 }
 
 /**
- * Home in miniature: clock in its two voices, the layout and LENS. Used live in Studio (on the
- * wallpaper), drawn from the active layout [home] as Home draws it, and in onboarding (on paper,
- * from the legacy fields, with plain rings for apps not chosen yet).
+ * Home in miniature. From a layout [home] (Studio): Home itself, laid out by the shared renderer at the window's real
+ * size and scaled ([HomeMiniature]). Without one (onboarding, on paper): a sketch from the legacy fields, with plain
+ * rings for apps not chosen yet.
  */
 @Composable
 fun HomePreview(
@@ -818,103 +816,32 @@ fun HomePreview(
     home: LayoutSpec? = null,
     entry: (String) -> AppEntry? = { null },
 ) {
-    val sketch = remember(home) { home?.sketch() }
-    val custom = if (sketch != null) sketch.list.isNotEmpty() else settings.layout == HomeLayout.Custom
+    if (home != null) {
+        HomeMiniature(settings, home, now, entry, scale, modifier.semantics(mergeDescendants = true) { })
+        return
+    }
+    val custom = settings.layout == HomeLayout.Custom
     fun d(v: Float): Dp = (v * scale).dp
-    // From a layout: Home's own distances (text under the status bar, LENS 48 dp, icons 32 dp, centre ~67 dp above the
-    // bottom edge); the onboarding sketch keeps its looser card proportions.
-    val real = sketch != null
-    val top = if (real) 56f else 64f
-    val ring = if (real) 48f else 44f
-    BoxWithConstraints(modifier.semantics(mergeDescendants = true) { }) {
-        val textRoom = maxHeight - d(top) - d(84f)
-        Column(Modifier.fillMaxWidth().padding(top = d(top), start = d(28f), end = d(28f)),
+    Box(modifier.semantics(mergeDescendants = true) { }) {
+        Column(Modifier.fillMaxWidth().padding(top = d(64f), start = d(28f), end = d(28f)),
             horizontalAlignment = if (custom) Alignment.Start else Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(d(8f))) {
-            // A big or stacked clock is shrunk as a whole to the room above LENS, so it never runs into the row.
-            if (home != null && sketch != null) Box(Modifier.fitHeight(textRoom, if (custom) 0f else .5f)) {
-                // Drawn at Home's own size and shrunk as a picture: the date's size has a floor that would not scale.
-                Box(Modifier.shrink(scale)) {
-                    HomeClockPreview(home.items.firstOrNull { it.kind == ItemKind.Clock }, home.items.firstOrNull { it.kind == ItemKind.Date },
-                        sketch.dateAbove, settings, now, ink, accent, 1f)
-                }
-            }
-            else if (settings.showClock) SplitClock(now.toLocalTime(), settings.clockStyle, ink, accent, (84f * scale).sp, shadow = onWallpaper)
-            if (home == null && settings.showDate) Text(dateLine(now), style = InkText.label.copy(fontSize = (11f * scale).coerceAtLeast(8f).sp,
+            if (settings.showClock) SplitClock(now.toLocalTime(), settings.clockStyle, ink, accent, (84f * scale).sp, shadow = onWallpaper)
+            if (settings.showDate) Text(dateLine(now), style = InkText.label.copy(fontSize = (11f * scale).coerceAtLeast(8f).sp,
                 letterSpacing = (2.2f * scale).sp, shadow = if (onWallpaper) homeShadow(ink) else null), color = ink.copy(alpha = .8f), maxLines = 1)
         }
         if (custom) Column(Modifier.align(Alignment.BottomStart).padding(start = d(28f), bottom = d(92f))) {
-            val names = (sketch?.list?.mapNotNull { entry(it)?.label } ?: favorites.map { it.label }).ifEmpty { listOf("—", "—", "—") }.take(4)
-            names.forEach {
+            favorites.map { it.label }.ifEmpty { listOf("—", "—", "—") }.take(4).forEach {
                 Text(it, style = InkText.item.copy(fontSize = (26f * scale).sp, lineHeight = (30f * scale).sp,
                     shadow = if (onWallpaper) homeShadow(ink) else null), color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        Row(Modifier.align(Alignment.BottomCenter).padding(bottom = d(if (real) 43f else 26f)), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(d(if (real) 26f else 14f))) {
-            if (sketch != null) sketch.row.forEach {
-                when {
-                    it == HomeSketch.LENS_SLOT -> LensMark(ink, ring = d(ring))
-                    it == null -> Spacer(Modifier.size(d(32f)))
-                    else -> PreviewSlot(if (it.kind == ItemKind.App) entry(it.target) else null, ink, scale, it.iconDp(settings.iconSize).toFloat())
-                }
-            } else {
-                val around = settings.layout == HomeLayout.Essentials
-                val slots: List<AppEntry?> = if (around) List(4) { favorites.getOrNull(it) } else emptyList()
-                slots.take(2).forEach { PreviewSlot(it, ink, scale) }
-                LensMark(ink, ring = d(44f))
-                slots.drop(2).forEach { PreviewSlot(it, ink, scale) }
-            }
+        Row(Modifier.align(Alignment.BottomCenter).padding(bottom = d(26f)), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(d(14f))) {
+            val slots: List<AppEntry?> = if (settings.layout == HomeLayout.Essentials) List(4) { favorites.getOrNull(it) } else emptyList()
+            slots.take(2).forEach { PreviewSlot(it, ink, scale) }
+            LensMark(ink, ring = d(44f))
+            slots.drop(2).forEach { PreviewSlot(it, ink, scale) }
         }
-    }
-}
-
-/** Lays the content out [k] times larger than the room and draws it scaled by [k] from the top start. */
-private fun Modifier.shrink(k: Float) = layout { m, c ->
-    fun up(v: Int) = if (v == androidx.compose.ui.unit.Constraints.Infinity) v else (v / k).roundToInt()
-    val p = m.measure(androidx.compose.ui.unit.Constraints(0, up(c.maxWidth), 0, up(c.maxHeight)))
-    layout((p.width * k).roundToInt(), (p.height * k).roundToInt()) {
-        p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f) }
-    }
-}
-
-/** Measures the content at its full height and, when taller than [max], draws it scaled down from the top. */
-private fun Modifier.fitHeight(max: Dp, originX: Float) = layout { m, c ->
-    val p = m.measure(c.copy(maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
-    val limit = max.roundToPx().coerceAtLeast(1)
-    val k = if (p.height > limit) limit.toFloat() / p.height else 1f
-    layout(p.width, minOf(p.height, limit)) {
-        p.placeWithLayer(0, 0) { scaleX = k; scaleY = k; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(originX, 0f) }
-    }
-}
-
-/**
- * The clock with its bound date, drawn with the item's own face, size, weight, colour, opacity and plate, scaled.
- * Either item may be missing (hidden on Home).
- */
-@Composable
-private fun HomeClockPreview(clock: HomeItem?, date: HomeItem?, dateAbove: Boolean, settings: LauncherSettings, now: LocalDateTime,
-    ink: Color, accent: Color, scale: Float) {
-    val bound = date?.takeIf { it.anchor.type == AnchorType.Bound }
-    // A free date has its own place on Home; in the miniature it sits above or below the clock, as on Home.
-    val free = date?.takeIf { it.anchor.type != AnchorType.Bound }
-    fun scaled(d: HomeItem) = d.copy(sizeDp = (d.dateSp() * scale).roundToInt().coerceAtLeast(1),
-        look = d.look.copy(padX = d.look.padX * scale, padY = d.look.padY * scale))
-    val plate = !clock?.background.isNullOrEmpty()
-    val clockInk = if (plate) LocalCrystal.current.fg else ink
-    Column(verticalArrangement = Arrangement.spacedBy((10f * scale).dp)) {
-        if (free != null && dateAbove) DateText(scaled(free), now, ink, accent, Modifier)
-        if (clock != null || bound != null) Column(Modifier.then(if (plate) Modifier.veilSurface(plateTokens(clock.background), VeilOrigin.Top,
-                RoundedCornerShape((26f * scale).dp)).padding(horizontal = ((20f + clock.look.padX) * scale).dp,
-                vertical = ((15f + clock.look.padY) * scale).dp) else Modifier),
-            verticalArrangement = Arrangement.spacedBy((10f * scale).dp)) {
-            if (clock != null) {
-                val size = if (clock.sizeDp == 0) ItemSizes.CLOCK else clock.sizeDp
-                SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: clockInk, accent, (size * scale).sp,
-                    Modifier.graphicsLayer { alpha = clock.alpha }, shadow = !plate, weight = clock.weight, look = clock.look)
-            }
-            if (bound != null) DateText(scaled(bound), now, clockInk, accent, Modifier.offset((bound.look.dx * scale).dp, (bound.look.dy * scale).dp))
-        }
-        if (free != null && !dateAbove) DateText(scaled(free), now, ink, accent, Modifier)
     }
 }
 

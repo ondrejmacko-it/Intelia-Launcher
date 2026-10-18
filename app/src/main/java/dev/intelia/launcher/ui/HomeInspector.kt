@@ -83,6 +83,9 @@ import androidx.compose.foundation.verticalScroll
 import dev.intelia.launcher.data.ClockStyle
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
+import dev.intelia.launcher.data.iconLook
+import dev.intelia.launcher.data.labelShown
+import dev.intelia.launcher.data.labelStyle
 import dev.intelia.launcher.data.IconStyle
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.ItemTint
@@ -561,19 +564,36 @@ private fun TrackingRow(state: HomeEditorState, item: HomeItem, onChange: () -> 
 
 /** App or FLOW on Home: its own size and label; moving step by step folded. Style and size of all icons live in Look. */
 @Composable
-fun ItemInspector(state: HomeEditorState, item: HomeItem, iconDefault: Int, onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
+fun ItemInspector(state: HomeEditorState, item: HomeItem, settings: LauncherSettings, onMore: (() -> Unit)?, onRemoved: () -> Unit, onChange: () -> Unit) {
     val c = LocalCrystal.current
     // The card's header names the app; its options link sits on the right.
     if (onMore != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         Text(stringResource(R.string.inspect_more), Modifier.clip(CircleShape).clickable(role = Role.Button, onClick = onMore)
             .padding(horizontal = 10.dp, vertical = 10.dp), style = CrystalType.body.copy(fontSize = 13.sp), color = c.acc)
     }
-    val size = item.iconDp(iconDefault)
+    val size = item.iconDp(settings.iconSize)
     SliderRow(stringResource(R.string.icon_this_size), size.toFloat(), ItemSizes.ICON_MIN.toFloat(), ItemSizes.ICON_MAX.toFloat(), 2f, "$size dp",
         inherit = { InheritChip(ItemProp.Size, state, item, onChange) }) { v ->
         state.edit(item.id, "size") { it.copy(sizeDp = v.roundToInt()) }; onChange()
     }
-    Toggle(stringResource(R.string.inspect_label), item.label) { on -> state.edit(item.id, "label") { it.copy(label = on) }; onChange() }
+    // S2: the icon's look and its name follow Vzhled › Ikony until the item sets its own (Vlastní ↺ returns them).
+    Fold(stringResource(R.string.icon_look)) {
+        InheritLine(ItemProp.Icon, state, item, onChange)
+        val global = HomeItem("", ItemKind.App).iconLook(settings)
+        IconLookControls(item.iconLook(settings)) { look ->
+            state.edit(item.id, "icon") { it.copy(icon = iconOverride(look, global)) }; onChange()
+        }
+    }
+    InheritLine(ItemProp.Label, state, item, onChange)
+    Toggle(stringResource(R.string.inspect_label), item.labelShown(settings.labels)) { on ->
+        state.edit(item.id, "label") { it.copy(label = on.takeIf { v -> v != settings.labels.show }) }; onChange()
+    }
+    if (item.labelShown(settings.labels)) Fold(stringResource(R.string.labels_title)) {
+        InheritLine(ItemProp.LabelLook, state, item, onChange)
+        LabelStyleControls(item.labelStyle(settings.labels)) { style ->
+            state.edit(item.id, "labelLook") { it.copy(labelLook = labelOverride(style, settings.labels)) }; onChange()
+        }
+    }
     Fold(stringResource(R.string.inspect_move)) { MoveButtons { dx, dy -> state.nudge(item.id, dx, dy); onChange() } }
     Action(stringResource(R.string.inspect_remove), c.fg2) { if (state.remove(item.id)) onRemoved(); onChange() }
 }

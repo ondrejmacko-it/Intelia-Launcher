@@ -138,7 +138,7 @@
     <string name="studio_home_sub">%1$s · upravuje se přímo na ploše</string>
     <string name="studio_flow_sub">Příkazy: %1$d · v ARC: %2$d</string>
     <string name="studio_hidden_sub">Skryté aplikace: %1$d</string>
-    <string name="studio_kw_icons">styl tvar barevné mono tónované veil kruh squircle velikost větší popisky názvy</string>
+    <string name="studio_kw_icons">styl tvar barevné mono tónované veil kruh squircle velikost větší popisky názvy písmo zarovnání řádky krytí průhlednost</string>
     <string name="studio_kw_material">materiál sklo veil krystal mráz kapka matné hustota hrana rozostření</string>
     <string name="studio_kw_wallpaper">pozadí ztmavení systémová tapeta oceán noc</string>
     <string name="studio_kw_theme">tmavý světlý režim noční</string>
@@ -680,4 +680,12 @@
     <string name="studio_sheet_handle">Madlo panelu</string>
     <string name="studio_sheet_more_preview">Větší náhled</string>
     <string name="studio_sheet_more_settings">Víc nastavení</string>
+    <string name="labels_title">Popisek</string>
+    <string name="labels_note">Dlouhé názvy se zalomí do zvolených řádků; když pod ikonou není místo, popisek je nad ní.</string>
+    <string name="label_size">Velikost písma</string>
+    <string name="label_font">Písmo</string>
+    <string name="label_align">Zarovnání</string>
+    <string name="label_gap">Odstup od ikony</string>
+    <string name="label_lines">Řádky</string>
+    <string name="icon_look">Vzhled ikony</string>
 </resources>

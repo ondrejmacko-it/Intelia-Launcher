@@ -39,6 +39,9 @@ import dev.intelia.launcher.data.TypeFace
 import dev.intelia.launcher.data.ItemKind
 import dev.intelia.launcher.data.DateFormat
 import dev.intelia.launcher.data.HomeItem
+import dev.intelia.launcher.data.iconLook
+import dev.intelia.launcher.data.labelShown
+import dev.intelia.launcher.data.labelStyle
 import dev.intelia.launcher.data.LayoutSpec
 import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.HomeTemplates
@@ -546,7 +549,8 @@ private fun Home(
         val dock = (editor?.layout ?: saved).dock
         val lensSpot = Dock.centre(dock, editor?.lensDx() ?: saved.lensDx(), maxWidth.value, maxHeight.value, statusTop.value, bottomInset.value)
         val compact = maxHeight < 560.dp
-        val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, lensSpot.x, lensSpot.y, dock, bottomInset.value)
+        val geometry = HomeGeometry(maxWidth.value, maxHeight.value, statusTop.value, lensSpot.x, lensSpot.y, dock, bottomInset.value,
+            rowIcon(editor?.layout ?: saved, settings))
         check(tick >= 0) // read so that editor changes recompose this scope
         fun open(): HomeEditorState = editor ?: HomeEditorState(saved, geometry,
             blocked = { listOfNotNull(clockZone, dateZone.takeIf { editor?.layout?.items?.any { it.kind == ItemKind.Date && it.anchor.type == AnchorType.Free } == true }) })
@@ -563,10 +567,7 @@ private fun Home(
         })
         val clock = layout.items.firstOrNull { it.kind == ItemKind.Clock }
         val date = layout.items.firstOrNull { it.kind == ItemKind.Date }
-        /** Where free text (fy = 0) starts below the status bar. */
-        // A LENS row on the top edge pushes all text down by its band.
-        val dockTop = if (dock.edge == DockEdge.Top) (geometry.areaTop - statusTop.value - 24f).dp else 0.dp
-        val textTop = (if (compact) 24.dp else TEXT_TOP.dp) + dockTop
+        val textTop = homeTextTop(geometry, statusTop.value, compact).dp
         val freeDate = date?.takeIf { it.anchor.type == AnchorType.Free }
         val iconDefault = settings.iconSize
         // Zones are kept in Home coordinates, inside the editor's scaled layer ([EditView]).
@@ -624,56 +625,16 @@ private fun Home(
 
         if (clock == null) timeZone = null
         if (date == null) dateZone = null
-        if (clock != null || (date != null && freeDate == null)) {
-            val a = clock?.anchor ?: Anchor.free(if (listLayout) 0f else .5f, 0f)
-            val bias = (a.fx * 2f - 1f).coerceIn(-1f, 1f)
-            val topPad = (if (compact) 24.dp else TEXT_TOP.dp) + dockTop + (geometry.areaH * a.fy).dp
-            // §5.12 Veil background: one Light Veil plate behind the time and its bound date; text takes the theme's ink.
-            val plate = !clock?.background.isNullOrEmpty()
-            val clockInk = if (plate) LocalCrystal.current.fg else homeInk
-            // On a plate the theme's accent variant is right; straight on the wallpaper, the wallpaper's.
-            val onClock = if (plate) places else wallPlaces
-            val accent = onClock[PaletteTarget.Clock]
-            val textAccent = onClock[PaletteTarget.Text]
-            // The plate keeps 8 dp from the edges; bare text may come [TEXT_EDGE] dp close.
-            Column(
-                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(top = topPad)
-                    .atFx(a.fx, geometry.areaLeft, geometry.areaW, if (plate) 8f else TEXT_EDGE).graphicsLayer { alpha = quiet }
-                    .onGloballyPositioned { c -> clockZone = zoneOf(c, 8f) }
-                    .then(if (plate) Modifier.veilSurface(plateTokens(clock.background), VeilOrigin.Top, RoundedCornerShape(26.dp))
-                        .padding(horizontal = (20f + clock.look.padX).dp).padding(top = (14f + clock.look.padY).dp, bottom = (16f + clock.look.padY).dp)
-                        else Modifier)
-                    .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
-                horizontalAlignment = when (clock?.look?.align ?: ItemAlign.Auto) {
-                    ItemAlign.Start -> Alignment.Start
-                    ItemAlign.Center -> Alignment.CenterHorizontally
-                    ItemAlign.End -> Alignment.End
-                    ItemAlign.Auto -> if (bias < 0f) Alignment.Start else if (bias > 0f) Alignment.End else Alignment.CenterHorizontally
-                },
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (clock != null) SplitClock(now.toLocalTime(), clock.clockStyle(settings.clockStyle), clock.tintColor(accent) ?: clockInk, accent,
-                    (if (clock.sizeDp == 0) (if (compact) 64 else ItemSizes.CLOCK) else clock.sizeDp).sp,
-                    Modifier.graphicsLayer { alpha = clock.alpha }.onGloballyPositioned { c -> timeZone = zoneOf(c, 4f) }, shadow = !plate, weight = clock.weight, look = clock.look)
-                if (date != null && freeDate == null) DateText(date, now, clockInk, textAccent, onPlate = plate, modifier = Modifier.offset(date.look.dx.dp, date.look.dy.dp).onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
-            }
-        } else clockZone = null
-        if (freeDate != null) {
-            // An unpinned date: placed like the clock (§5.5), by its own free point.
-            // Moved over the clock's plate, it reads in the plate's ink instead of the wallpaper's.
-            val onPlate = !clock?.background.isNullOrEmpty() && clockZone?.let { dateZone?.centredIn(it, 8f) } == true
-            DateText(freeDate, now, if (onPlate) LocalCrystal.current.fg else homeInk, (if (onPlate) places else wallPlaces)[PaletteTarget.Text],
-                onPlate = onPlate, modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
-                .padding(top = textTop + (geometry.areaH * freeDate.anchor.fy).dp)
-                .atFx(freeDate.anchor.fx, geometry.areaLeft, geometry.areaW, TEXT_EDGE).graphicsLayer { alpha = quiet }
-                .onGloballyPositioned { c -> dateZone = zoneOf(c, 6f) })
-        }
+        // Moved over the clock's plate, an unpinned date reads in the plate's ink instead of the wallpaper's.
+        val dateOnPlate = freeDate != null && !clock?.background.isNullOrEmpty() && clockZone?.let { dateZone?.centredIn(it, 8f) } == true
+        if (clock == null && (date == null || freeDate != null)) clockZone = null
+        HomeText(layout, geometry, textTop.value, settings, now, homeInk, places, wallPlaces, compact, { quiet }, dateOnPlate,
+            onClock = { c -> clockZone = zoneOf(c, 8f) }, onTime = { c -> timeZone = zoneOf(c, 4f) }, onDate = { c -> dateZone = zoneOf(c, 6f) })
 
         // Icons placed by geometry: LENS row, grid cells, free positions; apps and FLOWs.
-        // On a side row the slots stand 46 dp apart: no room for a name under each icon.
-        val names = labelWidths(layout.items.filter { (it.kind == ItemKind.App || it.kind == ItemKind.Flow) && it.label &&
-            !(dock.edge.vertical && it.anchor.type == AnchorType.LensRow) }
-            .mapNotNull { item -> geometry.position(item, layout)?.let { item.id to it } }.toMap(), lensPt.takeIf { !dock.edge.vertical })
+        // S2: names laid out once for Home and Studio's miniature ([homeLabels]); a side row has no room for them.
+        val names = homeLabels(layout, geometry, settings, density)
+        val iconAccent = wallPlaces[PaletteTarget.Icons]
         layout.items.forEach { item ->
             if ((item.kind != ItemKind.App && item.kind != ItemKind.Flow) || !item.anchor.type.isPlaced()) return@forEach
             val app = if (item.kind == ItemKind.App) apps[item.target] else null
@@ -683,13 +644,11 @@ private fun Home(
             // The node stays put while it is dragged (its gesture needs a still frame); a ghost follows the finger.
             val dragging = drag?.id == item.id
             val p = geometry.position(item, layout) ?: return@forEach
-            val iconDp = item.iconDp(iconDefault).dp
+            val look = item.iconLook(settings)
+            val iconDp = look.sizeDp.dp
             key(item.id) {
-                val nameWidth = names[item.id]
-                if (nameWidth != null) Text(name, Modifier.centerAt(p.x.dp, p.y.dp + iconDp / 2 + 12.dp).widthIn(max = nameWidth.dp)
-                    .graphicsLayer { alpha = if (dragging) 0f else quiet }.clearAndSetSemantics {},
-                    style = CrystalType.body.copy(fontSize = 12.sp, lineHeight = 14.sp, shadow = homeShadow(homeInk)),
-                    color = homeInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                names[item.id]?.let { box -> HomeLabel(name, box, item.labelStyle(settings.labels), homeInk, iconAccent,
+                    Modifier.graphicsLayer { alpha = if (dragging) 0f else quiet }.clearAndSetSemantics {}) }
                 Box(Modifier.centerAt(p.x.dp, p.y.dp).size(maxOf(CrystalDims.touch, iconDp + 8.dp)).graphicsLayer { alpha = if (dragging) 0f else quiet }
                     .clip(CircleShape)
                     .pointerInput(item.id) {
@@ -728,9 +687,8 @@ private fun Home(
                             CustomAccessibilityAction(removeLabel) { open().remove(item.id); refresh(); true },
                         )
                     }, contentAlignment = Alignment.Center) {
-                    // No backing (4.3): system or icon-pack icons as they are; monochrome tinted fg.
-                    if (app != null) AppIcon(app, Modifier.size(iconDp), tint = homeInk)
-                    else HomeGlyph(Glyph.Flow, null, tint = homeInk, size = iconDp * .7f)
+                    // No backing (4.3): system or icon-pack icons as they are; monochrome tinted fg. Own style, colour, opacity (S2).
+                    HomeIconFace(app, look, homeInk, iconAccent)
                 }
             }
         }
@@ -930,7 +888,7 @@ private fun Home(
                     }
                     else -> ed.pointOf(sel)?.let { c ->
                         val r = sel.iconDp(iconDefault) / 2f + 6f
-                        Zone(c.x - r, c.y - r, c.x + r, c.y + r + if (sel.label) 20f else 0f)
+                        Zone(c.x - r, c.y - r, c.x + r, c.y + r + if (sel.labelShown(settings.labels)) 20f else 0f)
                     }
                 }
                 
@@ -972,7 +930,7 @@ private fun Home(
                         ItemKind.Lens -> LensInspector(ed, sel, dock, onChange = ::refresh)
                         else -> {
                             val app = apps[sel.target]
-                            ItemInspector(ed, sel, iconDefault,
+                            ItemInspector(ed, sel, settings,
                                 onMore = app?.let { a -> { onOptions(a) } }, onRemoved = { selected = null }, onChange = ::refresh)
                         }
                     }
@@ -1046,24 +1004,6 @@ private const val LENS_A11Y_STEP = 24f
 
 /** Room under the editor bar for the name of what is edited, dp. */
 private const val EDIT_LABEL = 8f
-/** Where the clock and free text start below the status bar, dp: right under it (the editor bar floats over). */
-private const val TEXT_TOP = 0f
-/** How close the clock and free text may come to the screen's side edges, dp. */
-private const val TEXT_EDGE = 12f
-
-/**
- * Places a clock or an unpinned date so that its centre sits at [fx] across the editor's area, the very point
- * the editor drags, so the text follows the finger one to one; it is kept whole [margin] dp inside the screen
- * (fx 0 and 1 still mean flush left and right, 0.5 centred).
- */
-private fun Modifier.atFx(fx: Float, areaLeft: Float, areaW: Float, margin: Float) = layout { m, c ->
-    val edge = margin.dp.roundToPx()
-    val w = c.maxWidth
-    val p = m.measure(c.copy(minWidth = 0, maxWidth = (w - 2 * edge).coerceAtLeast(0)))
-    val centre = (areaLeft + fx * areaW).dp.roundToPx()
-    layout(w, p.height) { p.place((centre - p.width / 2).coerceIn(edge, maxOf(edge, w - edge - p.width)), 0) }
-}
-
 /** Opacity of the date on a plate: full, as the dark Veil over a white wallpaper has no margin below it (VeilTest). */
 internal const val PLATE_TEXT_ALPHA = 1f
 

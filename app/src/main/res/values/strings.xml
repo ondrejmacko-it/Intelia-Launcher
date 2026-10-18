@@ -139,7 +139,7 @@
     <string name="studio_home_sub">%1$s · edited right on Home</string>
     <string name="studio_flow_sub">Commands: %1$d · in ARC: %2$d</string>
     <string name="studio_hidden_sub">Hidden apps: %1$d</string>
-    <string name="studio_kw_icons">style shape colour mono tinted veil circle squircle size bigger labels names</string>
+    <string name="studio_kw_icons">style shape colour mono tinted veil circle squircle size bigger labels names font alignment lines opacity</string>
     <string name="studio_kw_material">material glass veil crystal frost drop matte density edge blur</string>
     <string name="studio_kw_wallpaper">background dim system wallpaper ocean night</string>
     <string name="studio_kw_theme">dark light mode night</string>
@@ -681,4 +681,12 @@
     <string name="studio_sheet_handle">Sheet handle</string>
     <string name="studio_sheet_more_preview">Larger preview</string>
     <string name="studio_sheet_more_settings">More settings</string>
+    <string name="labels_title">Label</string>
+    <string name="labels_note">Long names wrap to the chosen lines; with no room under an icon its name goes above it.</string>
+    <string name="label_size">Text size</string>
+    <string name="label_font">Font</string>
+    <string name="label_align">Alignment</string>
+    <string name="label_gap">Gap to the icon</string>
+    <string name="label_lines">Lines</string>
+    <string name="icon_look">Icon look</string>
 </resources>

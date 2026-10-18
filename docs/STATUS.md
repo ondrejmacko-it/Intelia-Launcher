@@ -2,6 +2,34 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — UX stabilisation S2: faithful Home preview, icon and label defaults with exceptions (`feat/control-system-v1`)
+- Reproduced on the phone (Lab, owner's layout "Moje plocha", 64 dp icons): (1) Studio's miniature was a separate
+  sketch — a fixed 26 dp Row that overflowed with a 96 dp icon and squeezed the last icon (Chrome tiny), no names, no
+  grid/free icons, its own spacing; (2) a name was centred 12 dp under the icon, so on the LENS row it fell onto the
+  gesture bar and larger text grew up into the icon; width fixed at 76 dp, one line; (3) the LENS row kept its 46/62 dp
+  steps for any icon size, so 96 dp icons overlapped their neighbours; (4) a LENS-row name above its icon could
+  run into the name of an icon above (found after fix 2, fixed).
+- Fix: `ui/HomeScene.kt` = one renderer for Home and Studio: `HomeText` (clock + bound/free date, moved out of
+  `HomeRoot`), `HomeIconFace`, `HomeLabel`, `homeLabels`; `HomeMiniature` lays Home out at the window's real size
+  with the same `HomeGeometry`, insets, Dock/LENS spot and scales it as one picture. `labelBoxes` (pure, replaces
+  `labelWidths`): top-anchored names, wrap to the lines that fit, clear of neighbours, LENS, edges, the nav bar and
+  other names; no room below → above; no room → hidden. `HomeGeometry.rowIcon` widens the LENS row for big icons and
+  keeps every disc on screen. `HomeSketch` removed.
+- Model (schema 3, `data/HomeLook.kt`): global `LauncherSettings.labels` (`LabelStyle`: show, size, face, weight,
+  colour, alignment, gap, lines), `iconTint`, `iconAlpha`; per item `HomeItem.label` (Boolean?, null = global),
+  `labelLook` (`LabelOverride`), `icon` (`IconOverride`: style, shape, colour, opacity); size stays `sizeDp`, position
+  stays the item's anchor. Migration in `sanitized()`: global "show" = every icon of the active layout had its name;
+  equal per-item flags become null. UI: Vzhled › Ikony (colour, opacity, labels switch + label controls) and the
+  editor card (Vzhled ikony, Popisek with Globální / Vlastní ↺ chips, `ItemProp.Label/LabelLook/Icon`).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleLab` (216 tests, 0 failures;
+  new label layout, row width, migration, bounds and JSON round-trip tests; `HomeSketchTest` removed with the sketch).
+- Phone (Lab `install -r`), verified: 96 dp Telefon on the LENS row stays whole, its name goes above it, Studio's
+  Vzhled preview shows the same; global labels on → Home and preview both show the four names under the row above
+  the gesture bar; editor: grid item "All Document Reader" with 2 lines at 130 % text wraps and the LENS-row name
+  stays clear. Owner's state restored afterwards (Telefon size/label back to global, text 100 %, labels off).
+- NOT verified: free / grid placements with many labelled neighbours, side-edge LENS row, 150 % system font, TalkBack
+  on the new controls, light theme, onboarding preview (unchanged legacy sketch).
+
 ## 2026-10-18 — UX stabilisation S0 + S1: Studio back stack and draggable sheet (`feat/control-system-v1`)
 - S0: local commits `d962d83`, `6844976`, `4169c70` built and tested (PASS), pushed to `feat/control-system-v1`.
   Causes found in code / screenshots: (1) `Studio.up()` used fixed parents, so PULSE, ARC and Gesta opened from the main

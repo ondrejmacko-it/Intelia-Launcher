@@ -18,14 +18,20 @@ enum class ItemProp(val key: String) {
     /** Clock: the face's own weight. */
     Weight("weight"),
     /** Clock and date: the ink taken from the wallpaper. */
-    Tint("tint");
+    Tint("tint"),
+    /** S2, app and FLOW: whether the name shows follows Vzhled › Ikony › Popisky. */
+    Label("label"),
+    /** S2, app and FLOW: the name's size, font, colour, alignment, gap and lines. */
+    LabelLook("labelLook"),
+    /** S2, app and FLOW: icon style, shape, colour and opacity. */
+    Icon("icon");
 
     /** Undo key of a return to the global value: its own step, never merged with the slider drag before it. */
     val inheritKey: String get() = "$key/inherit"
 
     /** Where the global value is set, for the label's spoken hint; null = the element kind's default. */
     fun source(kind: ItemKind): StudioTarget? = when {
-        this == Size && (kind == ItemKind.App || kind == ItemKind.Flow) -> StudioTarget.Icons
+        (this == Size || this == Label || this == LabelLook || this == Icon) && (kind == ItemKind.App || kind == ItemKind.Flow) -> StudioTarget.Icons
         else -> null
     }
 
@@ -35,6 +41,9 @@ enum class ItemProp(val key: String) {
         Font -> item.look.face != TypeFace.Style || (item.kind == ItemKind.Clock && item.style.isNotEmpty())
         Weight -> item.weight != 0
         Tint -> item.tint.isNotEmpty()
+        Label -> item.label != null
+        LabelLook -> item.labelLook != null
+        Icon -> item.icon != null
     }
 
     /** [item] with this property following the global value again; everything else unchanged. */
@@ -43,6 +52,9 @@ enum class ItemProp(val key: String) {
         Font -> item.copy(look = item.look.copy(face = TypeFace.Style), style = if (item.kind == ItemKind.Clock) "" else item.style)
         Weight -> item.copy(weight = 0)
         Tint -> item.copy(tint = "")
+        Label -> item.copy(label = null)
+        LabelLook -> item.copy(labelLook = null)
+        Icon -> item.copy(icon = null)
     }
 }
 

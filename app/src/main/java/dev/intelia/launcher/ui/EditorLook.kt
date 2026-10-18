@@ -1,5 +1,9 @@
 package dev.intelia.launcher.ui
 
+import kotlin.math.roundToInt
+import dev.intelia.launcher.data.iconLook
+import dev.intelia.launcher.data.IconOverride
+import dev.intelia.launcher.data.HomeItem
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import dev.intelia.launcher.pulse.MediaWatch
@@ -113,11 +117,24 @@ fun lookFoldTitle(target: StudioTarget): String? = when (target) {
 @Composable
 fun IconSettings(settings: LauncherSettings, set: SettingsEdit) {
     IconStyleChips(settings, set)
-    SettingBlock { AllIconsSize(settings, set) }
-    val icons = settings.home.activeLayout().items.filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
-    SwitchRow(stringResource(R.string.look_labels), icons.isNotEmpty() && icons.all { it.label }, { on ->
-        set { it.copy(home = it.home.withIcons { i -> i.copy(label = on) }) }
-    })
+    SettingBlock {
+        AllIconsSize(settings, set)
+        // S2: colour and opacity of every Home icon (style and shape are chosen above, for the whole launcher).
+        val global = HomeItem("", ItemKind.App).iconLook(settings)
+        if (settings.iconStyle != IconStyle.System) {
+            Kick(stringResource(R.string.inspect_color))
+            IconTintChips(global.tint) { v -> set { it.copy(iconTint = v) } }
+        }
+        val pct = (settings.iconAlpha * 100).roundToInt()
+        SliderRow(stringResource(R.string.inspect_opacity), pct.toFloat(), IconOverride.MIN_ALPHA * 100, 100f, 5f, "$pct %") { v ->
+            set { it.copy(iconAlpha = v / 100f) }
+        }
+    }
+    // The switch sets the default and drops each icon's own choice, so all of them really follow it, as the size does.
+    SwitchRow(stringResource(R.string.look_labels), settings.labels.show, { on ->
+        set { it.copy(labels = it.labels.copy(show = on), home = it.home.withIcons { i -> i.copy(label = null) }) }
+    }, detail = stringResource(R.string.labels_note))
+    if (settings.labels.show) SettingBlock { LabelStyleControls(settings.labels) { v -> set { it.copy(labels = v.sanitized()) } } }
 }
 
 /** The look of the whole launcher in one place, Settings › Vzhled: theme and colours, material, wallpaper, text, icons. */

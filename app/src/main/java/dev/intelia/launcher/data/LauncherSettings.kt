@@ -150,6 +150,12 @@ data class LauncherSettings(
     val iconSize: Int = 40,
     /** Outline of the icon disc in the Veil and Tinted styles. */
     val iconShape: IconShape = IconShape.Circle,
+    /** S2: default glyph colour of Home icons, one of [ItemTint]; empty = the wallpaper ink. An item's own wins. */
+    val iconTint: String = "",
+    /** S2: default opacity of Home icons, [IconOverride.MIN_ALPHA]..1. */
+    val iconAlpha: Float = 1f,
+    /** S2: default look of the names under Home icons; an item overrides single properties. */
+    val labels: LabelStyle = LabelStyle(),
     /** Home layouts (schema 2, §5.4); built from the legacy fields above by [sanitized] on migration. */
     val home: HomeLayouts = HomeLayouts(),
     /** Per-place colours; absent in older documents = unified (one accent everywhere). */
@@ -172,7 +178,7 @@ data class LauncherSettings(
     val controls: Controls get() = controlConfig ?: Controls.migrate(arc, arcFlows, arcShortcuts, arcRings)
 
     companion object {
-        const val SCHEMA = 2
+        const val SCHEMA = 3
 
         /** Settings of a new install: current schema and the Crystal defaults (accent, clock). */
         fun fresh() = LauncherSettings(accent = Accent.Frost, clockStyle = ClockStyle.Crystal, schema = SCHEMA).sanitized()
@@ -226,6 +232,9 @@ data class LauncherSettings(
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
             veilShift = veilShift.coerceIn(-MAX_VEIL_SHIFT, MAX_VEIL_SHIFT),
             iconSize = iconSize.coerceIn(MIN_ICON, MAX_ICON),
+            iconTint = iconTint.takeIf { t -> ItemTint.entries.any { it.name == t } }.orEmpty(),
+            iconAlpha = if (iconAlpha.isFinite()) iconAlpha.coerceIn(IconOverride.MIN_ALPHA, 1f) else 1f,
+            labels = migratedLabels().sanitized(),
             wallpaper = wallpaper.takeIf { Wallpapers.byId(it) != null }.orEmpty(),
             wallDim = wallDim.coerceIn(0, Wallpapers.maxDim(Wallpapers.byId(wallpaper))),
             editorCard = editorCard?.takeIf { f -> listOfNotNull(f.x, f.y, f.w, f.h).all(Float::isFinite) }?.let { f ->
@@ -235,7 +244,17 @@ data class LauncherSettings(
             reduceMotion = false,
             // 0 → 1: nothing to rewrite; an existing user's accent (Terracotta when absent) is kept as is.
             schema = SCHEMA,
-        ).let { it.copy(home = sanitizeHome(it)) }
+        ).let { it.copy(home = sanitizeHome(it, schema)) }
+    }
+
+    /**
+     * 2 → 3: the label switch was per icon only. The global default becomes "on" when every icon of the active layout
+     * had its name, so a Home with all names on keeps them without an exception on each item.
+     */
+    private fun migratedLabels(): LabelStyle {
+        if (schema >= 3) return labels
+        val icons = home.layouts.firstOrNull { it.id == home.active }?.items.orEmpty().filter { it.kind == ItemKind.App || it.kind == ItemKind.Flow }
+        return labels.copy(show = icons.isNotEmpty() && icons.all { it.label == true })
     }
 
     /**
@@ -243,19 +262,20 @@ data class LauncherSettings(
      * Afterwards the linked layout is always rebuilt from them; user layouts are bounded and clamped, never dropped
      * for a single bad item.
      */
-    private fun sanitizeHome(s: LauncherSettings): HomeLayouts {
+    private fun sanitizeHome(s: LauncherSettings, from: Int): HomeLayouts {
         val ids = HashSet<String>()
         val user = home.layouts.asSequence()
             .filter { !it.linked && validKey(it.id) && it.id != HomeLayouts.LINKED_ID && ids.add(it.id) }
             .take(HomeLayouts.MAX_LAYOUTS - 1)
-            .map(::sanitizeLayout)
+            .map { sanitizeLayout(it, if (from < 3) s.labels.show else null) }
             .toList()
         val layouts = listOf(HomeTemplates.linked(s)) + user
         val active = home.active.takeIf { id -> layouts.any { it.id == id } } ?: HomeLayouts.LINKED_ID
         return HomeLayouts(active, layouts)
     }
 
-    private fun sanitizeLayout(l: LayoutSpec): LayoutSpec {
+    /** [labelsFrom]: set when migrating from schema 2, the new global default; a stored label equal to it is dropped. */
+    private fun sanitizeLayout(l: LayoutSpec, labelsFrom: Boolean?): LayoutSpec {
         val grid = GridSpec(l.grid.cols.coerceIn(3, 6), l.grid.rows.coerceIn(4, 8))
         val ids = HashSet<String>()
         val singles = HashSet<ItemKind>()
@@ -268,6 +288,7 @@ data class LauncherSettings(
             .filter { it.anchor.type != AnchorType.LensRow || slots.add(it.anchor.slot) }
             .take(HomeLayouts.MAX_ITEMS)
             .map(::sanitizeLook)
+            .map { if (labelsFrom != null && it.label != null) it.copy(label = (it.label == true).takeIf { on -> on != labelsFrom }) else it }
             .toMutableList()
         if (ItemKind.Lens !in singles) items.add(0, HomeItem("lens", ItemKind.Lens, Anchor(AnchorType.Lens, dx = reach.dx)))
         val name = l.name.filterNot(Char::isISOControl).trim().take(HomeLayouts.MAX_NAME).ifEmpty { HomeTemplates.DEFAULT_NAME }
@@ -289,6 +310,9 @@ data class LauncherSettings(
             weight = if (it.kind != ItemKind.Clock || it.weight == 0) 0 else it.weight.coerceIn(100, 900),
             tint = it.tint.takeIf { t -> ItemTint.entries.any { e -> e.name == t } }.orEmpty(),
             alpha = if (it.alpha.isFinite()) it.alpha.coerceIn(.3f, 1f) else 1f,
+            label = it.label.takeIf { _ -> it.kind == ItemKind.App || it.kind == ItemKind.Flow },
+            labelLook = it.labelLook?.takeIf { _ -> it.kind == ItemKind.App || it.kind == ItemKind.Flow }?.sanitized(),
+            icon = it.icon?.takeIf { _ -> it.kind == ItemKind.App || it.kind == ItemKind.Flow }?.sanitized(),
             background = if ((it.kind == ItemKind.Clock || it.kind == ItemKind.Date) && it.background != ClockBackground.None.name &&
                 ClockBackground.entries.any { b -> b.name == it.background }) it.background else "",
             look = if (it.kind == ItemKind.Clock || it.kind == ItemKind.Date) it.look.let { l ->
