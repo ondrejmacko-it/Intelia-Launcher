@@ -600,4 +600,10 @@
     <string name="pick_find">Find an app, FLOW or action</string>
     <string name="pick_everywhere">works outside Home too</string>
     <string name="pick_home_only">Home only</string>
+    <string name="pulse_music_listener">Intelia PULSE music</string>
+    <string name="pulse_music">Show what is playing</string>
+    <string name="pulse_music_needs_access">Android asks for notification access. Intelia uses it only to see the playing media session; no notification is read or stored.</string>
+    <string name="pulse_music_open_settings">Open notification access</string>
+    <string name="pulse_seek">Position</string>
+    <string name="pulse_music_now">Now playing</string>
 </resources>

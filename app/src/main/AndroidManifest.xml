@@ -71,5 +71,16 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/pulse_accessibility" />
         </service>
+        <!-- Music PULSE (D21): notification access only so the active media sessions can be read; no notification
+             is read or stored. Off until the owner switches it on in Android's notification-access settings. -->
+        <service
+            android:name=".pulse.PulseMediaListener"
+            android:exported="true"
+            android:label="@string/pulse_music_listener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

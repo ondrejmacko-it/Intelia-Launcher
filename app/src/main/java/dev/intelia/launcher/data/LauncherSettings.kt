@@ -130,6 +130,8 @@ data class LauncherSettings(
     val pulseEcho: Boolean = true,
     val pulseAlarm: Boolean = true,
     val pulseCharging: Boolean = true,
+    /** M3.2 (D21): show the playing media session; needs the owner's notification-access switch. Off by default. */
+    val pulseMusic: Boolean = false,
     /** How close an alarm must be, in hours, before the capsule shows it. */
     val pulseAlarmHours: Int = 12,
     /** Capsule background opacity in percent; text stays opaque. */

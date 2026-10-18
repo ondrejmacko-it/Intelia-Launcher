@@ -103,6 +103,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dev.intelia.launcher.InteliaApp
 import dev.intelia.launcher.R
+import dev.intelia.launcher.pulse.MediaWatch
 import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.action.ActionResult
 import dev.intelia.launcher.action.Gesture
@@ -144,6 +145,10 @@ class PulseAccessibilityService : AccessibilityService() {
     private var locked = false
     private var screenReceiver: BroadcastReceiver? = null
     private var note: View? = null
+    /** M3.2 compact music window (not touchable; the lens target under it takes the touches) and its owner. */
+    private var music: View? = null
+    private var musicOwner: OverlayOwner? = null
+    private var watching = false
     /** D20 key remap: only key codes and timers, nothing about what is typed; see [KeyRemap]. */
     private val remap = KeyRemap { code, g -> controls().bound(Trigger.Key(code, g)) != null }
     private val keyTimers = HashMap<Int, Runnable>()
@@ -173,9 +178,10 @@ class PulseAccessibilityService : AccessibilityService() {
         // Event driven: the lens follows the owner's mode (Off / Home / Everywhere), no polling.
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { s ->
             s.launch {
-                (application as InteliaApp).settings.state.map { it.pulseMode() == PulseMode.Everywhere }.distinctUntilChanged()
+                (application as InteliaApp).settings.state.map { (it.pulseMode() == PulseMode.Everywhere) to it.pulseMusic }.distinctUntilChanged()
                     .collect { updateLens() }
             }
+            s.launch { MediaWatch.now.collect { showMusic() } }
         }
         relayout = { main.post { if (lens != null) placeLens() } }
         applyKeyFilter()
@@ -270,6 +276,7 @@ class PulseAccessibilityService : AccessibilityService() {
 
     private fun tearDown() {
         closeMenu()
+        watch(false)
         hideNote()
         lens?.let { runCatching { windows.removeView(it) } }
         lens = null
@@ -283,8 +290,12 @@ class PulseAccessibilityService : AccessibilityService() {
         host?.let { h -> getSystemService(CameraManager::class.java)?.unregisterTorchCallback(h.torchCallback) }
         host = null
         relayout = null
-        _running.value = false
-        if (instance === this) instance = null
+        // A rebind after an update can connect the new instance before the old one is destroyed; only the current
+        // instance may report the service gone, or Studio would say "off" while the lens runs.
+        if (instance === this) {
+            instance = null
+            _running.value = false
+        }
     }
 
     private val dp get() = resources.displayMetrics.density
@@ -336,7 +347,51 @@ class PulseAccessibilityService : AccessibilityService() {
 
     /** The lens target exists only in Everywhere mode with the phone unlocked; otherwise there is no overlay at all. */
     private fun updateLens() {
-        if ((application as InteliaApp).settings.state.value.pulseMode() == PulseMode.Everywhere && !locked) placeLens() else removeLens()
+        val settings = (application as InteliaApp).settings.state.value
+        val everywhere = settings.pulseMode() == PulseMode.Everywhere && !locked
+        if (everywhere) placeLens() else removeLens()
+        watch(everywhere && settings.pulseMusic)
+    }
+
+    /** M3.2: the media session is watched only while the compact capsule can show (Everywhere, unlocked, music on). */
+    private fun watch(on: Boolean) {
+        if (on != watching) {
+            watching = on
+            if (on) MediaWatch.acquire(this) else MediaWatch.release()
+        }
+        showMusic()
+    }
+
+    private fun showMusic() {
+        val shown = MediaWatch.now.value?.takeIf { watching && it.info.visible && menu == null }
+        if (shown == null) {
+            music?.let { runCatching { windows.removeView(it) } }
+            musicOwner?.stop()
+            music = null
+            musicOwner = null
+            return
+        }
+        if (music != null) return // the ComposeView follows MediaWatch by itself
+        val h = hole()
+        val mc = musicCapsule(h.x / dp, h.y / dp, h.radius / dp, statusBarPx() / dp)
+        val o = OverlayOwner().also { it.start() }
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(o)
+            setViewTreeSavedStateRegistryOwner(o)
+            setContent {
+                val settings by (application as InteliaApp).settings.state.collectAsState()
+                val now by MediaWatch.now.collectAsState()
+                InteliaTheme(settings) { now?.let { MusicCompact(it, mc, h.radius, settings.pulseOpacity, null) } }
+            }
+        }
+        val params = overlay((mc.width * dp).toInt(), (mc.height * dp).toInt(), focusable = false).apply {
+            x = (mc.left * dp).toInt(); y = (mc.top * dp).toInt()
+            flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            title = "Intelia PULSE music"
+        }
+        windows.addView(view, params)
+        music = view
+        musicOwner = o
     }
 
     private fun removeLens() {
@@ -487,13 +542,14 @@ class PulseAccessibilityService : AccessibilityService() {
             setContent {
                 val settings by (application as InteliaApp).settings.state.collectAsState()
                 InteliaTheme(settings) {
-                    PulseMenuSheet(hole, statusBar, width, ::act, ::open, ::closeMenu)
+                    PulseMenuSheet(hole, statusBar, width, settings.pulseMusic, ::act, ::open, ::closeMenu)
                 }
             }
         })
         windows.addView(root, overlay(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, focusable = true))
         menu = root
         owner = o
+        showMusic()
     }
 
     private fun closeMenu() {
@@ -501,6 +557,7 @@ class PulseAccessibilityService : AccessibilityService() {
         owner?.stop()
         menu = null
         owner = null
+        if (watching) showMusic()
     }
 
     private fun act(action: PulseAction) {
@@ -617,7 +674,7 @@ private val PulseLink.label: Int get() = when (this) {
 /** The menu: a dark sheet that grows out of the lens; everything outside it closes. */
 @Composable
 private fun PulseMenuSheet(
-    hole: Hole, statusBar: Float, screenWidth: Float,
+    hole: Hole, statusBar: Float, screenWidth: Float, musicOn: Boolean,
     onAction: (PulseAction) -> Unit, onOpen: (Intent) -> Unit, onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -676,6 +733,9 @@ private fun PulseMenuSheet(
             Column(Modifier.width(with(density) { width.toDp() }).clip(RoundedCornerShape(30.dp)).background(ink.night)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }) {
                 Column(Modifier.padding(start = 20.dp, top = 8.dp, end = 14.dp, bottom = 10.dp)) {
+                    // M3.2: the followed session first, with its own controls; without it the media keys row stays below.
+                    val now = rememberPlaying(musicOn)?.takeIf { it.info.visible }
+                    now?.let { MusicCard(it) }
                     val zone = ZoneId.systemDefault()
                     val alarmText = alarm?.let {
                         val at = Instant.ofEpochMilli(it).atZone(zone)
@@ -691,7 +751,7 @@ private fun PulseMenuSheet(
                     battery?.let {
                         PanelRow(Glyph.Bolt, "${it.percent} %", stringResource(if (it.charging) R.string.charging else R.string.on_battery), onClick = null)
                     }
-                    MediaRow(playing) { code ->
+                    if (now == null) MediaRow(playing) { code ->
                         val now = SystemClock.uptimeMillis()
                         audio?.dispatchMediaKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0))
                         audio?.dispatchMediaKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0))

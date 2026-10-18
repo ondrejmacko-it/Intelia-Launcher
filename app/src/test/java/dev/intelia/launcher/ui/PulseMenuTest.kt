@@ -64,3 +64,15 @@ class PulseMenuTest {
         assertEquals(1f, volumeFraction(12, 10), 0.001f)
     }
 }
+
+class MusicCapsuleTest {
+    @org.junit.Test fun barsLeftArtRightLensKept() {
+        val rest = restCapsule(200f, 14f, 9f, 32f, mark = false)
+        val m = musicCapsule(200f, 14f, 9f, 32f)
+        org.junit.Assert.assertEquals(rest.height, m.height, 0f)
+        org.junit.Assert.assertEquals(rest.top, m.top, 0f)
+        org.junit.Assert.assertEquals(200f, m.left + m.lensX, 0.001f)
+        org.junit.Assert.assertEquals(m.left + m.width - m.height / 2f, m.left + m.artX, 0.001f)
+        org.junit.Assert.assertTrue(m.top >= 0f && m.top + m.height <= 32f)
+    }
+}

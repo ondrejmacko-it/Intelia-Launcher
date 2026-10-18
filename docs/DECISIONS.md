@@ -297,3 +297,14 @@ The owner asked for remapping "like Essential Key Remap", also outside Intelia. 
 - With the screen off (not interactive) every key passes; screen-off gestures are not offered.
 - Unbound presses of a taken key keep their job (volume step, media key); with only a double press bound a single
   press acts one double-tap timeout later.
+
+## D21 — 2026-10-18 — APPROVED by the owner: notification access for Music PULSE (M3.2)
+The owner approved a `NotificationListenerService` (`pulse.PulseMediaListener`) for one purpose only: Android allows
+`MediaSessionManager.getActiveSessions` only to an enabled listener. Scope:
+- The listener has no code beyond telling `MediaWatch` it was bound; no notification is read, logged or stored.
+- Off twice by default: Studio › PULSE › „Ukázat, co hraje“ (`pulseMusic`, default false) and Android's notification
+  access, which only the owner switches on (Intelia opens the page, never toggles it).
+- Event driven: active-sessions listener + `MediaController.Callback`, no polling. Watched only while it can show:
+  Home while started (Jen na ploše), the PULSE service while Všude + unlocked + music on.
+- Controls exist only for actions the session reports (prev / play-pause / next, seek only with `ACTION_SEEK_TO`).
+- Accepted side effect: an enabled listener stays bound by the system, which keeps Intelia's process alive.

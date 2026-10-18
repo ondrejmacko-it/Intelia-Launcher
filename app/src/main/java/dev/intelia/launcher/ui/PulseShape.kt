@@ -32,3 +32,19 @@ internal fun restCapsule(holeX: Float, holeY: Float, holeR: Float, statusBar: Fl
     val top = (holeY - height / 2f).let { if (statusBar >= height) it.coerceIn(0f, statusBar - height) else it }
     return PulseCapsule(holeX - height / 2f, top, height + if (mark) MARK else 0f, height)
 }
+
+internal const val BARS = 22f
+
+/**
+ * M3.2 compact music capsule in dp: the rest disc around the lens, [BARS] of sound bars on its left and a round
+ * artwork as wide as the capsule is tall on its right. [lensX] is the lens centre from the capsule's left edge.
+ */
+internal data class MusicCapsule(val left: Float, val top: Float, val width: Float, val height: Float) {
+    val lensX: Float get() = BARS + height / 2f
+    val artX: Float get() = width - height / 2f
+}
+
+internal fun musicCapsule(holeX: Float, holeY: Float, holeR: Float, statusBar: Float): MusicCapsule {
+    val rest = restCapsule(holeX, holeY, holeR, statusBar, mark = false)
+    return MusicCapsule(rest.left - BARS, rest.top, BARS + 2f * rest.height, rest.height)
+}

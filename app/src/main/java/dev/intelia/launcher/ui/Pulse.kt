@@ -65,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
@@ -96,6 +97,7 @@ import dev.intelia.launcher.action.Trigger
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
 import dev.intelia.launcher.data.PulseLens
+import dev.intelia.launcher.pulse.Playing
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -196,6 +198,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
     var expanded by remember { mutableStateOf(false) }
     val global by PulseAccessibilityService.running.collectAsState()
     val echo = remember { Animatable(1f) }
+    var started by remember { mutableStateOf(false) }
 
     LifecycleStartEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
@@ -209,7 +212,8 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED).apply { addAction(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED) }
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)?.battery()?.let { battery = it }
         alarm = nextAlarm(context)
-        onStopOrDispose { context.unregisterReceiver(receiver); expanded = false }
+        started = true
+        onStopOrDispose { context.unregisterReceiver(receiver); expanded = false; started = false }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
         if (!preview && motion != Motion.Off && settings.pulseEcho) scope.launch { echo.snapTo(0f); echo.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
@@ -227,8 +231,12 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("H:mm"))) },
     ).joinToString(", ")
     val statusBar = with(density) { WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp().value }
+    // M3.2: with PULSE everywhere on and the service running, the service shows the music; Home only while it owns the lens.
+    val owns = !(global && settings.pulseEverywhere)
+    val music = rememberPlaying(!preview && started && owns && settings.pulseMusic)?.takeIf { it.info.visible }
 
-    Box(modifier.fillMaxSize()) {
+    // Home draws its content after PULSE; while expanded the panel (and its close layer) must sit above it.
+    Box(modifier.zIndex(if (expanded) 1f else 0f).fillMaxSize()) {
         val hx = with(density) { h.x.toDp() }
         val hy = with(density) { h.y.toDp() }
         val hr = with(density) { h.radius.toDp() }
@@ -247,7 +255,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         // At rest (D8): a disc around the lens inside the status bar, no wider than the cut-out plus one dot,
         // so it never covers status icons and repeats nothing the system already shows.
         val capsule = restCapsule(hx.value, hy.value, hr.value, statusBar, rest.alarmMark)
-        AnimatedVisibility(rest.visible && !expanded, Modifier.offset(x = capsule.left.dp, y = capsule.top.dp),
+        AnimatedVisibility(rest.visible && music == null && !expanded, Modifier.offset(x = capsule.left.dp, y = capsule.top.dp),
             enter = fadeIn(tween(motionMs(200))) + expandIn(tween(motionMs(260)), expandFrom = Alignment.CenterStart),
             exit = fadeOut(tween(motionMs(160))) + shrinkOut(tween(motionMs(200)), shrinkTowards = Alignment.CenterStart)) {
             Canvas(Modifier.size(capsule.width.dp, capsule.height.dp).clip(RoundedCornerShape(50))
@@ -260,6 +268,15 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
                     Size(2 * r, 2 * r), style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
                 if (rest.alarmMark) drawCircle(ink.accent, 2.5.dp.toPx(), Offset(capsule.markX.dp.toPx(), size.height / 2f))
             }
+        }
+
+        // Compact music (M3.2): bars on the left (moving only while playing), the round artwork on the right.
+        val mc = musicCapsule(hx.value, hy.value, hr.value, statusBar)
+        AnimatedVisibility(music != null && !expanded, Modifier.offset(x = mc.left.dp, y = mc.top.dp),
+            enter = fadeIn(tween(motionMs(200))) + expandIn(tween(motionMs(260)), expandFrom = Alignment.Center),
+            exit = fadeOut(tween(motionMs(160))) + shrinkOut(tween(motionMs(200)), shrinkTowards = Alignment.Center)) {
+            val shown = music ?: return@AnimatedVisibility
+            MusicCompact(shown, mc, h.radius, settings.pulseOpacity, battery?.percent?.takeIf { rest.gauge })
         }
 
         // Touch target on the lens. The status bar window takes touches inside it, so the target also reaches
@@ -280,15 +297,19 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         val swipes = extras.any { it in PULSE_SWIPES }
         val tap = { if (!onGesture(Gesture.Tap)) expanded = true }
         // With PULSE everywhere on (D9) and the service running, the service owns the lens; Lab draws no second target.
-        if (!preview && !expanded && !(global && settings.pulseEverywhere)) Box(Modifier.offset(x = hx - 32.dp, y = targetTop)
-            .size(64.dp, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
+        // With music shown the whole capsule is the target, so a tap on the artwork opens the panel too.
+        val targetLeft = if (music != null) minOf(hx - 32.dp, mc.left.dp) else hx - 32.dp
+        val targetWidth = if (music != null) maxOf(hx + 32.dp, (mc.left + mc.width).dp) - targetLeft else 64.dp
+        if (!preview && !expanded && owns) Box(Modifier.offset(x = targetLeft, y = targetTop)
+            .size(targetWidth, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
             // M3.1: one recognizer for every capsule gesture (shared with the PULSE service); a shorter gesture
             // waits only while a longer bound one can still follow.
             .pulseTouch(bound, swipes) { g -> if (g == Gesture.Tap) tap() else onGesture(g) }
             .semantics {
                 role = Role.Button
                 contentDescription = label
-                if (restState.isNotEmpty()) stateDescription = restState
+                val playingState = music?.info?.let { i -> listOf(i.title, i.artist).filter(String::isNotEmpty).joinToString(" – ") }.orEmpty()
+                listOf(restState, playingState).filter(String::isNotEmpty).joinToString(", ").takeIf { it.isNotEmpty() }?.let { stateDescription = it }
                 onClick(label) { tap(); true }
                 if (hold) onLongClick(holdLabel) { onGesture(Gesture.Hold) }
                 // TalkBack has no double tap or swipe of its own; bound ones are offered as custom actions.
@@ -301,13 +322,13 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         AnimatedVisibility(expanded, Modifier.fillMaxWidth().padding(horizontal = 12.dp).offset(y = panelTop),
             enter = fadeIn(tween(motionMs(160))) + expandIn(tween(motionMs(300)), expandFrom = Alignment.TopCenter),
             exit = fadeOut(tween(motionMs(140))) + shrinkOut(tween(motionMs(220)), shrinkTowards = Alignment.TopCenter)) {
-            PulsePanel(alarm, battery, hr, maxOf(hr * 2 + 18.dp, statusBar.dp - panelTop), onClose = { expanded = false })
+            PulsePanel(music, alarm, battery, hr, maxOf(hr * 2 + 18.dp, statusBar.dp - panelTop), onClose = { expanded = false })
         }
     }
 }
 
 @Composable
-private fun PulsePanel(alarm: Long?, battery: Battery?, holeRadius: Dp, header: Dp, onClose: () -> Unit) {
+private fun PulsePanel(music: Playing?, alarm: Long?, battery: Battery?, holeRadius: Dp, header: Dp, onClose: () -> Unit) {
     val context = LocalContext.current
     val ink = LocalInk.current
     val manager = remember(context) { context.getSystemService(CameraManager::class.java) }
@@ -329,6 +350,7 @@ private fun PulsePanel(alarm: Long?, battery: Battery?, holeRadius: Dp, header: 
             drawCircle(ink.onNight.copy(alpha = .18f), holeRadius.toPx() + 4.dp.toPx(), Offset(size.width / 2f - 4.dp.toPx(), holeRadius.toPx() + 6.dp.toPx()),
                 style = Stroke(1.dp.toPx()))
         })
+        music?.let { MusicCard(it) }
         val alarmRow = alarm?.let {
             val at = Instant.ofEpochMilli(it).atZone(zone)
             val day = when (at.toLocalDate()) {

@@ -1,5 +1,10 @@
 package dev.intelia.launcher.ui
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import dev.intelia.launcher.pulse.MediaWatch
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import dev.intelia.launcher.pulse.PulseMode
@@ -270,6 +275,17 @@ fun PulseInspector(settings: LauncherSettings, set: SettingsEdit, onLens: () -> 
         if (settings.pulseAlarm) Chips(listOf(3 to "3 h", 6 to "6 h", 12 to "12 h", 24 to "24 h"), settings.pulseAlarmHours) { v ->
             set { it.copy(pulseAlarmHours = v) }
         }
+    }
+    // M3.2 (D21): music needs Android's notification access; asked only when the owner switches it on.
+    var access by remember { mutableStateOf(MediaWatch.allowed(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { access = MediaWatch.allowed(context) }
+    Toggle(stringResource(R.string.pulse_music), settings.pulseMusic) { v ->
+        set { it.copy(pulseMusic = v) }
+        if (v && !access) MediaWatch.openSettings(context)
+    }
+    if (settings.pulseMusic && !access) {
+        Text(stringResource(R.string.pulse_music_needs_access), Modifier.padding(vertical = 6.dp), style = CrystalType.label, color = c.fg2)
+        Action(stringResource(R.string.pulse_music_open_settings), c.acc) { MediaWatch.openSettings(context) }
     }
     Action(stringResource(R.string.pulse_lens), c.acc, onLens)
 }

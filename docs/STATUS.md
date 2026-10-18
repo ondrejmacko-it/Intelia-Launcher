@@ -2,6 +2,28 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — PULSE 2.0 M3.2 Music PULSE (`feat/control-system-v1`)
+- D21 approved (notification access only for active media sessions). `pulse/NowPlaying.kt` (pure: state, actions →
+  controls, extrapolated position, session pick) + `NowPlayingTest` 5; `pulse/MediaWatch.kt` (session listener +
+  `MediaController.Callback`, ref-counted, no polling) and `PulseMediaListener`; `musicCapsule` geometry + test.
+- Compact: bars left (move only while playing and motion on; paused = three low dots), lens ring (+ charge gauge on
+  Home), round artwork right (app icon via `LauncherApps` without artwork). Expanded: artwork, title, artist,
+  timeline (seek only with `ACTION_SEEK_TO`), ⏮ ⏯ ⏭ only when supported. Home first; the service draws the compact
+  as a non-touchable `Intelia PULSE music` window (hidden while the menu is open) and the menu shows the card on top.
+- Studio › PULSE: „Ukázat, co hraje“ toggle; switching it on without access opens Android's notification-access
+  page for the listener and shows why. Fixes: Studio said the service was off after an update rebind (old instance
+  reset `running`); the expanded Home panel was drawn under the Home clock (now above while expanded).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug :app:assembleLab`, no warnings.
+- Phone (debug, `install -r`), verified: after unlock the lens is back (`Intelia PULSE` windows ≥ 1); double tap + hold
+  with a test binding (→ Oznámení) opened the shade, hold still toggles the torch (FlashlightController), test binding
+  removed again (owner's Spotify / Svítilna untouched). Owner enabled notification access by hand. Všude: compact over
+  Home and over Spotify; tap → menu with card; pause, seek (→ 1:02), play, next all changed Spotify's session. Jen na
+  ploše: service 0 windows, Home draws compact with charge gauge; tap → panel above the clock; pause → static dots.
+  Mode set back to Všude, music resumed.
+- NOT verified: YouTube Music, Reduced Motion (code path only), compact removal at lock (code path same as the lens),
+  TalkBack on the timeline, battery/gfxinfo. A tap on the artwork itself inside the status bar goes to the system
+  (only touches below the status bar reach the target).
+
 ## 2026-10-18 — PULSE 2.0 M3.1 Foundation (`feat/control-system-v1`, `6091d36`)
 - `pulse/PulseGestures.kt` (pure): one recognizer for Home and the service — Tap, DoubleTap, Hold, new
   `Gesture.DoubleTapHold`, swipes. Tap waits only while DoubleTap/DoubleTapHold is bound, hold only while Hold

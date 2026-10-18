@@ -599,4 +599,10 @@
     <string name="pick_find">Hledej aplikaci, FLOW nebo akci</string>
     <string name="pick_everywhere">funguje i mimo Home</string>
     <string name="pick_home_only">jen na Home</string>
+    <string name="pulse_music_listener">Intelia PULSE hudba</string>
+    <string name="pulse_music">Ukázat, co hraje</string>
+    <string name="pulse_music_needs_access">Android chce přístup k oznámením. Intelia ho používá jen k zjištění přehrávaného média; žádné oznámení nečte ani neukládá.</string>
+    <string name="pulse_music_open_settings">Otevřít přístup k oznámením</string>
+    <string name="pulse_seek">Pozice</string>
+    <string name="pulse_music_now">Právě hraje</string>
 </resources>
