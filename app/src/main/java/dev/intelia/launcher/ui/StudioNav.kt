@@ -61,15 +61,19 @@ data class SheetStops(val preview: Float, val balanced: Float, val settings: Flo
         /**
          * Stops for a room [room] px tall at [density] px per dp: Preview leaves the sheet at least 176 dp (its handle
          * and two rows), Balanced gives the preview a little under half but never less than 200 dp nor the sheet less
-         * than 280 dp, Settings gives the sheet everything.
+         * than 280 dp, Settings gives the sheet everything. With the preview's own height [content] (px, measured at its
+         * largest size) the preview is never shrunk at Preview, and Balanced shows it whole too when the sheet keeps
+         * 280 dp: a preview that cannot grow lets the sheet rise right under it.
          */
-        fun of(room: Float, density: Float): SheetStops {
+        fun of(room: Float, density: Float, content: Float = 0f): SheetStops {
             val peek = maxOf(176f * density, room * .24f)
-            val preview = (room - peek).coerceAtLeast(0f)
+            val most = (room - peek).coerceAtLeast(0f)
+            val preview = if (content > 0f) minOf(most, content + 8f * density) else most
             val lo = 200f * density
             val hi = room - 280f * density
-            val balanced = (if (hi < lo) room / 2f else (room * .46f).coerceIn(lo, hi)).coerceAtMost(preview)
-            return SheetStops(preview = preview, balanced = balanced)
+            val balanced = if (content > 0f) minOf(preview, maxOf(hi, room * .46f))
+                else (if (hi < lo) room / 2f else (room * .46f).coerceIn(lo, hi)).coerceAtMost(preview)
+            return SheetStops(preview = preview, balanced = balanced.coerceIn(0f, preview))
         }
     }
 }

@@ -59,8 +59,11 @@ fun StudioSheet(stop: SheetStop, onStop: (SheetStop) -> Unit, onDismiss: () -> U
     BoxWithConstraints(modifier.fillMaxSize()) {
         val density = LocalDensity.current.density
         val room = constraints.maxHeight.toFloat()
-        val stops = remember(room, density, preview != null) {
-            if (preview == null) SheetStops(0f, 0f) else SheetStops.of(room, density)
+        // The preview's own height at its largest size, px; the stops follow it so it is never drawn smaller than it can be.
+        var previewH by remember { mutableFloatStateOf(0f) }
+        val most = SheetStops.of(room, density).preview
+        val stops = remember(room, density, preview != null, previewH) {
+            if (preview == null) SheetStops(0f, 0f) else SheetStops.of(room, density, previewH)
         }
         val shown = if (preview == null) SheetStop.Settings else stop
         var top by remember { mutableFloatStateOf(stops.top(shown)) }
@@ -92,10 +95,11 @@ fun StudioSheet(stop: SheetStop, onStop: (SheetStop) -> Unit, onDismiss: () -> U
         val close = stringResource(R.string.close)
         if (preview != null && top > 1f) {
             Box(Modifier.fillMaxWidth().height(with(LocalDensity.current) { top.toDp() }).clipToBounds()) {
-                val full = stops.preview
-                val k = (top / full.coerceAtLeast(1f)).coerceIn(0f, 1f)
+                val full = most
+                val k = (top / stops.preview.coerceAtLeast(1f)).coerceIn(0f, 1f)
                 Box(Modifier.layout { m, c ->
                     val p = m.measure(c.copy(minHeight = 0, maxHeight = full.roundToInt().coerceAtLeast(0)))
+                    if (p.height.toFloat() != previewH) previewH = p.height.toFloat()
                     layout(c.maxWidth, c.maxHeight) {
                         p.placeWithLayer((c.maxWidth - p.width) / 2, 0) {
                             scaleX = k; scaleY = k; alpha = (k * 2.5f - .25f).coerceIn(0f, 1f)

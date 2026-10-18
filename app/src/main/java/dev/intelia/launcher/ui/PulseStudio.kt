@@ -237,8 +237,8 @@ internal fun PulseStage(model: HomeViewModel, settings: LauncherSettings, look: 
     val shownW by animateFloatAsState(stageW, tween(motionMs(220)), label = "pulse-preview-width")
     val left = (hx - shownW / 2f).coerceIn(0f, (screenW - shownW).coerceAtLeast(0f))
     val sampled = settings.pulse && (look == PulseLook.Music || (look == PulseLook.Expanded))
-    // The window fills the room above the sheet and the width less a margin, up to 3× the phone's size.
-    val k = minOf((screenWidth.value - 16f) / shownW, room.value / shownH, 3f).coerceAtLeast(.05f)
+    // The window fills the room above the sheet and the width less a margin, never past the phone's real size.
+    val k = minOf((screenWidth.value - 16f) / shownW, room.value / shownH, 1f).coerceAtLeast(.05f)
     PreviewCover("$label. $note", modifier.size((shownW * k).dp, (shownH * k).dp).clip(shape).background(Color.Black.copy(alpha = .28f))
         .border(1.dp, ink.accent.copy(alpha = .30f), shape)) {
         Box(Modifier.stage(k, screenW, screenH, left)) {
