@@ -339,9 +339,9 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             .pulseTouch(bound, swipes, ::gesture, onHeld = { x, y ->
                 val k = arcSet ?: return@pulseTouch
                 val content = arc ?: return@pulseTouch
-                val bow = GlobalArcGeometry.bow(content.look, camera, screenW, screenH)
+                val bow = GlobalArcGeometry.bow(content.globalLook, camera, screenW, screenH)
                 val next = GlobalArcGeometry.pick(bow, camera, targetLeft.value + x, targetTop.value + y, content.filled(k), arcPick)
-                if (next != null && next != arcPick && content.look.haptics) haptics.tick()
+                if (next != null && next != arcPick && content.globalLook.haptics) haptics.tick()
                 arcPick = next
             }, onHeldEnd = { release ->
                 val chosen = if (release) arcSet?.let { k -> arcPick?.let { arc?.sets?.getOrNull(k)?.slots?.getOrNull(it) } } else null
@@ -369,7 +369,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         }
         arc?.let { content ->
             val shown = content.sets.getOrNull(arcSet ?: arcShown)
-            GlobalArc(shown, content.look, camera, arcSet != null, arcPick, flowSteps,
+            GlobalArc(shown, content.globalLook, camera, arcSet != null, arcPick, flowSteps,
                 onSlot = if (arcAssisted) { i -> val chosen = shown?.slots?.getOrNull(i); closeArc(); chosen?.let { onArcAction(it.action) } } else null,
                 onDismiss = ::closeArc)
         }

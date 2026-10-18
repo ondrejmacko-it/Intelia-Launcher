@@ -145,7 +145,7 @@
     <string name="studio_kw_theme">dark light mode night</string>
     <string name="studio_kw_colors">accent colour palette material you</string>
     <string name="studio_kw_edit_home">editor layout presets clock date icons grid</string>
-    <string name="studio_kw_arc">rings hold lens gesture</string>
+    <string name="studio_kw_arc">rings hold lens gesture global camera dim</string>
     <string name="studio_kw_pulse">capsule camera cutout notifications</string>
     <string name="studio_kw_motion">animation reduce motion speed haptics vibration text font size accessibility</string>
     <string name="studio_kw_flows">commands flow run apps order</string>
@@ -609,4 +609,11 @@
     <string name="global_arc">Global ARC</string>
     <string name="global_arc_set">Global ARC · %1$s</string>
     <string name="global_arc_cancel_hint">Slide back to the camera to cancel.</string>
+    <string name="arc_tab_lens">LENS ARC</string>
+    <string name="arc_tab_global">Global ARC</string>
+    <string name="global_arc_explain">Global ARC opens under the camera on a held PULSE gesture (Ovládání). It uses the same sets and %1$d slots as LENS ARC; size, arc and dimming are its own.</string>
+    <string name="global_arc_dim">Dim over apps</string>
+    <string name="global_arc_dim_low">Light</string>
+    <string name="global_arc_dim_high">Strong</string>
+    <string name="global_arc_haptics_detail">A light tick when the finger reaches a slot under the camera.</string>
 </resources>

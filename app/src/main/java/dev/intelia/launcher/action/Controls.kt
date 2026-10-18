@@ -58,6 +58,30 @@ data class ArcLook(
 }
 
 /**
+ * How Global ARC under the camera looks, apart from LENS ARC: size, opening angle, slot tick and how much it dims
+ * another app (percent). The slot count stays shared: it is how many slots every set holds.
+ */
+@Serializable
+data class GlobalArcLook(
+    val radius: Int = ArcLook.RADIUS_M,
+    val span: Int = ArcLook.SPAN_M,
+    val haptics: Boolean = true,
+    val dim: Int = DIM_M,
+) {
+    fun sanitized() = GlobalArcLook(radius.coerceIn(ArcLook.RADIUS_S, ArcLook.RADIUS_L), span.coerceIn(ArcLook.SPAN_S, ArcLook.SPAN_L),
+        haptics, dim.coerceIn(DIM_S, DIM_L))
+
+    /** The [ArcLook] Global ARC's geometry runs on: LENS ARC's slot count with this size and angle. */
+    fun over(lens: ArcLook): ArcLook = lens.copy(radius = radius, span = span, haptics = haptics)
+
+    companion object {
+        const val DIM_S = 30
+        const val DIM_M = 45
+        const val DIM_L = 65
+    }
+}
+
+/**
  * The Control System configuration: ARC sets plus gesture bindings. Stored in settings as `controls`;
  * while that is absent, [migrate] derives it from the legacy `arc`, `arcFlows` and `arcShortcuts` lists
  * (which stay untouched), so existing content and order carry over.
@@ -67,6 +91,8 @@ data class Controls(
     val arcSets: List<ArcSet> = emptyList(),
     val bindings: List<Binding> = emptyList(),
     val arc: ArcLook = ArcLook(),
+    /** Global ARC's own look (owner request 2026-10-18); older configs get the defaults. */
+    val globalArc: GlobalArcLook = GlobalArcLook(),
     /** Key codes the M4 diagnostics proved reach Intelia; only these can carry a [Trigger.Key]. */
     val keys: List<Int> = emptyList(),
     /** D20 (APPROVED 2026-10-18): the PULSE service filters bound keys in every app; off until the owner turns it on. */
@@ -127,6 +153,8 @@ data class Controls(
 
     fun withLook(look: ArcLook): Controls = copy(arc = look.sanitized())
 
+    fun withGlobalLook(look: GlobalArcLook): Controls = copy(globalArc = look.sanitized())
+
     /** Slots beyond the last filled one carry nothing. */
     private fun trim(slots: List<Action?>): List<Action?> = slots.dropLastWhile { it == null }
 
@@ -179,7 +207,7 @@ data class Controls(
                 (ok(it.action) || (it.action is Action.Arc && it.action.wellFormed() && opensArc(it.trigger))) }
             .filter { b -> (b.trigger as? Trigger.Key)?.let { it.code in codes && it.gesture in KEY_GESTURES } ?: true }
             .take(MAX_BINDINGS).toList()
-        return Controls(sets, kept, arc.sanitized(), codes, keysEverywhere)
+        return Controls(sets, kept, arc.sanitized(), globalArc.sanitized(), codes, keysEverywhere)
     }
 
     companion object {

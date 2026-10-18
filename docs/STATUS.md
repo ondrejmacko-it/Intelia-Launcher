@@ -2,6 +2,35 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — Global ARC look of its own, bow and label fixes (`feat/control-system-v1`)
+- `GlobalArcLook` in `Controls.globalArc` (size S/M/L, arc narrow/mid/wide, slot tick, dim over apps 30/45/65 %),
+  sanitized with the rest; old configs decode to the defaults (= the look Global ARC had). Slot count and sets stay
+  shared with LENS ARC (`GlobalArcLook.over`). Home and the service use `ArcContent.globalLook` for geometry and tick.
+- Studio › ARC: chips „LENS ARC“ / „Global ARC“; the Global tab has Velikost, Oblouk, Ztmavení nad aplikacemi,
+  Ťuknutí na každém slotu; sets below on both tabs. Search keywords: global, kamera, ztmavení.
+- Fixes: the dashed bow's circle centre was mirrored below the camera (now `Dock.toScreen(Top, 0, drop)`, through the
+  slots); the release hint wraps to two centred lines, up to 300 dp, instead of being cut off.
+- Tests: `ControlsTest` +2 (separate look, sanitize + old JSON defaults).
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug` and
+  `:app:testDebugUnitTest :app:assembleLab`, no Kotlin warnings. Lab installed with `install -r`.
+- Phone, verified: over Calculator the bow runs through all 8 slots and „Návrat ke kameře gesto zruší.“ is whole;
+  Studio tabs render; Global set to S + Silné while LENS ARC stayed M / 8 slots (read back from the chips).
+- Seen: right after an install the service shows „ARC je prázdný“ until its app list loads (a second or two).
+- NOT verified: how S + Silné looks over an app (the owner took the phone over), release after the change, Home
+  (Jen na ploše) drawing. Global ARC was left at S + Silné on the phone; set it back to M + Střední if unwanted.
+
+## 2026-10-18 — M3.3 follow-up phone checks (`feat/control-system-v1`, `8cb8f81`, Lab installed 14:01)
+- Verified (Všude, over Google Calculator): temporarily Search in FLOW slot 4 + Podržení → Global ARC · FLOW; release
+  on the Search slot → Home with the Search sheet and keyboard open. Podržení → Global ARC · Zkratky; release on
+  „Nová anonymní karta“ → Chrome incognito (shortcut outside Home works). Both test changes reverted and re-read
+  (Podržení → Global ARC · Hlavní, FLOW 3/8, Zkratky 3/8).
+- Seen: the hint „Návrat ke kameře gesto zruš…“ is cut off (220 dp label); slots sit ~120 px under the camera while the
+  dashed bow is drawn far lower (y≈1000–1250 px); over Maps the app's chips show between slots under the .45 scrim.
+- `uiautomator dump` makes the system unbind and rebind every accessibility service, so for ~1 s the Studio
+  „Všude potřebuje službu PULSE“ hint is correct, not a bug; wait before gesture tests after a dump.
+- NOT verified: TalkBack path (turning TalkBack on is a system setting, left to the owner), a really light app
+  (system night mode: Calculator and Maps are dark), landscape.
+
 ## 2026-10-18 — PULSE 2.0 M3.3 Global ARC (`feat/control-system-v1`)
 - D22: `Action.Arc(set)` bound only to held PULSE gestures; `Controls.opensArc` / `arcSetFor`, sanitized (not in slots,
   not on other triggers). `ui/GlobalArc.kt`: `GlobalArcGeometry` (ARC V2 `ArcBow`, LENS on the top edge) + `GlobalArc`

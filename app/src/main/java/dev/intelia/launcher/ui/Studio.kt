@@ -76,6 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.intelia.launcher.R
 import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.action.ArcLook
+import dev.intelia.launcher.action.GlobalArcLook
 import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.action.Gesture
 import dev.intelia.launcher.action.Trigger
@@ -450,23 +451,40 @@ private fun ArcPage(model: HomeViewModel, settings: LauncherSettings) {
     val controls = settings.controls
     val look = controls.arc
     var picking by remember { mutableStateOf<Pair<String, Int>?>(null) }
+    // Two ARCs, one page: LENS ARC on Home and Global ARC under the camera each have their own look; sets are shared.
+    var global by rememberSaveable { mutableStateOf(false) }
     fun look(transform: (ArcLook) -> ArcLook) = model.editControls { it.withLook(transform(it.arc)) }
+    fun globalLook(transform: (GlobalArcLook) -> GlobalArcLook) = model.editControls { it.withGlobalLook(transform(it.globalArc)) }
+    val sizes = listOf(ArcLook.RADIUS_S to "S", ArcLook.RADIUS_M to "M", ArcLook.RADIUS_L to "L")
+    val spans = listOf(ArcLook.SPAN_S to stringResource(R.string.arc_angle_narrow), ArcLook.SPAN_M to stringResource(R.string.arc_angle_mid),
+        ArcLook.SPAN_L to stringResource(R.string.arc_angle_wide))
 
-    Hint(stringResource(R.string.arc_explain_sets))
-    Stacked(stringResource(R.string.arc_slots)) {
-        Segments((ArcLook.MIN_SLOTS..ArcLook.MAX_VISIBLE).map { it to it.toString() }, look.slots, { v -> look { it.copy(slots = v) } })
+    Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Chips(listOf(false to stringResource(R.string.arc_tab_lens), true to stringResource(R.string.arc_tab_global)), global) { global = it }
     }
-    ChoiceRow(stringResource(R.string.arc_size)) {
-        Segments(listOf(ArcLook.RADIUS_S to "S", ArcLook.RADIUS_M to "M", ArcLook.RADIUS_L to "L"), look.radius, { v -> look { it.copy(radius = v) } })
+    if (!global) {
+        Hint(stringResource(R.string.arc_explain_sets))
+        Stacked(stringResource(R.string.arc_slots)) {
+            Segments((ArcLook.MIN_SLOTS..ArcLook.MAX_VISIBLE).map { it to it.toString() }, look.slots, { v -> look { it.copy(slots = v) } })
+        }
+        ChoiceRow(stringResource(R.string.arc_size)) { Segments(sizes, look.radius, { v -> look { it.copy(radius = v) } }) }
+        ChoiceRow(stringResource(R.string.arc_angle)) { Segments(spans, look.span, { v -> look { it.copy(span = v) } }) }
+        ToggleRow(stringResource(R.string.arc_tap_sets), look.tapSets, { on -> look { it.copy(tapSets = on) } },
+            detail = stringResource(R.string.arc_tap_sets_detail))
+        ToggleRow(stringResource(R.string.arc_haptics), look.haptics, { on -> look { it.copy(haptics = on) } },
+            detail = stringResource(R.string.arc_haptics_detail))
+    } else {
+        val g = controls.globalArc
+        Hint(stringResource(R.string.global_arc_explain, look.slots))
+        ChoiceRow(stringResource(R.string.arc_size)) { Segments(sizes, g.radius, { v -> globalLook { it.copy(radius = v) } }) }
+        ChoiceRow(stringResource(R.string.arc_angle)) { Segments(spans, g.span, { v -> globalLook { it.copy(span = v) } }) }
+        ChoiceRow(stringResource(R.string.global_arc_dim)) {
+            Segments(listOf(GlobalArcLook.DIM_S to stringResource(R.string.global_arc_dim_low), GlobalArcLook.DIM_M to stringResource(R.string.arc_angle_mid),
+                GlobalArcLook.DIM_L to stringResource(R.string.global_arc_dim_high)), g.dim, { v -> globalLook { it.copy(dim = v) } })
+        }
+        ToggleRow(stringResource(R.string.arc_haptics), g.haptics, { on -> globalLook { it.copy(haptics = on) } },
+            detail = stringResource(R.string.global_arc_haptics_detail))
     }
-    ChoiceRow(stringResource(R.string.arc_angle)) {
-        Segments(listOf(ArcLook.SPAN_S to stringResource(R.string.arc_angle_narrow), ArcLook.SPAN_M to stringResource(R.string.arc_angle_mid),
-            ArcLook.SPAN_L to stringResource(R.string.arc_angle_wide)), look.span, { v -> look { it.copy(span = v) } })
-    }
-    ToggleRow(stringResource(R.string.arc_tap_sets), look.tapSets, { on -> look { it.copy(tapSets = on) } },
-        detail = stringResource(R.string.arc_tap_sets_detail))
-    ToggleRow(stringResource(R.string.arc_haptics), look.haptics, { on -> look { it.copy(haptics = on) } },
-        detail = stringResource(R.string.arc_haptics_detail))
 
     val stored = controls.arcSets.ifEmpty { listOf(dev.intelia.launcher.action.ArcSet(Controls.MAIN_SET)) }
     stored.forEachIndexed { setIndex, set ->

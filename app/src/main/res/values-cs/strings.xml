@@ -144,7 +144,7 @@
     <string name="studio_kw_theme">tmavý světlý režim noční</string>
     <string name="studio_kw_colors">akcent barva paleta material you</string>
     <string name="studio_kw_edit_home">editor rozložení předlohy hodiny datum ikony mřížka</string>
-    <string name="studio_kw_arc">kruhy prstence podržení lens gesto</string>
+    <string name="studio_kw_arc">kruhy prstence podržení lens gesto global kamera ztmavení</string>
     <string name="studio_kw_pulse">kapsle kamera výřez upozornění</string>
     <string name="studio_kw_motion">animace omezit pohyb rychlost haptika vibrace text písmo velikost přístupnost</string>
     <string name="studio_kw_flows">příkazy flow spustit aplikace pořadí</string>
@@ -608,4 +608,11 @@
     <string name="global_arc">Global ARC</string>
     <string name="global_arc_set">Global ARC · %1$s</string>
     <string name="global_arc_cancel_hint">Návrat ke kameře gesto zruší.</string>
+    <string name="arc_tab_lens">LENS ARC</string>
+    <string name="arc_tab_global">Global ARC</string>
+    <string name="global_arc_explain">Global ARC se otevře pod kamerou na podržení PULSE (Ovládání). Má stejné sady a %1$d slotů jako LENS ARC; velikost, oblouk a ztmavení má vlastní.</string>
+    <string name="global_arc_dim">Ztmavení nad aplikacemi</string>
+    <string name="global_arc_dim_low">Slabé</string>
+    <string name="global_arc_dim_high">Silné</string>
+    <string name="global_arc_haptics_detail">Lehké ťuknutí, když prst pod kamerou dojede na slot.</string>
 </resources>

@@ -149,4 +149,23 @@ class ControlsTest {
         val c = Controls().bind(Trigger.Pulse(Gesture.Hold), Action.Arc("set2"))
         assertEquals(c, Json.decodeFromString<Controls>(Json.encodeToString(c)))
     }
+
+    @Test fun globalArcLookIsSeparateFromLensArc() {
+        val c = Controls().withLook(ArcLook(slots = 7, radius = ArcLook.RADIUS_S, span = ArcLook.SPAN_S))
+            .withGlobalLook(GlobalArcLook(radius = ArcLook.RADIUS_L, span = ArcLook.SPAN_L, haptics = false, dim = GlobalArcLook.DIM_L))
+        val g = c.globalArc.over(c.arc)
+        assertEquals(7, g.slots)
+        assertEquals(ArcLook.RADIUS_L, g.radius)
+        assertEquals(ArcLook.SPAN_L, g.span)
+        assertEquals(false, g.haptics)
+        assertEquals(ArcLook.RADIUS_S, c.arc.radius)
+    }
+
+    @Test fun globalArcLookIsSanitizedAndOldConfigsGetDefaults() {
+        val wild = Controls(globalArc = GlobalArcLook(radius = 999, span = 1, dim = 100)).sanitized(emptySet()).globalArc
+        assertEquals(GlobalArcLook(ArcLook.RADIUS_L, ArcLook.SPAN_S, true, GlobalArcLook.DIM_L), wild)
+        val old = Json { ignoreUnknownKeys = true }.decodeFromString<Controls>("""{"arc":{"slots":6,"radius":104}}""")
+        assertEquals(GlobalArcLook(), old.globalArc)
+        assertEquals(6, old.arc.slots)
+    }
 }

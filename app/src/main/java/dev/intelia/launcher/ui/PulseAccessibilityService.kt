@@ -475,7 +475,7 @@ class PulseAccessibilityService : AccessibilityService() {
         when (e.actionMasked) {
             MotionEvent.ACTION_MOVE -> if (gestures.holding) {
                 val next = GlobalArcGeometry.pick(ui.bow, ui.camera, x, y, ui.content.filled(ui.set), ui.pick)
-                if (next != null && next != ui.pick && ui.content.look.haptics) lens?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                if (next != null && next != ui.pick && ui.content.globalLook.haptics) lens?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                 arcUi.value = ui.copy(pick = next)
             }
             MotionEvent.ACTION_UP -> {
@@ -504,7 +504,7 @@ class PulseAccessibilityService : AccessibilityService() {
         val camera = Pt(hole.x / dp, hole.y / dp)
         val (w, hgt) = if (Build.VERSION.SDK_INT >= 30) windows.currentWindowMetrics.bounds.let { it.width() to it.height() }
             else resources.displayMetrics.let { it.widthPixels to it.heightPixels }
-        val bow = GlobalArcGeometry.bow(content.look, camera, w / dp, hgt / dp)
+        val bow = GlobalArcGeometry.bow(content.globalLook, camera, w / dp, hgt / dp)
         arcUi.value = GlobalArcUi(content, set, camera, bow, null, assisted)
         if (arcView != null) return
         val o = OverlayOwner().also { it.start() }
@@ -525,10 +525,10 @@ class PulseAccessibilityService : AccessibilityService() {
                     ui?.let { u ->
                         val labels = remember(u.content) { app.apps.apps.value.orEmpty().associate { it.key to it.label } }
                         val shown = u.content.sets.getOrNull(u.set)
-                        GlobalArc(shown, u.content.look, u.camera, true, u.pick, { alias -> alias.targets.map(labels::get) },
+                        GlobalArc(shown, u.content.globalLook, u.camera, true, u.pick, { alias -> alias.targets.map(labels::get) },
                             onSlot = if (u.assisted) { i -> val chosen = shown?.slots?.getOrNull(i); closeArc(); chosen?.let { runFromArc(it.action) } }
                             else null,
-                            onDismiss = ::closeArc, overApps = home == null)
+                            onDismiss = ::closeArc, overApps = home == null, dim = u.content.global.dim / 100f)
                     }
                 }
             }

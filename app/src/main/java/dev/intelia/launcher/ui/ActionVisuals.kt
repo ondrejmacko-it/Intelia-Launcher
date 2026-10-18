@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import dev.intelia.launcher.R
 import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.action.ArcLook
+import dev.intelia.launcher.action.GlobalArcLook
 import dev.intelia.launcher.action.ArcSet
 import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.action.MediaKey
@@ -34,7 +35,10 @@ data class ArcEntry(val action: Action, val app: AppEntry? = null, val flow: Flo
 data class ArcSetView(val id: String, val name: String, val slots: List<ArcEntry?>)
 
 /** Everything ARC can hold right now, set by set. */
-class ArcContent(val sets: List<ArcSetView>, val look: ArcLook) {
+class ArcContent(val sets: List<ArcSetView>, val look: ArcLook, val global: GlobalArcLook = GlobalArcLook()) {
+    /** Geometry and tick of Global ARC: the shared slot count with its own size and angle. */
+    val globalLook: ArcLook = global.over(look)
+
     val empty: Boolean = sets.all { set -> set.slots.all { it == null } }
     fun filled(set: Int): List<Boolean> = sets.getOrNull(set)?.slots?.map { it != null }.orEmpty()
 
@@ -57,7 +61,7 @@ class ArcContent(val sets: List<ArcSetView>, val look: ArcLook) {
             val sets = controls.arcSets.ifEmpty { listOf(ArcSet(Controls.MAIN_SET)) }.map { set ->
                 ArcSetView(set.id, set.name, List(controls.arc.slots) { i -> resolve(set.slots.getOrNull(i)) })
             }
-            return ArcContent(sets, controls.arc)
+            return ArcContent(sets, controls.arc, controls.globalArc)
         }
     }
 }
