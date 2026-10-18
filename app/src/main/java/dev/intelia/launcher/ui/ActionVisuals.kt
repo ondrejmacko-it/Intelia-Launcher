@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import dev.intelia.launcher.R
 import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.action.ArcLook
+import dev.intelia.launcher.action.ArcSet
 import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.action.MediaKey
 import dev.intelia.launcher.action.PanelKind
@@ -36,6 +37,29 @@ data class ArcSetView(val id: String, val name: String, val slots: List<ArcEntry
 class ArcContent(val sets: List<ArcSetView>, val look: ArcLook) {
     val empty: Boolean = sets.all { set -> set.slots.all { it == null } }
     fun filled(set: Int): List<Boolean> = sets.getOrNull(set)?.slots?.map { it != null }.orEmpty()
+
+    companion object {
+        /**
+         * Every set of [controls], each slot resolved on this device (Home and the PULSE service alike). A removed or
+         * hidden app, a deleted FLOW or a shortcut the system no longer offers leaves its slot empty, never shifting others.
+         */
+        fun of(controls: Controls, apps: List<AppEntry>, flows: List<FlowAlias>, shortcuts: List<ShortcutEntry>): ArcContent {
+            val byKey = apps.associateBy { it.key }
+            val byId = flows.associateBy { it.id }
+            val cuts = shortcuts.associateBy { it.key }
+            fun resolve(a: Action?): ArcEntry? = when (a) {
+                null -> null
+                is Action.App -> byKey[a.component]?.let { ArcEntry(a, app = it) }
+                is Action.Flow -> byId[a.id]?.let { ArcEntry(a, flow = it) }
+                is Action.Shortcut -> cuts[a.pkg + "/" + a.id]?.let { ArcEntry(a, shortcut = it) }
+                else -> ArcEntry(a)
+            }
+            val sets = controls.arcSets.ifEmpty { listOf(ArcSet(Controls.MAIN_SET)) }.map { set ->
+                ArcSetView(set.id, set.name, List(controls.arc.slots) { i -> resolve(set.slots.getOrNull(i)) })
+            }
+            return ArcContent(sets, controls.arc)
+        }
+    }
 }
 
 /** System actions offered in pickers, in the order shown. */
@@ -68,12 +92,21 @@ fun systemActionLabel(action: Action): String = stringResource(when (action) {
     }
     Action.Screenshot -> R.string.act_screenshot
     Action.Lock -> R.string.pulse_lock
+    is Action.Arc -> R.string.global_arc
     is Action.App, is Action.Flow, is Action.Shortcut, is Action.Card -> R.string.act_unknown
 })
 
 /** What a slot is called, for TalkBack, the picked-slot label and Studio rows. */
 @Composable
 fun slotLabel(slot: ArcEntry): String = slot.app?.label ?: slot.flow?.name ?: slot.shortcut?.label ?: systemActionLabel(slot.action)
+
+/** "Global ARC · set name": which set a held PULSE gesture opens (M3.3). */
+@Composable
+fun arcActionLabel(controls: Controls, arc: Action.Arc): String {
+    val set = controls.arcSetFor(arc)
+    val index = controls.arcSets.indexOfFirst { it.id == set.id }.coerceAtLeast(0)
+    return stringResource(R.string.global_arc_set, setLabel(ArcSetView(set.id, set.name, emptyList()), index))
+}
 
 /** A set's name: the owner's, the migrated ring's, or "Sada N". */
 @Composable
@@ -116,6 +149,7 @@ private fun glyphOf(action: Action): Glyph? = when (action) {
         else -> Glyph.Settings
     }
     Action.Screenshot -> Glyph.Grid
+    is Action.Arc -> Glyph.Apps
     else -> null
 }
 

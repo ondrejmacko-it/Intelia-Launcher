@@ -117,4 +117,36 @@ class ControlsTest {
             .bind(Trigger.Home(Gesture.DoubleTap), Action.Torch)
         assertEquals(listOf(Trigger.Home(Gesture.DoubleTap), Trigger.ArcSlot("main", 1)), c.triggersOf(Action.Torch))
     }
+
+    @Test fun globalArcBindsOnlyToHeldPulseGestures() {
+        val arc = Action.Arc("set2")
+        val c = Controls().bind(Trigger.Pulse(Gesture.Hold), arc).bind(Trigger.Pulse(Gesture.DoubleTapHold), Action.Torch)
+            .bind(Trigger.Pulse(Gesture.Tap), arc).bind(Trigger.Home(Gesture.DoubleTap), arc)
+        assertEquals(arc, c.bound(Trigger.Pulse(Gesture.Hold)))
+        assertEquals(Action.Torch, c.bound(Trigger.Pulse(Gesture.DoubleTapHold)))
+        assertNull(c.bound(Trigger.Pulse(Gesture.Tap)))
+        assertNull(c.bound(Trigger.Home(Gesture.DoubleTap)))
+    }
+
+    @Test fun sanitizedDropsGlobalArcOutsideHeldPulseAndInsideSlots() {
+        val arc = Action.Arc()
+        val c = Controls(arcSets = listOf(ArcSet("main", slots = listOf(arc, Action.Torch))),
+            bindings = listOf(Binding(Trigger.Pulse(Gesture.DoubleTapHold), arc), Binding(Trigger.Lens(Gesture.SwipeLeft), arc),
+                Binding(Trigger.Pulse(Gesture.Hold), Action.Arc(""))))
+            .sanitized(emptySet())
+        assertEquals(listOf(null, Action.Torch), c.arcSet("main")!!.slots)
+        assertEquals(listOf(Binding(Trigger.Pulse(Gesture.DoubleTapHold), arc)), c.bindings)
+    }
+
+    @Test fun globalArcFallsBackToTheFirstSetWhenItsSetIsGone() {
+        val c = Controls(arcSets = listOf(ArcSet("main"), ArcSet("set2")))
+        assertEquals("set2", c.arcSetFor(Action.Arc("set2")).id)
+        assertEquals("main", c.arcSetFor(Action.Arc("gone")).id)
+        assertEquals(Controls.MAIN_SET, Controls().arcSetFor(Action.Arc("x")).id)
+    }
+
+    @Test fun globalArcSurvivesTheJsonRoundTrip() {
+        val c = Controls().bind(Trigger.Pulse(Gesture.Hold), Action.Arc("set2"))
+        assertEquals(c, Json.decodeFromString<Controls>(Json.encodeToString(c)))
+    }
 }

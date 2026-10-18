@@ -36,6 +36,12 @@ sealed interface Action {
 
     @Serializable @SerialName("lock") data object Lock : Action
 
+    /**
+     * Global ARC (M3.3): a held PULSE gesture opens ARC set [set] under the camera; the finger slides to a slot and
+     * release runs it. Only hold gestures can carry it ([opensArc]); the surface draws it, so [run] never does.
+     */
+    @Serializable @SerialName("arc") data class Arc(val set: String = Controls.MAIN_SET) : Action
+
     /** Null when the action can run now; otherwise why not. Never has side effects. */
     fun unavailableReason(host: ActionHost): Reason? = when (this) {
         is App -> when {
@@ -61,6 +67,7 @@ sealed interface Action {
         is SystemPanel -> null
         is Card -> if (wellFormed(id) && host.hasCard(id)) null else Reason.CardMissing
         Lock -> if (host.hasPulseService()) null else Reason.NeedsPulseService
+        is Arc -> if (wellFormed(set)) null else Reason.Invalid
     }
 
     /** What the user has to grant before this can run; shown next to the action in pickers. */
@@ -75,7 +82,7 @@ sealed interface Action {
      * Apps, FLOWs, Search, shortcuts and cards stay on Home, where FLOW keeps its preview and Search its sheet.
      */
     val outsideHome: Boolean get() = when (this) {
-        is Media, Torch, Screenshot, SoundMode, is SystemPanel, Lock -> true
+        is Media, Torch, Screenshot, SoundMode, is SystemPanel, Lock, is Arc -> true
         is App, is Flow, Search, is Shortcut, is Card -> false
     }
 
@@ -85,6 +92,7 @@ sealed interface Action {
         is Flow -> wellFormed(id)
         is Shortcut -> wellFormed(pkg) && wellFormed(id)
         is Card -> wellFormed(id)
+        is Arc -> wellFormed(set)
         else -> true
     }
 
@@ -108,6 +116,8 @@ sealed interface Action {
             is SystemPanel -> return opened(host.openPanel(kind))
             is Card -> return opened(host.openCard(id))
             Lock -> host.lockScreen()
+            // Drawn and tracked by the surface that recognised the hold; reaching here means no surface can.
+            is Arc -> return ActionResult.Unavailable(Reason.Unsupported)
         }
         return if (ok) ActionResult.Done else ActionResult.Unavailable(Reason.Failed)
     }

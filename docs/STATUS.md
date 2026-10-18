@@ -2,6 +2,29 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-18 — PULSE 2.0 M3.3 Global ARC (`feat/control-system-v1`)
+- D22: `Action.Arc(set)` bound only to held PULSE gestures; `Controls.opensArc` / `arcSetFor`, sanitized (not in slots,
+  not on other triggers). `ui/GlobalArc.kt`: `GlobalArcGeometry` (ARC V2 `ArcBow`, LENS on the top edge) + `GlobalArc`
+  composable (veil, dashed bow, thread, slots, "release opens/runs" label, FLOW bead preview; over other apps a dim
+  scrim and light ink; TalkBack long press opens it with slots as buttons). `ArcContent.of` shared by Home and the service.
+- Home (Jen na ploše): `pulseTouch` reports held moves and the end (lift = run, cancel = nothing). Service (Všude): the
+  lens touch keeps driving a non-touchable `Intelia PULSE arc` window; outside Home `AndroidActionHost` resolves apps,
+  FLOWs and shortcuts through `AppRepository`; Search / cards go to Home via `PulseAccessibilityService.homeRequest`.
+- Studio › Ovládání: picker has a „Global ARC“ tab, one row per set („Global ARC · Hlavní / FLOW / Zkratky“); bound
+  rows show the set. `DoubleTapHold` is labelled „Klepnutí a podržení“. PULSE hint updated.
+- Tests: `ControlsTest` +4 (hold-only binding, sanitize, set fallback, JSON), `GlobalArcGeometryTest` 2.
+- PASS: `./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g :app:testDebugUnitTest :app:assembleDebug` and
+  `:app:testDebugUnitTest :app:assembleLab --rerun-tasks`, no Kotlin warnings.
+- Phone (debug, then Lab `install -r`): owner's bindings set through the new picker — Podržení → Global ARC · Hlavní,
+  Klepnutí a podržení → Svítilna (FlashlightController true/false). Všude on Home: arc under the camera, slide back to
+  the camera + lift → nothing (Home stays, arc window gone); release on Instagram → Instagram. Over Instagram: release
+  on ChatGPT → ChatGPT (outside Home, `LauncherApps`). Temporarily Global ARC · FLOW over ChatGPT: „pocty“ previewed
+  Kalkulačka → Hodiny, release ran both in order; binding set back to Hlavní. Jen na ploše (temporarily): Home draws
+  the same arc, cancel → nothing, release → ChatGPT; mode set back to Všude.
+- NOT verified: Search from Global ARC (no Search slot in the owner's sets), shortcut slots outside Home, cards,
+  TalkBack path, light apps under the scrim, landscape. Hold on the Home target must start below the status bar
+  (a touch at y≈120 px went to the shade). Optional M3.2 leftovers still open: YouTube Music, Reduced Motion, lock.
+
 ## 2026-10-18 — PULSE 2.0 M3.2 Music PULSE (`feat/control-system-v1`)
 - D21 approved (notification access only for active media sessions). `pulse/NowPlaying.kt` (pure: state, actions →
   controls, extrapolated position, session pick) + `NowPlayingTest` 5; `pulse/MediaWatch.kt` (session listener +

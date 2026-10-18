@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.intelia.launcher.R
 import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.ArcSet
 import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.action.Gesture
 import dev.intelia.launcher.action.Trigger
@@ -73,7 +74,8 @@ internal fun ControlsPage(model: HomeViewModel, settings: LauncherSettings, onAr
 
     val groups = controlGroups(settings)
     val fq = AppSearch.fold(query.trim())
-    val labels = groups.flatMap { it.lines }.mapNotNull { l -> l.trigger?.let { t -> controls.bound(t)?.let(::entry)?.let { t to slotLabel(it) } } }.toMap()
+    val labels = groups.flatMap { it.lines }.mapNotNull { l -> l.trigger?.let { t -> controls.bound(t)?.let { a ->
+        if (a is Action.Arc) t to arcActionLabel(controls, a) else entry(a)?.let { t to slotLabel(it) } } } }.toMap()
     fun matches(g: ControlGroup, l: ControlLine) = fq.isEmpty() ||
         listOfNotNull(g.title, l.name, l.fixed, l.trigger?.let(labels::get)).any { AppSearch.fold(it).contains(fq) }
 
@@ -115,8 +117,12 @@ internal fun ControlsPage(model: HomeViewModel, settings: LauncherSettings, onAr
     picking?.let { trigger ->
         val names = remember(all) { all.filter { it.mainProfile }.associate { it.component.packageName to it.label } }
         val outside = trigger is Trigger.Pulse || trigger is Trigger.Key
+        // M3.3: a held PULSE gesture can open Global ARC on any set; one row per set, named after it.
+        val arcs = if (Controls.opensArc(trigger)) controls.arcSets.ifEmpty { listOf(ArcSet(Controls.MAIN_SET)) }.map { Action.Arc(it.id) } else emptyList()
+        val arcLabels = arcs.associate { a -> (a as Action) to arcActionLabel(controls, a) }
         ActionPicker(stringResource(R.string.pulse_gesture_choose),
-            apps = apps.sortedBy { it.label.lowercase() }, flows = settings.aliases, shortcuts = shortcuts, system = SystemActions,
+            apps = apps.sortedBy { it.label.lowercase() }, flows = settings.aliases, shortcuts = shortcuts, system = arcs + SystemActions,
+            labels = arcLabels,
             host = host, appNames = names,
             shortcutsNote = stringResource(if (role.held) R.string.shortcuts_none else R.string.shortcuts_need_home),
             used = controls.bindings.map { it.action } + controls.arcSets.flatMap { it.slots.filterNotNull() },
@@ -206,6 +212,7 @@ private fun BoundLine(name: String, trigger: Trigger, controls: Controls, entry:
     val shown = raw?.let(entry)
     val elsewhere = raw?.let { controls.triggersOf(it).size - 1 } ?: 0
     val detail = when {
+        raw is Action.Arc -> arcActionLabel(controls, raw)
         shown != null -> slotLabel(shown)
         raw != null -> stringResource(R.string.arc_slot_unavailable)
         menu -> stringResource(R.string.pulse_gesture_menu)

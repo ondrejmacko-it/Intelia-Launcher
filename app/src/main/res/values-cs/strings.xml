@@ -531,7 +531,7 @@
     <string name="arc_release_run">pusť a spustí se</string>
     <string name="pulse_needs_home">Tahle akce se z PULSE spouští jen na Home.</string>
     <string name="pulse_gestures">Gesta kapsle</string>
-    <string name="pulse_gestures_hint">Mimo Intelii PULSE spouští jen systémové akce (svítilna, média, panely, zámek); aplikace a FLOW z něj běží na Home.</string>
+    <string name="pulse_gestures_hint">Mimo Intelii PULSE spouští jen systémové akce (svítilna, média, panely, zámek); aplikace a FLOW z něj běží na Home. Global ARC na podržení spustí aplikace, FLOW i Hledání všude.</string>
     <string name="pulse_gesture_tap">Klepnutí</string>
     <string name="pulse_gesture_double">Dvojí klepnutí</string>
     <string name="pulse_gesture_hold">Podržení</string>
@@ -579,7 +579,7 @@
     <string name="gesture_home_left">Tah doleva na Home</string>
     <string name="gesture_home_right">Tah doprava na Home</string>
     <string name="pulse_gesture_down">Tah dolů z kapsle</string>
-    <string name="pulse_gesture_double_hold">Dvojí klepnutí a podržení</string>
+    <string name="pulse_gesture_double_hold">Klepnutí a podržení</string>
     <string name="pulse_mode">Kde PULSE funguje</string>
     <string name="pulse_mode_needs_service">Všude potřebuje službu PULSE. Zapni ji v nastavení Androidu; do té doby PULSE funguje na ploše.</string>
     <string name="pulse_mode_open_settings">Otevřít nastavení Androidu</string>
@@ -605,4 +605,7 @@
     <string name="pulse_music_open_settings">Otevřít přístup k oznámením</string>
     <string name="pulse_seek">Pozice</string>
     <string name="pulse_music_now">Právě hraje</string>
+    <string name="global_arc">Global ARC</string>
+    <string name="global_arc_set">Global ARC · %1$s</string>
+    <string name="global_arc_cancel_hint">Návrat ke kameře gesto zruší.</string>
 </resources>

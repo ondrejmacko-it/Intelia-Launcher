@@ -102,6 +102,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dev.intelia.launcher.InteliaApp
+import dev.intelia.launcher.MainActivity
 import dev.intelia.launcher.R
 import dev.intelia.launcher.pulse.MediaWatch
 import dev.intelia.launcher.action.Action
@@ -152,12 +153,16 @@ class PulseAccessibilityService : AccessibilityService() {
     /** D20 key remap: only key codes and timers, nothing about what is typed; see [KeyRemap]. */
     private val remap = KeyRemap { code, g -> controls().bound(Trigger.Key(code, g)) != null }
     private val keyTimers = HashMap<Int, Runnable>()
+    /** M3.3 Global ARC window (not touchable while a finger drives it: the lens keeps that touch) and what it shows. */
+    private var arcView: View? = null
+    private var arcOwner: OverlayOwner? = null
+    private val arcUi = MutableStateFlow<GlobalArcUi?>(null)
 
     override fun onServiceConnected() {
         windows = getSystemService(WindowManager::class.java)
         _running.value = true
         instance = this
-        host = AndroidActionHost(this, null) { false }.also { h ->
+        host = AndroidActionHost(this, null) { openOnHome(Action.Search) }.also { h ->
             getSystemService(CameraManager::class.java)?.registerTorchCallback(h.torchCallback, main)
         }
         locked = getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
@@ -275,6 +280,7 @@ class PulseAccessibilityService : AccessibilityService() {
     }
 
     private fun tearDown() {
+        closeArc()
         closeMenu()
         watch(false)
         hideNote()
@@ -395,6 +401,7 @@ class PulseAccessibilityService : AccessibilityService() {
     }
 
     private fun removeLens() {
+        closeArc()
         main.removeCallbacks(gestureTimer)
         gestures.reset()
         closeMenu()
@@ -416,7 +423,7 @@ class PulseAccessibilityService : AccessibilityService() {
             // TalkBack paths, the touch listener takes all real touches.
             setOnTouchListener { _, e -> touch(e); true }
             setOnClickListener { gesture(Gesture.Tap) }
-            setOnLongClickListener { if (bound(Gesture.Hold) == null) false else { gesture(Gesture.Hold); true } }
+            setOnLongClickListener { if (bound(Gesture.Hold) == null) false else { gesture(Gesture.Hold, assisted = true); true } }
             // Read at query time, so TalkBack offers exactly the gestures bound now: double tap as a custom action,
             // long press only when hold is bound.
             ViewCompat.setAccessibilityDelegate(this, object : AccessibilityDelegateCompat() {
@@ -433,7 +440,7 @@ class PulseAccessibilityService : AccessibilityService() {
 
                 override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
                     val g = PULSE_A11Y.firstOrNull { it.second == action }?.first ?: return super.performAccessibilityAction(host, action, args)
-                    gesture(g)
+                    gesture(g, assisted = true)
                     return true
                 }
             })
@@ -463,6 +470,116 @@ class PulseAccessibilityService : AccessibilityService() {
             MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> gestures.cancel()
             else -> return
         })
+        // M3.3: while Global ARC is open the held finger picks a slot; lifting runs it, anything else runs nothing.
+        val ui = arcUi.value?.takeIf { !it.assisted } ?: return
+        when (e.actionMasked) {
+            MotionEvent.ACTION_MOVE -> if (gestures.holding) {
+                val next = GlobalArcGeometry.pick(ui.bow, ui.camera, x, y, ui.content.filled(ui.set), ui.pick)
+                if (next != null && next != ui.pick && ui.content.look.haptics) lens?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                arcUi.value = ui.copy(pick = next)
+            }
+            MotionEvent.ACTION_UP -> {
+                val chosen = ui.pick?.let { ui.content.sets.getOrNull(ui.set)?.slots?.getOrNull(it) }
+                closeArc()
+                chosen?.let { lens?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); runFromArc(it.action) }
+            }
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> closeArc()
+        }
+    }
+
+    /**
+     * M3.3: opens Global ARC on [arc]'s set under the camera, in every app and on Home. Slots resolve through the app
+     * repository and the system's shortcuts, read now; a TalkBack long press opens it with slots as buttons.
+     */
+    private fun openArc(arc: Action.Arc, assisted: Boolean) {
+        val h = host ?: return
+        closeMenu()
+        val app = application as InteliaApp
+        val settings = app.settings.state.value
+        val controls = settings.controls
+        val shortcuts = if (h.isDefaultHome()) h.refreshShortcuts() else emptyList()
+        val content = ArcContent.of(controls, app.apps.apps.value.orEmpty(), settings.aliases, shortcuts)
+        val set = content.sets.indexOfFirst { it.id == controls.arcSetFor(arc).id }.coerceAtLeast(0)
+        val hole = hole()
+        val camera = Pt(hole.x / dp, hole.y / dp)
+        val (w, hgt) = if (Build.VERSION.SDK_INT >= 30) windows.currentWindowMetrics.bounds.let { it.width() to it.height() }
+            else resources.displayMetrics.let { it.widthPixels to it.heightPixels }
+        val bow = GlobalArcGeometry.bow(content.look, camera, w / dp, hgt / dp)
+        arcUi.value = GlobalArcUi(content, set, camera, bow, null, assisted)
+        if (arcView != null) return
+        val o = OverlayOwner().also { it.start() }
+        val root = object : FrameLayout(this) {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
+                if (event.action == KeyEvent.ACTION_UP) closeArc()
+                return true
+            }
+        }
+        root.setViewTreeLifecycleOwner(o)
+        root.setViewTreeSavedStateRegistryOwner(o)
+        root.addView(ComposeView(this).apply {
+            setContent {
+                val s by app.settings.state.collectAsState()
+                val ui by arcUi.collectAsState()
+                InteliaTheme(s) {
+                    ui?.let { u ->
+                        val labels = remember(u.content) { app.apps.apps.value.orEmpty().associate { it.key to it.label } }
+                        val shown = u.content.sets.getOrNull(u.set)
+                        GlobalArc(shown, u.content.look, u.camera, true, u.pick, { alias -> alias.targets.map(labels::get) },
+                            onSlot = if (u.assisted) { i -> val chosen = shown?.slots?.getOrNull(i); closeArc(); chosen?.let { runFromArc(it.action) } }
+                            else null,
+                            onDismiss = ::closeArc, overApps = home == null)
+                    }
+                }
+            }
+        })
+        // A finger drives it: the window lets every touch through. Opened by TalkBack it takes touches and Back instead.
+        val params = overlay(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, focusable = assisted).apply {
+            if (!assisted) flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            title = "Intelia PULSE arc"
+        }
+        windows.addView(root, params)
+        arcView = root
+        arcOwner = o
+    }
+
+    private fun closeArc() {
+        arcUi.value = null
+        arcView?.let { runCatching { windows.removeView(it) } }
+        arcOwner?.stop()
+        arcView = null
+        arcOwner = null
+    }
+
+    /**
+     * A released Global ARC slot. With Home in front Home runs it exactly as LENS-ARC would; elsewhere apps, FLOWs and
+     * shortcuts start through `LauncherApps`, Search and cards bring Home forward first. A FLOW was previewed step by
+     * step while its slot was picked; release is the explicit action that runs it.
+     */
+    private fun runFromArc(action: Action) {
+        home?.let { it(action); return }
+        if (action is Action.Card) { openOnHome(action); return }
+        val result = action.run(host ?: return)
+        if (result is ActionResult.Unavailable) toast(when (result.reason) {
+            Reason.AppMissing -> R.string.action_app_missing
+            Reason.FlowMissing -> R.string.action_flow_missing
+            Reason.NotDefaultHome -> R.string.action_not_default_home
+            Reason.ShortcutMissing -> R.string.action_shortcut_missing
+            Reason.Unsupported -> R.string.action_unsupported
+            else -> R.string.launch_failed
+        })
+    }
+
+    /** Hands [action] to Home and brings Home forward; Home runs it once in front (in-process, never an intent extra). */
+    private fun openOnHome(action: Action): Boolean {
+        _homeRequest.value = action
+        return try {
+            startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            true
+        } catch (_: ActivityNotFoundException) {
+            _homeRequest.value = null
+            false
+        }
     }
 
     private fun gestureOut(out: PulseGestures.Out) {
@@ -482,8 +599,9 @@ class PulseAccessibilityService : AccessibilityService() {
      * M3: a bound gesture runs its action; an unbound tap opens the menu as before. With Home in front Home runs
      * it (FLOW keeps its preview rules there); elsewhere only system actions run, the rest says it needs Home.
      */
-    private fun gesture(g: Gesture) {
-        runBound(bound(g) ?: return if (g == Gesture.Tap) openMenu() else Unit)
+    private fun gesture(g: Gesture, assisted: Boolean = false) {
+        val action = bound(g) ?: return if (g == Gesture.Tap) openMenu() else Unit
+        if (action is Action.Arc) openArc(action, assisted) else runBound(action)
     }
 
     private fun runBound(action: Action) {
@@ -597,6 +715,13 @@ class PulseAccessibilityService : AccessibilityService() {
         /** Settings changed (key bindings or the D20 switch): the running service re-requests or drops the key filter. */
         fun refreshKeys() { instance?.let { s -> s.main.post { s.applyKeyFilter() } } }
         @Volatile private var editing = false
+
+        private val _homeRequest = MutableStateFlow<Action?>(null)
+
+        /** An action the service handed to Home (Search or a card from Global ARC); Home runs it and calls [consumed]. */
+        val homeRequest: StateFlow<Action?> = _homeRequest.asStateFlow()
+
+        fun consumed() { _homeRequest.value = null }
 
         /** Set by Home while it is resumed: bound PULSE gestures then run through Home's Action Engine entry. */
         @Volatile var home: ((Action) -> Unit)? = null
@@ -878,3 +1003,6 @@ private val PULSE_A11Y = listOf(
     Triple(Gesture.SwipeRight, R.id.pulse_swipe_right, R.string.pulse_gesture_right),
     Triple(Gesture.DoubleTapHold, R.id.pulse_double_hold, R.string.pulse_gesture_double_hold),
 )
+
+/** What the service's Global ARC shows: the content, the open set, the camera (dp), its bow and the picked slot. */
+private data class GlobalArcUi(val content: ArcContent, val set: Int, val camera: Pt, val bow: ArcBow, val pick: Int?, val assisted: Boolean)

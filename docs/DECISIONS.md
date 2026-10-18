@@ -308,3 +308,16 @@ The owner approved a `NotificationListenerService` (`pulse.PulseMediaListener`) 
   Home while started (Jen na ploše), the PULSE service while Všude + unlocked + music on.
 - Controls exist only for actions the session reports (prev / play-pause / next, seek only with `ACTION_SEEK_TO`).
 - Accepted side effect: an enabled listener stays bound by the system, which keeps Intelia's process alive.
+
+## D22 — 2026-10-18 — APPROVED by the owner: Global ARC from the camera (M3.3)
+The owner chose: PULSE **hold → Global ARC** (set 1 by default, any set selectable in Studio › Ovládání), **tap then
+hold → torch**, everything rebindable. Scope:
+- New `Action.Arc(set)`; only `Trigger.Pulse(Hold | DoubleTapHold)` may carry it (`Controls.opensArc`, enforced in
+  `bind` and `sanitized`); it never sits in an ARC slot. A missing set falls back to the first set.
+- Geometry is ARC V2 `ArcBow` with LENS on the top edge (`GlobalArcGeometry`), one set (no room for dots/arrows above
+  the camera). Release on a slot runs it; release near the camera, a cancel or a second finger runs nothing. A FLOW
+  shows its steps while picked and runs only on release (the explicit action of AGENTS.md).
+- Outside Home the PULSE service now starts apps, FLOWs and shortcuts **only from Global ARC**, through Intelia's own
+  `AppRepository` (public `LauncherApps`; shortcuts only while Intelia is the default home). Search and cards bring
+  Home forward and run there via an in-process request (never an intent extra, so no other app can inject actions).
+  Every other PULSE gesture keeps the M3 rule: system actions only outside Home. No new permission.

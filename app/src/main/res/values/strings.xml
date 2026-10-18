@@ -532,7 +532,7 @@
     <string name="arc_release_run">release to run</string>
     <string name="pulse_needs_home">This action runs from PULSE only on Home.</string>
     <string name="pulse_gestures">Capsule gestures</string>
-    <string name="pulse_gestures_hint">Outside Intelia PULSE runs only system actions (torch, media, panels, lock); apps and FLOWs run from it on Home.</string>
+    <string name="pulse_gestures_hint">Outside Intelia PULSE runs only system actions (torch, media, panels, lock); apps and FLOWs run from it on Home. Global ARC on a hold opens apps, FLOWs and Search everywhere.</string>
     <string name="pulse_gesture_tap">Tap</string>
     <string name="pulse_gesture_double">Double tap</string>
     <string name="pulse_gesture_hold">Hold</string>
@@ -580,7 +580,7 @@
     <string name="gesture_home_left">Swipe left on Home</string>
     <string name="gesture_home_right">Swipe right on Home</string>
     <string name="pulse_gesture_down">Swipe down from the capsule</string>
-    <string name="pulse_gesture_double_hold">Double tap and hold</string>
+    <string name="pulse_gesture_double_hold">Tap, then hold</string>
     <string name="pulse_mode">Where PULSE works</string>
     <string name="pulse_mode_needs_service">Everywhere needs the PULSE service. Switch it on in Android settings; until then PULSE works on Home.</string>
     <string name="pulse_mode_open_settings">Open Android settings</string>
@@ -606,4 +606,7 @@
     <string name="pulse_music_open_settings">Open notification access</string>
     <string name="pulse_seek">Position</string>
     <string name="pulse_music_now">Now playing</string>
+    <string name="global_arc">Global ARC</string>
+    <string name="global_arc_set">Global ARC · %1$s</string>
+    <string name="global_arc_cancel_hint">Slide back to the camera to cancel.</string>
 </resources>

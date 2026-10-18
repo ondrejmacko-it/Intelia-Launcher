@@ -137,7 +137,7 @@ data class Controls(
 
     /** Binds [action] to [trigger], replacing what it had; null unbinds. ARC slots are edited with [setSlot]. */
     fun bind(trigger: Trigger, action: Action?): Controls {
-        if (trigger is Trigger.ArcSlot) return this
+        if (trigger is Trigger.ArcSlot || (action is Action.Arc && !opensArc(trigger))) return this
         val rest = bindings.filterNot { it.trigger == trigger }
         return copy(bindings = if (action == null) rest else (rest + Binding(trigger, action)).takeLast(MAX_BINDINGS))
     }
@@ -158,9 +158,13 @@ data class Controls(
     /** Whether any gesture of key [code] is bound (the key filter lets every other key through untouched). */
     fun keyBound(code: Int): Boolean = bindings.any { (it.trigger as? Trigger.Key)?.code == code }
 
+    /** The set Global ARC [arc] shows: its own while it exists, otherwise the first set (never none). */
+    fun arcSetFor(arc: Action.Arc): ArcSet = arcSet(arc.set) ?: sets().first()
+
     /** The single validation gate for restored data: drops malformed actions, caps sizes, one binding per trigger. */
     fun sanitized(flowIds: Set<String>): Controls {
-        fun ok(a: Action): Boolean = a.wellFormed() && (a !is Action.Flow || a.id in flowIds)
+        // Global ARC never sits inside an ARC slot (an ARC cannot open itself) and only on a held PULSE gesture.
+        fun ok(a: Action): Boolean = a.wellFormed() && (a !is Action.Flow || a.id in flowIds) && a !is Action.Arc
         val ids = HashSet<String>()
         val sets = arcSets.asSequence()
             .filter { Action.wellFormed(it.id) && ids.add(it.id) }
@@ -171,7 +175,8 @@ data class Controls(
         val codes = keys.filter { it in 1..MAX_KEY_CODE && it !in RESERVED_KEYS }.distinct().take(MAX_KEYS)
         val seen = HashSet<Trigger>()
         val kept = bindings.asSequence()
-            .filter { it.trigger !is Trigger.ArcSlot && it.trigger.valid() && ok(it.action) && seen.add(it.trigger) }
+            .filter { it.trigger !is Trigger.ArcSlot && it.trigger.valid() && seen.add(it.trigger) &&
+                (ok(it.action) || (it.action is Action.Arc && it.action.wellFormed() && opensArc(it.trigger))) }
             .filter { b -> (b.trigger as? Trigger.Key)?.let { it.code in codes && it.gesture in KEY_GESTURES } ?: true }
             .take(MAX_BINDINGS).toList()
         return Controls(sets, kept, arc.sanitized(), codes, keysEverywhere)
@@ -186,6 +191,10 @@ data class Controls(
         const val MAX_KEYS = 8
         /** What a hardware key can carry (M6): press, double press, hold. */
         val KEY_GESTURES = listOf(Gesture.Tap, Gesture.DoubleTap, Gesture.Hold)
+
+        /** Global ARC follows the finger after a hold, so only the held PULSE gestures can open it (M3.3). */
+        fun opensArc(trigger: Trigger): Boolean =
+            trigger is Trigger.Pulse && (trigger.gesture == Gesture.Hold || trigger.gesture == Gesture.DoubleTapHold)
 
         const val FLOW_SET = "flow"
         const val SHORTCUT_SET = "shortcuts"

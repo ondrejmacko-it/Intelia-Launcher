@@ -56,21 +56,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      * deleted FLOW or a shortcut the system no longer offers leaves its slot empty instead of shifting the others.
      */
     val arc: StateFlow<ArcContent> = combine(visibleApps, shortcuts, settings) { apps, list, s ->
-        val controls = s.controls
-        val byKey = apps.associateBy { it.key }
-        val flows = s.aliases.associateBy { it.id }
-        val cuts = list.associateBy { it.key }
-        fun resolve(a: Action?): ArcEntry? = when (a) {
-            null -> null
-            is Action.App -> byKey[a.component]?.let { ArcEntry(a, app = it) }
-            is Action.Flow -> flows[a.id]?.let { ArcEntry(a, flow = it) }
-            is Action.Shortcut -> cuts[a.pkg + "/" + a.id]?.let { ArcEntry(a, shortcut = it) }
-            else -> ArcEntry(a)
-        }
-        val sets = controls.arcSets.ifEmpty { listOf(ArcSet(Controls.MAIN_SET)) }.map { set ->
-            ArcSetView(set.id, set.name, List(controls.arc.slots) { i -> resolve(set.slots.getOrNull(i)) })
-        }
-        ArcContent(sets, controls.arc)
+        ArcContent.of(s.controls, apps, s.aliases, list)
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, ArcContent(emptyList(), ArcLook()))
 
     val favoriteApps: StateFlow<List<AppEntry>> = combine(visibleApps, settings) { apps, s ->

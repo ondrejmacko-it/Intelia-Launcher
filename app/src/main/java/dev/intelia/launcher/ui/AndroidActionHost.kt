@@ -21,7 +21,12 @@ import androidx.compose.ui.platform.LocalContext
 import dev.intelia.launcher.action.ActionHost
 import dev.intelia.launcher.action.MediaKey
 import dev.intelia.launcher.action.PanelKind
+import dev.intelia.launcher.data.AppEntry
+import dev.intelia.launcher.data.AppRepository
+import dev.intelia.launcher.data.ShortcutEntry
+import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
+import dev.intelia.launcher.intelia
 
 /**
  * The Action Engine's Android side (Control System V1): public platform APIs only. Queries are cheap reads of
@@ -29,7 +34,10 @@ import dev.intelia.launcher.flow.FlowAlias
  */
 class AndroidActionHost(
     private val context: Context,
-    /** Null in the PULSE service outside Home: apps, FLOWs and shortcuts then report missing (M3). */
+    /**
+     * Null in the PULSE service outside Home. Apps, FLOWs and shortcuts then resolve through the app's own
+     * [AppRepository] (public `LauncherApps`); only Global ARC runs them there (M3.3), other PULSE gestures stay Home-only.
+     */
     private val model: HomeViewModel?,
     private val onSearch: () -> Boolean,
 ) : ActionHost {
@@ -41,22 +49,35 @@ class AndroidActionHost(
         override fun onTorchModeChanged(cameraId: String, enabled: Boolean) { if (cameraId == torchId) torchOn = enabled }
     }
 
-    override fun hasApp(component: String) = model?.entry(component)?.suspended == false
-    override fun findFlow(id: String): FlowAlias? = model?.settings?.value?.aliases?.firstOrNull { it.id == id }
+    private val repo: AppRepository get() = context.intelia.apps
+    private fun app(key: String): AppEntry? = model?.entry(key) ?: if (model == null) repo.apps.value?.firstOrNull { it.key == key } else null
+
+    /** Shortcuts the service saw at the last [refreshShortcuts]; Home reads its model's list instead. */
+    private var serviceShortcuts: List<ShortcutEntry> = emptyList()
+    private val shortcutList: List<ShortcutEntry> get() = model?.shortcuts?.value ?: serviceShortcuts
+
+    /** Re-reads the system's shortcuts for the service (a binder call: only when Global ARC opens). */
+    fun refreshShortcuts(): List<ShortcutEntry> = repo.shortcuts().also { serviceShortcuts = it }
+
+    override fun hasApp(component: String) = app(component)?.suspended == false
+    override fun findFlow(id: String): FlowAlias? =
+        (model?.settings?.value ?: context.intelia.settings.state.value).aliases.firstOrNull { it.id == id }
     override fun isDefaultHome(): Boolean = if (Build.VERSION.SDK_INT >= 29)
         context.getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
     else context.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
         ?.activityInfo?.packageName == context.packageName
-    override fun hasShortcut(pkg: String, id: String) = model?.shortcuts?.value.orEmpty().any { it.packageName == pkg && it.id == id }
+    override fun hasShortcut(pkg: String, id: String) = shortcutList.any { it.packageName == pkg && it.id == id }
     override fun hasTorch() = torchId != null
     override fun hasPulseService() = PulseAccessibilityService.running.value
     override fun hasCard(id: String) = false
 
-    override fun launchApp(component: String): Boolean = model?.let { m -> m.entry(component)?.let(m::launch) } ?: false
-    override fun runFlow(flow: FlowAlias) = model?.runFlow(flow) == FlowRun.Launched
+    override fun launchApp(component: String): Boolean = model?.let { m -> m.entry(component)?.let(m::launch) }
+        ?: app(component)?.takeIf { !it.suspended }?.let(repo::launch) ?: false
+    override fun runFlow(flow: FlowAlias) = model?.let { it.runFlow(flow) == FlowRun.Launched }
+        ?: Flow.resolve(flow) { key -> app(key)?.takeIf { !it.suspended } }?.all(repo::launch) ?: false
     override fun openSearch() = onSearch()
     override fun startShortcut(pkg: String, id: String): Boolean =
-        model?.let { m -> m.shortcuts.value.firstOrNull { it.packageName == pkg && it.id == id }?.let(m::launch) } ?: false
+        shortcutList.firstOrNull { it.packageName == pkg && it.id == id }?.let { model?.launch(it) ?: repo.startShortcut(it) } ?: false
 
     override fun sendMedia(key: MediaKey): Boolean {
         val audio = context.getSystemService(AudioManager::class.java) ?: return false

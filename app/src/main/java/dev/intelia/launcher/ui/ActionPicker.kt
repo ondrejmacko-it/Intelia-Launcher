@@ -43,15 +43,17 @@ private class PickRow(val action: Action, val label: String, val detail: String?
     val app: AppEntry? = null, val shortcut: ShortcutEntry? = null)
 
 /** Picker categories (M5): the order of the tabs and of the sections in "All". */
-private const val CAT_APPS = 0
-private const val CAT_FLOW = 1
-private const val CAT_SHORTCUTS = 2
-private const val CAT_SYSTEM = 3
-private const val CAT_MEDIA = 4
-private const val CAT_PANELS = 5
-private const val CAT_COUNT = 6
+private const val CAT_ARC = 0
+private const val CAT_APPS = 1
+private const val CAT_FLOW = 2
+private const val CAT_SHORTCUTS = 3
+private const val CAT_SYSTEM = 4
+private const val CAT_MEDIA = 5
+private const val CAT_PANELS = 6
+private const val CAT_COUNT = 7
 
 private fun Action.category(): Int = when (this) {
+    is Action.Arc -> CAT_ARC
     is Action.App -> CAT_APPS
     is Action.Flow -> CAT_FLOW
     is Action.Shortcut -> CAT_SHORTCUTS
@@ -85,16 +87,18 @@ fun ActionPicker(
     shortcutsNote: String? = null,
     used: List<Action> = emptyList(),
     showReach: Boolean = false,
+    /** Names that say more than the action alone (Global ARC rows name their set). */
+    labels: Map<Action, String> = emptyMap(),
 ) {
     val c = LocalCrystal.current
-    val sections = listOf(stringResource(R.string.arc_ring_apps), stringResource(R.string.flow), stringResource(R.string.arc_ring_shortcuts),
+    val sections = listOf(stringResource(R.string.global_arc), stringResource(R.string.arc_ring_apps), stringResource(R.string.flow), stringResource(R.string.arc_ring_shortcuts),
         stringResource(R.string.act_system), stringResource(R.string.pick_media), stringResource(R.string.pick_panels))
     val everywhere = stringResource(R.string.pick_everywhere)
     val homeOnly = stringResource(R.string.pick_home_only)
     fun reach(a: Action): String? = if (!showReach) null else if (a.outsideHome) everywhere else homeOnly
     fun join(vararg parts: String?): String? = parts.filterNotNull().joinToString(" · ").ifEmpty { null }
     val systemRows = system.map { a ->
-        val label = systemActionLabel(a)
+        val label = labels[a] ?: systemActionLabel(a)
         PickRow(a, label, join(host?.let { a.unavailableReason(it) }?.let { reasonNote(it) } ?: requirementNote(a.requirement), reach(a)),
             a.category(), AppSearch.fold(label))
     }

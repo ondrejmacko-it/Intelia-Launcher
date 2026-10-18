@@ -242,6 +242,9 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
         onPauseOrDispose { PulseAccessibilityService.home = null }
     }
     LaunchedEffect(homeSignal) { if (homeSignal > 0) goHome() }
+    // M3.3: Search or a card picked on Global ARC in another app; Home runs it once it is in front.
+    val request by PulseAccessibilityService.homeRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(request) { request?.let { PulseAccessibilityService.consumed(); perform(it) } }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { model.refreshShortcuts() }
     // Search is a paper surface; never leave it behind for Recents or the next return Home.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (page == Page.Search || page == Page.Drawer) goHome() }
@@ -576,7 +579,8 @@ private fun Home(
         val camera = Pt(hole.x / density.density, hole.y / density.density)
         if (ed != null) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f)))
         // PULSE stays at the camera, outside the editor's scaled Home.
-        if (settings.pulse && ed == null) Pulse(settings, onGesture = { g -> settings.controls.bound(Trigger.Pulse(g))?.let { onAction(it); true } ?: false })
+        if (settings.pulse && ed == null) Pulse(settings, onGesture = { g -> settings.controls.bound(Trigger.Pulse(g))?.let { onAction(it); true } ?: false },
+            arc = arc, onArcAction = onAction, flowSteps = flowSteps)
         if (ed != null) {
             if (settings.pulse) Pulse(settings, preview = true)
             CameraMark(camera, selected == PULSE_ID)

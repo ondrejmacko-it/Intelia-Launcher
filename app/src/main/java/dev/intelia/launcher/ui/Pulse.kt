@@ -73,6 +73,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -92,11 +93,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import dev.intelia.launcher.R
+import dev.intelia.launcher.action.Action
 import dev.intelia.launcher.action.Gesture
 import dev.intelia.launcher.action.Trigger
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.Motion
 import dev.intelia.launcher.data.PulseLens
+import dev.intelia.launcher.flow.FlowAlias
 import dev.intelia.launcher.pulse.Playing
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -185,7 +188,9 @@ internal fun torchCamera(manager: CameraManager): String? = try {
  * without echo or panel, so opacity can be tuned live.
  */
 @Composable
-fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false, onGesture: (Gesture) -> Boolean = { false }) {
+fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Boolean = false, onGesture: (Gesture) -> Boolean = { false },
+    /** Global ARC (M3.3): what its sets hold now, and where a released slot goes (null = no Global ARC here). */
+    arc: ArcContent? = null, onArcAction: (Action) -> Unit = {}, flowSteps: (FlowAlias) -> List<String?> = { emptyList() }) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val ink = LocalInk.current
@@ -196,6 +201,16 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
     var battery by remember { mutableStateOf<Battery?>(null) }
     var alarm by remember { mutableStateOf<Long?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    /** The open Global ARC set index, the picked slot and whether TalkBack opened it (slots are buttons then). */
+    var arcSet by remember { mutableStateOf<Int?>(null) }
+    var arcPick by remember { mutableStateOf<Int?>(null) }
+    var arcAssisted by remember { mutableStateOf(false) }
+    /** The set last shown, so the slots stay while Global ARC fades out. */
+    var arcShown by remember { mutableStateOf(0) }
+    val haptics = rememberInkHaptics()
+    fun closeArc() { arcSet = null; arcPick = null; arcAssisted = false }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { closeArc() }
+    BackHandler(enabled = arcSet != null) { closeArc() }
     val global by PulseAccessibilityService.running.collectAsState()
     val echo = remember { Animatable(1f) }
     var started by remember { mutableStateOf(false) }
@@ -236,7 +251,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
     val music = rememberPlaying(!preview && started && owns && settings.pulseMusic)?.takeIf { it.info.visible }
 
     // Home draws its content after PULSE; while expanded the panel (and its close layer) must sit above it.
-    Box(modifier.zIndex(if (expanded) 1f else 0f).fillMaxSize()) {
+    Box(modifier.zIndex(if (expanded || arcSet != null) 1f else 0f).fillMaxSize()) {
         val hx = with(density) { h.x.toDp() }
         val hy = with(density) { h.y.toDp() }
         val hr = with(density) { h.radius.toDp() }
@@ -296,6 +311,23 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
         val extras = gestureLabels.keys.filter(bound)
         val swipes = extras.any { it in PULSE_SWIPES }
         val tap = { if (!onGesture(Gesture.Tap)) expanded = true }
+        val camera = Pt(hx.value, hy.value)
+        val window = LocalWindowInfo.current.containerSize
+        val screenW = window.width / density.density
+        val screenH = window.height / density.density
+        // M3.3: a held gesture bound to Global ARC opens it here; every other gesture goes to the caller.
+        fun openArc(g: Gesture, assisted: Boolean): Boolean {
+            val a = controls.bound(Trigger.Pulse(g)) as? Action.Arc ?: return false
+            val content = arc ?: return false
+            arcSet = content.sets.indexOfFirst { it.id == controls.arcSetFor(a).id }.coerceAtLeast(0)
+            arcShown = arcSet ?: 0
+            arcPick = null
+            arcAssisted = assisted
+            haptics.confirm()
+            return true
+        }
+        fun gesture(g: Gesture) { if (!openArc(g, false)) { if (g == Gesture.Tap) tap() else onGesture(g) } }
+        fun assisted(g: Gesture) { if (!openArc(g, true)) onGesture(g) }
         // With PULSE everywhere on (D9) and the service running, the service owns the lens; Lab draws no second target.
         // With music shown the whole capsule is the target, so a tap on the artwork opens the panel too.
         val targetLeft = if (music != null) minOf(hx - 32.dp, mc.left.dp) else hx - 32.dp
@@ -304,16 +336,27 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             .size(targetWidth, maxOf(48.dp, statusBar.dp + TARGET_BELOW - targetTop))
             // M3.1: one recognizer for every capsule gesture (shared with the PULSE service); a shorter gesture
             // waits only while a longer bound one can still follow.
-            .pulseTouch(bound, swipes) { g -> if (g == Gesture.Tap) tap() else onGesture(g) }
+            .pulseTouch(bound, swipes, ::gesture, onHeld = { x, y ->
+                val k = arcSet ?: return@pulseTouch
+                val content = arc ?: return@pulseTouch
+                val bow = GlobalArcGeometry.bow(content.look, camera, screenW, screenH)
+                val next = GlobalArcGeometry.pick(bow, camera, targetLeft.value + x, targetTop.value + y, content.filled(k), arcPick)
+                if (next != null && next != arcPick && content.look.haptics) haptics.tick()
+                arcPick = next
+            }, onHeldEnd = { release ->
+                val chosen = if (release) arcSet?.let { k -> arcPick?.let { arc?.sets?.getOrNull(k)?.slots?.getOrNull(it) } } else null
+                if (arcSet != null) closeArc()
+                chosen?.let { haptics.confirm(); onArcAction(it.action) }
+            })
             .semantics {
                 role = Role.Button
                 contentDescription = label
                 val playingState = music?.info?.let { i -> listOf(i.title, i.artist).filter(String::isNotEmpty).joinToString(" – ") }.orEmpty()
                 listOf(restState, playingState).filter(String::isNotEmpty).joinToString(", ").takeIf { it.isNotEmpty() }?.let { stateDescription = it }
                 onClick(label) { tap(); true }
-                if (hold) onLongClick(holdLabel) { onGesture(Gesture.Hold) }
+                if (hold) onLongClick(holdLabel) { assisted(Gesture.Hold); true }
                 // TalkBack has no double tap or swipe of its own; bound ones are offered as custom actions.
-                if (extras.isNotEmpty()) customActions = extras.map { g -> CustomAccessibilityAction(gestureLabels.getValue(g)) { onGesture(g) } }
+                if (extras.isNotEmpty()) customActions = extras.map { g -> CustomAccessibilityAction(gestureLabels.getValue(g)) { assisted(g); true } }
             })
 
         if (expanded) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() },
@@ -323,6 +366,12 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             enter = fadeIn(tween(motionMs(160))) + expandIn(tween(motionMs(300)), expandFrom = Alignment.TopCenter),
             exit = fadeOut(tween(motionMs(140))) + shrinkOut(tween(motionMs(220)), shrinkTowards = Alignment.TopCenter)) {
             PulsePanel(music, alarm, battery, hr, maxOf(hr * 2 + 18.dp, statusBar.dp - panelTop), onClose = { expanded = false })
+        }
+        arc?.let { content ->
+            val shown = content.sets.getOrNull(arcSet ?: arcShown)
+            GlobalArc(shown, content.look, camera, arcSet != null, arcPick, flowSteps,
+                onSlot = if (arcAssisted) { i -> val chosen = shown?.slots?.getOrNull(i); closeArc(); chosen?.let { onArcAction(it.action) } } else null,
+                onDismiss = ::closeArc)
         }
     }
 }
