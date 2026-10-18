@@ -1,8 +1,8 @@
 # Intelia Launcher v0.1.0 Beta 1
 
 > **Prerelease.** First public beta. Tested on one phone. Not on Google Play.
-> **Publication status (2026-10-19): DRAFT — blocked on the production signing key (see checklist).** No APK is
-> attached until it is signed with the project's own release key; the repo's debug key is never used for distribution.
+> Signed with the project's release key (RSA 4096, `CN=Intelia Launcher, O=Intelia, C=CZ`), certificate SHA-256
+> `5ddb08b20d7f3eb02c0ae26a7d8b6a75fb284fe97616f42260ded24cd6dd99d3`.
 
 ## What Intelia is
 A fast, quiet, local-first Android home screen written from scratch in Kotlin and Jetpack Compose. No accounts, no
@@ -27,7 +27,7 @@ network, no analytics, no background workers; everything optional is off by defa
 
 ## Requirements and testing
 - Android 8.0 (API 26)+; target SDK 37. **Tested only on Nothing Phone (3), Android 16** (1080 × 2392, 420 dpi).
-- 235 JVM unit tests pass. Device smoke test: see `RELEASE_CHECKLIST.md`.
+- 236 JVM unit tests pass. Device smoke test: see `RELEASE_CHECKLIST.md`.
 
 ## Install
 Download `intelia-0.1.0-beta.1.apk`, compare its SHA-256 with the value below, install, then optionally set
@@ -35,7 +35,7 @@ Intelia as home in Studio › System and data › Home screen.
 
 | File | SHA-256 |
 |---|---|
-| `intelia-0.1.0-beta.1.apk` | *to be filled when the signed APK exists* |
+| `intelia-0.1.0-beta.1.apk` (3 820 198 B, `dev.intelia.launcher`, versionCode 2) | `3dd122a75f72df6b6fe3ecf595cbbd3281cbb5a675d675a1a230b3243adcdff7` |
 
 ## Permissions
 `SET_WALLPAPER` and `VIBRATE` (normal). Optional, granted by you in Android: default home role, accessibility service
@@ -45,7 +45,7 @@ Intelia as home in Studio › System and data › Home screen.
 | | `dev.intelia.launcher` | `dev.intelia.launcher.lab` |
 |---|---|---|
 | Purpose | distribution | development / testing |
-| Signing | project release key (owner-held) | public debug key from the repo |
+| Signing | project release key (owner-held) | development key, never distributed |
 | Updates | only from builds signed with the same release key | from any Lab build |
 
 They install side by side, never update each other, and do not share settings (use Backup).
@@ -62,8 +62,12 @@ They install side by side, never update each other, and do not share settings (u
 See [`docs/audit/UX_BUGS.md`](../../audit/UX_BUGS.md).
 
 ## Beta notice
-Settings format may still change; export a backup before updating. Report bugs as GitHub issues with phone model,
+Settings format may still change; export a backup before updating. Security issues: private report (SECURITY.md). Report other bugs as GitHub issues with phone model,
 Android version, Intelia version and steps — no private screenshots.
+
+## Legal
+Apache-2.0 code ([LICENSE](../../../LICENSE), [NOTICE](../../../NOTICE)); name and logo not licensed
+([TRADEMARKS.md](../../../TRADEMARKS.md)); inspiration and components in [CREDITS.md](../../../CREDITS.md).
 
 ## Roadmap
 [`docs/product/MASTER_PLAN.md`](../../product/MASTER_PLAN.md). Roadmap items are plans, not promises.

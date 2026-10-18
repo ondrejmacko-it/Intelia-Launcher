@@ -97,7 +97,8 @@ user*; the UI names it ("via Android", "needs PULSE service", "needs Shizuku").
 | D Integrated Bridge | Intelia starts its own helper via `app_process` from an ADB shell (pairing through Wireless Debugging, Android 11+) | One app for power users | Large security surface; must re-start after reboot; OEM differences; Play risk; needs ADB pairing implementation (licence check of any library) |
 | E Root | Only if `su` exists and the user enables it | Full power | Rare; never assumed |
 
-Rules: no automatic privilege escalation; ADB shell ≠ root; Bridge exposes a **fixed allow-list of typed commands**
+Known limits: Shizuku via Wireless Debugging must be restarted after every reboot (F4); some banking apps refuse to run
+while any accessibility service is on (F3). Rules: no automatic privilege escalation; ADB shell ≠ root; Bridge exposes a **fixed allow-list of typed commands**
 (e.g. `setWifi(Boolean)`, `grantWriteSecureSettings` for self only) — never a free shell, never callable from
 imported/untrusted FLOW without a per-action confirmation; visible status + one-tap off; everything still works
 without it. Recommendation: **C first** (R6), D only after C proves which commands users actually need.
@@ -174,13 +175,13 @@ Targets are set **after** measuring 0.1.0 on Phone (3) with the Lab build:
 Practices: lazy init, event-driven updates, no polling, Baseline Profiles (in place via `profileinstaller`, D16),
 Compose stability checks, blur fallback on weak devices.
 
-## 13. Research backlog (not done in this session)
-The requested online research (Android docs, Shizuku, competitors — Nothing Launcher, Niagara, Nova, Smart Launcher,
-Lawnchair, Kvaesitso, Total Launcher, Square Home, KWGT/KLWP, Material Capsule, KEA, Essential Key Tools, Key Mapper,
-MacroDroid, Tasker — Reddit, GitHub issues, Nothing forums) was **not performed** on 2026-10-19 to stay within the
-session budget. It is a dedicated session (R0.5) producing `docs/research/COMPETITOR_RESEARCH.md` with links, dates
-and confidence per finding. The technical statements in §5–§7 are from existing Android knowledge and must be
-re-checked against current docs there before the related decision is approved.
+## 13. Research
+First round done 2026-10-19: [`docs/research/COMPETITOR_RESEARCH.md`](../research/COMPETITOR_RESEARCH.md) — Quickstep limits
+(F1), Essential Key remapping on Nothing (F2), banking apps vs accessibility (F3), Shizuku reboot behaviour (F4), Google
+Play accessibility rules (F5). Consequences are folded into §6, §7, §10 and §11. Still open (R0.5): full competitor and
+community review (Niagara, Nova, Smart Launcher, Lawnchair, Kvaesitso, Total Launcher, Square Home, KWGT/KLWP,
+Material Capsule, Key Mapper, MacroDroid, Tasker, Reddit / GitHub issues) and a re-check of Android API facts in §5–§7.
+Credits for functional inspiration: [`CREDITS.md`](../../CREDITS.md).
 
 ## 14. Roadmap
 Order optimised for dependencies: the Capability Registry (R5) moves before the Labs that need it only partly; Studio
@@ -188,8 +189,8 @@ V5 first because every later feature lands in Studio. Sizes: S ≈ 1 session, M 
 
 | Stage | Goal / user value | Ready | Depends on | Risk | Permissions | Size | DoD (short) |
 |---|---|---|---|---|---|---|---|
-| **R0** Beta stabilisation | 0.1.0-beta.1 released, baseline | done except signing | — | low | — | S | signed APK published, U1 checked |
-| **R0.5** Research | Facts for R3–R8 decisions | 0 % | — | low | — | S | research doc with sources |
+| **R0** Beta stabilisation | 0.1.0-beta.1 released, baseline | done (signed prerelease 2026-10-19) | — | low | — | S | signed APK published, U1 checked |
+| **R0.5** Research | Facts for R3–R8 decisions | first round (F1–F5) | — | low | — | S | research doc with sources |
 | **R1** Studio V5 | Every page clear, previewed, searchable | ~60 % (PreviewHost, nav, sheet) | R0 | low | — | M | all pages have `PreviewKind`, index test, U2/U3 fixed, back stack + state tests |
 | **R2** Design Lab foundation | One editor model for all labs | 0 % | R1 | medium | — | M | `DesignDoc`, undo/redo, snap, presets, JVM tests |
 | **R3** Wallpaper / Clock / Icon Lab | Creative customisation without privileges | wallpapers, fonts, icon styles exist | R2 | medium (icon packs) | none new | L | import + crop + effects, clock compositions, icon packs + overrides, device-verified |

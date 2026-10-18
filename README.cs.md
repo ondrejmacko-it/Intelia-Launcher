@@ -40,8 +40,8 @@ Vyžaduje Android 8.0 (API 26) nebo novější. Otestováno jen na Androidu 16.
 
 | Balíček | Co to je |
 |---|---|
-| `dev.intelia.launcher` | Distribuční build. Podepsaný release klíčem projektu, jakmile bude založen. |
-| `dev.intelia.launcher.lab` | Vývojový build (Lab). Podepsaný **veřejným** debug klíčem z repozitáře — jen pro testování. |
+| `dev.intelia.launcher` | Distribuční build. Podepsaný release klíčem projektu (otisk certifikátu SHA-256 `5ddb08b2…dd99d3`, viz [SECURITY.md](SECURITY.md)). |
+| `dev.intelia.launcher.lab` | Vývojový build (Lab). Vývojový build, nikdy se nepublikuje. Jeho starý debug klíč byl veřejně v historii Gitu — Lab APK od nikoho neinstaluj. |
 
 Nainstalují se vedle sebe a navzájem se neaktualizují. Nastavení se nesdílí; přenes je Zálohou.
 
@@ -93,7 +93,14 @@ nebo zprávami.
 
 Nejdřív si přečti [AGENTS.md](AGENTS.md). Kód je pod Apache-2.0; žádný kód zkopírovaný z jiných launcherů.
 
-## Licence
+## Licence a právní informace
 
-Apache License 2.0 — viz [LICENSE](LICENSE). Přibalená písma jsou pod SIL Open Font License 1.1 (viz
-[DECISIONS D11/D14](docs/DECISIONS.md)).
+- **Kód:** Apache License 2.0 — viz [LICENSE](LICENSE) a [NOTICE](NOTICE). Kód lze používat, upravovat a šířit, ale
+  každá kopie musí zachovat licenci, NOTICE a copyright a označit provedené změny. Poskytováno **bez záruky**.
+- **Název a logo:** „Intelia“, logo a názvy LENS / ARC / PULSE / FLOW licencované nejsou — viz
+  [TRADEMARKS.md](TRADEMARKS.md). Forky musí mít vlastní název a application ID.
+- **Oficiální buildy** jsou jen z Releases tohoto repozitáře a podepsané klíčem projektu; ověření viz
+  [SECURITY.md](SECURITY.md).
+- **Inspirace a komponenty třetích stran:** [CREDITS.md](CREDITS.md). Přibalená písma: SIL Open Font License 1.1.
+
+Copyright 2026 The Intelia Launcher Authors.

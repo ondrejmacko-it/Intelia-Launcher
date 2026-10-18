@@ -7,7 +7,15 @@ local.properties
 captures/
 *.keystore
 *.jks
-# Shared debug-only key so every PC signs debug builds identically (D4).
-!keystore/debug.keystore
 .signing/
 *.log
+
+# Never commit: keys, signing configs, crash dumps, local backups, release artifacts (D27).
+*.p12
+*.pem
+*.apk
+*.aab
+*.bundle
+*.rar
+hs_err_*
+replay_*

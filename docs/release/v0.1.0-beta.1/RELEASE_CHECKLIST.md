@@ -10,15 +10,16 @@ Verified 2026-10-19 on branch `feat/control-system-v1` (base `e6b0c84` + release
 | Lab APK `app-lab.apk` | `dev.intelia.launcher.lab`, versionCode 2, versionName `0.1.0-beta.1-lab`, 3 803 826 B, SHA-256 `321aa38b1a152ea39c981ec944149770262a1086fd5fe538dc6f74d6c082d57f`, APK Signature v2, `CN=Intelia Debug` (public debug key — test only) |
 | Release APK | `app-release-unsigned.apk`, `dev.intelia.launcher`, 3 795 622 B — **unsigned** (no release key) |
 
-## Signing — BLOCKED
-- No production key exists. `.signing/release.properties` is read if present (D26); it and `*.jks` are git-ignored.
-- Owner decision needed: create a long-lived key (RSA 4096, validity ≥ 25 years), a strong unique password kept in a
-  password manager, and **two offline backups** (key file + password). Losing the key = no updates for installed
-  builds; leaking it = anyone can ship "updates".
-- Suggested command (run by the owner, interactive password prompt, nothing on the command line):
-  `keytool -genkeypair -v -keystore .signing/intelia-release.jks -alias intelia -keyalg RSA -keysize 4096 -validity 10000`
-  then `.signing/release.properties` with `storeFile=.signing/intelia-release.jks`, `storePassword`, `keyAlias=intelia`,
-  `keyPassword`. Then `:app:assembleRelease`, `apksigner verify --print-certs`, rename to `intelia-0.1.0-beta.1.apk`.
+## Signing — PASS (2026-10-19 01:12)
+| Check | Result |
+|---|---|
+| `./gradlew -q --max-workers=1 -Dorg.gradle.jvmargs=-Xmx1536m :app:testDebugUnitTest :app:assembleRelease` on `main` `86c63b4` | PASS, 236 tests, 0 failures |
+| `aapt2 dump badging` | `dev.intelia.launcher`, versionCode 2, versionName `0.1.0-beta.1` |
+| `apksigner verify -v --print-certs` | Verifies, v2; `CN=Intelia Launcher, O=Intelia, C=CZ`, RSA 4096, cert SHA-256 `5ddb08b2…dd99d3` |
+| Not the debug key | PASS — debug cert SHA-256 is `82e25e9b…ce6f` |
+| `intelia-0.1.0-beta.1.apk` | 3 820 198 B, SHA-256 `3dd122a75f72df6b6fe3ecf595cbbd3281cbb5a675d675a1a230b3243adcdff7` |
+| Key material in APK | none (`unzip -l`) |
+| Key and passwords | only in git-ignored `.signing/`; never printed, read or committed by the agent |
 
 ## Licences and secrets
 | Check | Result |
@@ -26,7 +27,7 @@ Verified 2026-10-19 on branch `feat/control-system-v1` (base `e6b0c84` + release
 | Project licence | PASS — Apache-2.0 `LICENSE` |
 | Fonts | PASS — 7 families (Roboto Flex, Inter, Space Grotesk, DM Serif Display, JetBrains Mono, Bodoni Moda, Unbounded), SIL OFL 1.1, texts in `assets/licenses/` (D11, D14) |
 | Libraries | AndroidX, Compose, Kotlin, kotlinx — Apache-2.0; no third-party code copied |
-| Secrets | PASS — only the intentionally public debug key (`keystore/debug.keystore`, D4). No tokens. `hs_err_*`, `replay_*`, `build.log` and `docs/screens/*.rar` + unreviewed screen folders stay untracked |
+| Secrets | PASS — full-history scan (all refs) for tokens, private keys, passwords: only the old debug key + its `android` password (untracked since D27, still in history). Author e-mail visible in commit metadata. No tokens. `hs_err_*`, `replay_*`, `build.log` and `docs/screens/*.rar` + unreviewed screen folders stay untracked |
 
 ## Permissions
 PASS — manifest: `SET_WALLPAPER`, `VIBRATE`; optional accessibility service, notification listener, HOME role. No
