@@ -119,10 +119,10 @@ fun AppOptionsSheet(
                 .clip(RoundedCornerShape(2.dp)).background(ink.line))
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(app, Modifier.size(40.dp))
-                Text(app.label, Modifier.padding(start = 16.dp), style = InkText.title.copy(fontSize = 26.sp, lineHeight = 30.sp),
+                Text(app.label, Modifier.padding(start = 16.dp), style = InkText.title.copy(fontSize = 24.sp, lineHeight = 28.sp),
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Hairline(Modifier.padding(top = 6.dp))
+            Hairline(Modifier.padding(start = 24.dp, end = 24.dp, top = 6.dp))
             OptionRow(stringResource(if (inArc) R.string.arc_remove else if (arcFull) R.string.arc_full else R.string.arc_add),
                 enabled = inArc || !arcFull, mark = inArc, onClick = onArc)
             OptionRow(stringResource(if (favorite) R.string.favorite_remove else if (favoritesFull) R.string.favorite_full else R.string.favorite_add),
@@ -139,6 +139,6 @@ private fun OptionRow(label: String, enabled: Boolean = true, mark: Boolean = fa
     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
         .padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f), style = InkText.body, color = if (enabled) ink.ink else ink.faint)
-        if (mark) TideDash(true)
+        if (mark) HomeGlyph(Glyph.Check, null, tint = ink.accent, size = 20.dp)
     }
 }

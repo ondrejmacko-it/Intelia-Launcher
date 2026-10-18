@@ -67,12 +67,6 @@ fun Hairline(modifier: Modifier = Modifier, color: Color = LocalInk.current.line
     Box(modifier.fillMaxWidth().height(1.dp).background(color))
 }
 
-/** The tide dash: the "this is selected" mark of the Ink screens (no longer under LENS, 4.3). */
-@Composable
-fun TideDash(visible: Boolean, modifier: Modifier = Modifier, width: Dp = 14.dp, color: Color = LocalInk.current.accent) {
-    Box(modifier.size(width, 2.dp).clip(RoundedCornerShape(1.dp)).background(if (visible) color else Color.Transparent))
-}
-
 /**
  * LENS mark (4.3): a 44 dp ring with a 1.5 dp stroke and nothing beneath it. While ARC is open it
  * settles to 86 % with a faint fill; with Reduced Motion that change is instant.

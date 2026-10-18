@@ -100,7 +100,8 @@ object InkFonts {
 }
 
 object InkText {
-    val title = TextStyle(fontFamily = InkFonts.serif, fontWeight = FontWeight.Normal, fontSize = 32.sp, lineHeight = 36.sp)
+    // S4.2: titles share the Veil display face (Roboto Flex, as the drawer and Studio); serif stays for Home and FLOW names.
+    val title = TextStyle(fontFamily = flex(500, 112f), fontSize = 32.sp, lineHeight = 36.sp)
     val item = TextStyle(fontFamily = InkFonts.serif, fontSize = 21.sp, lineHeight = 26.sp)
     val body = TextStyle(fontFamily = InkFonts.sans, fontSize = 16.sp, lineHeight = 22.sp)
     val small = TextStyle(fontFamily = InkFonts.sans, fontSize = 13.sp, lineHeight = 18.sp)

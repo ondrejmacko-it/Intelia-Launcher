@@ -158,7 +158,7 @@ private fun LayoutChoice(settings: LauncherSettings, layout: HomeLayout, onSelec
                 .padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 RingToggle(on)
                 Column(Modifier.padding(start = 14.dp)) {
-                    Text(stringResource(text.first), style = InkText.item.copy(fontSize = 22.sp))
+                    Text(stringResource(text.first), style = InkText.title.copy(fontSize = 20.sp, lineHeight = 24.sp))
                     Text(stringResource(text.second), style = InkText.small, color = ink.muted)
                 }
             }
@@ -182,7 +182,7 @@ private fun Gestures() {
             gestures.forEachIndexed { index, (title, detail) ->
                 if (index > 0) Hairline(Modifier.padding(horizontal = 16.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
-                    Text((index + 1).toString(), Modifier.width(28.dp), style = InkText.item.copy(fontSize = 22.sp), color = ink.accent)
+                    Text((index + 1).toString(), Modifier.width(28.dp), style = InkText.title.copy(fontSize = 20.sp, lineHeight = 24.sp), color = ink.accent)
                     Column {
                         Text(stringResource(title), style = InkText.body)
                         Text(stringResource(detail), style = InkText.small, color = ink.muted)
