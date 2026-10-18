@@ -16,8 +16,18 @@ Only verified facts. Format: `date | branch/commit | evidence | change | open`.
   type and dark status icons, Vzhled, Search, drawer; Pohyb Vyp — Animace page, Search, drawer, Studio open fully;
   idle Global ARC hint („Návrat ke kameře gesto zruší.“) after a 3.5 s still hold on PULSE, release launched nothing.
   Owner's look restored (Soumrak, Klidný).
+- PULSE glance card: its width was `n × 76 + 24` dp around 16 + 16 dp padding, so the last quick button got 68 dp and
+  „Oznámení“ was cut at larger text. Width now `+ 32`; the buttons share the card by weight (≤ 76 dp each), so when the
+  screen is narrower than the card wants (150 % text + display size = 320 dp) all four stay visible.
+- Owner-approved checks on the Phone (3): glance Svítilna toggles the torch (camera service log on/off, button shows
+  the accent while on), the alarm button opens Clock › Budíky, Oznámení opens the shade (collapsed again). PULSE „Jen na
+  ploše“: no „Intelia PULSE“ window over Clock; back to „Všude“: the window returns, the accessibility service stayed
+  enabled (no re-enable). Text 130 % (`font_scale` 1.15, density 478) and 150 % (1.3, density 540): Studio, Search,
+  drawer, Home hold; glance fixed as above. `uiautomator dump` at 150 %: Studio, drawer, Search rows and Home labelled,
+  no unlabelled targets; the LENS hit area (84 × 100 dp) overlaps its neighbours, so the dock camera is 42 dp wide and
+  a Home item above LENS 45 dp tall at 320 dp; Home's dock stays in the accessibility tree behind the open drawer.
 - Not done: `LocalCrystal` → Veil API in the Home editor / inspector (32 uses; no visible change to gain, risk of
-  one). Still with the owner: 130/150 % text, TalkBack, PULSE „Jen na ploše“, glance quick buttons.
+  one). A spoken TalkBack walk-through (adb cannot drive TalkBack gestures reliably) — labels checked from the dump only.
 
 ## 2026-10-18 — S4 Unified UI Polish, part 2 (`feat/control-system-v1`, 065c02b..)
 - Dead UI removed (no references in main or test): `CrystalArc`, `StudioRow`, `LiveCapsule`, `CrystalSurface`,

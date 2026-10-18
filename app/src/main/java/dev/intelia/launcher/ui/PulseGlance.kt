@@ -49,6 +49,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -171,9 +172,9 @@ internal fun PulseGlance(hole: Hole, statusBar: Float, screenWidth: Float, music
     }
 }
 
-/** The card's width: the song needs room for its title, a row of actions only its buttons. */
+/** The card's width: the song needs room for its title, a row of actions only its buttons and the card's 16 dp sides. */
 internal fun glanceWidth(state: GlanceState) =
-    if (state.music != null) 360.dp else ((state.quick.size + if (state.battery != null) 1 else 0).coerceIn(2, 4) * GLANCE_SLOT + 24).dp
+    if (state.music != null) 360.dp else ((state.quick.size + if (state.battery != null) 1 else 0).coerceIn(2, 4) * GLANCE_SLOT + 32).dp
 
 private const val GLANCE_SLOT = 76
 
@@ -222,8 +223,10 @@ internal fun GlanceCard(state: GlanceState, width: androidx.compose.ui.unit.Dp, 
         val music = state.music
         if (music != null) MusicCard(music, onOpen = onOpenPlayer)
         else Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            state.battery?.let { b -> GlanceSlot(Glyph.Bolt, "${b.percent} %", on = false, act = Modifier) }
-            state.quick.take(if (state.battery != null) MAX_GLANCE - 1 else MAX_GLANCE).forEach { entry -> QuickButton(entry, state, onTorch, onAction) }
+            // Equal shares of the card: when the screen is narrower than the card wants, every button gives a little.
+            val slot = Modifier.weight(1f).widthIn(max = GLANCE_SLOT.dp)
+            state.battery?.let { b -> GlanceSlot(Glyph.Bolt, "${b.percent} %", on = false, act = Modifier, modifier = slot) }
+            state.quick.take(if (state.battery != null) MAX_GLANCE - 1 else MAX_GLANCE).forEach { entry -> QuickButton(entry, state, onTorch, onAction, slot) }
             if (state.quick.isEmpty() && state.battery == null) Text(stringResource(R.string.pulse_quick_empty),
                 Modifier.padding(vertical = 14.dp), style = InkText.small, color = ink.onNight.copy(alpha = .7f))
         }
@@ -238,20 +241,20 @@ internal fun GlanceCard(state: GlanceState, width: androidx.compose.ui.unit.Dp, 
 }
 
 @Composable
-private fun QuickButton(entry: QuickEntry, state: GlanceState, onTorch: (Boolean) -> Unit, onAction: (Action) -> Unit) {
+private fun QuickButton(entry: QuickEntry, state: GlanceState, onTorch: (Boolean) -> Unit, onAction: (Action) -> Unit, modifier: Modifier) {
     val action = entry.slot.action
     val torch = action == Action.Torch
     val on = torch && state.torch
     val label = if (action == Action.Alarms && state.alarm != null) state.alarm else slotLabel(entry.slot)
     val act = if (torch) Modifier.toggleable(on, role = Role.Switch) { onTorch(it) }.semantics { stateDescription = if (on) "on" else "off" }
     else Modifier.clickable(role = Role.Button) { onAction(action) }
-    GlanceSlot(entry.glyph, label, on, act, entry.slot)
+    GlanceSlot(entry.glyph, label, on, act, entry.slot, modifier)
 }
 
 @Composable
-private fun GlanceSlot(glyph: Glyph?, text: String, on: Boolean, act: Modifier, slot: ArcEntry? = null) {
+private fun GlanceSlot(glyph: Glyph?, text: String, on: Boolean, act: Modifier, slot: ArcEntry? = null, modifier: Modifier = Modifier) {
     val ink = LocalInk.current
-    Column(Modifier.width(GLANCE_SLOT.dp).clip(RoundedCornerShape(18.dp)).then(act).padding(vertical = 6.dp),
+    Column(modifier.clip(RoundedCornerShape(18.dp)).then(act).padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(46.dp).clip(CircleShape).background(if (on) ink.accent else ink.onNight.copy(alpha = .09f))
             .border(1.dp, ink.onNight.copy(alpha = if (on) 0f else .06f), CircleShape), contentAlignment = Alignment.Center) {
