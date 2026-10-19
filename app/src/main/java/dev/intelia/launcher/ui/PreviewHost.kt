@@ -54,6 +54,12 @@ import dev.intelia.launcher.search.AppSearch
 import dev.intelia.launcher.search.SearchPicks
 
 /**
+ * The guide's interactive sandbox (ONBOARDING_V2 §3): while set, a system effect the real surfaces would do directly
+ * (torch, media keys, opening a player) is only handed here as the [Action] it stands for, and nothing happens.
+ */
+internal val LocalSandbox = androidx.compose.runtime.staticCompositionLocalOf<((dev.intelia.launcher.action.Action) -> Unit)?> { null }
+
+/**
  * M1: what a Studio page shows above its sheet. Each kind is drawn by the renderer the real surface uses, fed with the
  * owner's settings, inside a [PreviewCover], so a preview looks exactly like the phone and never launches, plays or
  * runs anything.
