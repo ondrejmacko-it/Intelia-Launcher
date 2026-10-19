@@ -2,6 +2,14 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-19 — P1 Onboarding V2 final UX revision + Discovery Hub (`claude/onboarding-v2-final`, `b25e069..60103ee`)
+- PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 258 tests, 0 failures (new `DiscoveryTest`, 4).
+- Code review fix: inside the guide, PULSE Quick View's torch, the music card's media keys and its player shortcut
+  acted for real; they now go to `LocalSandbox` (guide only) and are only named. Production paths unchanged.
+- Installed on the Phone (3) as Intelia Debug (`install -r`, Lab untouched). **Not verified on the device:** the phone
+  was locked (secure keyguard), so no UI run, no screenshots, no PULSE lock/unlock or Global ARC regression check in
+  this session. `PulseAccessibilityService` and its lifecycle were not changed.
+
 ## 2026-10-19 — P1 Onboarding V2 implemented (`claude/pulse-reliability`, `a8b58c7` + follow-up)
 - PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 254 tests, 0 failures (new `OnboardingDraftTest`, 11).
 - D30: debug builds install as **Intelia Debug** (`dev.intelia.launcher.test`) next to the owner's Lab; `.debug` and

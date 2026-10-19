@@ -1,19 +1,21 @@
-Pokračujeme na Intelia Launcheru — **P1 Onboarding V2: dotažení a ověření** (`AGENTS.md` platí; česky, stručně,
-~200k tokenů, žádní agenti). Větev `claude/pulse-reliability`. Zdroj pravdy: `docs/product/ONBOARDING_V2.md` §11
-(požadavky) a **§12 (co je postavené)**, `docs/STATUS.md` (ověřeno / neověřeno).
+Pokračujeme na Intelia Launcheru — **P1 Onboarding V2: ověření na telefonu (Etapa E)** (`AGENTS.md` platí; česky, stručně,
+~200k tokenů, žádní agenti). Větev `claude/onboarding-v2-final` (PR do `main`, nemergovat bez majitele). Zdroj pravdy: `docs/product/ONBOARDING_V2.md` §11
+(požadavky) a **§12–§13 (co je postavené)**, `docs/STATUS.md` (ověřeno / neověřeno).
 
 ## Stav (2026-10-19)
-- Onboarding V2 je v kódu: `onboarding/OnboardingDraft.kt`, `ui/OnboardingHost.kt`; 254 testů PASS.
-- Vývoj se testuje v **Intelia Debug** (`dev.intelia.launcher.test`, D30); Lab majitele je optimalizovaný
-  `assembleLab`. `pm clear` jen na `dev.intelia.launcher.test`.
-- Commity nejsou pushnuté; majitel pushne sám, merge do `main` jen s jeho souhlasem.
+- Onboarding V2 včetně finální UX revize (§13) a Discovery Hubu je v kódu; 258 testů PASS, `assembleDebug` PASS.
+- Intelia Debug (`dev.intelia.launcher.test`) je na telefonu nainstalovaná s tímto buildem. Na zařízení **nic
+  neověřeno** — telefon byl zamčený.
 
-## Další kroky
-1. Discovery Hub ve Studiu (Studio › Prozkoumat, stavy Hotovo / Nastavit / Vyzkoušet / Připravujeme), „Prozkoumat
-   Intelii“ v Hotovo ho otevře.
-2. Ověřit na telefonu: Vlastní → Home Editor v draftu, FLOW záložka, TalkBack, velké písmo (130 %), Reduced Motion,
-   světlá tapeta. PULSE v průvodci jde ověřit jen bez běžící PULSE služby Labu (služba Labu vlastní kameru).
-3. Vizuál podle majitele (velikost náhledu, typografie panelu), pak `STATUS.md` jen ověřenými fakty.
+## Další kroky (Etapa E — jen na odemčeném telefonu, majitel u něj nepracuje)
+1. Celá cesta v Intelia Debug po `pm clear dev.intelia.launcher.test` (nikdy ne Lab): Vítej → Plocha (Prázdná /
+   Základní / Vlastní, Změnit aplikace, Upravit rozložení viditelné nad tlačítkem) → Vzhled (záložky v jednom řádku,
+   barva, hodiny) → Porovnat (podržet / pustit) → Vyzkoušej (LENS, ARC, FLOW; PULSE jen bez běžící služby Labu) →
+   Oprávnění (řádky jen číst, na Výchozí plocha / Služba PULSE neklepat) → Hotovo → Přejít na plochu a Prozkoumat.
+2. Process death uprostřed (`install -r`), opakovaný průvodce ze Studia, Discovery Hub stavy.
+3. Velké písmo 130 %, klávesnice v hledání aplikací, světlá tapeta, TalkBack na Porovnat a PULSE.
+4. Screenshoty (smazat po prohlédnutí), regrese PULSE v Labu po zamknutí/odemknutí a Global ARC
+   (`dumpsys activity service dev.intelia.launcher.lab/dev.intelia.launcher.ui.PulseAccessibilityService`).
+5. `STATUS.md` jen ověřenými fakty; při chybě opravit dřív než merge.
 
-Pozor: na telefonu nikdy neklepat na řádky Výchozí plocha / Služba PULSE (mění telefon majitele) a před každým
-`adb input` ověřit, že je v popředí Intelia Debug (majitel telefon používá).
+Pozor: před každým `adb input` ověřit, že je v popředí `dev.intelia.launcher.test` (majitel telefon používá).

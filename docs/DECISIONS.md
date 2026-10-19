@@ -427,3 +427,10 @@ the label "Intelia Lab" from `app/src/lab`. Both are signed with the Lab debug k
 `install -r` between debug and Lab no longer applies (D16): update the Lab with `:app:assembleLab`. `.debug` and `.dev`
 are not used: the test phone still keeps data of old uninstalled builds under those names with higher version
 codes, so installs fail with `INSTALL_FAILED_VERSION_DOWNGRADE`. Revert: set the debug suffix back to `.lab`.
+
+## D31 — 2026-10-19 — The guide's sandbox covers direct system effects (`LocalSandbox`)
+Context: the guide's stage is the production `Home`; its callbacks were the sandbox, but PULSE Quick View toggled the
+torch, the music card sent media keys and opened the player directly, outside any callback. Decision: a
+`LocalSandbox` composition local, set only by `OnboardingHost`; while set, those surfaces hand the `Action` they stand
+for to it and do nothing. Every new direct side effect on a Home surface must check it. Revert: remove the local
+(the guide would then act for real on those three).

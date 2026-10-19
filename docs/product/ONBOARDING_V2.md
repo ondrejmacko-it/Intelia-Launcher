@@ -164,3 +164,28 @@ Capability Registry once it exists (MASTER_PLAN §6); until then from the same c
 - **Deviations from §4/§5:** no separate Aplikace step (apps live in Plocha), no restore-from-backup on Vítej (Studio
   keeps it), no Discovery Hub yet ("Prozkoumat Intelii" opens Studio), no "Teď ne" per permission row (Pokračovat /
   Přeskočit skip the step), PULSE states shown with Studio's `PulseStage` in the panel.
+
+## 13. Final approved revision (owner, 2026-10-19) — as built on `claude/onboarding-v2-final`
+Approved concept unchanged (§3–§12). The final UX fixes:
+- **Truthful preview:** the stage is the production `Home` with the draft; before any pick the Plocha card names what
+  the stage shows. Every choice edits the draft (sanitized) and the stage at once.
+- **Porovnat:** a small pill at the preview's top corner; held, the stage shows the start ("Výchozí"); released, the
+  edits. TalkBack double tap toggles it. The draft and the store never change by it. The big switch is gone.
+- **Panel:** near-solid Focus paper; scroll area ends above the pinned button, a "Další volby ↓" cue while more lies
+  below, a picked option's controls (Změnit aplikace, Upravit rozložení) scroll into view; height shrinks with the
+  soft keyboard. Controls is a compact coach (19 sp title, one hint line, chips) over the full Home.
+- **Tabs:** Vzhled (Motiv · Barva · Hodiny · Ikony · Materiál) and Controls (LENS · ARC · PULSE · FLOW) are one row
+  that scrolls sideways, never wrapped. Barva keeps Studio's `PaletteEditor` (16 accents, Dynamic, custom).
+- **PULSE:** tried on the real Home at the camera: tap = Quick View, hold = Global ARC (a marked demo hold binding
+  only on the stage when the user has none and Hold is free). "Kde PULSE funguje" is one line; Změnit opens the three
+  modes. Everywhere without the service says the stage is a demo until the service is on.
+- **Sandbox:** `LocalSandbox` (D31) also covers torch, media keys and the player; nothing launches, runs or changes.
+- **Permissions:** per row name, real state, one benefit line, Nastavit, Podrobnosti on demand (accessibility and
+  notification access explained there). State re-read on resume, never from a stored preference.
+- **Skip:** the top bar's Přeskočit offers "Přeskočit krok" or "Přeskočit průvodce"; the latter lands on Hotovo, so
+  nothing is saved unseen. Welcome keeps "Použít výchozí nastavení" (first run) / "Přeskočit průvodce" (rerun).
+- **Discovery Hub:** Studio › Prozkoumat Intelii (main page row): LENS, ARC, PULSE, FLOW, Hardwarová tlačítka,
+  Upravit plochu, Laboratoř with Hotovo / Nastavit / Vyzkoušet / Připravujeme (`onboarding/Discovery.kt`, pure).
+  Laboratoř has no action. LENS › Vyzkoušet reruns the guide on its sandbox tab; "Prozkoumat Intelii" on Hotovo opens
+  the hub after the commit.
+
