@@ -432,6 +432,8 @@ internal fun Home(
     onSaveLayout: (LayoutSpec) -> Unit,
     /** The guide's stage hides its panel while the Home Editor is open. */
     onEditorChange: (Boolean) -> Unit = {},
+    /** The guide's coach: PULSE was tapped (false) or its Global ARC released on a slot (true). */
+    onPulseUsed: (Boolean) -> Unit = {},
 ) {
     val homeInk = LocalHomeInk.current
     val places = LocalPlaces.current
@@ -608,8 +610,10 @@ internal fun Home(
             quickEntries(settings.controls, apps.values.toList(), settings.aliases, pulseService)
         }
         // PULSE stays at the camera, outside the editor's scaled Home.
-        if (settings.pulse && ed == null) Pulse(settings, onGesture = { g -> settings.controls.bound(Trigger.Pulse(g))?.let { onAction(it); true } ?: false },
-            arc = arc, onArcAction = onAction, flowSteps = flowSteps, quick = quick)
+        if (settings.pulse && ed == null) Pulse(settings, onGesture = { g ->
+            if (g == Gesture.Tap) onPulseUsed(false)
+            settings.controls.bound(Trigger.Pulse(g))?.let { onAction(it); true } ?: false
+        }, arc = arc, onArcAction = { onPulseUsed(true); onAction(it) }, flowSteps = flowSteps, quick = quick)
         if (ed != null) {
             if (settings.pulse) Pulse(settings, preview = true)
             CameraMark(camera, selected == PULSE_ID)

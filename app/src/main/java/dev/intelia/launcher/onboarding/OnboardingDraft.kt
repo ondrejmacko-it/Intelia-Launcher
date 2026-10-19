@@ -22,7 +22,7 @@ import kotlinx.serialization.json.Json
 @Serializable enum class ControlTab { Lens, Arc, Pulse, Flow }
 
 /** What the user tried on the sandboxed Home; only used to tick the coach's chips. */
-@Serializable enum class Tried { Tap, Swipe, Hold, ArcPick, PulseTap, FlowShown }
+@Serializable enum class Tried { Tap, Swipe, Hold, ArcPick, PulseTap, FlowShown, PulseArc }
 
 /** Where PULSE works: the three choices of the Controls step. */
 @Serializable enum class PulsePick { Everywhere, HomeOnly, Off }
@@ -61,6 +61,9 @@ data class OnboardingDraft(
 
     /** Skipping a step keeps what was chosen so far and moves on; nothing is lost. */
     fun skip(): OnboardingDraft = next()
+
+    /** "Přeskočit průvodce": straight to Done, which shows what will be kept; nothing is saved before its button. */
+    fun skipAll(): OnboardingDraft = goTo(GuideStep.Done)
 
     fun edit(transform: (LauncherSettings) -> LauncherSettings): OnboardingDraft = copy(settings = transform(settings).sanitized())
 
