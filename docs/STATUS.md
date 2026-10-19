@@ -2,6 +2,18 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-19 — Onboarding V2 closed, release 0.1.0 (`claude/onboarding-v2-final` → `main`)
+- PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 260 tests, 0 failures (`OnboardingDraftTest` +2).
+- Fix: "Porovnat" shows only when the stage looks different from the start (`OnboardingDraft.looksChanged`: active
+  layout by content, look fields; PULSE scope, ARC, haptics and legacy Home fields ignored). Unit tested; **not
+  re-checked on the device** (the owner was using the phone).
+- PASS: `:app:assembleRelease` signed with the release key (cert SHA-256 `5ddb08b2…d99d3`), `0.1.0`, versionCode 3,
+  SHA-256 `045d516f…958c6348`. Published as release v0.1.0; v0.1.0-beta.1 withdrawn on the owner's request.
+- Open, **not fixed**: the Welcome panel covering the date on the signature Home (cause not found in code; needs a
+  device look); Global ARC vs. notification shade (`PULSE_RELIABILITY.md` §9); PULSE tap inside the guide.
+- Not verified: light theme / light wallpaper, font scale on this build, small display, Reduced Motion, TalkBack,
+  permission grant/deny, PULSE inside the guide without the Lab service.
+
 ## 2026-10-19 — P1 Onboarding V2 final UX revision + Discovery Hub (`claude/onboarding-v2-final`, `b25e069..93362dd`)
 - PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 258 tests, 0 failures (new `DiscoveryTest`, 4).
 - Code review fix: inside the guide, PULSE Quick View's torch, the music card's media keys and its player shortcut

@@ -23,9 +23,9 @@ android {
         applicationId = "dev.intelia.launcher"
         minSdk = 26
         targetSdk = 37
-        // 0.1.0-beta.1 (D26): the first public prerelease. versionCode only ever goes up.
-        versionCode = 2
-        versionName = "0.1.0-beta.1"
+        // 0.1.0 (D26): first stable release, replaces 0.1.0-beta.1. versionCode only ever goes up.
+        versionCode = 3
+        versionName = "0.1.0"
     }
 
     signingConfigs {

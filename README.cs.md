@@ -5,8 +5,8 @@
 > **Tvůj telefon. Tvoje pravidla.** Rychlá, tichá, lokální domovská obrazovka pro Android, napsaná od nuly v Kotlinu
 > a Jetpack Compose. Není to fork jiného launcheru.
 
-**Stav: 0.1.0 Beta 1 — předběžné vydání.** Otestováno na jednom telefonu (Nothing Phone (3), Android 16). Počítej
-s chybami; viz [Známá omezení](#známá-omezení) a [poznámky k vydání](docs/release/v0.1.0-beta.1/RELEASE_NOTES.md).
+**Stav: 0.1.0 — první stabilní vydání.** Otestováno na jednom telefonu (Nothing Phone (3), Android 16). Počítej
+s chybami; viz [Známá omezení](#známá-omezení) a [poznámky k vydání](docs/release/v0.1.0/RELEASE_NOTES.md).
 
 Žádné účty, žádný přístup k síti, žádná analytika, žádná práce na pozadí. Vše volitelné je vypnuté, dokud to nezapneš.
 
@@ -57,7 +57,7 @@ Nainstalují se vedle sebe a navzájem se neaktualizují. Nastavení se nesdíl�
 
 ## Známá omezení
 
-- Beta otestovaná na jediném zařízení (Nothing Phone (3)). Jiní výrobci, velikosti displeje a verze Androidu neověřeny.
+- Otestováno na jediném zařízení (Nothing Phone (3)). Jiní výrobci, velikosti displeje a verze Androidu neověřeny.
 - Zatím bez widgetů jiných aplikací, bez icon packů, bez cloudové synchronizace.
 - Hardwarová tlačítka a PULSE mimo plochu vyžadují volitelnou službu přístupnosti; výrobci ji mohou omezovat.
 - Quickstep (animace Recents a gest) zůstává systémový; launcher třetí strany ho nenahradí.

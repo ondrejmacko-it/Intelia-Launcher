@@ -1,17 +1,18 @@
-Pokračujeme na Intelia Launcheru — **P1 Onboarding V2: ověření na telefonu (Etapa E)** (`AGENTS.md` platí; česky, stručně,
-~200k tokenů, žádní agenti). Větev `claude/onboarding-v2-final` (PR do `main`, nemergovat bez majitele). Zdroj pravdy: `docs/product/ONBOARDING_V2.md` §11
-(požadavky) a **§12–§13 (co je postavené)**, `docs/STATUS.md` (ověřeno / neověřeno).
+Pokračujeme na Intelia Launcheru podle `docs/product/MASTER_PLAN.md` (V2) (`AGENTS.md` platí; česky, stručně,
+~200k tokenů, žádní agenti). `main` obsahuje Onboarding V2 a vydání **v0.1.0** (první stabilní, beta stažena).
 
 ## Stav (2026-10-19)
-- Onboarding V2 + finální revize + Discovery Hub v kódu, 258 testů PASS; celá cesta ověřena na telefonu, 6 nálezů
-  opraveno (`STATUS.md`). Lab majitele běží z této větve; regrese PULSE po zamknutí/odemknutí a Global ARC PASS.
+- 260 testů PASS. „Porovnat“ jen při vizuálním rozdílu (jen unit testy, na telefonu znovu neověřeno).
+- Otevřené (neřešeno, nevydávat za hotové): uvítací panel zakrývá datum na signature ploše — příčinu v kódu nenalezena,
+  nejdřív snímek Welcome na telefonu (`pm clear dev.intelia.launcher.test`), opravit jen prezentaci náhledu;
+  Global ARC × oznamovací lišta (`PULSE_RELIABILITY.md` §9); klepnutí na PULSE v průvodci (Lab služba drží kameru).
+- Neověřeno: světlý motiv/tapeta, zvětšené písmo na tomto buildu, malý displej, Reduced Motion, TalkBack,
+  udělení/zamítnutí oprávnění.
 
 ## Další kroky
-1. Majitel projde PR #7 a screenshoty; merge jen s jeho souhlasem.
-2. Neověřeno: TalkBack (Porovnat, PULSE, čipy), Reduced Motion, světlá tapeta, malý displej, udělení / zamítnutí
-   oprávnění (jen na testovacím telefonu nebo profilu), PULSE v průvodci bez běžící služby Labu.
-3. Drobnosti: uvítací panel zakrývá datum na signature ploše; Porovnat se ukáže i u vizuálně shodného stavu
-   (rozvržení přepsané na stejné); pilulka „Porovnat“ u velmi malého náhledu.
+1. Dořešit datum na Welcome (malá oprava, větev `claude/…`, PR).
+2. Priorita 1: dlouhodobá spolehlivost a ergonomie globálního PULSE (vč. §9).
+3. Action Engine → sjednocení ARC/PULSE/FLOW/hardwarových gest → personalizace Home a Studio.
 
-Pozor: před každým `adb input` ověřit, že je v popředí `dev.intelia.launcher.test`; swipe dolů z kamery stáhne
-oznamovací lištu (soukromá oznámení) — po testu Global ARC `adb shell cmd statusbar collapse`, snímky smazat.
+Pozor: před každým `adb input` ověřit popředí (`.test/`); majitel telefon používá souběžně. Po testu Global ARC
+`adb shell cmd statusbar collapse`, snímky smazat.
