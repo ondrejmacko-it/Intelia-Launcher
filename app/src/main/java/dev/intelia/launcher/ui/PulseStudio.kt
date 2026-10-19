@@ -62,6 +62,7 @@ import dev.intelia.launcher.action.Trigger
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.pulseMode
 import dev.intelia.launcher.pulse.MediaWatch
+import dev.intelia.launcher.pulse.PulseHealth
 import dev.intelia.launcher.pulse.PulseMode
 
 /** What [PulseStage] shows; a drawing of each state, never the live capsule, so nothing here can run. */
@@ -77,6 +78,7 @@ internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: Se
     onLens: () -> Unit, onControls: () -> Unit) {
     val context = LocalContext.current
     val service by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+    val health by PulseAccessibilityService.health.collectAsStateWithLifecycle()
     var access by remember { mutableStateOf(MediaWatch.allowed(context)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { access = MediaWatch.allowed(context) }
     val mode = settings.pulseMode()
@@ -90,7 +92,13 @@ internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: Se
             { m ->
                 set { it.copy(pulse = m != PulseMode.Off, pulseEverywhere = if (m == PulseMode.Off) it.pulseEverywhere else m == PulseMode.Everywhere) }
                 if (m == PulseMode.Everywhere && !service) PulseAccessibilityService.openSettings(context)
-            }, detail = if (mode == PulseMode.Everywhere && !service) stringResource(R.string.pulse_mode_needs_service) else null,
+            }, detail = when {
+                mode != PulseMode.Everywhere -> null
+                !service -> stringResource(R.string.pulse_mode_needs_service)
+                // P0: the real overlay state, not the stored switch.
+                health == PulseHealth.Error -> stringResource(R.string.pulse_overlay_error)
+                else -> null
+            },
             anchor = StudioTarget.Pulse.anchor)
     }
     if (!settings.pulse) return

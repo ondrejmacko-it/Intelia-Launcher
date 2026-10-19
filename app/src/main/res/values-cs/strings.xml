@@ -599,6 +599,7 @@
     <string name="pulse_gesture_double_hold">Klepnutí a podržení</string>
     <string name="pulse_mode">Kde PULSE funguje</string>
     <string name="pulse_mode_needs_service">Všude potřebuje službu PULSE. Zapni ji v nastavení Androidu; do té doby PULSE funguje na ploše.</string>
+    <string name="pulse_overlay_error">Služba běží, ale Android odmítl dotykovou oblast PULSE u kamery. Intelia to několikrát zkusila; přepni režim na Plocha a zpět, nebo restartuj službu PULSE v nastavení Androidu.</string>
     <string name="pulse_mode_open_settings">Otevřít nastavení Androidu</string>
     <string name="pulse_gesture_left">Tah doleva z kapsle</string>
     <string name="pulse_gesture_right">Tah doprava z kapsle</string>

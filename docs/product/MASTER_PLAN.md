@@ -3,11 +3,34 @@
 > **Your phone. Your rules.** Maximum customisation, minimum clutter. Everything optional is opt-in; the core works
 > fast, offline and without privileged permissions.
 
-Written 2026-10-19. Status words: **Built** (in 0.1.0, see `docs/audit/BETA_0.1.0_BASELINE.md`), **Planned**
-(designed here, no code), **Research** (feasibility unknown). Nothing here is a promise or a date. Each plan becomes
-code only after its decision entry in `DECISIONS.md` is approved by the owner.
+Written 2026-10-19, **V2 merged 2026-10-19** (owner brief "Master Product Vision & Roadmap V2 — P0 PULSE reliability
+first"). Status words: **Built** (in 0.1.0, see `docs/audit/BETA_0.1.0_BASELINE.md`), **Approved** (owner said yes, not
+built yet), **Planned** (designed here, no code), **Research** (feasibility unknown), **Blocked** (waits for an owner
+decision or an Android limit). Nothing here is a promise or a date. Each plan becomes code only after its decision
+entry in `DECISIONS.md` is approved by the owner. Detail specs: [`PULSE_RELIABILITY.md`](PULSE_RELIABILITY.md) (P0),
+[`CONTROL_SYSTEM.md`](CONTROL_SYSTEM.md) (Action Engine).
 
-Contents: 1 Principles · 2 Architecture · 3 Veil V4 · 4 Studio V5 · 5 Design Lab · 6 Device capabilities & Intelia
+## 0. Vision V2 (owner, 2026-10-19 — stays until the owner changes it)
+**YOUR PHONE. YOUR RULES. Maximum minimalism · maximum capability.** Intelia is meant to become one calm, elegant,
+deeply customisable environment for controlling the phone: a clean Home, faster app launch than a normal launcher,
+nearly every element adjustable, supported system functions from one place, own FLOW commands, global gestures and
+PULSE over other apps, hardware buttons with actions, own looks, layouts and profiles — while the original Android
+behaviour stays available. *Simplicity is the default; advanced options are available, never imposed.* Every
+optional feature can be switched off, changed or reset.
+
+**Owner priority order (2026-10-19, overrides the brief's P-order where they differ):**
+1. **P0 PULSE reliability** — absolute priority; nothing PULSE-visual before it is proven.
+2. **Onboarding V2** — complete, new and better first run (moved up from the brief's P9).
+3. **Public release** — the owner wants to ship to people ("nasadit online do produkce"); channel and Play policy are
+   open questions (§14, Blocked items).
+4. Then the rest of the roadmap.
+
+Brief sections and where they live here: philosophy → §0/§1 · PULSE P0 → `PULSE_RELIABILITY.md` · one Action System
+→ §8 + `CONTROL_SYSTEM.md` · Capability System → §6 · PULSE 2.0+ → §5a · LENS/ARC → §5b · Home & editor → §5c · Veil
+→ §3 · Design Lab → §5 · hardware keys → §7 · global control → §6/§11 · FLOW V2 → §8 · Studio V5 → §4 · scenes → §9 ·
+onboarding → §10 · security → §11 · performance → §12 · roadmap → §14.
+
+Contents: 0 Vision V2 · 1 Principles · 2 Architecture · 3 Veil V4 · 4 Studio V5 · 5 Design Lab · 6 Device capabilities & Intelia
 Bridge · 7 Hardware Control · 8 Action Engine & FLOW V2 · 9 Scenes & presets · 10 Onboarding V2 · 11 Security &
 privacy · 12 Performance · 13 Research backlog · 14 Roadmap R0–R12 · 15 First task.
 
@@ -84,6 +107,35 @@ snap guides, preset save/load, export through SAF, all inside a Studio full-scre
 | Theme Lab | Full palettes, per-element colours, Veil strength, motion style, typography sets, share/export | Uses §3 tokens; one resolver. |
 | Interface Lab (long term) | Intelia Keyboard, own volume panel, selected system-function panels | Keyboard = `InputMethodService` (feasible, highest privacy bar, separate opt-in). Volume panel = accessibility overlay catching volume keys (fragile per OEM). **Not possible:** replacing the secure lockscreen, Quickstep, system dialogs. |
 
+## 5a. PULSE 2.0+ (Planned — only after P0 DoD)
+States: **Hidden** (nothing visible; invisible touch target stays when Android and the state allow) · **Live** (small
+capsule joined to the camera for music, timer or another relevant event; never covers system icons, never repeats
+battery/alarm) · **Quick View** (compact translucent panel: one context card + a few own actions, no big settings
+list) · **Global ARC** (apps / FLOW / actions from a camera gesture, over supported apps). Personalisation: action per
+tap / double / triple (only if reliable) / hold / swipes, action set, Live content and allowed events, touch area
+position and size, capsule look (material, opacity, colour, expand animation), haptics, timeouts, lock and over-apps
+behaviour. Simple working default; advanced in details. Functions over time: media (only actions the MediaSession
+offers), apps, FLOW, shortcuts, timers, quick actions, torch, screenshot, sound modes, system panels, notifications
+(voluntary permission only). Built today: Home/Everywhere modes, gestures + quick menu, music capsule, Global ARC,
+calibration (M3–M3.3, S3).
+
+## 5b. LENS and ARC — one control language (Built core, Planned polish)
+LENS default: tap → Search, swipe up → drawer, hold → ARC (Built). Advanced remap of more gestures (Planned) while
+app access and settings recovery always stay reachable. ARC: one shallow active arc (not three big rings), real or
+chosen icons, clear current choice, short label, light haptics, predictable zones, cancel by returning to LENS, run
+only on a confirmed release (Built). More sets and ergonomic set switching with stable positions (Planned; if the
+current end-of-arc switching fails testing, propose an alternative for approval). Global ARC may differ in geometry
+but shares the Action Engine.
+
+## 5c. Home — clean and fully editable (Built base, Planned depth)
+Real Android Home with the system wallpaper, no visible app rectangle, no permanent Intelia panels. Modes **Pure ·
+Essentials · Custom**. Home Editor (Built: long-press, slots, editor bar): add / remove / move / resize / restyle /
+icons / labels / opacity / per-component toggle / behaviour / save / undo. **Grid / Free** (Planned): classic grid,
+snap, free placement, optional guides, alignment, own grid size, relative positions per display; layouts may never
+cover navigation areas or leave the screen. Elements over time: apps, shortcuts, FLOW, clock, date, LENS, texts,
+shapes, internal widgets, system widgets, groups, action buttons. Internal widgets and third-party widget hosting are
+separate stages with separate designs.
+
 ## 6. Device capabilities and Intelia Bridge (Planned + Research)
 **Provider order per capability:** `Action (in-app) → Android public API → Accessibility → Shizuku (external) →
 Intelia Bridge → Root → Unavailable`. The registry picks the first provider that is *available and enabled by the
@@ -138,7 +190,10 @@ FLOW, scene, full config. Import = parse → sanitise → **preview** → apply 
 geometry is stored in dp/fractions, images carry a licence flag, imported actions arrive **disabled** until the user
 reviews them. Online community library = optional future stage, not a dependency.
 
-## 10. Onboarding V2 (Planned; replaces 3-step `Onboarding.kt`)
+## 10. Onboarding V2 (Approved as next after P0, owner 2026-10-19; replaces 3-step `Onboarding.kt`)
+Brief V2 order (short, clear, optional): welcome → look → Home Pure / Essentials / Custom → favourite apps → LENS and
+ARC → optional PULSE → permissions with clear explanation → done + short interactive tutorial. Advanced control, key
+remaps etc. can be switched on later; nothing is required for the launcher to work. Detailed step list:
 1. **Welcome:** restore backup · (sign in only if sync ever exists) · start without account (default).
 2. **Device:** detected profile, confirm or change; capability scan (no prompts yet).
 3. **Permissions:** default home, PULSE service, notification access, Shizuku/Bridge — each with *what it unlocks,
@@ -184,6 +239,25 @@ Material Capsule, Key Mapper, MacroDroid, Tasker, Reddit / GitHub issues) and a 
 Credits for functional inspiration: [`CREDITS.md`](../../CREDITS.md).
 
 ## 14. Roadmap
+### 14.1 V2 stages (current order — owner priority from §0 applied)
+| Stage | Scope | Status | Maps to | Gate |
+|---|---|---|---|---|
+| **P0 PULSE Reliability** | lifecycle fix, diagnostics, tests, ≥ 20 lock/unlock on device, latency baseline | **in progress** — cause proven, fix built (2026-10-19) | — | `PULSE_RELIABILITY.md` §7 |
+| **P1 Onboarding V2** | new complete first run (§10): welcome, look, Pure/Essentials/Custom, favourites, LENS+ARC, optional PULSE, permissions explained, short interactive tutorial | Approved (owner 2026-10-19), Planned design | R10 (moved up) | design preview approved by owner before code |
+| **P1.5 Public release** | distribution channel, signing, privacy policy, Play accessibility declaration or sideload page, crash-free beta | **Blocked** on owner answers (channel, store account) | R12 part | D-entry approved |
+| **P2 Control System Hardening** | Action Engine, bindings, Capability Registry, honest unavailable states | Planned | R5, R8 part | `CONTROL_SYSTEM.md` |
+| **P3 UX & Veil V4** | one visual language; preview + owner approval first | Planned | §3 | owner approval |
+| **P4 Studio V5** | navigation, one place per setting, capability-aware UI | ~60 % (R1) | R1 | |
+| **P5 Home & Design Lab** | free editor, grid/free, icons, clock, wallpaper, widgets | Planned | R2–R4 | |
+| **P6 PULSE & ARC advanced UX** | §5a/§5b, only after P0 DoD | Planned | — | P0 done |
+| **P7 Hardware Control** | key detection tool, Essential Key (if events arrive), patterns, picker, fallbacks | Planned | R7 | |
+| **P8 FLOW V2 & Scenes** | multi-step, conditions, dry run, profiles, presets, import/export | Planned | R8, R9 | |
+| **P9 Advanced capabilities** | Shizuku / Bridge research, only with an approved security design | Research | R6, R11 | security D-entry |
+| **P10 Release quality** | stability, compatibility, accessibility, performance, regression matrix | Planned | R12 | |
+Each stage must state: scope · acceptance criteria · technical risk · data/permission impact · test plan · real
+results · handoff (`NEXT_SESSION.md`). New permission, sensitive system change or big UX decision → owner approval first.
+
+### 14.2 Original R-stages (detail, still valid)
 Order optimised for dependencies: the Capability Registry (R5) moves before the Labs that need it only partly; Studio
 V5 first because every later feature lands in Studio. Sizes: S ≈ 1 session, M ≈ 2–3, L ≈ 4–6, XL > 6 (~200k tokens each).
 
@@ -209,4 +283,5 @@ only gate, backup compatibility, the owner's settings on the phone. Never rewrit
 document shape (only additive with migration), ArcGesture state machine (extend, don't replace).
 
 ## 15. First task (next session)
-**R0 close-out, then R1 step 1** — see `docs/NEXT_SESSION.md`.
+**Finish P0** (device lock/unlock matrix, latency baseline, PR), then **P1 Onboarding V2 design** — see
+`docs/NEXT_SESSION.md`. The previous R1 step 1 tasks (U1–U3) stay open inside P4.

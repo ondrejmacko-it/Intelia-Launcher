@@ -116,6 +116,12 @@ import dev.intelia.launcher.data.PulseHit
 import dev.intelia.launcher.data.PulseLens
 import dev.intelia.launcher.pulse.PulseGestures
 import dev.intelia.launcher.pulse.PulseMode
+import dev.intelia.launcher.pulse.Backoff
+import dev.intelia.launcher.pulse.PulseFacts
+import dev.intelia.launcher.pulse.PulseHealth
+import dev.intelia.launcher.pulse.PulseLifecycle
+import java.io.FileDescriptor
+import java.io.PrintWriter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -145,8 +151,23 @@ class PulseAccessibilityService : AccessibilityService() {
     /** System actions only: without Home's model, apps and FLOWs report missing and stay on Home (M3). */
     private var host: AndroidActionHost? = null
     private var scope: CoroutineScope? = null
-    /** Keyguard up or screen off: no lens target, nothing above the lock screen (M3.1). */
-    private var locked = false
+    /** Keyguard up or screen off: no lens target, nothing above the lock screen (M3.1). Read fresh every time (P0). */
+    private val locked: Boolean get() = !interactive() || keyguardLocked()
+    private fun interactive() = getSystemService(PowerManager::class.java)?.isInteractive != false
+    private fun keyguardLocked() = getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+    /** P0 safety net: re-reads the keyguard a few times after SCREEN_ON in case the unlock broadcast never comes. */
+    private val unlockChecks = Backoff(PulseLifecycle.UNLOCK_CHECKS_MS)
+    private val unlockCheck = Runnable {
+        diag.unlockChecks++
+        updateLens()
+        if (keyguardLocked() && interactive()) scheduleUnlockCheck()
+    }
+    private fun scheduleUnlockCheck() { unlockChecks.next()?.let { main.postDelayed(unlockCheck, it) } }
+    /** P0: bounded retries after WindowManager refused the lens. */
+    private val attachRetries = Backoff(PulseLifecycle.ATTACH_RETRY_MS)
+    private val attachRetry = Runnable { updateLens() }
+    private var lensFailed = false
+    private val diag = Diag()
     private var screenReceiver: BroadcastReceiver? = null
     private var note: View? = null
     /** M3.2 compact music window (not touchable; the lens target under it takes the touches) and its owner. */
@@ -165,23 +186,27 @@ class PulseAccessibilityService : AccessibilityService() {
         windows = getSystemService(WindowManager::class.java)
         _running.value = true
         instance = this
+        diag.connects++
+        diag.connectedAt = SystemClock.elapsedRealtime()
         host = AndroidActionHost(this, null, onSearch = { openOnHome(Action.Search) }).also { h ->
             getSystemService(CameraManager::class.java)?.registerTorchCallback(h.torchCallback, main)
         }
-        locked = getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
         screenReceiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
-                locked = when (intent.action) {
-                    Intent.ACTION_SCREEN_OFF -> true
-                    Intent.ACTION_USER_PRESENT -> false
-                    else -> getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
-                }
+                diag.lastEvent = "${intent.action?.substringAfterLast('.')} @${SystemClock.elapsedRealtime()}"
+                // P0: the broadcast is only a hint to re-read the keyguard and screen now; it never sets the state.
+                main.removeCallbacks(unlockCheck)
+                unlockChecks.reset()
+                if (intent.action == Intent.ACTION_SCREEN_ON) scheduleUnlockCheck()
                 updateLens()
             }
         }.also { r ->
+            // P0 root cause (2026-10-19): USER_PRESENT is sent by SystemUI (its own uid, not system), so a
+            // RECEIVER_NOT_EXPORTED receiver never got it and the lens stayed off after every keyguard unlock.
+            // All three actions are protected broadcasts: only the platform can send them, so exported is safe.
             ContextCompat.registerReceiver(this, r, IntentFilter(Intent.ACTION_SCREEN_OFF).apply {
                 addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
-            }, ContextCompat.RECEIVER_NOT_EXPORTED)
+            }, ContextCompat.RECEIVER_EXPORTED)
         }
         // Event driven: the lens follows the owner's mode (Off / Home / Everywhere), no polling.
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { s ->
@@ -193,7 +218,9 @@ class PulseAccessibilityService : AccessibilityService() {
             s.launch { MediaWatch.now.collect { showMusic() } }
         }
         relayout = { main.post { if (lens != null) placeLens() } }
+        resyncHook = { main.post { updateLens() } }
         applyKeyFilter()
+        updateLens()
     }
 
     private fun controls() = (application as InteliaApp).settings.state.value.controls
@@ -269,6 +296,24 @@ class PulseAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+
+    /**
+     * P0 diagnostics without content:
+     * `adb shell dumpsys activity service dev.intelia.launcher.lab/dev.intelia.launcher.ui.PulseAccessibilityService`.
+     * States and counters only: no screen content, text, notifications, keys or touch positions.
+     */
+    override fun dump(fd: FileDescriptor?, writer: PrintWriter, args: Array<out String>?) {
+        val mode = (application as InteliaApp).settings.state.value.pulseMode()
+        val f = facts(mode == PulseMode.Everywhere)
+        val lp = lens?.layoutParams as? WindowManager.LayoutParams
+        writer.println("PULSE health=${PulseLifecycle.health(f)} wantsLens=${PulseLifecycle.wantsLens(f)} current=${instance === this} mode=$mode")
+        writer.println("  interactive=${f.interactive} keyguardLocked=${f.keyguardLocked} published=${_health.value}")
+        writer.println("  lens=${lens != null} attached=${lens?.isAttachedToWindow} shown=${lens?.isShown} window=" +
+            (lp?.let { "${it.x},${it.y} ${it.width}x${it.height} flags=0x${Integer.toHexString(it.flags)}" } ?: "-"))
+        writer.println("  failed=$lensFailed retries=${attachRetries.attempts} lastError=${diag.lastError}")
+        writer.println("  connects=${diag.connects} attaches=${diag.attaches} touches=${diag.touches} unlockChecks=${diag.unlockChecks} lastEvent=${diag.lastEvent}")
+        writer.println("  menu=${menu != null} music=${music != null} arc=${arcView != null} sinceConnect=${SystemClock.elapsedRealtime() - diag.connectedAt}ms")
+    }
     override fun onInterrupt() = Unit
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -295,6 +340,8 @@ class PulseAccessibilityService : AccessibilityService() {
         lens?.let { runCatching { windows.removeView(it) } }
         lens = null
         main.removeCallbacks(gestureTimer)
+        main.removeCallbacks(unlockCheck)
+        main.removeCallbacks(attachRetry)
         gestures.reset()
         screenReceiver?.let { runCatching { unregisterReceiver(it) } }
         screenReceiver = null
@@ -303,12 +350,14 @@ class PulseAccessibilityService : AccessibilityService() {
         keyEffects(remap.reset())
         host?.let { h -> getSystemService(CameraManager::class.java)?.unregisterTorchCallback(h.torchCallback) }
         host = null
-        relayout = null
         // A rebind after an update can connect the new instance before the old one is destroyed; only the current
         // instance may report the service gone, or Studio would say "off" while the lens runs.
         if (instance === this) {
             instance = null
+            relayout = null
+            resyncHook = null
             _running.value = false
+            _health.value = PulseHealth.Disconnected
         }
     }
 
@@ -361,11 +410,19 @@ class PulseAccessibilityService : AccessibilityService() {
 
     /** The lens target exists only in Everywhere mode with the phone unlocked; otherwise there is no overlay at all. */
     private fun updateLens() {
+        if (scope == null) return // torn down: a late post or broadcast must not re-add windows
         val settings = (application as InteliaApp).settings.state.value
-        val everywhere = settings.pulseMode() == PulseMode.Everywhere && !locked
+        val mode = settings.pulseMode() == PulseMode.Everywhere
+        val everywhere = PulseLifecycle.wantsLens(facts(mode))
+        if (!everywhere) { main.removeCallbacks(attachRetry); attachRetries.reset(); lensFailed = false }
         if (everywhere) placeLens() else removeLens()
+        if (!locked) main.removeCallbacks(unlockCheck)
         watch(everywhere && settings.pulseMusic)
+        if (instance === this) _health.value = PulseLifecycle.health(facts(mode))
     }
+
+    private fun facts(everywhere: Boolean) = PulseFacts(connected = instance === this, everywhere = everywhere,
+        interactive = interactive(), keyguardLocked = keyguardLocked(), lensAttached = lens != null, lensFailed = lensFailed)
 
     /** M3.2: the media session is watched only while the compact capsule can show (Everywhere, unlocked, music on). */
     private fun watch(on: Boolean) {
@@ -433,7 +490,8 @@ class PulseAccessibilityService : AccessibilityService() {
             contentDescription = getString(R.string.pulse)
             // M3.1: every touch goes through the shared recognizer (as on Home); click and long click are only the
             // TalkBack paths, the touch listener takes all real touches.
-            setOnTouchListener { _, e -> touch(e); true }
+            // P0 diagnostics count only that a touch arrived, never where or what is on screen.
+            setOnTouchListener { _, e -> if (e.actionMasked == MotionEvent.ACTION_DOWN) diag.touches++; touch(e); true }
             setOnClickListener { gesture(Gesture.Tap) }
             setOnLongClickListener { if (bound(Gesture.Hold) == null) false else { gesture(Gesture.Hold, assisted = true); true } }
             // Read at query time, so TalkBack offers exactly the gestures bound now: double tap as a custom action,
@@ -457,11 +515,24 @@ class PulseAccessibilityService : AccessibilityService() {
                 }
             })
         }
-        if (lens == null) {
-            windows.addView(view, params)
-            lens = view
-        } else {
-            windows.updateViewLayout(view, params)
+        // P0: WindowManager may refuse (token gone mid-rebind, view still attached); never crash, retry a few times with
+        // backoff, then report Error to Studio.
+        val ok = runCatching {
+            if (lens == null) {
+                windows.addView(view, params)
+                lens = view
+                diag.attaches++
+            } else {
+                windows.updateViewLayout(view, params)
+            }
+        }.onFailure { e -> diag.lastError = "${e.javaClass.simpleName}: ${e.message?.take(120)}" }.isSuccess
+        main.removeCallbacks(attachRetry)
+        if (ok) { lensFailed = false; attachRetries.reset() }
+        else {
+            lens?.let { runCatching { windows.removeViewImmediate(it) } }
+            lens = null
+            lensFailed = true
+            attachRetries.next()?.let { main.postDelayed(attachRetry, it) }
         }
     }
 
@@ -717,6 +788,12 @@ class PulseAccessibilityService : AccessibilityService() {
     }
 
     companion object {
+        private val _health = MutableStateFlow(PulseHealth.Disconnected)
+        /** P0: the real state of PULSE Everywhere (service, keyguard, overlay) for Studio; never the stored switch. */
+        val health: StateFlow<PulseHealth> = _health.asStateFlow()
+        @Volatile private var resyncHook: (() -> Unit)? = null
+        /** Home resumed (often right after an unlock): re-read the facts. Cheap; a no-op without a service. */
+        fun resync() { resyncHook?.invoke() }
         private val _running = MutableStateFlow(false)
 
         /** True while the service is bound in this process; Lab then hides its own lens target. */
@@ -812,4 +889,15 @@ private val PULSE_A11Y = listOf(
 )
 
 /** What the service's Global ARC shows: the content, the open set, the camera (dp), its bow and the picked slot. */
+/** P0 diagnostic counters (memory only, reset with the process). */
+private class Diag {
+    var connects = 0
+    var attaches = 0
+    var touches = 0
+    var unlockChecks = 0
+    var connectedAt = 0L
+    var lastEvent: String? = null
+    var lastError: String? = null
+}
+
 private data class GlobalArcUi(val content: ArcContent, val set: Int, val camera: Pt, val bow: ArcBow, val pick: Int?, val assisted: Boolean)

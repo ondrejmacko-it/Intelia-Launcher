@@ -395,3 +395,26 @@ Step 1 is one owner-made accent for the whole launcher. Scope:
   licensed, Apache §6), `SECURITY.md` (private reporting, verifying downloads), `CREDITS.md` (functional inspiration,
   no copied code; third-party licences).
 - `.gitignore` also blocks `*.p12`, `*.pem`, `*.apk`, `*.aab`, `*.bundle`, `*.rar`, crash dumps.
+
+## D28 — 2026-10-19 — P0 PULSE reliability: state from facts, exported screen receiver (owner brief V2: "PULSE first")
+- **Cause (device evidence, `docs/product/PULSE_RELIABILITY.md` §2):** `USER_PRESENT` comes from SystemUI's uid, so
+  the `RECEIVER_NOT_EXPORTED` screen receiver never received it; the stored `locked` flag stayed true after every
+  keyguard unlock and the lens overlay was never re-added until the service was rebound.
+- **Decision:** the receiver is `RECEIVER_EXPORTED` for `SCREEN_OFF`, `SCREEN_ON`, `USER_PRESENT` only (protected
+  broadcasts: no app can spoof them). The service stores no lock state; every evaluation reads
+  `PowerManager.isInteractive` + `KeyguardManager.isKeyguardLocked` through the pure `PulseLifecycle` model.
+- **Recovery without polling:** a bounded keyguard re-check after `SCREEN_ON` (7 checks, ≈ 54 s, cancelled on unlock),
+  `resync()` from Home's `onStart`, 3 bounded attach retries; no wake locks, no loops, no automatic re-enabling of
+  accessibility.
+- **Studio truth:** `PulseAccessibilityService.health` (`Disconnected · Off · Locked · Attaching · Active · Error`)
+  drives the PULSE page detail, not the stored switch.
+- **Diagnostics:** `Service.dump()` with states and counters only (no content, text, keys, touch positions).
+- No new permission, no settings-format change.
+
+## D29 — 2026-10-19 — PROPOSED: priority order after P0 and public release
+- Owner: "nejdřív PULSE, pak komplet onboarding nově a lépe, pak zbytek; chci to nasadit do produkce a dávat lidem."
+- Proposed order: P0 PULSE → P1 Onboarding V2 (design preview first) → P1.5 public release → P2+ (MASTER_PLAN §14.1).
+- Open owner decisions (Blocked until answered): channel (Google Play / GitHub Releases / own web page / F-Droid),
+  Play developer account and policy route for the accessibility service (F5: `isAccessibilityTool=false` → needs the
+  Play declaration + prominent disclosure), privacy policy URL, crash reporting (none today; any reporting needs
+  explicit opt-in per AGENTS.md), package name for production (`dev.intelia.launcher`), support contact.
