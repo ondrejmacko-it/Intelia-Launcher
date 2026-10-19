@@ -112,11 +112,32 @@ Capability Registry once it exists (MASTER_PLAN §6); until then from the same c
 - Rerun from Studio leaves `LauncherSettings` unchanged until Done.
 - `OnboardingDraftTest`: step list per choice, back / skip / skipAll, save/restore round-trip, Pure skips apps.
 
-## 10. Open questions for the owner
-1. Approve the concept "onboarding on the live Home" (mini preview → full) and the three environments?
-2. Step order Plocha → Styl (design 1 had Styl first)?
-3. Accent set in step 3: Dynamic + Frost, Sky, Mint, Amber, Orchid, Coral — or all 16 with "more" in Studio?
-4. Notification access row: show whenever PULSE is on, or only after the user asks for music in PULSE?
-5. Default PULSE mode "Jen na ploše" (no permission) — keep as recommended?
-6. Discovery Hub entry points: Done + Studio only, or also a one-time hint on Home after a few days?
-7. Hardware key setup in the hub: ship with the first onboarding release, or mark "Připravujeme" until P2?
+## 10. Owner decisions (2026-10-19, after design 2)
+1. Concept "onboarding on the live Home" — **approved** as the direction (production code after the final revision below).
+2. Order Plocha → Styl — **approved**.
+3. Accents in step 3 — **all 16 + Dynamic + the custom colour** (D25), not a subset.
+4. Notification access row — **always shown while PULSE is on**.
+5. Default PULSE mode — **Všude** (Everywhere is what PULSE is for); the step still offers Jen na ploše / Vypnuto.
+6. New installs start from the owner's Home as the **signature template** (`HomeTemplates.signature`, built in
+   `e788977`): slanted Unbounded clock, spaced date, 56 dp LENS, four apps beside it, no FLOW item; neutral Silver
+   accent, the user's system wallpaper, Ink icons. Existing installs unchanged.
+
+## 11. Final revision required before implementation (owner review 2026-10-19)
+1. **Finish:** both "Přejít na plochu" and "Prozkoumat Intelii" commit the validated draft (one atomic
+   `SettingsStore.update { … }.sanitized()`, `onboarded = true`) and clear the draft. The hub opens *after* the commit.
+2. **PULSE step:** a title that fits every mode (not "Ovládání odkudkoliv"); clear difference between Všude / Jen na
+   ploše / Vypnuto; show the compact capsule as one of Intelia's strongest parts; no decoration.
+3. **Custom Home:** preview and copy match what exists today (grid, free placement in the Home Editor, no widgets —
+   `ItemKind.Widget` renders nothing yet). Ideally "Upravit" opens the real Home Editor in a safe preview mode.
+4. **Favourites:** fix layout switching and limits. Essentials = the four slots around LENS; Custom is not limited to
+   eight items for the whole Home (picker limit = `MAX_FAVORITES`, more via the Home Editor).
+5. **Permissions:** KEA-level clarity without a crowded form: per capability benefit, real state, requirement,
+   reason, skip; details on demand; nothing requested early.
+6. **Discovery Hub:** a permanent part of Studio (Studio › Prozkoumat), long after the first run; LENS, ARC, PULSE,
+   FLOW, hardware keys, Home Editor, Labs; states Hotovo / Nastavit / Vyzkoušet / Připravujeme; unavailable features
+   never look functional.
+7. **Visual:** keep Veil; tune type, preview size, Home motion, sheet proportions, legibility on light / busy wallpapers.
+8. **Accessibility:** large text, TalkBack, Reduced Motion, small display, soft keyboard; every gesture has an alternative.
+9. **Saving:** the draft survives real process death (own file in `noBackupFilesDir`), settings applied atomically on
+   finish, migrations and safe backup restore kept.
+10. **PULSE P0 first:** do not touch `PulseAccessibilityService` or its lifecycle for onboarding UX.

@@ -1,47 +1,27 @@
-Pokračujeme na Intelia Launcheru — **dokončení P0 PULSE, pak P1 Onboarding V2** (`AGENTS.md` platí; česky,
-stručně, ~200k tokenů, žádní agenti). Zdroj pravdy: `docs/product/MASTER_PLAN.md` (§0 vize V2 + pořadí majitele,
-§14.1 etapy P0–P10), `docs/product/PULSE_RELIABILITY.md`, `docs/product/CONTROL_SYSTEM.md`, `DECISIONS.md` D28–D29.
+Pokračujeme na Intelia Launcheru — **P1 Onboarding V2: implementace** (`AGENTS.md` platí; česky, stručně,
+~200k tokenů, žádní agenti). Větev `claude/pulse-reliability` (majitel: pokračovat na ní). Zdroj pravdy:
+`docs/product/ONBOARDING_V2.md` (§4 kroky, §5 komponenty, §10 rozhodnutí majitele, **§11 finální revize = požadavky**),
+prototyp `docs/design/onboarding-v2-prototype.html`, `docs/DESIGN_SYSTEM.md` §5 (Veil tokeny, pohyb).
 
 ## Stav (2026-10-19)
-- Větev `claude/pulse-reliability` (pushnutá, PR otevřít/zkontrolovat; **nemergovat bez souhlasu majitele**).
-- **Příčina P0 prokázaná:** `USER_PRESENT` posílá SystemUI (vlastní uid) → `RECEIVER_NOT_EXPORTED` ho nedostal →
-  `locked` zůstal `true` po každém odemknutí. Oprava: exported receiver (chráněné broadcasty), stav vždy z
-  `KeyguardManager`/`PowerManager` (`pulse/PulseLifecycle.kt`), omezený re-check po SCREEN_ON, `resync()` z Home,
-  bezpečné `addView` s 3 retry, `PulseAccessibilityService.health` pro Studio, diagnostika `dump()`.
-- Na telefonu: **20 cyklů zamknout/odemknout PASS** (jedna instance služby, `attaches` 1 → 17, `touches` 21, bez chyb).
-  241 testů PASS. Latence tap → gesto median 304 ms = čekání na dvojklep (majitel má dvojklep přiřazený) → návrh
-  v PULSE_RELIABILITY §6 (kratší okno / okamžitá odezva), čeká na schválení.
+- Majitel schválil směr „onboarding na živé ploše“ a chce rovnou implementaci, grafika musí sedět k launcheru
+  (`ui/Veil.kt`, `VeilKit.kt`, `Motion.kt`, `HomeScene.kt`), náhled = skutečná Home podle aktuálního nastavení.
+- `e788977`: nové instalace startují ze `HomeTemplates.signature()` (plocha majitele bez FLOW), akcent Silver,
+  systémová tapeta, Ink ikony. Testy 243/243 PASS, debug nainstalován na Phone (3) (`install -r`).
+- Lokální commity `e36d707`, `e788977` **nejsou pushnuté** (push zablokoval auto-mode). Majitel pushne sám
+  (`git push origin claude/pulse-reliability`) a PR #6 do `main` mergne v GitHubu.
 
-## Úkol 1 — dokončit P0 (PULSE_RELIABILITY §5, §7)
-1. Diagnostika kdykoli: `adb shell dumpsys activity service dev.intelia.launcher.lab/dev.intelia.launcher.ui.PulseAccessibilityService`
-   (health, keyguard, okno, `connects/attaches/touches/unlockChecks/lastEvent`). Jen stavy, žádný obsah.
-2. ~~20 cyklů~~ hotovo. Zbývá dlouhé zamčení (minuty) a vícedenní běžné používání.
-3. Matice: Home → app → Home, Recents, hudba hraje/nehraje, rotace, kalibrace, Global ARC nad aplikací, remap kláves,
-   TalkBack, MT Capsule konflikt. Výsledky do `PULSE_RELIABILITY.md` §5 a `STATUS.md`.
-4. Latence touch → první frame na Lab buildu (Perfetto nebo `gfxinfo`), median/P95, žádná čísla bez měření.
-5. Gesture testy P0.2 (§6). Pak PR zpráva s důkazy; dlouhodobá stabilita = zvlášť po dnech používání.
+## Plán po etapách (každá = commit + `./gradlew :app:testDebugUnitTest :app:assembleDebug` + `install -r`)
+1. `onboarding/OnboardingDraft.kt` (čistý Kotlin): kroky podle voleb (Pure bez Aplikací), next/back/skip/skipAll,
+   JSON v `noBackupFilesDir`, `commit(settings) → LauncherSettings` (jeden `sanitized()`); `OnboardingDraftTest`.
+2. `OnboardingHost` + `HomeStage` (skutečná `Home` v režimu preview: full / mini 0.43 / blur, křivka Home Editoru),
+   `StepSheet`/`StepBar`; kroky Vítej, Plocha, Styl (16 akcentů + Dynamic + vlastní), Aplikace (`AppSearch`).
+3. LENS + ARC trénink (`sandbox`, `PreviewActionHost` nic nespouští) a PULSE krok (výchozí Všude, kompaktní kapsle,
+   neměnit `PulseAccessibilityService`).
+4. Odemkni možnosti (`PermissionRow`, stav na `ON_RESUME`, RoleManager), Hotovo (commit z obou tlačítek).
+5. Discovery Hub ve Studiu (Studio › Prozkoumat), „Spustit průvodce znovu“ bez resetu.
+6. Ověření na telefonu: nový profil / `pm clear` **jen na testovacím balíčku, nikdy Lab majitele**; process death
+   na každém kroku; TalkBack, velké písmo, Reduced Motion. Aktualizovat `STATUS.md` jen ověřenými fakty.
 
-## Hotovo navíc (2026-10-19)
-- P0.2: Studio › PULSE › pokročilé: „Odezva při dotyku“ (výchozí zap.) a „Okno dvojklepu“ (Podle telefonu / 150–500 ms),
-  `pulseDoubleTapMs` + `pulseTouchHaptic` v `LauncherSettings` (sanitized + test). Na telefonu nainstalováno, výchozí
-  hodnota beze změny (tap→gesto 304 ms); kratší okno majitel zatím nezkoušel.
-- P1 návrh: `docs/product/ONBOARDING_V2.md` + náhled (Artifact „Intelia Onboarding V2“, 8 obrazovek). Čeká na schválení.
-
-## Úkol 2 — P1 Onboarding V2 (priorita majitele hned po P0)
-Návrh hotový (viz výše); po schválení majitelem implementace podle ONBOARDING_V2 §3–§4. Původně: nejdřív návrh (obrazovky, texty CZ/EN, stavový model, resumable po process death, vše přeskočitelné, nic povinného)
-→ náhled majiteli → schválení → kód. Nahrazuje `Onboarding.kt` (3 kroky). Viz MASTER_PLAN §10.
-
-## Otevřené otázky majiteli (D29, Blocked)
-Kanál vydání (Google Play / GitHub Releases / web / F-Droid), Play účet a cesta pro accessibility deklaraci,
-privacy policy URL, crash reporting (jen opt-in), produkční package `dev.intelia.launcher`, kontakt podpory.
-
-## Build a telefon
-JAVA_HOME `C:/Users/Ondra/AppData/Local/lesnik-toolchain/jdk-17.0.20.1+1`; adb
-`C:/Users/Ondra/AppData/Local/lesnik-toolchain/sdk/platform-tools/adb.exe`, `MSYS_NO_PATHCONV=1`.
-APK `app/build/outputs/apk/lab/app-lab.apk` (ověř čas), `install -r`, **NIKDY uninstall**, pak
-`pm compile -m speed-profile -f dev.intelia.launcher.lab`. Před každým vstupem ověř top activity; PIN nikdy nezadávat
-(odemyká majitel). Majitelovy vazby, FLOW, ikony, akcent, haptiku, rozložení a hudbu neměnit.
-
-## Git
-Jedna větev na úkol, žádný push do `main`, force push ani přepis historie. Nesledované `docs/screens/*` a `hs_err_*`
-necommitovat. `.signing/` nikdy nečíst do výstupu ani necommitovat.
+Nikdy neodinstalovat Lab, nesahat na nastavení majitele, `MSYS_NO_PATHCONV=1` pro adb
+(`C:/Users/Ondra/AppData/Local/lesnik-toolchain/sdk/platform-tools/adb`).
