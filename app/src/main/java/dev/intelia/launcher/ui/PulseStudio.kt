@@ -137,6 +137,16 @@ internal fun PulsePage(model: HomeViewModel, settings: LauncherSettings, set: Se
         val touch = stringResource(R.string.pulse_touch_summary, settings.pulseHit.size.toInt(),
             stringResource(if (settings.pulseLens == null) R.string.pulse_lens_auto_short else R.string.pulse_lens_custom))
         SettingRow(stringResource(R.string.pulse_lens), touch, onLens, glyph = Glyph.Pulse, anchor = StudioTarget.PulseLens.anchor)
+        // P0.2: a short double-tap window makes single taps faster; 0 on the slider = the phone's own timeout.
+        SwitchRow(stringResource(R.string.pulse_touch_haptic), settings.pulseTouchHaptic, { v -> set { it.copy(pulseTouchHaptic = v) } },
+            detail = stringResource(R.string.pulse_touch_haptic_detail))
+        val dt = settings.pulseDoubleTapMs
+        SliderRow(stringResource(R.string.pulse_double_tap), if (dt == 0) 0f else dt.toFloat(), 0f,
+            LauncherSettings.MAX_PULSE_DOUBLE_TAP.toFloat(), 25f,
+            if (dt == 0) stringResource(R.string.pulse_double_tap_system) else "$dt ms") { v ->
+            val ms = v.toInt()
+            set { it.copy(pulseDoubleTapMs = if (ms < LauncherSettings.MIN_PULSE_DOUBLE_TAP) 0 else ms) }
+        }
         if (advanced || !service) SettingRow(stringResource(R.string.permission_pulse),
             stringResource(if (service) R.string.permission_on else R.string.permission_pulse_off),
             { PulseAccessibilityService.openSettings(context) }, glyph = Glyph.Shield)

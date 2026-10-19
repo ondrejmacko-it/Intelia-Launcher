@@ -493,7 +493,12 @@ class PulseAccessibilityService : AccessibilityService() {
             // TalkBack paths, the touch listener takes all real touches.
             // P0 diagnostics count only that a touch arrived, never where or what is on screen.
             setOnTouchListener { _, e ->
-                if (e.actionMasked == MotionEvent.ACTION_DOWN) { diag.touches++; diag.lastDown = e.downTime }
+                if (e.actionMasked == MotionEvent.ACTION_DOWN) {
+                    diag.touches++
+                    diag.lastDown = e.downTime
+                    // P0.2: feedback at touch-down, before the recogniser may wait for a second tap.
+                    if (_probe.value == null && touchHaptic()) buzz(HapticSurface.Pulse, Haptic.Kind.Tick)
+                }
                 touch(e); true
             }
             setOnClickListener { gesture(Gesture.Tap) }
@@ -540,10 +545,17 @@ class PulseAccessibilityService : AccessibilityService() {
         }
     }
 
-    private val gestures by lazy {
+    private var gesturesCache: PulseGestures? = null
+    private var gesturesWindow = -1L
+    /** P0.2: rebuilt when the owner changes the double-tap window, but never in the middle of a touch. */
+    private val gestures: PulseGestures get() {
+        val custom = (application as InteliaApp).settings.state.value.pulseDoubleTapMs
+        val window = if (custom > 0) custom.toLong() else ViewConfiguration.getDoubleTapTimeout().toLong()
+        val cached = gesturesCache
+        if (cached != null && (window == gesturesWindow || cached.busy)) return cached
         val vc = ViewConfiguration.get(this)
-        PulseGestures({ bound(it) != null }, PulseGestures.Timing(ViewConfiguration.getDoubleTapTimeout().toLong(),
-            ViewConfiguration.getLongPressTimeout().toLong(), vc.scaledTouchSlop / dp))
+        return PulseGestures({ bound(it) != null }, PulseGestures.Timing(window,
+            ViewConfiguration.getLongPressTimeout().toLong(), vc.scaledTouchSlop / dp)).also { gesturesCache = it; gesturesWindow = window }
     }
     private val gestureTimer = Runnable { gestureOut(gestures.timeout()) }
 
@@ -680,9 +692,13 @@ class PulseAccessibilityService : AccessibilityService() {
         // P0 latency: touch-down (input event time) → recognised gesture; includes the double-tap wait by design.
         diag.gestureMs.add(SystemClock.uptimeMillis() - diag.lastDown)
         diag.menuFrom = diag.lastDown
-        buzz(HapticSurface.Pulse, if (g == Gesture.Hold || g == Gesture.DoubleTapHold) Haptic.Kind.Confirm else Haptic.Kind.Tick)
+        val held = g == Gesture.Hold || g == Gesture.DoubleTapHold
+        // With touch-down haptics on, taps already ticked when the finger landed; holds still confirm.
+        if (held) buzz(HapticSurface.Pulse, Haptic.Kind.Confirm) else if (!touchHaptic()) buzz(HapticSurface.Pulse, Haptic.Kind.Tick)
         gesture(g)
     }
+
+    private fun touchHaptic() = (application as InteliaApp).settings.state.value.pulseTouchHaptic
 
     private fun bound(g: Gesture): Action? = (application as InteliaApp).settings.state.value.controls.bound(Trigger.Pulse(g))
 

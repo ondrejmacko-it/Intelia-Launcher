@@ -337,7 +337,8 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
             .size(hit.width.dp, hit.height.dp)
             // M3.1: one recognizer for every capsule gesture (shared with the PULSE service); a shorter gesture
             // waits only while a longer bound one can still follow.
-            .pulseTouch(bound, swipes, ::gesture, onHeld = { x, y ->
+            .pulseTouch(bound, swipes, ::gesture, doubleTapMs = settings.pulseDoubleTapMs,
+                onDown = { if (settings.pulseTouchHaptic) haptics.tick() }, onHeld = { x, y ->
                 val k = arcSet ?: return@pulseTouch
                 val content = arc ?: return@pulseTouch
                 val bow = GlobalArcGeometry.bow(content.globalLook, camera, screenW, screenH)

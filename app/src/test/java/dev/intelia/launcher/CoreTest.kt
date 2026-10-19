@@ -156,6 +156,17 @@ class SettingsCodecTest {
         assertNull(SettingsCodec.decode("{}").pulseLens)
     }
 
+    @Test fun pulseDoubleTapWindowIsBoundedAndRoundTrips() {
+        val defaults = SettingsCodec.decode("{}")
+        assertEquals(0, defaults.pulseDoubleTapMs)
+        assertEquals(true, defaults.pulseTouchHaptic)
+        assertEquals(0, SettingsCodec.decode("""{"pulseDoubleTapMs":-5}""").pulseDoubleTapMs)
+        assertEquals(LauncherSettings.MIN_PULSE_DOUBLE_TAP, LauncherSettings(pulseDoubleTapMs = 20).sanitized().pulseDoubleTapMs)
+        assertEquals(LauncherSettings.MAX_PULSE_DOUBLE_TAP, LauncherSettings(pulseDoubleTapMs = 9000).sanitized().pulseDoubleTapMs)
+        val custom = LauncherSettings(pulseDoubleTapMs = 200, pulseTouchHaptic = false, schema = LauncherSettings.SCHEMA).sanitized()
+        assertEquals(custom, SettingsCodec.decode(SettingsCodec.encode(custom)))
+    }
+
     @Test fun pulseCapsuleOpacityIsBounded() {
         val defaults = SettingsCodec.decode("{}")
         assertEquals(100, defaults.pulseOpacity)

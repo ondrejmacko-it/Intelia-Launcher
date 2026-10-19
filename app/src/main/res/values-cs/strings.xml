@@ -754,4 +754,8 @@
     <string name="pulse_quick_icon_auto">Auto</string>
     <string name="language_title">Jazyk</string>
     <string name="language_app">Jazyk aplikace</string>
+    <string name="pulse_touch_haptic">Odezva při dotyku</string>
+    <string name="pulse_touch_haptic_detail">Jemné cvaknutí hned při dotyku, i když PULSE ještě čeká na případný dvojklep.</string>
+    <string name="pulse_double_tap">Okno dvojklepu</string>
+    <string name="pulse_double_tap_system">Podle telefonu</string>
 </resources>

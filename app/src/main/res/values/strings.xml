@@ -755,4 +755,8 @@
     <string name="pulse_quick_icon_auto">Auto</string>
     <string name="language_title">Language</string>
     <string name="language_app">App language</string>
+    <string name="pulse_touch_haptic">Tick on touch</string>
+    <string name="pulse_touch_haptic_detail">A light tick the moment your finger lands, even while PULSE waits for a possible double tap.</string>
+    <string name="pulse_double_tap">Double-tap window</string>
+    <string name="pulse_double_tap_system">Phone default</string>
 </resources>
