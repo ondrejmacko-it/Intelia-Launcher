@@ -8,27 +8,32 @@ import dev.intelia.launcher.action.ArcLook
 import dev.intelia.launcher.action.ArcSet
 import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.data.AppEntry
-import dev.intelia.launcher.data.HomeLayout
-import dev.intelia.launcher.data.HomeLayouts
-import dev.intelia.launcher.data.HomeTemplates
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
 import dev.intelia.launcher.flow.FlowError
 import dev.intelia.launcher.intelia
+import dev.intelia.launcher.onboarding.ControlTab
+import dev.intelia.launcher.onboarding.DraftCodec
+import dev.intelia.launcher.onboarding.GuideStep
+import dev.intelia.launcher.onboarding.OnboardingDraft
+import dev.intelia.launcher.pulse.MediaWatch
 import dev.intelia.launcher.search.AppSearch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 enum class FlowRun { Launched, Unavailable, Failed }
 
@@ -129,19 +134,61 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun hide(entry: AppEntry) = updateSettings { it.copy(hidden = it.hidden + entry.key) }
     fun unhide(entry: AppEntry) = updateSettings { it.copy(hidden = it.hidden - entry.key) }
 
-    /** Finishes onboarding; Essentials starts with the default dialer, messages, camera and browser. */
-    fun finishOnboarding(layout: HomeLayout) {
-        val apps = visibleApps.value
-        val essentials = app.apps.essentialPackages().mapNotNull { pkg -> apps.firstOrNull { it.mainProfile && it.component.packageName == pkg }?.key }
-        updateSettings { s ->
-            val favorites = s.favorites.ifEmpty { essentials }
-            // A first run on Essentials starts from the signature Home; a Home the user already made stays.
-            val fresh = s.home.layouts.none { !it.linked }
-            val home = if (layout == HomeLayout.Essentials && fresh) {
-                HomeLayouts(HomeLayouts.USER_ID, s.home.layouts + HomeTemplates.signature(favorites))
-            } else s.home
-            s.copy(onboarded = true, layout = layout, favorites = favorites, home = home)
+    /**
+     * The guide's draft (ONBOARDING_V2 §7): its own file in `noBackupFilesDir`, apart from the settings document, so a
+     * permission round-trip or process death resumes it and a backup never carries it. Null = no guide open.
+     */
+    private val guideFile = File(application.noBackupFilesDir, "onboarding-draft.json")
+    private val _guide = MutableStateFlow(DraftCodec.decode(guideFile.takeIf { it.isFile }?.let { runCatching { it.readText() }.getOrNull() }))
+    val guide: StateFlow<OnboardingDraft?> = _guide.asStateFlow()
+
+    init {
+        // The last draft wins; a write replaces the file in one rename, so a kill mid-write keeps the previous one.
+        viewModelScope.launch(Dispatchers.IO) {
+            _guide.drop(1).collectLatest { draft ->
+                runCatching {
+                    if (draft == null) guideFile.delete()
+                    else File(guideFile.path + ".tmp").apply { writeText(DraftCodec.encode(draft)) }.renameTo(guideFile)
+                }
+            }
         }
+    }
+
+    /** The phone's dialer, messages, camera and browser, as app keys: what a new Home starts with around LENS. */
+    fun essentialKeys(): List<String> {
+        val apps = visibleApps.value
+        return app.apps.essentialPackages().mapNotNull { pkg -> apps.firstOrNull { it.mainProfile && it.component.packageName == pkg }?.key }
+    }
+
+    /** First run ([rerun] false) starts from the signature Home; Studio's rerun from the current settings. */
+    fun beginGuide(rerun: Boolean) {
+        _guide.value = if (rerun) OnboardingDraft.rerun(settings.value) else OnboardingDraft.firstRun(settings.value, essentialKeys())
+    }
+
+    /** Discovery Hub › Vyzkoušet: the guide's sandbox on [tab], from the current settings (a rerun keeps them as they are). */
+    fun tryInGuide(tab: ControlTab) {
+        beginGuide(rerun = true)
+        updateGuide { it.goTo(GuideStep.Controls).copy(tab = tab) }
+    }
+
+    /** Set by the guide's "Prozkoumat Intelii": Home opens Studio once, after the commit. */
+    val explore = MutableStateFlow(false)
+
+    fun updateGuide(transform: (OnboardingDraft) -> OnboardingDraft) { _guide.value = _guide.value?.let(transform) }
+
+    /** Done: the draft becomes the stored settings in one sanitized update, then the draft is gone. */
+    fun finishGuide() {
+        val draft = _guide.value ?: return
+        val music = MediaWatch.allowed(getApplication())
+        updateSettings { draft.commit(music) }
+        _guide.value = null
+    }
+
+    /** "Použít výchozí" / skip all: a first run keeps the default Home; a rerun changes nothing. */
+    fun skipGuide() {
+        val draft = _guide.value ?: return
+        if (!draft.rerun) updateSettings { draft.start.copy(onboarded = true) }
+        _guide.value = null
     }
 
     fun saveAlias(alias: FlowAlias, inArc: Boolean): FlowError? {

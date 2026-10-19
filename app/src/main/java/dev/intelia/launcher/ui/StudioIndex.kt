@@ -28,7 +28,7 @@ enum class StudioTarget(val section: StudioSection) {
     Gestures(StudioSection.Gestures), Keys(StudioSection.Gestures),
     Motion(StudioSection.Motion), Haptics(StudioSection.Motion),
     Flows(StudioSection.Actions),
-    DefaultHome(StudioSection.System), Permissions(StudioSection.System), Hidden(StudioSection.System), Backup(StudioSection.Backup),
+    DefaultHome(StudioSection.System), Permissions(StudioSection.System), Hidden(StudioSection.System), Guide(StudioSection.System), Backup(StudioSection.Backup),
     About(StudioSection.System);
 
     /** The row's anchor on its page. */

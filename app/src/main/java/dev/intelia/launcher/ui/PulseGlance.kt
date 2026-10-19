@@ -110,6 +110,7 @@ internal fun PulseGlance(hole: Hole, statusBar: Float, screenWidth: Float, music
     onAction: (Action) -> Unit, onOpenPlayer: (String) -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val sandbox = LocalSandbox.current
     val cameras = remember(context) { context.getSystemService(CameraManager::class.java) }
     val torchId = remember(cameras) { cameras?.let(::torchCamera) }
     var torch by remember { mutableStateOf(false) }
@@ -164,6 +165,7 @@ internal fun PulseGlance(hole: Hole, statusBar: Float, screenWidth: Float, music
             exit = fadeOut(tween(motionMs(140))) + scaleOut(tween(motionMs(160)), targetScale = .9f, transformOrigin = TransformOrigin(.5f, 0f))) {
             GlanceCard(state, with(density) { width.toDp() },
                 onTorch = { on ->
+                    sandbox?.let { it(Action.Torch); return@GlanceCard }
                     try {
                         if (torchId != null) cameras?.setTorchMode(torchId, on)
                     } catch (_: CameraAccessException) {

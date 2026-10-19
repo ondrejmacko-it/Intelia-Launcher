@@ -33,7 +33,7 @@ Requires JDK 17+ and an Android SDK with platform 37.1 (`local.properties` → `
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
 scripts/dev.sh            # install the debug build on the USB phone and open it
 ```
-The debug build is `dev.intelia.launcher.lab`, so it coexists with other Intelia builds. For everyday use and any
+The debug build is `dev.intelia.launcher.test` ("Intelia Debug", D30), so it installs next to the Lab and never over it. For everyday use and any
 performance measurement install the optimised `:app:assembleLab` (same package and key, `install -r`, D16).
 
 ## Handoff

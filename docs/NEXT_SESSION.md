@@ -1,27 +1,18 @@
-Pokračujeme na Intelia Launcheru — **P1 Onboarding V2: implementace** (`AGENTS.md` platí; česky, stručně,
-~200k tokenů, žádní agenti). Větev `claude/pulse-reliability` (majitel: pokračovat na ní). Zdroj pravdy:
-`docs/product/ONBOARDING_V2.md` (§4 kroky, §5 komponenty, §10 rozhodnutí majitele, **§11 finální revize = požadavky**),
-prototyp `docs/design/onboarding-v2-prototype.html`, `docs/DESIGN_SYSTEM.md` §5 (Veil tokeny, pohyb).
+Pokračujeme na Intelia Launcheru podle `docs/product/MASTER_PLAN.md` (V2) (`AGENTS.md` platí; česky, stručně,
+~200k tokenů, žádní agenti). `main` obsahuje Onboarding V2 a vydání **v0.1.0** (první stabilní, beta stažena).
 
 ## Stav (2026-10-19)
-- Majitel schválil směr „onboarding na živé ploše“ a chce rovnou implementaci, grafika musí sedět k launcheru
-  (`ui/Veil.kt`, `VeilKit.kt`, `Motion.kt`, `HomeScene.kt`), náhled = skutečná Home podle aktuálního nastavení.
-- `e788977`: nové instalace startují ze `HomeTemplates.signature()` (plocha majitele bez FLOW), akcent Silver,
-  systémová tapeta, Ink ikony. Testy 243/243 PASS, debug nainstalován na Phone (3) (`install -r`).
-- Lokální commity `e36d707`, `e788977` **nejsou pushnuté** (push zablokoval auto-mode). Majitel pushne sám
-  (`git push origin claude/pulse-reliability`) a PR #6 do `main` mergne v GitHubu.
+- 260 testů PASS. „Porovnat“ jen při vizuálním rozdílu (jen unit testy, na telefonu znovu neověřeno).
+- Otevřené (neřešeno, nevydávat za hotové): uvítací panel zakrývá datum na signature ploše — příčinu v kódu nenalezena,
+  nejdřív snímek Welcome na telefonu (`pm clear dev.intelia.launcher.test`), opravit jen prezentaci náhledu;
+  Global ARC × oznamovací lišta (`PULSE_RELIABILITY.md` §9); klepnutí na PULSE v průvodci (Lab služba drží kameru).
+- Neověřeno: světlý motiv/tapeta, zvětšené písmo na tomto buildu, malý displej, Reduced Motion, TalkBack,
+  udělení/zamítnutí oprávnění.
 
-## Plán po etapách (každá = commit + `./gradlew :app:testDebugUnitTest :app:assembleDebug` + `install -r`)
-1. `onboarding/OnboardingDraft.kt` (čistý Kotlin): kroky podle voleb (Pure bez Aplikací), next/back/skip/skipAll,
-   JSON v `noBackupFilesDir`, `commit(settings) → LauncherSettings` (jeden `sanitized()`); `OnboardingDraftTest`.
-2. `OnboardingHost` + `HomeStage` (skutečná `Home` v režimu preview: full / mini 0.43 / blur, křivka Home Editoru),
-   `StepSheet`/`StepBar`; kroky Vítej, Plocha, Styl (16 akcentů + Dynamic + vlastní), Aplikace (`AppSearch`).
-3. LENS + ARC trénink (`sandbox`, `PreviewActionHost` nic nespouští) a PULSE krok (výchozí Všude, kompaktní kapsle,
-   neměnit `PulseAccessibilityService`).
-4. Odemkni možnosti (`PermissionRow`, stav na `ON_RESUME`, RoleManager), Hotovo (commit z obou tlačítek).
-5. Discovery Hub ve Studiu (Studio › Prozkoumat), „Spustit průvodce znovu“ bez resetu.
-6. Ověření na telefonu: nový profil / `pm clear` **jen na testovacím balíčku, nikdy Lab majitele**; process death
-   na každém kroku; TalkBack, velké písmo, Reduced Motion. Aktualizovat `STATUS.md` jen ověřenými fakty.
+## Další kroky
+1. Dořešit datum na Welcome (malá oprava, větev `claude/…`, PR).
+2. Priorita 1: dlouhodobá spolehlivost a ergonomie globálního PULSE (vč. §9).
+3. Action Engine → sjednocení ARC/PULSE/FLOW/hardwarových gest → personalizace Home a Studio.
 
-Nikdy neodinstalovat Lab, nesahat na nastavení majitele, `MSYS_NO_PATHCONV=1` pro adb
-(`C:/Users/Ondra/AppData/Local/lesnik-toolchain/sdk/platform-tools/adb`).
+Pozor: před každým `adb input` ověřit popředí (`.test/`); majitel telefon používá souběžně. Po testu Global ARC
+`adb shell cmd statusbar collapse`, snímky smazat.

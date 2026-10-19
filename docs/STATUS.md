@@ -2,6 +2,63 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-19 — Onboarding V2 closed, release 0.1.0 (`claude/onboarding-v2-final` → `main`)
+- PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 260 tests, 0 failures (`OnboardingDraftTest` +2).
+- Fix: "Porovnat" shows only when the stage looks different from the start (`OnboardingDraft.looksChanged`: active
+  layout by content, look fields; PULSE scope, ARC, haptics and legacy Home fields ignored). Unit tested; **not
+  re-checked on the device** (the owner was using the phone).
+- PASS: `:app:assembleRelease` signed with the release key (cert SHA-256 `5ddb08b2…d99d3`), `0.1.0`, versionCode 3,
+  SHA-256 `045d516f…958c6348`. Published as release v0.1.0; v0.1.0-beta.1 withdrawn on the owner's request.
+- Open, **not fixed**: the Welcome panel covering the date on the signature Home (cause not found in code; needs a
+  device look); Global ARC vs. notification shade (`PULSE_RELIABILITY.md` §9); PULSE tap inside the guide.
+- Not verified: light theme / light wallpaper, font scale on this build, small display, Reduced Motion, TalkBack,
+  permission grant/deny, PULSE inside the guide without the Lab service.
+
+## 2026-10-19 — P1 Onboarding V2 final UX revision + Discovery Hub (`claude/onboarding-v2-final`, `b25e069..93362dd`)
+- PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 258 tests, 0 failures (new `DiscoveryTest`, 4).
+- Code review fix: inside the guide, PULSE Quick View's torch, the music card's media keys and its player shortcut
+  acted for real; they now go to `LocalSandbox` (guide only) and are only named. Production paths unchanged.
+- Device QA (Phone (3), Intelia Debug after `pm clear dev.intelia.launcher.test`, `93362dd`): Welcome → Plocha (Prázdná
+  removed the LENS apps at once, Základní brought them back; Změnit aplikace with the keyboard open: panel above the
+  keyboard, "map" → Mapy replaced the oldest slot live; Vlastní → Upravit rozložení opened the real Home Editor) →
+  Porovnat held = start with apps, released = edits → Vzhled (Světlý on the panel, teal accent on icons, date,
+  progress and buttons; Bodoni redrew the clock) → Vyzkoušej (LENS tap = real Search, Enter on "chrome" launched
+  nothing, top activity stayed Intelia Debug, note "Ukázka · otevřelo by se: Chrome"; swipe = real drawer; ARC hold +
+  release on a slot only named "Fotoaparát"; FLOW demo "Cesta domů" marked Ukázka, Enter in Search only named it;
+  PULSE mode chooser) → Oprávnění (real state "Zatím ne" for the debug package, no PULSE row with Jen na ploše,
+  Podrobnosti) → Hotovo → Prozkoumat Intelii: `onboarded: true`, draft file gone, Discovery Hub with states.
+  Home after Back = the last preview. Process death: `am force-stop` on Done and `install -r` on Plocha resumed the
+  same step and choices. Rerun from Studio search "pruvodce" started from the stored settings; Přeskočit → Přeskočit
+  průvodce landed on Hotovo; Přejít na plochu left the guide. Font scale 1.3 (reset to 1.0): coach and Plocha
+  scroll, every control reachable.
+- Found and fixed on the device (`93362dd`): Porovnat covered the camera mark; Vzhled panel height jumped between tabs;
+  the "more" cue covered Upravit / Nastavit buttons; coach too tall over the clock; Skip's menu drawn under the coach;
+  Hub "Hotovo" low contrast. Each fix re-checked on the device except the Hub tag colour.
+- PULSE regression (Lab built from this branch, `install -r`): after the update the service reconnected (Active,
+  lens attached and shown); screen off → `health=Locked`; after the owner unlocked → `USER_PRESENT`, Active,
+  `attaches=2`, shown. Global ARC over Intelia Debug: hold at the camera opened it (`arc=true`), sliding back to the
+  camera cancelled it (`arc=false`), nothing launched.
+- Not verified: tapping PULSE inside the guide (the Lab service owns the camera), granting or denying a permission
+  (would change the owner's phone), TalkBack, Reduced Motion, light wallpaper, small display.
+
+## 2026-10-19 — P1 Onboarding V2 implemented (`claude/pulse-reliability`, `a8b58c7` + follow-up)
+- PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 254 tests, 0 failures (new `OnboardingDraftTest`, 11).
+- D30: debug builds install as **Intelia Debug** (`dev.intelia.launcher.test`) next to the owner's Lab; `.debug` and
+  `.dev` are blocked on the phone by kept data of old builds (`INSTALL_FAILED_VERSION_DOWNGRADE`). The owner's Lab
+  was reinstalled as the optimised `:app:assembleLab` (`0.1.0-beta.1-lab`, not debuggable, `install -r`).
+- Phone (3), Intelia Debug, `pm clear` on the test package only: Welcome → Home (Empty/Basic live on the scaled real
+  Home, Výchozí / Moje úpravy switch) → Look (accent teal applied to PULSE ring, progress and button; Bodoni clock with
+  the date bound under it) → Controls: LENS tap opened the real Search, Enter on "chrome" launched nothing (top
+  activity stayed Intelia Debug) and showed "Ukázka · otevřelo by se: Chrome"; swipe opened the real drawer; hold +
+  slide opened the real ARC (marked demo set from the Home apps, since the ARC was empty) and release only named
+  "Zprávy" → Access rows with real state → Done. Rerun from Studio › Systém a data (also found by Studio search
+  "pruvodce") started from the stored settings; "Prozkoumat Intelii" committed, cleared the draft file and opened Studio.
+- Process death: `install -r` mid-guide resumed at the same step with the same choices (Home step and Access step).
+- **Not verifiable on this phone:** tapping PULSE inside the guide — the owner's Lab PULSE service owns the camera area
+  above every app, so the tap reached the Lab's real Quick View (it switched the torch on; switched off again by the
+  owner). Not tried: default-home and accessibility rows (they would change the owner's phone), Home Editor from
+  Custom, FLOW tab, TalkBack, large text, Reduced Motion, small display, light wallpapers.
+
 ## 2026-10-19 — P0 PULSE reliability (`claude/pulse-reliability`, `078754b`)
 - **Cause proven on the Phone (3)** (old Lab build): `dumpsys activity broadcasts history` — `USER_PRESENT/u0` from
   `com.android.systemui` (uid 10217) reached 26 receivers but not `dev.intelia.launcher.lab`, whose PULSE receiver

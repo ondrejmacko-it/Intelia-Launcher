@@ -194,6 +194,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
     quick: List<QuickEntry> = emptyList()) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val sandbox = LocalSandbox.current
     val ink = LocalInk.current
     val homeInk = LocalHomeInk.current
     val motion = LocalMotion.current
@@ -369,6 +370,7 @@ fun Pulse(settings: LauncherSettings, modifier: Modifier = Modifier, preview: Bo
                 onArcAction(action)
             },
             onOpenPlayer = { pkg ->
+                sandbox?.let { expanded = false; it(Action.App(pkg)); return@PulseGlance }
                 playerIntent(context, pkg)?.let { try { context.startActivity(it) } catch (_: ActivityNotFoundException) { } }
                 expanded = false
             },

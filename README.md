@@ -5,8 +5,8 @@
 > **Your phone. Your rules.** A fast, quiet, local-first Android home screen, written from scratch in Kotlin and
 > Jetpack Compose. Not a fork of another launcher.
 
-**Status: 0.1.0 Beta 1 — prerelease.** Tested on one phone (Nothing Phone (3), Android 16). Expect bugs; see
-[Known limitations](#known-limitations) and the [release notes](docs/release/v0.1.0-beta.1/RELEASE_NOTES.md).
+**Status: 0.1.0 — first stable release.** Tested on one phone (Nothing Phone (3), Android 16). See
+[Known limitations](#known-limitations) and the [release notes](docs/release/v0.1.0/RELEASE_NOTES.md).
 
 No accounts, no network access, no analytics, no background workers. Everything optional is off until you turn it on.
 
@@ -58,7 +58,7 @@ They install side by side and never update each other. Settings are not shared; 
 
 ## Known limitations
 
-- Beta, tested on a single device (Nothing Phone (3)). Other OEMs, screen sizes and Android versions are unverified.
+- Tested on a single device (Nothing Phone (3)). Other OEMs, screen sizes and Android versions are unverified.
 - No widgets from other apps yet, no icon packs, no cloud sync.
 - Hardware keys and PULSE outside Home need the optional accessibility service; OEMs may restrict it.
 - Quickstep (recents/gesture animations) stays the system's; third-party launchers cannot replace it.

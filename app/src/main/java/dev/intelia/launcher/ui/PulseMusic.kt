@@ -70,6 +70,8 @@ import dev.intelia.launcher.data.Motion
 import dev.intelia.launcher.pulse.MediaWatch
 import dev.intelia.launcher.pulse.Playing
 import dev.intelia.launcher.pulse.clock
+import dev.intelia.launcher.action.Action
+import dev.intelia.launcher.action.MediaKey
 import kotlinx.coroutines.delay
 
 /**
@@ -137,6 +139,7 @@ internal fun MusicArt(art: ImageBitmap?, size: Dp, shape: androidx.compose.ui.gr
 @Composable
 internal fun MusicCard(playing: Playing, onOpen: (() -> Unit)? = null) {
     val ink = LocalInk.current
+    val sandbox = LocalSandbox.current
     val info = playing.info
     val art = rememberArt(playing)
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
@@ -162,14 +165,14 @@ internal fun MusicCard(playing: Playing, onOpen: (() -> Unit)? = null) {
             }
         }
         if (info.durationMs > 0) Timeline(info.positionAt(now), info.durationMs, info.canSeek) { ms ->
-            MediaWatch.controls()?.seekTo(ms)
+            if (sandbox == null) MediaWatch.controls()?.seekTo(ms)
         }
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            if (info.canPrev) MusicButton(Glyph.Prev, R.string.pulse_prev) { MediaWatch.controls()?.skipToPrevious() }
+            if (info.canPrev) MusicButton(Glyph.Prev, R.string.pulse_prev) { sandbox?.invoke(Action.Media(MediaKey.Previous)) ?: MediaWatch.controls()?.skipToPrevious() }
             if (info.canToggle) MusicButton(if (info.playing) Glyph.Pause else Glyph.Play, R.string.pulse_play_pause) {
-                MediaWatch.controls()?.let { if (info.playing) it.pause() else it.play() }
+                sandbox?.invoke(Action.Media(MediaKey.PlayPause)) ?: MediaWatch.controls()?.let { if (info.playing) it.pause() else it.play() }
             }
-            if (info.canNext) MusicButton(Glyph.Next, R.string.pulse_next) { MediaWatch.controls()?.skipToNext() }
+            if (info.canNext) MusicButton(Glyph.Next, R.string.pulse_next) { sandbox?.invoke(Action.Media(MediaKey.Next)) ?: MediaWatch.controls()?.skipToNext() }
         }
     }
 }

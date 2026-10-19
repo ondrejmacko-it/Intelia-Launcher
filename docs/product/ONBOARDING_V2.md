@@ -1,6 +1,7 @@
-# P1 — Onboarding V2 (design 2, awaiting owner approval)
+# P1 — Onboarding V2
 
-Status: **Planned, design 2 proposed 2026-10-19.** No production code until the owner approves the prototype.
+Status: **Implemented 2026-10-19** on `claude/pulse-reliability` (owner: "dodělej to komplet", Kea as the reference
+for step clarity). §12 records what was built; §4–§5 are the earlier design and differ where §12 says so.
 - Prototype: `docs/design/onboarding-v2-prototype.html` (Artifact "Intelia Onboarding V2", private to the owner).
 - Design 1 (8 static artboards, Artifact canvas "Intelia Onboarding V2") is superseded; kept for comparison.
 - Replaces `ui/Onboarding.kt` (3 steps). Does not touch PULSE P0 work or existing user settings.
@@ -141,3 +142,50 @@ Capability Registry once it exists (MASTER_PLAN §6); until then from the same c
 9. **Saving:** the draft survives real process death (own file in `noBackupFilesDir`), settings applied atomically on
    finish, migrations and safe backup restore kept.
 10. **PULSE P0 first:** do not touch `PulseAccessibilityService` or its lifecycle for onboarding UX.
+
+## 12. As built (2026-10-19)
+- **Files:** `onboarding/OnboardingDraft.kt` (draft, `DraftCodec`), `ui/OnboardingHost.kt` (stage + panel + steps),
+  `HomeViewModel` (`guide`, `beginGuide`, `updateGuide`, `finishGuide`, `skipGuide`, `explore`), `HomeRoot` (draft
+  present → guide, else Home). The old `ui/Onboarding.kt` and its strings are gone.
+- **Steps (6):** Vítej (Přizpůsobit / Použít výchozí nastavení) · Plocha (Prázdná / Základní / Vlastní; LENS apps
+  with search; "Upravit rozložení" opens the real Home Editor whose ✓ writes into the draft) · Vzhled (Motiv, Barva =
+  Studio's `PaletteEditor` with every accent + Dynamic + custom, Hodiny = clock face, Ikony, Materiál) · Ovládání
+  (LENS / ARC / PULSE / FLOW tabs on the full Home) · Odemkni víc (default home, PULSE service when Všude, music when
+  PULSE is on; state read on resume) · Hotovo (summary rows back to their step; Přejít na plochu / Prozkoumat Intelii,
+  both commit first).
+- **Stage:** the production `Home` composable fed with the draft (or the start for "Výchozí"), scaled into the room
+  above the panel on the look steps (touches blocked) and full and interactive on Controls or with the panel hidden.
+  Its callbacks are the sandbox: Search and the drawer open as the real layers, every launch, FLOW run and ARC /
+  PULSE action only shows "Ukázka · otevřelo by se …". An empty ARC and a user without FLOWs get a demo set / the
+  demo FLOW "Cesta domů", both marked "Ukázka" and never stored.
+- **Draft:** whole `LauncherSettings` copies (`start`, `settings`), sanitized on every change, saved as JSON in
+  `noBackupFilesDir/onboarding-draft.json` (temp file + rename); commit = `settings.copy(onboarded = true)` once.
+  A rerun writes Empty/Basic to its own layout `guide`, so the user's own layout `mine` is never replaced.
+- **Deviations from §4/§5:** no separate Aplikace step (apps live in Plocha), no restore-from-backup on Vítej (Studio
+  keeps it), no Discovery Hub yet ("Prozkoumat Intelii" opens Studio), no "Teď ne" per permission row (Pokračovat /
+  Přeskočit skip the step), PULSE states shown with Studio's `PulseStage` in the panel.
+
+## 13. Final approved revision (owner, 2026-10-19) — as built on `claude/onboarding-v2-final`
+Approved concept unchanged (§3–§12). The final UX fixes:
+- **Truthful preview:** the stage is the production `Home` with the draft; before any pick the Plocha card names what
+  the stage shows. Every choice edits the draft (sanitized) and the stage at once.
+- **Porovnat:** a small pill at the preview's top corner; held, the stage shows the start ("Výchozí"); released, the
+  edits. TalkBack double tap toggles it. The draft and the store never change by it. The big switch is gone.
+- **Panel:** near-solid Focus paper; scroll area ends above the pinned button, a "Další volby ↓" cue while more lies
+  below, a picked option's controls (Změnit aplikace, Upravit rozložení) scroll into view; height shrinks with the
+  soft keyboard. Controls is a compact coach (19 sp title, one hint line, chips) over the full Home.
+- **Tabs:** Vzhled (Motiv · Barva · Hodiny · Ikony · Materiál) and Controls (LENS · ARC · PULSE · FLOW) are one row
+  that scrolls sideways, never wrapped. Barva keeps Studio's `PaletteEditor` (16 accents, Dynamic, custom).
+- **PULSE:** tried on the real Home at the camera: tap = Quick View, hold = Global ARC (a marked demo hold binding
+  only on the stage when the user has none and Hold is free). "Kde PULSE funguje" is one line; Změnit opens the three
+  modes. Everywhere without the service says the stage is a demo until the service is on.
+- **Sandbox:** `LocalSandbox` (D31) also covers torch, media keys and the player; nothing launches, runs or changes.
+- **Permissions:** per row name, real state, one benefit line, Nastavit, Podrobnosti on demand (accessibility and
+  notification access explained there). State re-read on resume, never from a stored preference.
+- **Skip:** the top bar's Přeskočit offers "Přeskočit krok" or "Přeskočit průvodce"; the latter lands on Hotovo, so
+  nothing is saved unseen. Welcome keeps "Použít výchozí nastavení" (first run) / "Přeskočit průvodce" (rerun).
+- **Discovery Hub:** Studio › Prozkoumat Intelii (main page row): LENS, ARC, PULSE, FLOW, Hardwarová tlačítka,
+  Upravit plochu, Laboratoř with Hotovo / Nastavit / Vyzkoušet / Připravujeme (`onboarding/Discovery.kt`, pure).
+  Laboratoř has no action. LENS › Vyzkoušet reruns the guide on its sandbox tab; "Prozkoumat Intelii" on Hotovo opens
+  the hub after the commit.
+

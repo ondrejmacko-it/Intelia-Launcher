@@ -23,9 +23,9 @@ android {
         applicationId = "dev.intelia.launcher"
         minSdk = 26
         targetSdk = 37
-        // 0.1.0-beta.1 (D26): the first public prerelease. versionCode only ever goes up.
-        versionCode = 2
-        versionName = "0.1.0-beta.1"
+        // 0.1.0 (D26): first stable release, replaces 0.1.0-beta.1. versionCode only ever goes up.
+        versionCode = 3
+        versionName = "0.1.0"
     }
 
     signingConfigs {
@@ -54,8 +54,8 @@ android {
 
     buildTypes {
         debug {
-            // Coexists with older Intelia builds on the test phone (D3, D4).
-            applicationIdSuffix = ".lab"
+            // Own package "Intelia Debug" (D30): installs next to the owner's Lab, never over it.
+            applicationIdSuffix = ".test"
             versionNameSuffix = "-dev"
         }
         release {

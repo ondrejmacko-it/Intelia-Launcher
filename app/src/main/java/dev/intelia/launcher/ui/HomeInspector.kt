@@ -508,7 +508,7 @@ internal fun Fold(title: String, summary: String? = null, content: @Composable (
     }
 }
 
-private val FACES = listOf(TypeFace.Style to "Auto", TypeFace.Flex to "Flex", TypeFace.Inter to "Inter", TypeFace.SpaceGrotesk to "Space Grotesk",
+internal val FACES = listOf(TypeFace.Style to "Auto", TypeFace.Flex to "Flex", TypeFace.Inter to "Inter", TypeFace.SpaceGrotesk to "Space Grotesk",
     TypeFace.DmSerif to "DM Serif", TypeFace.JetBrainsMono to "JetBrains Mono", TypeFace.BodoniModa to "Bodoni", TypeFace.Unbounded to "Unbounded")
 
 /** The clock's typefaces in one list: its four styles first, then the bundled faces (a face overrides the style). */
