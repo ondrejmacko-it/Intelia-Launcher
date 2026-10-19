@@ -1,0 +1,578 @@
+<title>Intelia Onboarding V2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&display=swap">
+<style>
+/* Layout: the phone at real dp scale (411 × 911 dp) on the left; route, Android simulation and the screen's note on the right; critique, components and questions below. Stacks under 980 px. */
+:root{
+  --page:#EDEFF2; --page-fg:#171A1F; --page-dim:#56606B; --page-line:#D3D8DE; --page-raise:#F9FAFB; --page-acc:#3F6E9C;
+  --ok:#2F7A4E; --part:#8A5D0E; --miss:#A3403A;
+  --f-ui:"Roboto Flex",Roboto,system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0D0F12;--page-fg:#E5E8EC;--page-dim:#9AA3AE;--page-line:#262B32;--page-raise:#15181C;--page-acc:#A9C4E0;--ok:#7BC79A;--part:#E3B866;--miss:#E8908A;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0D0F12;--page-fg:#E5E8EC;--page-dim:#9AA3AE;--page-line:#262B32;--page-raise:#15181C;--page-acc:#A9C4E0;--ok:#7BC79A;--part:#E3B866;--miss:#E8908A;color-scheme:dark}
+html,body{background:var(--page);color:var(--page-fg)}
+body{font-family:var(--f-ui);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+header.top{max-width:1240px;margin:0 auto 18px;display:flex;flex-direction:column;gap:6px}
+header.top h1{font-size:23px;font-weight:540;font-variation-settings:"wdth" 118;margin:0;text-wrap:balance}
+header.top p{margin:0;color:var(--page-dim);font-size:14px;max-width:80ch;line-height:1.5;text-wrap:pretty}
+.wrap{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:auto minmax(0,1fr);gap:32px;align-items:start}
+@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;justify-content:center;position:sticky;top:12px}
+@media (max-width:980px){.stage{position:static}}
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.group{display:flex;flex-direction:column;gap:8px}
+h2.lab{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--page-dim);margin:0;font-weight:620}
+.route{display:flex;flex-wrap:wrap;gap:6px}
+.route button,.chips button{font:inherit;font-size:13px;border:1px solid var(--page-line);background:var(--page-raise);color:var(--page-fg);border-radius:9px;padding:6px 10px;cursor:pointer;min-height:34px}
+.route button[aria-current="step"]{border-color:var(--page-acc);color:var(--page-acc);box-shadow:inset 0 0 0 1px var(--page-acc)}
+.route button.gone{opacity:.45;text-decoration:line-through}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button[aria-pressed="true"]{border-color:var(--page-acc);color:var(--page-acc);box-shadow:inset 0 0 0 1px var(--page-acc)}
+button:focus-visible{outline:2px solid var(--page-acc);outline-offset:2px}
+.note{background:var(--page-raise);border:1px solid var(--page-line);border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55}
+.note h3{margin:0 0 4px;font-size:15px;font-weight:620}
+.note p{margin:6px 0 0}.note ul{margin:6px 0 0;padding-left:18px}
+.note .k{color:var(--page-dim);font-size:12px;letter-spacing:.6px;text-transform:uppercase;font-weight:620;margin-top:10px}
+.below{max-width:1240px;margin:40px auto 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:20px}
+.sec{background:var(--page-raise);border:1px solid var(--page-line);border-radius:12px;padding:16px 18px;font-size:14px;line-height:1.55;min-width:0}
+.sec h3{margin:0 0 6px;font-size:16px;font-weight:620}
+.sec ul{margin:4px 0 0;padding-left:18px}.sec li{margin:3px 0}
+.tw{overflow-x:auto}
+table.m{border-collapse:collapse;width:100%;font-size:13px}
+table.m td,table.m th{border-top:1px solid var(--page-line);padding:6px 8px 6px 0;text-align:left;vertical-align:top}
+table.m th{font-weight:620;color:var(--page-dim)}
+code{font-size:12.5px}
+
+/* ───────── Phone ───────── */
+.phone{--s:1;width:calc(411px*var(--s));height:calc(911px*var(--s));border-radius:calc(44px*var(--s));background:#000;box-shadow:0 0 0 calc(6px*var(--s)) #1b1c1f,0 22px 54px rgba(0,0,0,.3);flex:none;position:relative;overflow:hidden}
+.scr{position:absolute;left:0;top:0;width:411px;height:911px;transform:scale(var(--s));transform-origin:0 0;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;
+  --fg:#F2F4F7;--fg2:rgba(242,244,247,.70);--fg3:rgba(242,244,247,.44);--line:rgba(255,255,255,.09);--base:13 15 18;--hi:255 255 255;--stage:#07080A;
+  --wf:#F4F6F8;--wf2:rgba(244,246,248,.74);--wsh:0 1px 2px rgba(0,0,0,.35);
+  --ok:#86D1A6;--warn:#E9C07E;
+  --aL:.64;--aD:.82;--aF:.93;--eT:.16;--eB:.035;--eA:.26;--ease:cubic-bezier(.2,.9,.25,1.04);--d:1;--fz:1;
+  font-family:var(--f-ui);color:var(--fg);background:var(--stage)}
+.scr[data-ui="light"]{--fg:#14171B;--fg2:rgba(20,23,27,.68);--fg3:rgba(20,23,27,.44);--line:rgba(0,0,0,.09);--base:247 248 250;--stage:#D9DEE4;
+  --wf:#15191E;--wf2:rgba(21,25,30,.72);--wsh:0 1px 1px rgba(255,255,255,.4);--ok:#2C7A4E;--warn:#8A5D0E;--eT:.8;--eB:.25}
+.scr *{box-sizing:border-box}
+.scr button{font-family:inherit}
+.status{position:absolute;left:0;right:0;top:0;height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:13px;font-weight:560;color:var(--wf);z-index:60;pointer-events:none;font-variant-numeric:tabular-nums}
+.scr[data-stage="mini"] .status,.scr[data-stage="page"] .status{color:var(--fg)}
+.cam{position:absolute;left:192.5px;top:9px;width:26px;height:26px;border-radius:50%;background:#000;box-shadow:0 0 0 1.5px rgba(255,255,255,.06);z-index:62}
+.navbar{position:absolute;left:0;right:0;bottom:0;height:22px;display:flex;justify-content:center;align-items:center;z-index:70;pointer-events:none}
+.navbar i{width:108px;height:4px;border-radius:2px;background:var(--fg);opacity:.7}
+
+/* Veil — one material, three densities (as in veil3-prototype) */
+.v{position:relative;background:linear-gradient(rgb(var(--acc-rgb)/var(--tint)),rgb(var(--acc-rgb)/var(--tint))),rgb(var(--base)/var(--a));color:var(--fg)}
+.v::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
+  background:linear-gradient(180deg,rgb(var(--hi)/var(--eT)),rgb(var(--hi)/var(--eB)) 45%,rgb(var(--acc-rgb)/var(--eA)));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.vl{--a:var(--aL);--tint:.05}.vd{--a:var(--aD);--tint:.045}.vf{--a:var(--aF);--tint:.035}
+
+/* Home: the real Home, scaled down while it is the live preview (same zoom-out as Home → Editor) */
+.home{position:absolute;inset:0;transform-origin:50% 0;overflow:hidden;transition:transform calc(380ms*var(--d)) var(--ease),border-radius calc(380ms*var(--d)) var(--ease),filter calc(300ms*var(--d)),box-shadow calc(380ms*var(--d))}
+.home.mini{transform:translateY(44px) scale(.43);border-radius:100px;box-shadow:0 0 0 2px rgb(var(--hi)/.14),0 30px 80px rgba(0,0,0,.45)}
+.home.blur{filter:blur(18px) saturate(.7);transform:scale(.97)}
+.wall{position:absolute;inset:0;background:radial-gradient(110% 60% at 18% 8%,#304462 0%,transparent 62%),radial-gradient(90% 55% at 92% 78%,#1D3D44 0%,transparent 60%),linear-gradient(#151B26,#0A0D12)}
+.scr[data-ui="light"] .wall{background:radial-gradient(110% 60% at 18% 8%,#C9D7EA 0%,transparent 62%),radial-gradient(90% 55% at 92% 78%,#CFE5E1 0%,transparent 60%),linear-gradient(#EEF2F6,#E2E8EE)}
+.clk{position:absolute;color:var(--wf);text-shadow:var(--wsh);transition:all calc(300ms*var(--d)) var(--ease)}
+.clk .date{font-size:13px;font-weight:560;letter-spacing:2.2px;text-transform:uppercase;font-variation-settings:"wdth" 112;color:var(--wf2);margin-left:3px}
+.clk .time{font-size:96px;line-height:.9;font-weight:220;font-variation-settings:"wdth" 118;letter-spacing:-1px;font-variant-numeric:tabular-nums;margin-top:6px}
+.clk.plate{padding:16px 22px 18px;border-radius:26px;text-shadow:none;color:var(--fg)}
+.clk.plate .date{color:var(--fg2)}.clk.plate .time{font-size:64px}
+.it{position:absolute;display:flex;flex-direction:column;align-items:center;gap:5px;transform:translate(-50%,-50%);transition:left calc(300ms*var(--d)) var(--ease),top calc(300ms*var(--d)) var(--ease),opacity calc(200ms*var(--d))}
+.ico{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:17px;font-weight:620;color:#fff;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.lbl{font-size:11.5px;font-weight:520;color:var(--wf);text-shadow:var(--wsh);white-space:nowrap}
+.lens{position:absolute;left:205.5px;top:822px;width:48px;height:48px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--wf);transform:translate(-50%,-50%);cursor:pointer;transition:transform calc(110ms*var(--d)),box-shadow calc(200ms*var(--d))}
+.lens::after{content:"";position:absolute;inset:-26px;border-radius:50%}
+.lens.press{transform:translate(-50%,-50%) scale(.86)}
+.lens.coach{box-shadow:inset 0 0 0 1.6px var(--wf),0 0 0 8px rgb(var(--acc-rgb)/.16),0 0 0 18px rgb(var(--acc-rgb)/.07)}
+@media (prefers-reduced-motion:no-preference){.scr:not([data-rm]) .lens.coach{animation:breathe 2.4s ease-in-out infinite}}
+@keyframes breathe{50%{box-shadow:inset 0 0 0 1.6px var(--wf),0 0 0 12px rgb(var(--acc-rgb)/.10),0 0 0 24px rgb(var(--acc-rgb)/.03)}}
+/* ARC */
+.arc{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity calc(130ms*var(--d))}
+.arc.on{opacity:1}
+.slot{position:absolute;transform:translate(-50%,-50%);transition:transform calc(80ms*var(--d)) var(--ease)}
+.slot.sel{transform:translate(-50%,-50%) scale(1.2)}
+.arcname{position:absolute;left:0;right:0;text-align:center;font-size:17px;font-weight:550;font-variation-settings:"wdth" 110;color:var(--wf);text-shadow:var(--wsh)}
+/* PULSE */
+.cap{position:absolute;top:7px;left:50%;transform:translateX(-50%);height:30px;min-width:30px;border-radius:15px;background:#000;display:flex;align-items:center;gap:8px;padding:0 12px 0 34px;color:#F2F4F7;font-size:12px;font-weight:560;z-index:63;cursor:pointer;transition:width calc(260ms*var(--d)) var(--ease),opacity calc(200ms*var(--d))}
+.cap.idle{padding:0;width:68px;background:transparent;outline:1.5px dashed rgb(var(--acc-rgb)/.7);outline-offset:-1px;height:40px;top:2px;border-radius:20px}
+.cap.hide{opacity:0;pointer-events:none}
+.eq{display:flex;gap:2px;align-items:flex-end;height:12px}
+.eq i{width:3px;border-radius:1px;background:var(--acc);height:5px}
+@media (prefers-reduced-motion:no-preference){.scr:not([data-rm]) .eq i{animation:eq .9s ease-in-out infinite}.scr:not([data-rm]) .eq i:nth-child(2){animation-delay:.2s}.scr:not([data-rm]) .eq i:nth-child(3){animation-delay:.45s}}
+@keyframes eq{50%{height:12px}}
+.qv{position:absolute;left:12px;right:12px;top:8px;border-radius:30px;padding:48px 16px 16px;z-index:61;transform-origin:50% 0;transition:transform calc(320ms*var(--d)) var(--ease),opacity calc(200ms*var(--d))}
+.qv.hide{transform:scale(.3,.1);opacity:0;pointer-events:none}
+
+/* Layers above Home */
+.layer{position:absolute;inset:0;z-index:40;pointer-events:none}
+.layer>*{pointer-events:auto}
+.scrim{position:absolute;inset:0;background:rgb(var(--base)/.5)}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;top:452px;border-radius:32px;display:flex;flex-direction:column;padding:12px 18px 18px;transition:transform calc(320ms*var(--d)) var(--ease),opacity calc(200ms*var(--d))}
+.sheet.low{top:auto}
+.page{position:absolute;left:8px;right:8px;top:40px;bottom:8px;border-radius:32px;display:flex;flex-direction:column;padding:12px 18px 18px}
+.bar{display:flex;align-items:center;gap:8px;min-height:44px}
+.prog{flex:1;display:flex;gap:4px;align-items:center;justify-content:center}
+.prog i{height:4px;width:16px;border-radius:2px;background:rgb(var(--hi)/.16);transition:background calc(200ms*var(--d)),width calc(200ms*var(--d))}
+.scr[data-ui="light"] .prog i{background:rgba(0,0,0,.12)}
+.prog i.done{background:rgb(var(--acc-rgb)/.55)}.prog i.now{background:var(--acc);width:28px}
+.ib{width:44px;height:44px;border-radius:22px;border:0;background:none;color:var(--fg);display:grid;place-items:center;cursor:pointer;flex:none}
+.ib:hover{background:rgb(var(--hi)/.07)}
+.tb{border:0;background:none;color:var(--fg2);font-size:calc(14px*var(--fz));font-weight:540;min-height:44px;padding:0 10px;border-radius:22px;cursor:pointer}
+.tb:hover{color:var(--fg)}
+.body{flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;padding-top:4px;scrollbar-width:none;min-height:0}
+.foot{display:flex;flex-direction:column;gap:8px;padding-top:12px}
+.h{margin:0;font-size:calc(28px*var(--fz));line-height:1.12;font-weight:470;font-variation-settings:"wdth" 112;letter-spacing:-.2px;text-wrap:balance}
+.sub{margin:0;font-size:calc(15px*var(--fz));line-height:1.45;color:var(--fg2);text-wrap:pretty}
+.cap-t{font-size:calc(12.5px*var(--fz));color:var(--fg2);line-height:1.4}
+.pri{height:54px;border-radius:27px;border:0;background:var(--acc);color:var(--acc-ink);font-size:calc(16px*var(--fz));font-weight:640;cursor:pointer;width:100%}
+.sec-b{height:48px;border-radius:24px;border:0;background:rgb(var(--hi)/.08);color:var(--fg);font-size:calc(15px*var(--fz));font-weight:560;cursor:pointer;width:100%}
+.scr[data-ui="light"] .sec-b{background:rgba(0,0,0,.06)}
+.pri:disabled{opacity:.4;cursor:default}
+.seg{display:flex;padding:3px;border-radius:16px;background:rgb(var(--hi)/.06);gap:2px}
+.scr[data-ui="light"] .seg{background:rgba(0,0,0,.05)}
+.seg button{flex:1;font-size:calc(14px*var(--fz));border:0;background:none;color:var(--fg2);border-radius:13px;min-height:44px;cursor:pointer;padding:0 8px}
+.seg button[aria-pressed="true"]{background:rgb(var(--hi)/.13);color:var(--fg);font-weight:620;box-shadow:inset 0 0 0 1px rgb(var(--acc-rgb)/.5)}
+.scr[data-ui="light"] .seg button[aria-pressed="true"]{background:#fff}
+.opt{display:flex;gap:12px;align-items:center;text-align:left;border:0;border-radius:20px;padding:12px 14px;background:rgb(var(--hi)/.05);color:var(--fg);cursor:pointer;min-height:56px;width:100%}
+.scr[data-ui="light"] .opt{background:rgba(0,0,0,.04)}
+.opt[aria-checked="true"]{background:rgb(var(--acc-rgb)/.13);box-shadow:inset 0 0 0 1.5px rgb(var(--acc-rgb)/.75)}
+.opt .t{font-size:calc(16px*var(--fz));font-weight:600}
+.opt .d{font-size:calc(13px*var(--fz));color:var(--fg2);line-height:1.35;margin-top:2px}
+.opt .grow{flex:1;min-width:0}
+.radio{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--fg3);flex:none;display:grid;place-items:center}
+.opt[aria-checked="true"] .radio{box-shadow:inset 0 0 0 6px var(--acc)}
+.badge{font-size:calc(11px*var(--fz));font-weight:640;letter-spacing:.4px;border-radius:999px;padding:3px 8px;white-space:nowrap}
+.b-acc{background:rgb(var(--acc-rgb)/.2);color:var(--fg)}
+.b-ok{color:var(--ok);box-shadow:inset 0 0 0 1px currentColor}
+.b-warn{color:var(--warn);box-shadow:inset 0 0 0 1px currentColor}
+.b-soon{color:var(--fg2);box-shadow:inset 0 0 0 1px var(--fg3)}
+.b-neu{color:var(--fg2);background:rgb(var(--hi)/.07)}
+.discs{display:flex;flex-wrap:wrap;gap:10px}
+.disc{width:44px;height:44px;border-radius:50%;border:0;cursor:pointer;display:grid;place-items:center;color:var(--acc-ink)}
+.disc[aria-checked="true"]{box-shadow:0 0 0 2px rgb(var(--base)),0 0 0 4px var(--fg)}
+.field{height:48px;border-radius:24px;background:rgb(var(--hi)/.07);display:flex;align-items:center;gap:10px;padding:0 16px;color:var(--fg2)}
+.scr[data-ui="light"] .field{background:rgba(0,0,0,.05)}
+.field input{flex:1;min-width:0;border:0;background:none;color:var(--fg);font:inherit;font-size:calc(15px*var(--fz));outline:none}
+.applist{display:flex;flex-direction:column}
+.arow{display:flex;align-items:center;gap:12px;min-height:52px;border:0;background:none;color:var(--fg);cursor:pointer;padding:0 4px;border-radius:14px;text-align:left;width:100%}
+.arow .ico{width:36px;height:36px;font-size:14px}
+.arow .n{flex:1;font-size:calc(15px*var(--fz))}
+.chk{width:24px;height:24px;border-radius:8px;box-shadow:inset 0 0 0 1.6px var(--fg3);display:grid;place-items:center;color:var(--acc-ink)}
+.arow[aria-checked="true"] .chk{background:var(--acc);box-shadow:none}
+.picked{display:flex;gap:8px;align-items:center;min-height:40px}
+.picked .ico{width:32px;height:32px;font-size:13px}
+.gest{display:flex;align-items:center;gap:12px;min-height:56px;border-radius:18px;padding:6px 6px 6px 12px;background:rgb(var(--hi)/.05)}
+.scr[data-ui="light"] .gest{background:rgba(0,0,0,.04)}
+.gest .gi{width:34px;height:34px;border-radius:17px;display:grid;place-items:center;box-shadow:inset 0 0 0 1.5px var(--fg3);flex:none;color:var(--fg2)}
+.gest.ok .gi{background:var(--acc);color:var(--acc-ink);box-shadow:none}
+.gest .t{font-size:calc(15px*var(--fz));font-weight:600}.gest .d{font-size:calc(13px*var(--fz));color:var(--fg2)}
+.mini-b{border:0;border-radius:18px;min-height:40px;padding:0 12px;background:rgb(var(--hi)/.08);color:var(--fg);font-size:calc(13px*var(--fz));font-weight:560;cursor:pointer}
+.scr[data-ui="light"] .mini-b{background:rgba(0,0,0,.06)}
+.perm{border-radius:22px;padding:14px;background:rgb(var(--hi)/.05);display:flex;flex-direction:column;gap:10px}
+.scr[data-ui="light"] .perm{background:rgba(0,0,0,.04)}
+.perm .top{display:flex;gap:12px;align-items:flex-start}
+.perm .pi{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;box-shadow:inset 0 0 0 1.4px var(--fg3);flex:none;color:var(--fg)}
+.perm .t{font-size:calc(16px*var(--fz));font-weight:620}
+.perm .d{font-size:calc(13.5px*var(--fz));color:var(--fg2);line-height:1.4;margin-top:2px}
+.why{font-size:calc(13px*var(--fz));line-height:1.45;color:var(--fg2);display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:4px 2px}
+.why b{color:var(--fg);font-weight:600}
+.acts{display:flex;gap:8px;align-items:center}
+.acts .pri{height:44px;font-size:calc(14.5px*var(--fz));flex:1}
+.sumrow{display:flex;align-items:center;gap:12px;min-height:52px;border:0;background:none;color:var(--fg);width:100%;text-align:left;cursor:pointer;border-top:1px solid var(--line);padding:0 2px}
+.sumrow:first-child{border-top:0}
+.sumrow .k{width:84px;font-size:calc(13px*var(--fz));color:var(--fg2);flex:none}
+.sumrow .val{flex:1;font-size:calc(15px*var(--fz));font-weight:540}
+.hubrow{display:flex;align-items:center;gap:12px;min-height:64px;border:0;background:none;color:var(--fg);width:100%;text-align:left;cursor:pointer;padding:8px 4px;border-radius:16px}
+.hubrow:hover{background:rgb(var(--hi)/.05)}
+.hubrow .gl{width:40px;height:40px;border-radius:14px;display:grid;place-items:center;box-shadow:inset 0 0 0 1.4px var(--fg3);flex:none}
+.hubrow .t{font-size:calc(16px*var(--fz));font-weight:600}.hubrow .d{font-size:calc(13px*var(--fz));color:var(--fg2);margin-top:1px}
+.grp{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--fg2);font-weight:640;margin:10px 4px 0}
+.flowcard{border-radius:20px;padding:14px;background:rgb(var(--hi)/.06);display:flex;flex-direction:column;gap:10px}
+.chain{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chain .n{font-size:11px;color:var(--fg2);font-variant-numeric:tabular-nums}
+.toast{position:absolute;left:50%;bottom:120px;transform:translate(-50%,10px);max-width:340px;border-radius:20px;padding:10px 16px;font-size:13.5px;line-height:1.35;z-index:80;opacity:0;pointer-events:none;transition:opacity calc(180ms*var(--d)),transform calc(220ms*var(--d)) var(--ease);text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.android{position:absolute;inset:0;z-index:75;background:#1F2125;color:#E8EAED;display:flex;flex-direction:column;padding:60px 24px 40px;gap:14px}
+.scr[data-ui="light"] .android{background:#F1F3F4;color:#1F1F1F}
+.android .tag{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;font-weight:650;opacity:.7}
+.android h4{margin:0;font-size:24px;font-weight:450}
+.android p{margin:0;font-size:14px;line-height:1.5;opacity:.85}
+.android .ab{height:48px;border-radius:24px;border:1px solid currentColor;background:none;color:inherit;font-size:15px;cursor:pointer}
+.dead{position:absolute;inset:0;background:#000;z-index:90;display:grid;place-items:center;color:#777;font-size:13px}
+.welcome{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:0 24px 92px;gap:28px;background:linear-gradient(rgb(var(--base)/.05) 0%,rgb(var(--base)/.55) 45%,rgb(var(--base)/.9) 100%)}
+.wm{font-size:13px;letter-spacing:3px;text-transform:uppercase;font-weight:600;font-variation-settings:"wdth" 125;color:var(--fg2)}
+.wh{margin:8px 0 0;font-size:calc(46px*var(--fz));line-height:1.02;font-weight:300;font-variation-settings:"wdth" 120;letter-spacing:-.5px}
+.wh span{color:var(--acc)}
+.coach{position:absolute;left:8px;right:8px;top:40px;border-radius:30px;padding:10px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.hint{position:absolute;left:50%;transform:translateX(-50%);font-size:12.5px;color:var(--wf);text-shadow:var(--wsh);white-space:nowrap;font-weight:540}
+.restore-file{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:18px;background:rgb(var(--hi)/.06)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:calc(14px*var(--fz))}
+.kv span:nth-child(odd){color:var(--fg2)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.scr button:focus-visible,.scr input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+
+<header class="top">
+  <h1>Intelia Onboarding V2 · návrh 2</h1>
+  <p>Interaktivní prototyp ke schválení. Celý průvodce se odehrává na skutečné ploše: zmenšená Home je živý náhled, gesta se zkouší na opravdovém LENS a PULSE sedí u kamery. Vpravo průchod, simulace stavu Androidu a poznámka ke každé obrazovce. Nic v prototypu nic nespouští; data aplikací a zálohy jsou ukázková.</p>
+</header>
+
+<div class="wrap">
+  <div class="stage"><div class="phone" id="phone"><div class="scr" id="scr" data-ui="dark">
+    <div class="home" id="home"></div>
+    <div class="status"><span id="clock-s">9:41</span><span>5G ▪ 82 %</span></div>
+    <div class="cam"></div>
+    <div id="pulse"></div>
+    <div class="layer" id="layer"></div>
+    <div class="toast v vd" id="toast" role="status" aria-live="polite"></div>
+    <div class="navbar"><i></i></div>
+  </div></div></div>
+
+  <div class="side">
+    <div class="group">
+      <h2 class="lab">Průchod</h2>
+      <div class="route" id="route"></div>
+    </div>
+    <div class="group">
+      <h2 class="lab">Simulace Androidu</h2>
+      <div class="chips" id="sim"></div>
+      <div class="chips"><button type="button" id="kill">Simulovat ukončení procesu</button><button type="button" id="reset">Začít znovu jako nový uživatel</button></div>
+    </div>
+    <div class="note" id="note" aria-live="polite"></div>
+  </div>
+</div>
+
+<div class="below">
+  <section class="sec">
+    <h3>Co nefungovalo v návrhu 1</h3>
+    <ul>
+      <li>Osm téměř stejných černých obrazovek: nadpis, seznam karet s rámečkem, tlačítko. Nic nevypadalo jako Intelia.</li>
+      <li>Náhled plochy byla kreslená maketa, ne skutečná Home. Výběr layoutu ani akcentu se na ploše neprojevil.</li>
+      <li>LENS a ARC se „trénovaly“ klepnutím na řádek seznamu. Žádné skutečné gesto.</li>
+      <li>PULSE jen textem. Kapsle, Quick View a Global ARC nebyly vidět.</li>
+      <li>Oprávnění bez stavu: pevná tlačítka, žádné opětovné ověření po návratu z Nastavení, žádné „Teď ne“.</li>
+      <li>Pevné „Krok X z 8“, i když se Pure a PULSE Vypnuto kroky zkracují.</li>
+      <li>Akcent napevno v kódu obrazovek, chyběl světlý vzhled, velké písmo a Reduced Motion.</li>
+      <li>Hotovo byl seznam textů. Studio jen větou, žádná cesta k dalším funkcím.</li>
+    </ul>
+  </section>
+  <section class="sec">
+    <h3>Co se mění</h3>
+    <ul>
+      <li><b>Plocha je náhled.</b> Kroky Plocha, Styl, Aplikace a Hotovo zmenší Home stejným pohybem jako Home Editor. Volba se projeví hned.</li>
+      <li><b>Tři prostředí místo jednoho.</b> Spodní list nad náhledem (volby), plná plocha s malou nápovědou (gesta, PULSE), stránka Veil Focus (oprávnění, Discovery Hub).</li>
+      <li><b>Pořadí Plocha → Styl.</b> Nejdřív co uvidíš, pak jak to vypadá: akcent se pak ukazuje na už vybraném layoutu.</li>
+      <li><b>Dynamický počet kroků.</b> Pure vynechá Aplikace. Oprávnění ukáže jen to, co zvolené funkce potřebují.</li>
+      <li><b>Discovery Hub</b> mimo povinnou cestu, se skutečným stavem každé funkce a poctivým „Připravujeme“.</li>
+      <li><b>Studio na ploše.</b> Podržení prázdného místa otevře Studio s „Prozkoumat Intelii“ a „Průvodce znovu“ bez resetu nastavení.</li>
+    </ul>
+  </section>
+  <section class="sec">
+    <h3>Komponenty</h3>
+    <div class="tw"><table class="m">
+      <tr><th>Komponent</th><th>Úloha</th></tr>
+      <tr><td><code>OnboardingHost</code></td><td>Drží <code>OnboardingDraft</code>, vybírá prostředí kroku, Back = krok zpět</td></tr>
+      <tr><td><code>HomeStage</code></td><td>Skutečná <code>Home</code> v režimu <code>preview</code> (bez spouštění), stavy full / mini / blur</td></tr>
+      <tr><td><code>StepSheet</code></td><td>Veil Dense list: <code>StepBar</code> (zpět, průběh, přeskočit), nadpis, obsah, primární akce</td></tr>
+      <tr><td><code>StepBar</code></td><td>Segmentový průběh podle skutečného počtu kroků</td></tr>
+      <tr><td><code>ChoiceRow</code> / <code>Segmented</code> / <code>AccentDiscs</code></td><td>Radio skupiny, sdílené se Studiem</td></tr>
+      <tr><td><code>AppPicker</code></td><td>Hledání bez diakritiky (<code>AppSearch</code>), limit podle layoutu</td></tr>
+      <tr><td><code>GestureCoach</code></td><td>Karta nad plochou, LENS v <code>sandbox</code> režimu, alternativa tlačítkem</td></tr>
+      <tr><td><code>PulseDemo</code></td><td>Kapsle, Quick View a Global ARC v ukázkovém režimu</td></tr>
+      <tr><td><code>PermissionRow</code></td><td>Přínos, proč, soukromí, bez toho, skutečný stav, jedna akce, Teď ne</td></tr>
+      <tr><td><code>DiscoveryHub</code> / <code>FeatureSheet</code></td><td>Katalog funkcí se stavem z Capability Registry</td></tr>
+    </table></div>
+  </section>
+  <section class="sec">
+    <h3>Pravidla prototypu</h3>
+    <ul>
+      <li>Nic se nespustí: ARC, hledání, šuplík, PULSE i FLOW jen ukazují, co by se stalo.</li>
+      <li>„Otevřít nastavení“ vede na šedou obrazovku označenou jako systémové Nastavení. Prototyp tam končí a ty volíš, s jakým výsledkem se vrátíš. Stav se pak znovu ověří.</li>
+      <li>Návrh se ukládá po každé změně. „Simulovat ukončení procesu“ ukáže obnovení na stejném kroku.</li>
+      <li>Volby se do nastavení zapíšou až na Hotovo. Výjimky: obnovení ze zálohy a systémové akce.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function(){
+const ACC={dyn:{n:'Z tapety',d:'#B9C9DC',l:'#46658A'},frost:{n:'Mráz',d:'#A9C4E0',l:'#3F6E9C'},sky:{n:'Nebe',d:'#8FCBF2',l:'#1D6AA3'},mint:{n:'Máta',d:'#9FDCC4',l:'#2B7558'},amber:{n:'Jantar',d:'#E8C189',l:'#85570F'},orchid:{n:'Orchidej',d:'#D5B3EA',l:'#784899'},coral:{n:'Korál',d:'#F1AC9C',l:'#A0473A'}};
+const APPS=[['Telefon','#2E7D5B'],['Zprávy','#2F6DB5'],['Fotoaparát','#4A4F57'],['Chrome','#C2523C'],['Mapy','#3A8F6E'],['Spotify','#1F9D55'],['Kalendář','#3E64C8'],['Gmail','#B8443A'],['Fotky','#C08A1E'],['WhatsApp','#2A9D6A'],['Hodiny','#5B5F99'],['Poznámky','#B58B1F'],['Počasí','#3C86C4'],['Kalkulačka','#5E636B'],['YouTube','#C23A3A'],['Nastavení','#555B63']];
+const COL=Object.fromEntries(APPS);
+const I={search:'<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',grid:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',arc:'<path d="M4 17a8 8 0 0 1 16 0"/><circle cx="12" cy="17" r="1.6"/>',pulse:'<rect x="6" y="4" width="12" height="6" rx="3"/><path d="M8 15h8M10 19h4"/>',flow:'<circle cx="5.5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18.5" cy="12" r="2"/><path d="M7.5 12h2.5M14 12h2.5"/>',key:'<rect x="9" y="3" width="6" height="18" rx="3"/><path d="M12 7v3"/>',palette:'<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.3-1-1.6-1-2.8 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',lab:'<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 15h9"/>',home:'<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"/>',bell:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5h4"/>',check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',chev:'<path d="M9 5l7 7-7 7"/>',back:'<path d="M15 5l-7 7 7 7"/>',up:'<path d="M12 19V5M6 11l6-6 6 6"/>',tap:'<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.5" opacity=".5"/>',hold:'<circle cx="12" cy="16" r="3"/><path d="M5 11a8 8 0 0 1 14 0"/>',access:'<circle cx="12" cy="4.5" r="1.8"/><path d="M5 8.5l7 1.5 7-1.5M12 10v4l-3 6M12 14l3 6"/>',restore:'<path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4"/>',music:'<path d="M9 17V6l10-2v11"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="15" r="2"/>',torch:'<path d="M8 3h8l-1 6H9zM9 9h6v11a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z"/>',studio:'<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',close:'<path d="M6 6l12 12M18 6L6 18"/>',shield:'<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',edit:'<path d="M4 20h4l10-10-4-4L4 16z"/>',play:'<path d="M8 5v14l11-7z"/>',next:'<path d="M6 5v14l9-7zM18 5v14"/>',prev:'<path d="M18 5v14L9 12zM6 5v14"/>',shot:'<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 9h16"/>',file:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>'};
+const svg=(n,s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
+const icon=(n,s)=>`<div class="ico" style="background:${COL[n]||'#555'}${s?';width:'+s+'px;height:'+s+'px':''}">${n[0]}</div>`;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+
+const DEF=()=>({step:'welcome',phase:'onb',layout:'essentials',mode:'system',accent:'frost',favs:['Telefon','Zprávy','Fotoaparát','Chrome'],pulse:'home',trained:{tap:false,up:false,hold:false},later:{},restored:false,hubFrom:null});
+const SIMDEF={sysDark:true,home:false,svc:false,notif:false,rm:false,big:false};
+let S,sim,memSnap=null;
+function load(){try{const r=localStorage.getItem('intelia-onb-draft');if(r){const o=JSON.parse(r);return Object.assign(DEF(),o.S||{}),[Object.assign(DEF(),o.S),Object.assign({},SIMDEF,o.sim)]}}catch(e){}return [DEF(),Object.assign({},SIMDEF)]}
+function save(){const j=JSON.stringify({S,sim});memSnap=j;try{localStorage.setItem('intelia-onb-draft',j)}catch(e){}}
+[S,sim]=load();
+
+const scr=document.getElementById('scr'),home=document.getElementById('home'),layer=document.getElementById('layer'),pulseEl=document.getElementById('pulse');
+const ui=()=>S.mode==='light'||(S.mode==='system'&&!sim.sysDark)?'light':'dark';
+function hexRgb(h){const n=parseInt(h.slice(1),16);return `${n>>16} ${n>>8&255} ${n&255}`}
+function applyTheme(){const u=ui(),a=ACC[S.accent][u==='dark'?'d':'l'];scr.dataset.ui=u;scr.style.setProperty('--acc',a);scr.style.setProperty('--acc-rgb',hexRgb(a));scr.style.setProperty('--acc-ink',u==='dark'?'#0D1620':'#FFFFFF');scr.style.setProperty('--d',sim.rm?0:1);scr.style.setProperty('--fz',sim.big?1.22:1);if(sim.rm)scr.dataset.rm='1';else delete scr.dataset.rm}
+
+const ORDER=['welcome','layout','style','apps','gestures','pulse','unlock','done'];
+const NAMES={welcome:'Vítej',layout:'Plocha',style:'Styl',apps:'Aplikace',gestures:'LENS + ARC',pulse:'PULSE',unlock:'Odemkni možnosti',done:'Hotovo'};
+const steps=()=>ORDER.filter(s=>!(s==='apps'&&S.layout==='pure'));
+const flowSteps=()=>steps().filter(s=>s!=='welcome'&&s!=='done');
+function go(s){S.step=s;S.phase='onb';closeDemos();save();render()}
+function next(){const l=steps(),i=l.indexOf(S.step);go(l[Math.min(i+1,l.length-1)])}
+function back(){const l=steps(),i=l.indexOf(S.step);if(i>0)go(l[i-1])}
+const maxFav=()=>S.layout==='custom'?8:4;
+
+/* ── Home ── */
+const LX=205.5,LY=822;
+function arcSlots(){const f=S.favs.slice(0,5);const pad=['Mapy','Spotify','Kalendář','Gmail','Fotky'].filter(x=>!f.includes(x));while(f.length<5)f.push(pad.shift());return f}
+function renderHome(){
+  let h='<div class="wall"></div>';
+  const custom=S.layout==='custom';
+  if(custom)h+=`<div class="clk plate v vl" style="left:50%;top:96px;transform:translateX(-50%)"><div class="date">Út 20. října</div><div class="time">9:41</div></div>`;
+  else h+=`<div class="clk" style="left:28px;top:${S.layout==='pure'?150:118}px"><div class="date">Úterý 20. října</div><div class="time">9:41</div></div>`;
+  if(S.layout==='essentials'){const f=S.favs.slice(0,4),dx=[-108,-62,62,108];f.forEach((n,i)=>{h+=`<div class="it" style="left:${LX+dx[i]}px;top:${LY}px">${icon(n)}</div>`})}
+  if(custom){S.favs.slice(0,8).forEach((n,i)=>{const c=i%4,r=Math.floor(i/4);h+=`<div class="it" style="left:${72+c*89}px;top:${560+r*92}px">${icon(n,52)}<div class="lbl">${esc(n)}</div></div>`})}
+  h+=`<div class="lens" id="lens" role="button" tabindex="-1" aria-label="LENS"></div>`;
+  const sl=arcSlots(),ang=[150,120,90,60,30];
+  h+=`<div class="arc" id="arc"><svg width="411" height="911" style="position:absolute;inset:0" aria-hidden="true"><path d="M${LX-118*Math.cos(8*Math.PI/180)} ${LY-118*Math.sin(8*Math.PI/180)} A118 118 0 0 1 ${LX+118*Math.cos(8*Math.PI/180)} ${LY-118*Math.sin(8*Math.PI/180)}" fill="none" stroke="rgb(var(--hi)/.24)" stroke-width="1.2"/></svg><div class="arcname" id="arcname" style="top:${LY-196}px"></div>`;
+  sl.forEach((n,i)=>{const a=ang[i]*Math.PI/180;h+=`<div class="slot" data-i="${i}" style="left:${LX+118*Math.cos(a)}px;top:${LY-118*Math.sin(a)}px">${icon(n)}</div>`});
+  h+='</div>';
+  home.innerHTML=h;
+  bindLens();
+}
+function stageMode(){const st=S.phase==='hub'||S.step==='unlock'&&S.phase==='onb'?'page':(S.phase==='onb'&&['layout','style','apps','done'].includes(S.step)?'mini':'full');scr.dataset.stage=st;home.className='home'+(st==='mini'?' mini':'')+(st==='page'?' blur':'');}
+
+/* ── PULSE ── */
+let pulseState='live';
+function renderPulse(){
+  const on=S.pulse!=='off'&&(S.phase==='home'||(S.phase==='onb'&&S.step==='pulse'));
+  const qvApps=['Kalkulačka','Mapy','Kalendář'];
+  pulseEl.innerHTML=`<div class="cap ${on?'':'hide'} ${pulseState==='idle'?'idle':''}" id="cap" role="button" tabindex="${on?0:-1}" aria-label="PULSE: klepni pro Quick View, podrž pro Global ARC">${pulseState==='idle'?'':'<span class="eq"><i></i><i></i><i></i></span><span>Hraje · Nightcall</span>'}</div>
+  <div class="qv v vd hide" id="qv" aria-hidden="true"><div style="display:flex;gap:12px;align-items:center"><div class="ico" style="width:52px;height:52px;border-radius:14px;background:#24324A">${svg('music',22)}</div><div style="flex:1;min-width:0"><div style="font-weight:620;font-size:15px">Nightcall</div><div class="cap-t">Kavinsky · Spotify</div></div></div>
+  <div style="display:flex;justify-content:center;gap:18px;margin:12px 0 10px">${['prev','play','next'].map(n=>`<span class="ib" style="background:rgb(var(--hi)/.07)">${svg(n)}</span>`).join('')}</div>
+  <div style="display:flex;gap:8px">${[['torch','Svítilna'],['shot','Snímek'],['flow','ráno']].map(([i,t])=>`<div style="flex:1;border-radius:16px;background:rgb(var(--hi)/.06);min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px">${svg(i,18)}${t}</div>`).join('')}</div>
+  <div style="display:flex;justify-content:space-around;margin-top:12px">${qvApps.map(n=>icon(n,36)).join('')}</div>
+  <div class="cap-t" style="text-align:center;margin-top:10px">Ukázka · nic se nespustí</div></div>
+  <div class="arc" id="garc">${['Svítilna','Snímek','ráno','Spotify','Kalkulačka'].map((n,i)=>{const a=(30+30*i)*Math.PI/180;const x=205.5-104*Math.cos(a),y=22+104*Math.sin(a);const inner=['Svítilna','Snímek','ráno'].includes(n)?`<div class="ico" style="background:rgb(var(--base)/.85);color:var(--fg);box-shadow:inset 0 0 0 1px rgb(var(--hi)/.2)">${svg(n==='Svítilna'?'torch':n==='Snímek'?'shot':'flow',18)}</div>`:icon(n);return `<div class="slot" data-i="${i}" data-n="${n}" style="left:${x}px;top:${y}px">${inner}</div>`}).join('')}<div class="arcname" id="garcname" style="top:150px"></div></div>`;
+  bindPulse();
+}
+function bindPulse(){
+  const cap=document.getElementById('cap');if(!cap)return;
+  let t=null,held=false,sel=-1;
+  cap.onpointerdown=e=>{e.preventDefault();cap.setPointerCapture(e.pointerId);held=false;sel=-1;t=setTimeout(()=>{held=true;openGarc(true)},320)};
+  cap.onpointermove=e=>{if(!held)return;const p=pt(e);let best=-1,bd=1e9;document.querySelectorAll('#garc .slot').forEach((s,i)=>{const x=parseFloat(s.style.left),y=parseFloat(s.style.top),d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=i}});sel=bd<46?best:-1;document.querySelectorAll('#garc .slot').forEach((s,i)=>s.classList.toggle('sel',i===sel));document.getElementById('garcname').textContent=sel>=0?document.querySelectorAll('#garc .slot')[sel].dataset.n:''};
+  cap.onpointerup=()=>{clearTimeout(t);if(held){const n=sel>=0?document.querySelectorAll('#garc .slot')[sel].dataset.n:null;openGarc(false);toast(n?`Ukázka: ${n} by se ${n==='ráno'?'spustil jako FLOW':'otevřel(a)'} odkudkoliv.`:'Puštěno mimo slot: zrušeno.');}else toggleQv()};
+  cap.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleQv()}};
+}
+function toggleQv(force){const q=document.getElementById('qv');if(!q)return;const open=force!==undefined?force:q.classList.contains('hide');q.classList.toggle('hide',!open);q.setAttribute('aria-hidden',!open)}
+function openGarc(on){const g=document.getElementById('garc');if(g){g.classList.toggle('on',on);if(!on)g.querySelectorAll('.slot').forEach(s=>s.classList.remove('sel'))}if(on)toggleQv(false)}
+
+/* ── Gestures on the real LENS (sandbox) ── */
+function pt(e){const r=scr.getBoundingClientRect(),s=r.width/411;return {x:(e.clientX-r.left)/s,y:(e.clientY-r.top)/s}}
+function lensLive(){return (S.phase==='onb'&&S.step==='gestures')||S.phase==='home'}
+function bindLens(){
+  const lens=document.getElementById('lens');if(!lens)return;
+  lens.classList.toggle('coach',S.phase==='onb'&&S.step==='gestures');
+  let t0,p0,timer,arcOn=false,sel=-1,moved=false;
+  lens.onpointerdown=e=>{if(!lensLive())return;e.preventDefault();e.stopPropagation();lens.setPointerCapture(e.pointerId);t0=Date.now();p0=pt(e);arcOn=false;moved=false;sel=-1;lens.classList.add('press');timer=setTimeout(()=>{if(!moved){arcOn=true;document.getElementById('arc').classList.add('on')}},260)};
+  lens.onpointermove=e=>{if(!p0)return;const p=pt(e),dx=p.x-LX,dy=LY-p.y,dist=Math.hypot(dx,dy);
+    if(!arcOn){if(Math.hypot(p.x-p0.x,p.y-p0.y)>10)moved=true;return}
+    let s=-1;if(dist>=70&&dist<=200){const a=Math.atan2(dy,dx)*180/Math.PI;[150,120,90,60,30].forEach((g,i)=>{if(Math.abs(a-g)<=15)s=i})}
+    if(s!==sel){sel=s;document.querySelectorAll('#arc .slot').forEach((el,i)=>el.classList.toggle('sel',i===sel));document.getElementById('arcname').textContent=sel>=0?arcSlots()[sel]:''}};
+  lens.onpointerup=e=>{clearTimeout(timer);lens.classList.remove('press');if(!p0)return;const p=pt(e),dy=p0.y-p.y;p0=null;
+    if(arcOn){document.getElementById('arc').classList.remove('on');document.querySelectorAll('#arc .slot').forEach(el=>el.classList.remove('sel'));
+      if(sel>=0){train('hold');toast(`Ukázka: tady by se otevřela aplikace ${arcSlots()[sel]}.`)}else toast('Puštěno u LENS: zrušeno, nic se nestalo.');return}
+    if(dy>50){train('up');demo('up');return}
+    if(!moved&&Date.now()-t0<260){train('tap');demo('tap')}};
+  lens.onpointercancel=()=>{clearTimeout(timer);lens.classList.remove('press');p0=null;document.getElementById('arc').classList.remove('on')};
+}
+function train(k){if(S.phase==='onb'&&S.step==='gestures'&&!S.trained[k]){S.trained[k]=true;save();renderLayer()}}
+let demoOpen=null;
+function demo(k){demoOpen=k;renderLayer()}
+function closeDemos(){demoOpen=null;pulseState='live';}
+function demoLayer(){
+  if(demoOpen==='tap'){const r=['Mapy','Telefon'].map(n=>`<div class="arow" style="cursor:default">${icon(n,36)}<span class="n">${n}</span></div>`).join('');
+    return `<div class="scrim" data-act="closeDemo"></div><div class="v vd" style="position:absolute;left:16px;right:16px;bottom:96px;border-radius:24px;padding:8px 10px"><div class="cap-t" style="padding:6px 6px 2px">Ukázka · výsledky se nespustí</div>${r}<div class="arow" style="cursor:default"><div class="ico" style="width:36px;height:36px;background:rgb(var(--acc-rgb)/.25);color:var(--fg)">${svg('flow',18)}</div><span class="n">FLOW „ráno“</span><span class="badge b-neu">3 aplikace</span></div></div>
+    <div class="v vd field" style="position:absolute;left:16px;right:16px;bottom:34px;border-radius:24px">${svg('search',18)}<span style="color:var(--fg)">ma</span><span style="flex:1"></span><button type="button" class="ib" data-act="closeDemo" aria-label="Zavřít ukázku" style="width:36px;height:36px">${svg('close',18)}</button></div>`}
+  if(demoOpen==='up'){return `<div class="scrim" data-act="closeDemo"></div><div class="v vf" style="position:absolute;left:8px;right:8px;top:120px;bottom:8px;border-radius:30px;padding:12px 16px"><div style="width:36px;height:4px;border-radius:2px;background:var(--fg3);margin:0 auto 12px"></div><div style="display:flex;align-items:center;justify-content:space-between"><div class="h" style="font-size:22px">Aplikace</div><button type="button" class="ib" data-act="closeDemo" aria-label="Zavřít ukázku">${svg('close')}</button></div><div class="cap-t" style="margin:2px 0 14px">Ukázka šuplíku · nic se nespustí</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px 6px">${APPS.map(([n])=>`<div style="display:flex;flex-direction:column;align-items:center;gap:5px">${icon(n)}<span style="font-size:11.5px">${n}</span></div>`).join('')}</div></div>`}
+  return '';
+}
+
+/* ── Steps ── */
+function bar(opts={}){const fl=flowSteps(),i=fl.indexOf(S.step);
+  const prog=fl.map((s,j)=>`<i class="${j<i?'done':j===i?'now':''}"></i>`).join('');
+  return `<div class="bar"><button type="button" class="ib" data-act="back" aria-label="Zpět">${svg('back')}</button><div class="prog" role="progressbar" aria-valuemin="1" aria-valuemax="${fl.length}" aria-valuenow="${i+1}" aria-label="Krok ${i+1} z ${fl.length}">${prog}</div><button type="button" class="tb" data-act="${opts.skip||'next'}">${opts.skipLabel||'Přeskočit'}</button></div>`}
+function stepLayer(){
+  const st=S.step;
+  if(st==='welcome'){
+    if(restoreStage)return restoreLayer();
+    return `<div class="welcome"><div><div class="wm">Intelia</div><h2 class="wh">Tvůj telefon.<br><span>Tvoje pravidla.</span></h2><p class="sub" style="margin-top:14px;max-width:32ch">Čistá plocha a rychlé ovládání jedním prstem. Bez účtu a bez internetu.</p></div><div class="foot"><button type="button" class="pri" data-act="start">Začít</button><button type="button" class="sec-b" data-act="restore">${svg('restore',18)} <span style="vertical-align:3px">Obnovit ze zálohy</span></button><button type="button" class="tb" data-act="skipAll" style="align-self:center">Přeskočit průvodce</button></div></div>`}
+  if(st==='layout'){
+    const L=[['pure','Pure','Hodiny a LENS. Aplikace najdeš hledáním.'],['essentials','Essentials','Čtyři oblíbené kolem LENS.'],['custom','Custom','Vlastní mřížka, widgety a volné umístění.']];
+    return `<div class="sheet v vd">${bar()}<div class="body"><h2 class="h">Tvoje plocha</h2><p class="sub">Nahoře vidíš, jak bude vypadat. Změníš ji kdykoli podržením plochy.</p><div role="radiogroup" aria-label="Rozložení plochy" style="display:flex;flex-direction:column;gap:8px">${L.map(([id,t,d])=>`<button type="button" class="opt" role="radio" aria-checked="${S.layout===id}" data-act="layout:${id}"><span class="radio"></span><span class="grow"><span class="t">${t}</span>${id==='essentials'?' <span class="badge b-acc">Doporučeno</span>':''}<div class="d">${d}</div></span></button>`).join('')}</div></div><div class="foot"><button type="button" class="pri" data-act="next">Pokračovat</button></div></div>`}
+  if(st==='style'){
+    const sysName=sim.sysDark?'tmavý':'světlý';
+    return `<div class="sheet v vd">${bar()}<div class="body"><h2 class="h">Tvůj styl</h2><div class="seg" role="radiogroup" aria-label="Režim">${[['system','Systém'],['dark','Tmavý'],['light','Světlý']].map(([id,t])=>`<button type="button" role="radio" aria-pressed="${S.mode===id}" aria-checked="${S.mode===id}" data-act="mode:${id}">${t}</button>`).join('')}</div><div class="cap-t" style="margin-top:-6px">${S.mode==='system'?`Teď ${sysName}, mění se s telefonem.`:'Nezávisle na telefonu.'}</div>
+    <div role="radiogroup" aria-label="Akcent" class="discs">${Object.entries(ACC).map(([id,a])=>`<button type="button" class="disc" role="radio" aria-checked="${S.accent===id}" aria-label="${a.n}" data-act="acc:${id}" style="background:${id==='dyn'?`conic-gradient(${a[ui()==='dark'?'d':'l']},#9FDCC4,#E8C189,#D5B3EA,${a[ui()==='dark'?'d':'l']})`:a[ui()==='dark'?'d':'l']}">${S.accent===id?svg('check',18):''}</button>`).join('')}</div><div class="cap-t">${ACC[S.accent].n}${S.accent==='dyn'?' · barva z Material You, Android 12+':''}. Písmo, materiál a barvy jednotlivých míst jsou ve Studiu.</div></div><div class="foot"><button type="button" class="pri" data-act="next">Pokračovat</button></div></div>`}
+  if(st==='apps'){
+    return `<div class="sheet v vd">${bar()}<div class="body"><h2 class="h">Aplikace po ruce</h2><div class="picked" id="picked"></div><label class="field"><span class="sr">Hledat aplikaci</span>${svg('search',18)}<input id="appq" type="search" placeholder="Hledat aplikaci" autocomplete="off" value="${esc(appQ)}"></label><div class="applist" id="applist" role="group" aria-label="Nainstalované aplikace"></div></div><div class="foot"><button type="button" class="pri" data-act="next">Pokračovat</button></div></div>`}
+  if(st==='gestures'){
+    const T=S.trained,all=T.tap&&T.up&&T.hold;
+    const G=[['tap','tap','Klepni','Hledání'],['up','up','Táhni nahoru','Všechny aplikace'],['hold','hold','Podrž a táhni','ARC: pusť na aplikaci']];
+    return `${demoLayer()}<div class="coach v vd" ${demoOpen?'style="display:none"':''}>${bar({skipLabel:'Přeskočit'})}<h2 class="h" style="font-size:calc(24px*var(--fz))">Jedno gesto.<br>Mnoho možností.</h2><p class="sub" style="font-size:calc(14px*var(--fz))">Zkus to na kroužku dole. Nic se nespustí.</p>${G.map(([k,ic,t,d])=>`<div class="gest ${T[k]?'ok':''}"><span class="gi">${svg(T[k]?'check':ic,18)}</span><span style="flex:1"><div class="t">${t}</div><div class="d">${d}</div></span><button type="button" class="mini-b" data-act="show:${k}" aria-label="Ukázat bez gesta: ${t}">Ukázat</button></div>`).join('')}<button type="button" class="pri" data-act="next" style="margin-top:4px">${all?'Pokračovat':'Pokračovat bez zkoušení'}</button></div>${all||demoOpen?'':`<div class="hint" style="top:${LY-70}px">${T.tap?T.up?'Podrž, táhni na aplikaci a pusť':'Táhni nahoru':'Klepni na kroužek'}</div>`}`}
+  if(st==='pulse'){
+    const P=[['off','Vypnuto','Žádná kapsle.'],['home','Jen na ploše','Funguje hned, bez oprávnění.'],['everywhere','Všude','I nad aplikacemi. Potřebuje službu přístupnosti.']];
+    return `${S.pulse!=='off'?`<div class="hint" style="top:46px">Klepni na kapsli · podrž ji a táhni</div>`:''}<div class="sheet v vd low" style="top:auto">${bar()}<div class="body" style="flex:none"><h2 class="h">Ovládání odkudkoliv.</h2><p class="sub">PULSE žije u kamery. Klepnutím ukáže hudbu a rychlé akce, podržením Global ARC s aplikacemi a FLOW.</p><div role="radiogroup" aria-label="Režim PULSE" style="display:flex;flex-direction:column;gap:8px">${P.map(([id,t,d])=>`<button type="button" class="opt" role="radio" aria-checked="${S.pulse===id}" data-act="pulse:${id}"><span class="radio"></span><span class="grow"><span class="t">${t}</span>${id==='home'?' <span class="badge b-acc">Doporučeno</span>':''}<div class="d">${d}</div></span></button>`).join('')}</div>${S.pulse==='everywhere'?`<div class="cap-t" style="display:flex;gap:8px">${svg('shield',16)}<span>O povolení požádáme v dalším kroku. Služba nečte obrazovku ani texty.</span></div>`:''}${S.pulse!=='off'?`<div style="display:flex;gap:8px"><button type="button" class="mini-b" data-act="pdemo:tap">Ukázat Quick View</button><button type="button" class="mini-b" data-act="pdemo:hold">Ukázat Global ARC</button></div>`:''}</div><div class="foot"><button type="button" class="pri" data-act="next">Pokračovat</button></div></div>`}
+  if(st==='unlock')return unlockLayer();
+  if(st==='done'){
+    const L={pure:'Pure',essentials:'Essentials',custom:'Custom'}[S.layout];
+    const apps=S.layout==='pure'?'':` · ${Math.min(S.favs.length,maxFav())} aplikace`;
+    const md={system:'Podle systému',dark:'Tmavý',light:'Světlý'}[S.mode];
+    const pu={off:'Vypnuto',home:'Jen na ploše',everywhere:'Všude'}[S.pulse]+(S.pulse==='everywhere'&&!sim.svc?' · čeká na službu':'');
+    return `<div class="sheet v vd"><div class="bar"><button type="button" class="ib" data-act="back" aria-label="Zpět">${svg('back')}</button><span style="flex:1"></span></div><div class="body" style="gap:10px"><h2 class="h">Hotovo. Tohle je tvoje Intelia.</h2><div>${[['layout','Plocha',L+apps],['style','Styl',md+' · '+ACC[S.accent].n],['pulse','PULSE',pu],['unlock','Výchozí',sim.home?'Intelia je výchozí plocha':'Zatím ne']].map(([s,k,v])=>`<button type="button" class="sumrow" data-act="goto:${s}" aria-label="${k}: ${v}. Změnit"><span class="k">${k}</span><span class="val">${v}</span><span style="color:var(--fg3)">${svg('chev',16)}</span></button>`).join('')}</div><div class="cap-t" style="display:flex;gap:8px;align-items:center">${svg('studio',16)}<span>Všechno ostatní je ve Studiu: podrž prázdné místo na ploše.</span></div></div><div class="foot"><button type="button" class="pri" data-act="finish">Přejít na plochu</button><button type="button" class="sec-b" data-act="hub">Prozkoumat Intelii</button></div></div>`}
+  return '';
+}
+
+/* ── Restore from backup (applies immediately: the documented exception) ── */
+let restoreStage=0;
+function restoreLayer(){
+  if(restoreStage===1)return `<div class="scrim"></div><div class="sheet v vd low" style="top:auto"><div class="bar"><button type="button" class="ib" data-act="restoreCancel" aria-label="Zpět">${svg('back')}</button><span style="flex:1"></span></div><div class="body" style="flex:none"><h2 class="h">Obnovit ze zálohy</h2><p class="sub">Vyber soubor, který Intelia uložila ve Studiu › Systém a data. Otevře se systémový výběr souborů.</p><button type="button" class="restore-file" data-act="pick" style="border:0;color:var(--fg);cursor:pointer;text-align:left">${svg('file',22)}<span style="flex:1"><div style="font-weight:600">intelia-zaloha-2026-10-12.json</div><div class="cap-t">14 kB · ukázkový soubor</div></span>${svg('chev',16)}</button></div></div>`;
+  return `<div class="scrim"></div><div class="sheet v vd low" style="top:auto"><div class="bar"><button type="button" class="ib" data-act="restoreBack" aria-label="Zpět">${svg('back')}</button><span style="flex:1"></span></div><div class="body" style="flex:none"><h2 class="h">Co se obnoví</h2><div class="kv"><span>Plocha</span><span>Custom · 6 aplikací</span><span>Styl</span><span>Tmavý · Máta</span><span>PULSE</span><span>Všude</span><span>FLOW</span><span>3 příkazy</span></div><div class="cap-t" style="display:flex;gap:8px">${svg('shield',16)}<span>Soubor prošel kontrolou. Oprávnění se neobnovují, ta povolíš na další obrazovce.</span></div></div><div class="foot"><button type="button" class="pri" data-act="doRestore">Obnovit</button></div></div>`;
+}
+
+/* ── Unlock: one page, only what the chosen features need, real state on resume ── */
+let checking=null,android=null,openWhy={};
+function perms(){const p=[{id:'home',ic:'home',t:'Výchozí plocha',d:'Tlačítko Domů otevře Intelii. ARC pak umí i zkratky aplikací.',why:'Android dovolí zkratky aplikací jen výchozí ploše.',priv:'Žádný přístup k datům.',without:'Intelii otevřeš jako běžnou aplikaci.',btn:'Nastavit jako výchozí',sys:'Systémový dialog „Výchozí aplikace pro plochu“',on:()=>sim.home}];
+  if(S.pulse==='everywhere')p.push({id:'svc',ic:'access',t:'Služba PULSE',d:'PULSE a Global ARC i nad ostatními aplikacemi.',why:'Kreslit dotykovou oblast nad aplikacemi umí jen služba přístupnosti.',priv:'Nečte obrazovku, texty ani notifikace. Některé bankovní aplikace při zapnuté přístupnosti varují.',without:'PULSE funguje jen na ploše.',btn:'Otevřít nastavení',sys:'Nastavení › Přístupnost › Nainstalované aplikace › Intelia',on:()=>sim.svc});
+  if(S.pulse!=='off')p.push({id:'notif',ic:'bell',t:'Hudba v PULSE',d:'Co hraje, pauza a další skladba přímo v kapsli.',why:'Přehrávač se dá ovládat jen s přístupem k oznámením.',priv:'Bere jen relaci přehrávání. Obsah oznámení se nečte ani neukládá.',without:'Kapsle ukáže jen obecnou ikonu hudby.',btn:'Otevřít nastavení',sys:'Nastavení › Oznámení › Přístup k oznámením › Intelia',on:()=>sim.notif,opt:true});
+  return p}
+function unlockLayer(){
+  const P=perms();
+  if(android){const p=P.find(x=>x.id===android);return `<div class="android" role="dialog" aria-label="Systémové nastavení Androidu, simulace"><div class="tag">Mimo Intelii · Android</div><h4>${esc(p.sys)}</h4><p>Tady prototyp končí. Ve skutečnosti uživatel přepne volbu v systému a vrátí se zpět. Intelia pak sama znovu zjistí stav, nic si nepamatuje dopředu.</p><div style="flex:1"></div><button type="button" class="ab" data-act="ret:1">Vrátit se · povoleno</button><button type="button" class="ab" data-act="ret:0">Vrátit se · nepovoleno</button></div>`}
+  return `<div class="page v vf">${bar({skipLabel:'Přeskočit vše'})}<div class="body"><h2 class="h">Odemkni možnosti</h2><p class="sub">Nic z toho není povinné. Plocha, hledání a ARC fungují i bez toho.</p>${P.map(p=>{const on=p.on(),chk=checking===p.id,later=S.later[p.id]&&!on;
+    const chip=chk?'<span class="badge b-neu">Ověřuji…</span>':on?`<span class="badge b-ok">${svg('check',11)} Povoleno</span>`:later?'<span class="badge b-neu">Později</span>':'<span class="badge b-warn">Vypnuto</span>';
+    return `<div class="perm"><div class="top"><span class="pi">${svg(p.ic,18)}</span><span style="flex:1;min-width:0"><span style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="t">${p.t}</span>${chip}</span><div class="d">${p.d}</div></span></div>
+    ${openWhy[p.id]?`<div class="why"><b>Proč</b><span>${p.why}</span><b>Soukromí</b><span>${p.priv}</span><b>Bez toho</b><span>${p.without}</span></div>`:''}
+    <div class="acts">${on?`<button type="button" class="tb" data-act="why:${p.id}" aria-expanded="${!!openWhy[p.id]}">${openWhy[p.id]?'Skrýt':'Proč a soukromí'}</button><span style="flex:1"></span><button type="button" class="tb" data-act="open:${p.id}">Změnit v nastavení</button>`:`<button type="button" class="pri" data-act="open:${p.id}">${p.btn}</button><button type="button" class="tb" data-act="later:${p.id}">Teď ne</button><button type="button" class="ib" data-act="why:${p.id}" aria-expanded="${!!openWhy[p.id]}" aria-label="Proč a soukromí">${svg(openWhy[p.id]?'up':'shield',18)}</button>`}</div></div>`}).join('')}</div><div class="foot"><button type="button" class="pri" data-act="next">Pokračovat</button></div></div>`}
+
+/* ── Discovery Hub ── */
+let hubItem=null,keyStage=0;
+function hubItems(){return [
+  {g:'Ovládání',id:'lens',ic:'arc',t:'LENS a ARC',d:'Jedno gesto na hledání, aplikace a oblouk oblíbených.',st:S.trained.hold?['ok','Vyzkoušeno']:['neu','Připraveno'],need:'Nic. Funguje hned.',act:['try','Vyzkoušet']},
+  {g:'Ovládání',id:'pulse',ic:'pulse',t:'PULSE',d:'Kapsle u kamery: Quick View, hudba a Global ARC.',st:S.pulse==='off'?['neu','Vypnuto']:S.pulse==='everywhere'&&!sim.svc?['warn','Potřebuje službu']:['ok','Zapnuto · '+(S.pulse==='home'?'na ploše':'všude')],need:S.pulse==='everywhere'?'Pro režim Všude službu přístupnosti PULSE.':'Na ploše nic. Pro režim Všude službu přístupnosti.',act:['try','Vyzkoušet']},
+  {g:'Ovládání',id:'flow',ic:'flow',t:'FLOW a akce',d:'Pojmenovaný příkaz otevře 1–4 aplikace za sebou. Vždy s náhledem.',st:['neu','Připraveno'],need:'Nic. FLOW vytvoříš ve Studiu › Příkazy.',act:['flow','Ukázat FLOW']},
+  {g:'Ovládání',id:'keys',ic:'key',t:'Fyzická tlačítka',d:'Přiřaď akci tlačítku, které telefon opravdu hlásí, třeba Essential Key.',st:sim.svc?['neu','Připraveno']:['warn','Potřebuje službu'],need:'Službu přístupnosti PULSE. Tlačítko se pozná podle skutečného stisku, ne podle modelu telefonu.',act:['keys','Najít tlačítko']},
+  {g:'Plocha a vzhled',id:'editor',ic:'edit',t:'Úprava plochy',d:'Přesouvej, zvětšuj a přidávej prvky. Mřížka nebo volně.',st:['ok',{pure:'Pure',essentials:'Essentials',custom:'Custom'}[S.layout]],need:'Nic. Podrž prázdné místo na ploše.',act:['set','Upravit plochu']},
+  {g:'Plocha a vzhled',id:'theme',ic:'palette',t:'Motivy a personalizace',d:'Materiál Veil, písmo hodin, barvy pro jednotlivá místa.',st:['ok',ACC[S.accent].n],need:'Nic. Studio › Vzhled.',act:['set','Otevřít Vzhled']},
+  {g:'Pokročilé',id:'adv',ic:'shield',t:'Pokročilé ovládání',d:'Volitelné nástroje přes Shizuku nebo ADB, například uvolnění tlačítka od původní akce.',st:['soon','Připravujeme'],need:'Dobrovolné, vratné, nikdy automaticky. Systémové aplikace Intelia sama nevypíná.',act:null},
+  {g:'Pokročilé',id:'lab',ic:'lab',t:'Design Lab',d:'Experimentální vzhledy a nástroje na plochu.',st:['soon','Připravujeme'],need:'Zatím není hotové.',act:null}]}
+function hubLayer(){
+  const H=hubItems();let groups=[...new Set(H.map(h=>h.g))];
+  let h=`<div class="page v vf"><div class="bar"><button type="button" class="ib" data-act="hubBack" aria-label="Zpět">${svg('back')}</button><span style="flex:1"></span></div><div class="body" style="gap:4px"><h2 class="h">Prozkoumat Intelii</h2><p class="sub" style="margin-bottom:4px">Krátké průvodce. Stav je skutečný, nic není povinné.</p>${groups.map(g=>`<div class="grp">${g}</div>${H.filter(x=>x.g===g).map(x=>`<button type="button" class="hubrow" data-act="item:${x.id}"><span class="gl">${svg(x.ic,20)}</span><span style="flex:1;min-width:0"><div class="t">${x.t}</div><div class="d">${x.d}</div></span><span class="badge b-${x.st[0]}">${x.st[1]}</span></button>`).join('')}`).join('')}</div></div>`;
+  if(hubItem){const x=H.find(i=>i.id===hubItem);
+    let extra='';
+    if(x.id==='flow')extra=`<div class="flowcard"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">ráno</b><span class="cap-t">3 aplikace</span></div><div class="chain">${['Kalendář','Gmail','Spotify'].map((n,i)=>`<span class="n">${i+1}</span>${icon(n,32)}`).join('<span style="color:var(--fg3)">›</span>')}</div><button type="button" class="pri" disabled style="height:44px">Spustit</button><div class="cap-t">Ukázka. FLOW se spustí jen tlačítkem Spustit, Enterem na přesný název nebo puštěním na ARC. Nikdy při psaní.</div></div>`;
+    if(x.id==='keys')extra=sim.svc?(keyStage===0?`<div class="flowcard"><div style="font-weight:600">Stiskni tlačítko, které chceš použít.</div><div class="cap-t">Intelia čeká na skutečný stisk. Hlasitost, napájení a tlačítka, která systém nehlásí, nejde přiřadit.</div><button type="button" class="mini-b" data-act="keypress">Simulovat stisk</button></div>`:`<div class="flowcard"><div style="display:flex;gap:8px;align-items:center">${svg('check',18)}<b>Zachyceno: Essential Key</b></div><div class="cap-t">Kód tlačítka 0x2D4 z tohoto telefonu. Teď mu přiřaď akci: klepnutí, dvojklik, podržení.</div><button type="button" class="mini-b" disabled>Vybrat akci (Studio › Gesta)</button></div>`):`<div class="flowcard"><div class="cap-t">Bez služby PULSE Intelia stisky tlačítek nevidí.</div><button type="button" class="mini-b" data-act="gotoUnlockSvc">Povolit službu PULSE</button></div>`;
+    h+=`<div class="scrim" data-act="itemClose"></div><div class="sheet v vd low" style="top:auto" role="dialog" aria-label="${x.t}"><div class="bar"><span class="gl" style="width:36px;height:36px;border-radius:12px;display:grid;place-items:center;box-shadow:inset 0 0 0 1.4px var(--fg3)">${svg(x.ic,18)}</span><span style="flex:1"></span><button type="button" class="ib" data-act="itemClose" aria-label="Zavřít">${svg('close')}</button></div><div class="body" style="flex:none;gap:10px"><h2 class="h" style="font-size:calc(24px*var(--fz))">${x.t}</h2><p class="sub">${x.d}</p><div class="kv"><span>Stav</span><span><span class="badge b-${x.st[0]}">${x.st[1]}</span></span><span>Potřebuješ</span><span>${x.need}</span></div>${extra}</div><div class="foot">${x.act&&!['flow','keys'].includes(x.act[0])?`<button type="button" class="pri" data-act="hubAct:${x.id}">${x.act[1]}</button>`:''}${!x.act?'<button type="button" class="pri" disabled>Připravujeme</button>':''}</div></div>`}
+  return h}
+
+/* ── Studio stub on long-press of empty Home ── */
+let studioOpen=false;
+function studioLayer(){return `<div class="scrim" data-act="studioClose"></div><div class="sheet v vf low" style="top:auto"><div style="width:36px;height:4px;border-radius:2px;background:var(--fg3);margin:0 auto 6px"></div><div class="body" style="flex:none;gap:6px"><h2 class="h" style="font-size:24px">Studio</h2>${['Vzhled','Domovská plocha','Gesta a ARC','PULSE','FLOW','Systém a data'].map(n=>`<div class="sumrow" style="cursor:default"><span class="val" style="font-weight:500">${n}</span><span style="color:var(--fg3)">${svg('chev',16)}</span></div>`).join('')}<div class="cap-t" style="margin-top:4px">V prototypu aktivní jen dvě akce:</div></div><div class="foot"><button type="button" class="pri" data-act="hub">Prozkoumat Intelii</button><button type="button" class="sec-b" data-act="rerun">Spustit průvodce znovu</button><div class="cap-t" style="text-align:center">Průvodce začne z tvého současného nastavení a nic neresetuje.</div></div></div>`}
+
+/* ── Render ── */
+let appQ='';
+function renderApps(){const l=document.getElementById('applist');if(!l)return;const q=norm(appQ);
+  l.innerHTML=APPS.filter(([n])=>norm(n).includes(q)).map(([n])=>{const on=S.favs.includes(n);return `<button type="button" class="arow" role="checkbox" aria-checked="${on}" data-act="fav:${n}">${icon(n,36)}<span class="n">${n}</span><span class="chk">${on?svg('check',16):''}</span></button>`}).join('')||'<div class="cap-t" style="padding:12px 4px">Nic nenalezeno.</div>';
+  const p=document.getElementById('picked');p.innerHTML=S.favs.slice(0,maxFav()).map(n=>icon(n,32)).join('')+`<span class="cap-t" style="margin-left:4px">${S.favs.length} z ${maxFav()} · ukázková data</span>`}
+function renderLayer(){
+  let h='';
+  if(S.phase==='hub')h=hubLayer();
+  else if(S.phase==='home')h=(studioOpen?studioLayer():demoLayer());
+  else h=stepLayer();
+  layer.innerHTML=h;renderApps();
+}
+function render(){applyTheme();stageMode();renderHome();renderPulse();renderLayer();renderSide()}
+
+/* ── Actions ── */
+scr.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const [a,v]=b.dataset.act.split(':');
+  switch(a){
+  case 'start':go('layout');break;
+  case 'skipAll':S.phase='home';S.step='done';save();render();toast('Průvodce přeskočen. Plocha Essentials, vše ostatní ve Studiu.');break;
+  case 'restore':restoreStage=1;renderLayer();break;
+  case 'restoreCancel':restoreStage=0;renderLayer();break;
+  case 'pick':restoreStage=2;renderLayer();break;
+  case 'restoreBack':restoreStage=1;renderLayer();break;
+  case 'doRestore':restoreStage=0;Object.assign(S,{layout:'custom',mode:'dark',accent:'mint',pulse:'everywhere',favs:['Telefon','Zprávy','Fotoaparát','Chrome','Spotify','Mapy'],restored:true});go('unlock');toast('Obnoveno ze zálohy. Zbývá povolit, co záloha používá.');break;
+  case 'next':closeDemos();next();break;
+  case 'back':closeDemos();back();break;
+  case 'goto':go(v);break;
+  case 'layout':S.layout=v;S.favs=S.favs.slice(0,v==='custom'?8:Math.max(4,S.favs.length));save();renderHome();renderLayer();renderSide();break;
+  case 'mode':S.mode=v;save();applyTheme();renderLayer();renderSide();break;
+  case 'acc':S.accent=v;save();applyTheme();renderLayer();renderSide();break;
+  case 'fav':{const i=S.favs.indexOf(v);if(i>=0)S.favs.splice(i,1);else if(S.favs.length<maxFav())S.favs.push(v);else{toast(`Nejvýš ${maxFav()} aplikace. Nejdřív jednu odeber.`);break}save();renderHome();renderApps();break}
+  case 'show':train(v);if(v==='hold'){document.getElementById('arc').classList.add('on');setTimeout(()=>{const s=document.querySelectorAll('#arc .slot')[2];s&&s.classList.add('sel');document.getElementById('arcname').textContent=arcSlots()[2]},300);setTimeout(()=>{document.getElementById('arc').classList.remove('on');document.querySelectorAll('#arc .slot').forEach(el=>el.classList.remove('sel'));toast('Pusť prst na aplikaci a otevře se. Pusť u LENS a nic se nestane.')},1500)}else demo(v);break;
+  case 'closeDemo':demoOpen=null;renderLayer();break;
+  case 'pulse':S.pulse=v;save();renderPulse();renderLayer();renderSide();break;
+  case 'pdemo':if(v==='tap')toggleQv(true);else{openGarc(true);setTimeout(()=>{const s=document.querySelectorAll('#garc .slot')[0];s&&s.classList.add('sel');document.getElementById('garcname').textContent='Svítilna'},300);setTimeout(()=>{openGarc(false);toast('Ukázka: Svítilna by se zapnula. Nic se nestalo.')},1600)}break;
+  case 'open':android=v;renderLayer();break;
+  case 'ret':{const id=android;android=null;checking=id;renderLayer();setTimeout(()=>{sim[id]=v==='1';checking=null;save();renderLayer();renderSide()},sim.rm?0:700);break}
+  case 'later':S.later[v]=true;save();renderLayer();break;
+  case 'why':openWhy[v]=!openWhy[v];renderLayer();break;
+  case 'finish':S.phase='home';save();closeDemos();render();toast('Vítej doma. Podrž prázdné místo pro Studio.');break;
+  case 'hub':S.hubFrom=S.phase==='home'?'home':'done';S.phase='hub';studioOpen=false;hubItem=null;save();render();break;
+  case 'hubBack':S.phase=S.hubFrom==='home'?'home':'onb';save();render();break;
+  case 'item':hubItem=v;keyStage=0;renderLayer();break;
+  case 'itemClose':hubItem=null;renderLayer();break;
+  case 'keypress':keyStage=1;renderLayer();break;
+  case 'gotoUnlockSvc':hubItem=null;S.pulse='everywhere';go('unlock');break;
+  case 'hubAct':hubItem=null;S.phase='home';save();render();if(v==='lens'){toast('Zkus LENS: klepni, táhni nahoru, podrž.')}else if(v==='pulse'){if(S.pulse==='off'){S.pulse='home';save();renderPulse()}toggleQv(true)}else toast('Prototyp: tady by se otevřelo Studio.');break;
+  case 'studioClose':studioOpen=false;renderLayer();break;
+  case 'rerun':studioOpen=false;go('layout');toast('Průvodce začíná z tvého současného nastavení.');break;
+  }});
+scr.addEventListener('input',e=>{if(e.target.id==='appq'){appQ=e.target.value;renderApps()}});
+/* Long-press empty Home → Studio */
+home.addEventListener('pointerdown',e=>{if(S.phase!=='home'||e.target.closest('.lens,.it'))return;const t=setTimeout(()=>{studioOpen=true;renderLayer()},450);const up=()=>{clearTimeout(t);home.removeEventListener('pointerup',up);home.removeEventListener('pointerleave',up)};home.addEventListener('pointerup',up);home.addEventListener('pointerleave',up)});
+scr.addEventListener('pointerdown',e=>{const q=document.getElementById('qv');if(q&&!q.classList.contains('hide')&&!e.target.closest('#qv,#cap,[data-act]'))toggleQv(false)});
+
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
+
+/* ── Side panel ── */
+const NOTES={
+ welcome:['Vítej','Jeden velký nadpis přímo na ploše, kterou uživatel za minutu dostane. Žádné jméno, účet ani síť.',['Začít · Obnovit ze zálohy · Přeskočit průvodce','Obnovení se aplikuje hned a pokračuje na oprávnění, protože ta se ze zálohy nikdy neobnovují.'],'Plocha (full) + gradient scrim'],
+ layout:['Tvoje plocha','Home se zmenší stejným pohybem jako při vstupu do Home Editoru. Volba se na skutečné ploše projeví hned.',['Essentials doporučený výchozí','Pure vynechá krok Aplikace, průběh se zkrátí','Custom = mřížka s popisky, Veil hodiny'],'HomeStage (mini) + StepSheet + ChoiceRow'],
+ style:['Tvůj styl','Jen režim a akcent. Písmo, materiály a barvy jednotlivých míst zůstávají ve Studiu.',['Systém sleduje telefon (přepni vpravo „Systém tmavý/světlý“)','Z tapety = Material You na Android 12+, jinak náhradní barva','Akcent se okamžitě propíše do listu i plochy'],'Segmented + AccentDiscs (sdílené se Studiem)'],
+ apps:['Aplikace po ruce','Seznam nainstalovaných aplikací s hledáním bez diakritiky. Předvybrané podle essentialPackages().',['Limit 4 (Essentials) / 8 (Custom)','Vybrané nahoře, plocha se mění při každém zaškrtnutí','Zkus hledat „kalkulacka“ bez háčků'],'AppPicker (AppSearch)'],
+ gestures:['LENS + ARC','Skutečný LENS na plné ploše v režimu ukázky. Malá karta nahoře, prsty dole.',['Klepni = hledání, táhni nahoru = šuplík, podrž 260 ms a táhni = ARC','Puštění na slotu ukáže, co by se otevřelo; nic se nespustí','„Ukázat“ = alternativa bez gesta pro TalkBack a motoriku'],'GestureCoach + Home(preview)'],
+ pulse:['PULSE','Kapsle sedí u skutečné kamery v reálné velikosti. Klepni na ni nebo ji podrž a táhni.',['Režimy Vypnuto / Jen na ploše / Všude','Všude jen vysvětlí potřebu služby, o povolení se žádá až v dalším kroku','Žádný falešný systémový dialog'],'PulseDemo + StepSheet'],
+ unlock:['Odemkni možnosti','Jedna stránka pro všechna oprávnění, jen ta, která zvolené funkce potřebují.',['Řádek: přínos, stav, jedna akce, Teď ne; štít = proč, soukromí, bez toho','Návrat z Nastavení → „Ověřuji…“ → skutečný stav','Přepni PULSE na „Jen na ploše“ a služba z listu zmizí'],'PermissionRow ×N (Veil Focus)'],
+ done:['Hotovo','Výsledná plocha jako náhled, krátké shrnutí, kde každý řádek vede zpět ke kroku.',['Přejít na plochu = Home se přiblíží, volby se zapíšou jedním sanitized() voláním','Prozkoumat Intelii = Discovery Hub, nepovinný','Studio jednou větou'],'HomeStage (mini) + Summary'],
+ home:['Plocha','Onboarding skončil. LENS funguje dál v ukázkovém režimu.',['Podrž prázdné místo → Studio s „Prozkoumat Intelii“ a „Spustit průvodce znovu“','Průvodce znovu začne z aktuálního nastavení, nic neresetuje'],'Home'],
+ hub:['Prozkoumat Intelii','Katalog funkcí mimo povinnou cestu. Každá položka ukazuje co dělá, skutečný stav, co potřebuje a jednu akci.',['Fyzická tlačítka: detekce skutečného stisku, nikdy podle modelu','Pokročilé ovládání a Design Lab poctivě jako Připravujeme','FLOW: ukázka s neaktivním Spustit'],'DiscoveryHub + FeatureSheet']};
+function renderSide(){
+  const cur=S.phase==='onb'?S.step:S.phase,list=steps();
+  document.getElementById('route').innerHTML=ORDER.map(s=>`<button type="button" class="${list.includes(s)?'':'gone'}" ${S.phase==='onb'&&S.step===s?'aria-current="step"':''} data-go="${s}" ${list.includes(s)?'':'disabled title="Pure tento krok vynechá"'}>${NAMES[s]}</button>`).join('')+`<button type="button" ${S.phase==='home'?'aria-current="step"':''} data-go="#home">Plocha</button><button type="button" ${S.phase==='hub'?'aria-current="step"':''} data-go="#hub">Discovery Hub</button>`;
+  const SL=[['sysDark',sim.sysDark?'Systém: tmavý':'Systém: světlý'],['home','Výchozí plocha'],['svc','Služba PULSE'],['notif','Přístup k oznámením'],['rm','Omezit pohyb'],['big','Velké písmo']];
+  document.getElementById('sim').innerHTML=SL.map(([k,t])=>`<button type="button" aria-pressed="${k==='sysDark'?'true':sim[k]}" data-sim="${k}">${t}</button>`).join('');
+  const n=NOTES[cur];document.getElementById('note').innerHTML=`<h3>${n[0]}</h3><p>${n[1]}</p><div class="k">Vyzkoušej</div><ul>${n[2].map(x=>`<li>${x}</li>`).join('')}</ul><div class="k">Komponenty</div><p style="margin-top:2px">${n[3]}</p>`;
+}
+document.getElementById('route').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b||b.disabled)return;const g=b.dataset.go;studioOpen=false;restoreStage=0;android=null;hubItem=null;
+  if(g==='#home'){S.phase='home';save();closeDemos();render()}else if(g==='#hub'){S.hubFrom='home';S.phase='hub';save();render()}else go(g)});
+document.getElementById('sim').addEventListener('click',e=>{const b=e.target.closest('[data-sim]');if(!b)return;sim[b.dataset.sim]=!sim[b.dataset.sim];save();render()});
+document.getElementById('kill').addEventListener('click',()=>{const d=document.createElement('div');d.className='dead';d.textContent='Proces ukončen';scr.appendChild(d);
+  setTimeout(()=>{let o=null;try{o=JSON.parse(localStorage.getItem('intelia-onb-draft'))}catch(e){}if(!o&&memSnap)o=JSON.parse(memSnap);if(o){S=Object.assign(DEF(),o.S);sim=Object.assign({},SIMDEF,o.sim)}android=null;checking=null;studioOpen=false;hubItem=null;restoreStage=0;demoOpen=null;d.remove();render();toast(`Obnoveno: ${S.phase==='onb'?'krok '+NAMES[S.step]:S.phase==='hub'?'Discovery Hub':'plocha'}, stejné volby.`)},sim.rm?200:900)});
+document.getElementById('reset').addEventListener('click',()=>{S=DEF();sim=Object.assign({},SIMDEF);studioOpen=false;hubItem=null;restoreStage=0;android=null;demoOpen=null;appQ='';save();render()});
+
+/* Scale the phone to fit */
+function fit(){const ph=document.getElementById('phone'),w=Math.min(ph.parentElement.clientWidth||411,411)/411,h=(window.innerHeight-40)/911;ph.style.setProperty('--s',Math.max(.5,Math.min(1,w,window.innerWidth>980?Math.max(h,.62):1)).toFixed(3))}
+window.addEventListener('resize',fit);fit();
+render();
+})();
+</script>
