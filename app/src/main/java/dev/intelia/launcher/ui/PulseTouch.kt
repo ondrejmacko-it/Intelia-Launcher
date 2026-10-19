@@ -23,14 +23,18 @@ import kotlinx.coroutines.launch
  * ends with [onHeldEnd]: true when it lifted (release runs), false when it was cancelled (nothing runs).
  */
 internal fun Modifier.pulseTouch(bound: (Gesture) -> Boolean, swipes: Boolean, onGesture: (Gesture) -> Unit,
-    onHeld: (Float, Float) -> Unit = { _, _ -> }, onHeldEnd: (Boolean) -> Unit = {}): Modifier = composed {
+    onHeld: (Float, Float) -> Unit = { _, _ -> }, onHeldEnd: (Boolean) -> Unit = {}, doubleTapMs: Int = 0,
+    onDown: () -> Unit = {}): Modifier = composed {
+    val down by rememberUpdatedState(onDown)
     val isBound by rememberUpdatedState(bound)
     val fire by rememberUpdatedState(onGesture)
     val consume by rememberUpdatedState(swipes)
     val held by rememberUpdatedState(onHeld)
     val heldEnd by rememberUpdatedState(onHeldEnd)
-    pointerInput(Unit) {
-        val rec = PulseGestures({ isBound(it) }, PulseGestures.Timing(viewConfiguration.doubleTapTimeoutMillis,
+    pointerInput(doubleTapMs) {
+        // P0.2: the owner's double-tap window (0 = system timeout).
+        val window = if (doubleTapMs > 0) doubleTapMs.toLong() else viewConfiguration.doubleTapTimeoutMillis
+        val rec = PulseGestures({ isBound(it) }, PulseGestures.Timing(window,
             viewConfiguration.longPressTimeoutMillis, viewConfiguration.touchSlop / density))
         coroutineScope {
             var timer: Job? = null
@@ -44,6 +48,7 @@ internal fun Modifier.pulseTouch(bound: (Gesture) -> Boolean, swipes: Boolean, o
                 val first = awaitFirstDown(requireUnconsumed = false)
                 // The press is the capsule's: Home's own long press (the editor) and taps must not see it.
                 first.consume()
+                down()
                 apply(rec.down(first.position.x / density, first.position.y / density))
                 fun drop() { val was = rec.holding; apply(rec.cancel()); rec.reset(); if (was) heldEnd(false) }
                 while (true) {

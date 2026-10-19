@@ -165,6 +165,13 @@ data class LauncherSettings(
     val pulseAlarmHours: Int = 12,
     /** Capsule background opacity in percent; text stays opaque. */
     val pulseOpacity: Int = 100,
+    /**
+     * P0.2: how long a PULSE tap waits for a second tap when a double tap is bound. 0 = the system's double-tap timeout
+     * (300 ms on most phones); else [MIN_PULSE_DOUBLE_TAP]..[MAX_PULSE_DOUBLE_TAP] ms.
+     */
+    val pulseDoubleTapMs: Int = 0,
+    /** P0.2: a light tick the moment a finger lands on PULSE, so a waiting tap still feels instant. */
+    val pulseTouchHaptic: Boolean = true,
     /** Veil panels (§5.2): Solid = opaque matte panels (accessibility, busy wallpapers). */
     val veilSolid: Boolean = false,
     /** Panel density shift in percent points, added to every Veil level's fill opacity. */
@@ -208,7 +215,11 @@ data class LauncherSettings(
         const val SCHEMA = 3
 
         /** Settings of a new install: current schema and the Crystal defaults (accent, clock). */
-        fun fresh() = LauncherSettings(accent = Accent.Frost, clockStyle = ClockStyle.Crystal, schema = SCHEMA).sanitized()
+        /** A new install: neutral Silver accent on the system wallpaper, Ink icons and names as on the owner's Home. */
+        fun fresh() = LauncherSettings(accent = Accent.Silver, clockStyle = ClockStyle.Crystal, iconStyle = IconStyle.Ink,
+            iconSize = 68, iconShape = IconShape.Rounded, iconTint = "Accent",
+            labels = LabelStyle(sizeSp = 10, face = TypeFace.SpaceGrotesk, weight = 700, tint = "Accent", gap = 0),
+            schema = SCHEMA).sanitized()
 
         const val ARC_SLOTS = 5
         const val ARC_FLOW_SLOTS = 7
@@ -223,6 +234,8 @@ data class LauncherSettings(
         /** D18: the text sizes Settings offers. */
         val TEXT_SCALES = listOf(1f, 1.15f, 1.3f)
         const val MIN_PULSE_OPACITY = 40
+        const val MIN_PULSE_DOUBLE_TAP = 150
+        const val MAX_PULSE_DOUBLE_TAP = 500
         const val MAX_VEIL_SHIFT = 10
         const val MIN_ICON = 32
         const val MAX_ICON = 96
@@ -270,6 +283,7 @@ data class LauncherSettings(
             pulseAlarmHours = pulseAlarmHours.coerceIn(1, 24),
             textScale = TEXT_SCALES.minBy { kotlin.math.abs(it - (if (textScale.isFinite()) textScale else 1f)) },
             pulseOpacity = pulseOpacity.coerceIn(MIN_PULSE_OPACITY, 100),
+            pulseDoubleTapMs = if (pulseDoubleTapMs <= 0) 0 else pulseDoubleTapMs.coerceIn(MIN_PULSE_DOUBLE_TAP, MAX_PULSE_DOUBLE_TAP),
             veilShift = veilShift.coerceIn(-MAX_VEIL_SHIFT, MAX_VEIL_SHIFT),
             iconSize = iconSize.coerceIn(MIN_ICON, MAX_ICON),
             iconTint = iconTint.takeIf { t -> ItemTint.entries.any { it.name == t } }.orEmpty(),

@@ -9,6 +9,8 @@ import dev.intelia.launcher.action.ArcSet
 import dev.intelia.launcher.action.Controls
 import dev.intelia.launcher.data.AppEntry
 import dev.intelia.launcher.data.HomeLayout
+import dev.intelia.launcher.data.HomeLayouts
+import dev.intelia.launcher.data.HomeTemplates
 import dev.intelia.launcher.data.LauncherSettings
 import dev.intelia.launcher.data.ShortcutEntry
 import dev.intelia.launcher.flow.Flow
@@ -132,7 +134,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val apps = visibleApps.value
         val essentials = app.apps.essentialPackages().mapNotNull { pkg -> apps.firstOrNull { it.mainProfile && it.component.packageName == pkg }?.key }
         updateSettings { s ->
-            s.copy(onboarded = true, layout = layout, favorites = s.favorites.ifEmpty { essentials })
+            val favorites = s.favorites.ifEmpty { essentials }
+            // A first run on Essentials starts from the signature Home; a Home the user already made stays.
+            val fresh = s.home.layouts.none { !it.linked }
+            val home = if (layout == HomeLayout.Essentials && fresh) {
+                HomeLayouts(HomeLayouts.USER_ID, s.home.layouts + HomeTemplates.signature(favorites))
+            } else s.home
+            s.copy(onboarded = true, layout = layout, favorites = favorites, home = home)
         }
     }
 

@@ -2,6 +2,23 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-19 — P0 PULSE reliability (`claude/pulse-reliability`, `078754b`)
+- **Cause proven on the Phone (3)** (old Lab build): `dumpsys activity broadcasts history` — `USER_PRESENT/u0` from
+  `com.android.systemui` (uid 10217) reached 26 receivers but not `dev.intelia.launcher.lab`, whose PULSE receiver
+  (filter SCREEN_OFF/SCREEN_ON/USER_PRESENT, `RECEIVER_NOT_EXPORTED`) did get SCREEN_ON 18:14:31 / SCREEN_OFF 18:13:20.
+  Service bound, 0 `Intelia PULSE` windows. Details `docs/product/PULSE_RELIABILITY.md`.
+- PASS: `./gradlew -q :app:testDebugUnitTest :app:assembleLab` — 241 tests, 0 failures (new `PulseLifecycleTest`).
+- Phone: `install -r` Lab 18:23 and 18:27 (HOME role and PULSE service kept, service rebinds → `health=Active`).
+  `KEYCODE_SLEEP` → `Locked`, lens removed; `KEYCODE_WAKEUP` at keyguard → stays `Locked`, bounded unlock checks.
+  **Owner unlock 18:27:11 (fix build, no toggling): `lastEvent=USER_PRESENT`, `attaches=2`, PULSE window present** —
+  first proof the unlock broadcast now arrives. 1 cycle, not 20.
+- **20 owner lock/unlock cycles 18:42–18:43 PASS** (fix build, one service instance): `connects=1`, `attaches` 1 → 17,
+  `touches` 21, `retries=0`, every unlock ended `health=Active`, no accessibility toggling.
+- Latency (Lab, `adb input tap` 540 63 on Home, n=10): touch→gesture median 304 / P95 306 ms — the 300 ms double-tap
+  wait (owner has a PULSE double tap bound); touch→menu first frame ≈ 363 ms median. Excludes touch-panel latency.
+- Not verified yet: long lock (minutes), Recents → Home, music capsule, rotation, calibration change, Global ARC over
+  apps, key remap (code unchanged), TalkBack, MT Capsule conflict, phone reboot, multi-day stability.
+
 ## 2026-10-19 — 0.1.0-beta.1 signed and hardened (`claude/release-beta1-final` → `main`)
 - `main` had two more commits after PR #4 (`9bc8846`, `c89d6b7`: editor bar, Studio previews) merged outside this
   session; they are in the release build. Not device-checked by this session.

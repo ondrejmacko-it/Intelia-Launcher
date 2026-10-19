@@ -327,5 +327,19 @@ class HomeModelTest {
         assertNull(items.getValue("clock").icon)
         assertEquals(s, SettingsCodec.decode(SettingsCodec.encode(s)))
     }
-}
 
+    @Test
+    fun newInstallStartsFromTheSignatureHome() {
+        val fresh = LauncherSettings.fresh()
+        assertEquals(dev.intelia.launcher.data.Accent.Silver, fresh.accent)
+        assertEquals("", fresh.wallpaper)
+        val apps = listOf("a/A", "b/B", "c/C", "d/D", "e/E")
+        val s = fresh.copy(home = HomeLayouts(HomeLayouts.USER_ID, fresh.home.layouts + HomeTemplates.signature(apps))).sanitized()
+        val mine = s.home.activeLayout()
+        assertEquals(HomeLayouts.USER_ID, mine.id)
+        assertEquals(listOf("a/A", "b/B", "c/C", "d/D"), mine.items.filter { it.kind == ItemKind.App }.map { it.target })
+        assertTrue(mine.items.none { it.kind == ItemKind.Flow })
+        assertEquals(ClockLayout.Slant, mine.items.first { it.kind == ItemKind.Clock }.look.layout)
+        assertEquals(s, SettingsCodec.decode(SettingsCodec.encode(s)))
+    }
+}

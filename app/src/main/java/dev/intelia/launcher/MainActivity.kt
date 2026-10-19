@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.intelia.launcher.ui.HomeRoot
+import dev.intelia.launcher.ui.PulseAccessibilityService
 import dev.intelia.launcher.ui.HomeViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -36,6 +37,8 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         val apps = intelia.apps
         if (started) apps.refresh()
+        // P0: Home often starts right after an unlock; let PULSE re-read the keyguard instead of waiting for a broadcast.
+        PulseAccessibilityService.resync()
         started = true
     }
 

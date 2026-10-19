@@ -92,8 +92,8 @@ class SettingsCodecTest {
         assertEquals(ThemeMode.System, SettingsCodec.decode("""{"theme":"Neon","future":1}""").theme)
     }
 
-    @Test fun newInstallGetsFrostExistingUsersKeepTerracotta() {
-        assertEquals(Accent.Frost, SettingsCodec.decode(null).accent)
+    @Test fun newInstallGetsSilverExistingUsersKeepTerracotta() {
+        assertEquals(Accent.Silver, SettingsCodec.decode(null).accent)
         assertEquals(LauncherSettings.SCHEMA, SettingsCodec.decode("").schema)
         // A pre-B1 document never stored the default accent.
         val legacy = SettingsCodec.decode("""{"onboarded":true,"theme":"Dark"}""")
@@ -154,6 +154,17 @@ class SettingsCodecTest {
         assertNull(LauncherSettings(pulseLens = PulseLens(Float.NaN, 24f, 10f)).sanitized().pulseLens)
         assertNull(LauncherSettings(pulseLens = PulseLens(200f, 24f, Float.POSITIVE_INFINITY)).sanitized().pulseLens)
         assertNull(SettingsCodec.decode("{}").pulseLens)
+    }
+
+    @Test fun pulseDoubleTapWindowIsBoundedAndRoundTrips() {
+        val defaults = SettingsCodec.decode("{}")
+        assertEquals(0, defaults.pulseDoubleTapMs)
+        assertEquals(true, defaults.pulseTouchHaptic)
+        assertEquals(0, SettingsCodec.decode("""{"pulseDoubleTapMs":-5}""").pulseDoubleTapMs)
+        assertEquals(LauncherSettings.MIN_PULSE_DOUBLE_TAP, LauncherSettings(pulseDoubleTapMs = 20).sanitized().pulseDoubleTapMs)
+        assertEquals(LauncherSettings.MAX_PULSE_DOUBLE_TAP, LauncherSettings(pulseDoubleTapMs = 9000).sanitized().pulseDoubleTapMs)
+        val custom = LauncherSettings(pulseDoubleTapMs = 200, pulseTouchHaptic = false, schema = LauncherSettings.SCHEMA).sanitized()
+        assertEquals(custom, SettingsCodec.decode(SettingsCodec.encode(custom)))
     }
 
     @Test fun pulseCapsuleOpacityIsBounded() {

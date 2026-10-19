@@ -341,6 +341,26 @@ object HomeTemplates {
         return current.copy(id = HomeLayouts.LINKED_ID, base = base, items = items, linked = true, dock = row)
     }
 
+    /**
+     * The first Home of a new install (owner's own Home, 2026-10-19, without its FLOW item): slanted Unbounded clock with
+     * a spaced numeric date beside it, a 56 dp LENS and up to four apps around it. Saved as the user's layout, so the
+     * linked presets of existing installs never change.
+     */
+    fun signature(apps: List<String>): LayoutSpec {
+        val items = mutableListOf(
+            HomeItem("clock", ItemKind.Clock, Anchor.free(.4832f, .1859f), sizeDp = 140, style = "Grotesk", weight = 500,
+                look = TextLook(face = TypeFace.Unbounded, tracking = -2, align = ItemAlign.End, layout = ClockLayout.Slant)),
+            HomeItem("date", ItemKind.Date, Anchor.free(.3681f, .1877f), sizeDp = 15, style = "Custom", tint = "Accent",
+                look = TextLook(face = TypeFace.Unbounded, tracking = 30, case = TextCase.Upper, weekday = DatePart.Short,
+                    month = DatePart.Number, padY = 6f)),
+            HomeItem("lens", ItemKind.Lens, Anchor(AnchorType.Lens, dx = 0f), sizeDp = 56),
+        )
+        apps.distinct().take(4).zip(Anchor.LENS_SLOTS).forEach { (key, slot) ->
+            items += HomeItem("app:$key", target = key, anchor = Anchor.lensRow(slot))
+        }
+        return LayoutSpec(HomeLayouts.USER_ID, DEFAULT_NAME, LayoutBase.Essentials, items = items, dock = DockSpec(gap = 70, pitch = 72))
+    }
+
     /** The linked preset for the legacy fields of [s]. */
     fun linked(s: LauncherSettings): LayoutSpec {
         val (base, list) = when (s.layout) {
