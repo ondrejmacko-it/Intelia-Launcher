@@ -279,11 +279,8 @@ internal fun OnboardingHost(model: HomeViewModel, draft: OnboardingDraft) {
             val chrome = leaving == null && !editing && overlay == null
             // Porovnat: small, on the preview's corner; held (or toggled by TalkBack) it shows the start.
             if (chrome && !full && draft.settings != draft.start && draft.step in setOf(GuideStep.Home, GuideStep.Look, GuideStep.Done))
-                ComparePill(compare, { compare = it }, Modifier.align(Alignment.TopEnd)
-                    .padding(top = stageTop + 10.dp, end = maxWidth * (1f - scale) / 2 + 10.dp))
-            if (chrome && !hidden && draft.step != GuideStep.Welcome) TopBar(draft, onBack = { update { it.back() } },
-                skipMenu = skipMenu, onSkipMenu = { skipMenu = it }, onSkip = { update { it.skip() } }, onSkipAll = { update { it.skipAll() } },
-                Modifier.align(Alignment.TopCenter), if (full) wallInk else Color.White)
+                ComparePill(compare, { compare = it }, Modifier.align(Alignment.TopStart)
+                    .padding(top = stageTop + 8.dp, start = maxWidth * (1f - scale) / 2 + 8.dp))
             if (chrome && hidden) Capsule(stringResource(R.string.guide_show_panel), { hidden = false },
                 Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 52.dp), filled = false)
             if (interactive && hidden && overlay == null && !editing) SampleBadge(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 60.dp, end = 16.dp))
@@ -307,6 +304,10 @@ internal fun OnboardingHost(model: HomeViewModel, draft: OnboardingDraft) {
                         leave = ::leave)
                 }
             }
+            // Drawn last, so Skip's two choices lie above the Controls coach that sits right under the bar.
+            if (chrome && !hidden && draft.step != GuideStep.Welcome) TopBar(draft, onBack = { update { it.back() } },
+                skipMenu = skipMenu, onSkipMenu = { skipMenu = it }, onSkip = { update { it.skip() } }, onSkipAll = { update { it.skipAll() } },
+                Modifier.align(Alignment.TopCenter), if (full) wallInk else Color.White)
         }
     }
 }
@@ -382,8 +383,8 @@ private fun ComparePill(comparing: Boolean, onCompare: (Boolean) -> Unit, modifi
     Text(text, modifier.clip(CircleShape).background(if (comparing) ink.accent else ink.paper.copy(alpha = .86f))
         .pointerInput(Unit) { detectTapGestures(onPress = { onCompare(true); tryAwaitRelease(); onCompare(false) }) }
         .semantics { contentDescription = "$text. $hint"; onClick { onCompare(!comparing); true } }
-        .heightIn(min = 36.dp).padding(horizontal = 14.dp, vertical = 8.dp),
-        style = InkText.small.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = if (comparing) ink.onAccent else ink.ink)
+        .heightIn(min = 32.dp).padding(horizontal = 11.dp, vertical = 7.dp),
+        style = InkText.small.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = if (comparing) ink.onAccent else ink.ink)
 }
 
 /**
@@ -415,20 +416,25 @@ private fun GuidePanel(model: HomeViewModel, draft: OnboardingDraft, maxH: Dp, o
     val titleSize = when (draft.step) { GuideStep.Welcome -> 28.sp; GuideStep.Controls -> 19.sp; else -> 22.sp }
     // Legible over any wallpaper and over the Home's own clock: Focus glass on an almost solid paper base.
     val panelShape = RoundedCornerShape(if (coach) 24.dp else 28.dp)
-    Column(Modifier.fillMaxWidth().heightIn(max = maxH).clip(panelShape).background(ink.paper.copy(alpha = .9f))
+    // Look keeps one height across its tabs, so the Home above never jumps while categories change.
+    val fixed = draft.step == GuideStep.Look
+    Column(Modifier.fillMaxWidth().then(if (fixed) Modifier.height(maxH) else Modifier.heightIn(max = maxH)).clip(panelShape).background(ink.paper.copy(alpha = .9f))
         .veilSurface(veil(VeilLevel.Focus), shape = panelShape)
         .semantics { paneTitle = title }.padding(horizontal = 18.dp, vertical = if (coach) 10.dp else 16.dp)) {
         if (draft.step == GuideStep.Welcome) Kicker(stringResource(R.string.guide_welcome_kicker).uppercase(), color = ink.accent)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // The coach has no title row: its tabs and Close share one line (the title stays the pane's name for TalkBack).
+        if (coach) Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { GuideTabs(ControlTab.entries.map { it to it.name.uppercase() }, draft.tab, { t -> update { it.copy(tab = t) } }) }
+            IconAction(Glyph.Close, stringResource(R.string.guide_hide_panel), onHide, tint = ink.muted)
+        } else Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f).padding(top = 2.dp), style = InkText.title.copy(fontSize = titleSize,
                 lineHeight = titleSize * 1.18f, fontWeight = FontWeight.SemiBold), color = ink.ink)
-            if (coach) SampleBadge(Modifier.padding(end = 4.dp))
             IconAction(Glyph.Close, stringResource(R.string.guide_hide_panel), onHide, tint = ink.muted)
         }
         line?.let { Text(it, Modifier.padding(top = 4.dp), style = InkText.body.copy(fontSize = 15.sp), color = ink.muted) }
         if (draft.step != GuideStep.Welcome) {
             val scroll = rememberScrollState()
-            Box(Modifier.weight(1f, fill = false).padding(top = if (coach) 6.dp else 12.dp)) {
+            Box(Modifier.weight(1f, fill = fixed).padding(top = if (coach) 6.dp else 12.dp)) {
                 Column(Modifier.fillMaxWidth().verticalScroll(scroll)) {
                     when (draft.step) {
                         GuideStep.Home -> HomeStep(model, draft, onEdit)
@@ -440,22 +446,26 @@ private fun GuidePanel(model: HomeViewModel, draft: OnboardingDraft, maxH: Dp, o
                     }
                     Spacer(Modifier.height(6.dp))
                 }
-                if (scroll.canScrollForward) MoreBelow({ scope.launch { scroll.animateScrollTo(scroll.value + scroll.viewportSize * 2 / 3) } },
-                    Modifier.align(Alignment.BottomCenter))
+                if (scroll.canScrollForward) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(20.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, ink.paper.copy(alpha = .9f)))))
             }
+            // The cue has its own line under the content (reserved while it scrolls), so it never covers a control.
+            if (scroll.maxValue > 0) MoreBelow(scroll.canScrollForward) { scope.launch { scroll.animateScrollTo(scroll.value + scroll.viewportSize * 2 / 3) } }
         }
-        Spacer(Modifier.height(if (coach) 8.dp else 12.dp))
+        if (!coach) Spacer(Modifier.height(12.dp))
         val primary = stringResource(when (draft.step) {
             GuideStep.Welcome -> R.string.guide_customize
             GuideStep.Done -> R.string.guide_go_home
             else -> R.string.guide_next
         })
-        Capsule(primary, {
+        val go = {
             when (draft.step) {
                 GuideStep.Done -> leave { model.finishGuide() }
                 else -> update { it.next() }
             }
-        }, Modifier.fillMaxWidth().heightIn(min = if (coach) 48.dp else 54.dp))
+        }
+        if (coach) Capsule(primary, go, Modifier.padding(top = 6.dp).align(Alignment.End).heightIn(min = 44.dp))
+        else Capsule(primary, go, Modifier.fillMaxWidth().heightIn(min = 54.dp))
         when (draft.step) {
             GuideStep.Welcome -> Quiet(stringResource(if (draft.rerun) R.string.guide_skip_all else R.string.guide_use_defaults),
                 { leave { model.skipGuide() } }, Modifier.align(Alignment.CenterHorizontally), color = ink.ink)
@@ -466,14 +476,14 @@ private fun GuidePanel(model: HomeViewModel, draft: OnboardingDraft, maxH: Dp, o
     }
 }
 
-/** The cue that more lies below the visible part of a panel: a fade into the paper and a small "more" pill. */
+/** The cue that more lies below: a small "more" pill on its own line; it fades out at the end and scrolls on a tap. */
 @Composable
-private fun MoreBelow(onClick: () -> Unit, modifier: Modifier) {
+private fun MoreBelow(more: Boolean, onClick: () -> Unit) {
     val ink = LocalInk.current
-    Box(modifier.fillMaxWidth().height(44.dp).background(Brush.verticalGradient(listOf(Color.Transparent, ink.paper.copy(alpha = .96f)))),
-        contentAlignment = Alignment.BottomCenter) {
+    val alpha by animateFloatAsState(if (more) 1f else 0f, tween(motionMs(160)), label = "guide-more")
+    Box(Modifier.fillMaxWidth().height(30.dp).graphicsLayer { this.alpha = alpha }, contentAlignment = Alignment.Center) {
         Text(stringResource(R.string.guide_more_below), Modifier.clip(CircleShape).background(ink.ink.copy(alpha = .1f))
-            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 6.dp),
+            .clickable(enabled = more, role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 5.dp),
             style = InkText.small.copy(fontSize = 13.sp), color = ink.ink)
     }
 }
@@ -634,8 +644,6 @@ private fun LookStep(model: HomeViewModel, draft: OnboardingDraft) {
 private fun ControlsStep(model: HomeViewModel, draft: OnboardingDraft, onShowSearch: () -> Unit, onShowDrawer: () -> Unit, onShowLensSearch: () -> Unit,
     flow: FlowAlias?, flowIsDemo: Boolean, arcDemo: Boolean, pulseArcDemo: Boolean) {
     val ink = LocalInk.current
-    GuideTabs(ControlTab.entries.map { it to it.name.uppercase() }, draft.tab, { t -> model.updateGuide { it.copy(tab = t) } })
-    Spacer(Modifier.height(8.dp))
     @Composable
     fun hint(id: Int) = Text(stringResource(id), style = InkText.body.copy(fontSize = 15.sp), color = ink.ink)
     @OptIn(ExperimentalLayoutApi::class)

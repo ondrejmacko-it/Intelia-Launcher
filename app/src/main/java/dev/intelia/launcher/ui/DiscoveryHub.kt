@@ -52,8 +52,8 @@ private fun StateTag(state: FeatureState) {
         FeatureState.SetUp -> R.string.hub_setup
         FeatureState.Try -> R.string.hub_try
         FeatureState.Soon -> R.string.hub_soon
-    }), Modifier.clip(CircleShape).background(if (on) ink.accent.copy(alpha = .2f) else ink.ink.copy(alpha = .07f))
+    }), Modifier.clip(CircleShape).background(if (on) ink.accent.copy(alpha = .32f) else ink.ink.copy(alpha = .07f))
         .padding(horizontal = 12.dp, vertical = 6.dp),
         style = InkText.small.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-        color = when (state) { FeatureState.Done -> ink.accent; FeatureState.Soon -> ink.muted; else -> ink.ink })
+        color = if (state == FeatureState.Soon) ink.muted else ink.ink)
 }
