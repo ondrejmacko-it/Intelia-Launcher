@@ -21,8 +21,14 @@ stručně, ~200k tokenů, žádní agenti). Zdroj pravdy: `docs/product/MASTER_P
 4. Latence touch → první frame na Lab buildu (Perfetto nebo `gfxinfo`), median/P95, žádná čísla bez měření.
 5. Gesture testy P0.2 (§6). Pak PR zpráva s důkazy; dlouhodobá stabilita = zvlášť po dnech používání.
 
+## Hotovo navíc (2026-10-19)
+- P0.2: Studio › PULSE › pokročilé: „Odezva při dotyku“ (výchozí zap.) a „Okno dvojklepu“ (Podle telefonu / 150–500 ms),
+  `pulseDoubleTapMs` + `pulseTouchHaptic` v `LauncherSettings` (sanitized + test). Na telefonu nainstalováno, výchozí
+  hodnota beze změny (tap→gesto 304 ms); kratší okno majitel zatím nezkoušel.
+- P1 návrh: `docs/product/ONBOARDING_V2.md` + náhled (Artifact „Intelia Onboarding V2“, 8 obrazovek). Čeká na schválení.
+
 ## Úkol 2 — P1 Onboarding V2 (priorita majitele hned po P0)
-Nejdřív návrh (obrazovky, texty CZ/EN, stavový model, resumable po process death, vše přeskočitelné, nic povinného)
+Návrh hotový (viz výše); po schválení majitelem implementace podle ONBOARDING_V2 §3–§4. Původně: nejdřív návrh (obrazovky, texty CZ/EN, stavový model, resumable po process death, vše přeskočitelné, nic povinného)
 → náhled majiteli → schválení → kód. Nahrazuje `Onboarding.kt` (3 kroky). Viz MASTER_PLAN §10.
 
 ## Otevřené otázky majiteli (D29, Blocked)
