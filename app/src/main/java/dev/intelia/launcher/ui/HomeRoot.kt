@@ -254,7 +254,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
     LaunchedEffect(homeSignal) { if (homeSignal > 0) goHome() }
     // The guide's "Prozkoumat Intelii" lands in Studio once Home is back.
     val explore by model.explore.collectAsStateWithLifecycle()
-    LaunchedEffect(explore) { if (explore) { model.explore.value = false; studioStart = StudioStart.Main; page = Page.Studio } }
+    LaunchedEffect(explore) { if (explore) { model.explore.value = false; studioStart = StudioStart.Explore; page = Page.Studio } }
     // M3.3: Search or a card picked on Global ARC in another app; Home runs it once it is in front.
     val request by PulseAccessibilityService.homeRequest.collectAsStateWithLifecycle()
     LaunchedEffect(request) { request?.let { PulseAccessibilityService.consumed(); perform(it) } }

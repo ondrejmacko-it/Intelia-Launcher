@@ -14,7 +14,9 @@ import dev.intelia.launcher.flow.Flow
 import dev.intelia.launcher.flow.FlowAlias
 import dev.intelia.launcher.flow.FlowError
 import dev.intelia.launcher.intelia
+import dev.intelia.launcher.onboarding.ControlTab
 import dev.intelia.launcher.onboarding.DraftCodec
+import dev.intelia.launcher.onboarding.GuideStep
 import dev.intelia.launcher.onboarding.OnboardingDraft
 import dev.intelia.launcher.pulse.MediaWatch
 import dev.intelia.launcher.search.AppSearch
@@ -161,6 +163,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** First run ([rerun] false) starts from the signature Home; Studio's rerun from the current settings. */
     fun beginGuide(rerun: Boolean) {
         _guide.value = if (rerun) OnboardingDraft.rerun(settings.value) else OnboardingDraft.firstRun(settings.value, essentialKeys())
+    }
+
+    /** Discovery Hub › Vyzkoušet: the guide's sandbox on [tab], from the current settings (a rerun keeps them as they are). */
+    fun tryInGuide(tab: ControlTab) {
+        beginGuide(rerun = true)
+        updateGuide { it.goTo(GuideStep.Controls).copy(tab = tab) }
     }
 
     /** Set by the guide's "Prozkoumat Intelii": Home opens Studio once, after the commit. */

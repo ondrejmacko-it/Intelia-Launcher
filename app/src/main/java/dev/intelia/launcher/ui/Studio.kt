@@ -108,6 +108,8 @@ import java.time.LocalDateTime
 import kotlin.math.roundToInt
 import java.time.LocalDate
 import kotlinx.coroutines.withContext
+import dev.intelia.launcher.onboarding.ControlTab
+import dev.intelia.launcher.onboarding.Feature
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import dev.intelia.launcher.data.BackupRead
@@ -119,7 +121,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 
 /** The main page, the five areas, the pages inside them and three tools; [depth] drives the slide. */
 private enum class StudioPane(val depth: Int) {
-    Main(0), Look(1), Home(1), Controls(1), Actions(1), System(1),
+    Main(0), Look(1), Home(1), Controls(1), Actions(1), System(1), Explore(1),
     Favorites(2), Pulse(2), Arc(2), Gestures(2), Motion(2), Backup(2),
     Hidden(3), Lens(3), Keys(3),
 }
@@ -127,7 +129,7 @@ private enum class StudioPane(val depth: Int) {
 private fun StudioSection.pane() = StudioPane.valueOf(name)
 
 /** Where Settings opens: its main page from Home, the same page from the editor's tray, PULSE calibration or PULSE (editor). */
-enum class StudioStart { Main, Editor, Lens, Pulse }
+enum class StudioStart { Main, Editor, Lens, Pulse, Explore }
 
 /**
  * Settings (Studio, Veil 3.0): a search over every row and five areas — Vzhled, Plocha, Ovládání, Akce a FLOW,
@@ -140,6 +142,7 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     val root = when (start) {
         StudioStart.Lens -> StudioPane.Lens
         StudioStart.Pulse -> StudioPane.Pulse
+        StudioStart.Explore -> StudioPane.Explore
         else -> StudioPane.Main
     }
     /** Where Back goes: the pages you came through, saved by name (S1). Empty = leave Studio. */
@@ -188,7 +191,20 @@ fun Studio(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit,
     AnimatedContent(pane, transitionSpec = {
         VeilMotion.page(if (forward) 1 else -1, ms)
     }, label = "studio-pane") { shown -> panes.SaveableStateProvider(shown.name) { when (shown) {
-        StudioPane.Main -> StudioMain(model, settings, leave, onEditHome, ::open) { go(it.pane()) }
+        StudioPane.Main -> StudioMain(model, settings, leave, onEditHome, ::open, onExplore = { go(StudioPane.Explore) }) { go(it.pane()) }
+        StudioPane.Explore -> StudioFrame(settings, model, stringResource(R.string.guide_explore), ::up) {
+            DiscoveryHub(settings) { feature ->
+                when (feature) {
+                    Feature.Lens -> model.tryInGuide(ControlTab.Lens)
+                    Feature.Arc -> open(StudioTarget.Arc)
+                    Feature.Pulse -> open(StudioTarget.Pulse)
+                    Feature.Flow -> onFlows()
+                    Feature.Keys -> go(StudioPane.Keys)
+                    Feature.HomeEditor -> onEditHome()
+                    Feature.Labs -> Unit
+                }
+            }
+        }
         StudioPane.Look -> StudioFrame(settings, model, stringResource(R.string.look), ::up, preview = PreviewPlan.kind(StudioSection.Look)) {
             LookSettings(settings, set)
             ResetDefaults(stringResource(R.string.reset_look_what)) { set { it.withLookDefaults() } }
@@ -327,7 +343,7 @@ private fun studioEntries(): List<StudioEntry> {
 /** The main page: search, the five areas with what is set in each, and a few direct ways to what is used most. */
 @Composable
 private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack: () -> Unit, onEditHome: () -> Unit,
-    onOpen: (StudioTarget) -> Unit, onArea: (StudioSection) -> Unit) {
+    onOpen: (StudioTarget) -> Unit, onExplore: () -> Unit, onArea: (StudioSection) -> Unit) {
     val hidden by model.hiddenApps.collectAsStateWithLifecycle()
     val favorites by model.favoriteApps.collectAsStateWithLifecycle()
     val everywhere by PulseAccessibilityService.running.collectAsStateWithLifecycle()
@@ -363,6 +379,10 @@ private fun StudioMain(model: HomeViewModel, settings: LauncherSettings, onBack:
         VeilChoice(listOf(0 to stringResource(R.string.edit_home), 1 to stringResource(R.string.pulse), 2 to stringResource(R.string.arc_section)),
             null, { when (it) { 0 -> onEditHome(); 1 -> onOpen(StudioTarget.Pulse); else -> onOpen(StudioTarget.Arc) } },
             Modifier.padding(horizontal = 16.dp))
+        // Discovery Hub: every pillar and its real state, for as long as the owner wants to come back to it.
+        VeilGroup(modifier = Modifier.padding(top = 12.dp)) {
+            SettingRow(stringResource(R.string.guide_explore), stringResource(R.string.hub_summary), onExplore, glyph = Glyph.Layers)
+        }
         Spacer(Modifier.height(12.dp))
     }
 }
