@@ -312,6 +312,7 @@ class PulseAccessibilityService : AccessibilityService() {
             (lp?.let { "${it.x},${it.y} ${it.width}x${it.height} flags=0x${Integer.toHexString(it.flags)}" } ?: "-"))
         writer.println("  failed=$lensFailed retries=${attachRetries.attempts} lastError=${diag.lastError}")
         writer.println("  connects=${diag.connects} attaches=${diag.attaches} touches=${diag.touches} unlockChecks=${diag.unlockChecks} lastEvent=${diag.lastEvent}")
+        writer.println("  latency touch→gesture ${diag.gestureMs.summary()} | touch→menu frame ${diag.menuMs.summary()}")
         writer.println("  menu=${menu != null} music=${music != null} arc=${arcView != null} sinceConnect=${SystemClock.elapsedRealtime() - diag.connectedAt}ms")
     }
     override fun onInterrupt() = Unit
@@ -491,7 +492,10 @@ class PulseAccessibilityService : AccessibilityService() {
             // M3.1: every touch goes through the shared recognizer (as on Home); click and long click are only the
             // TalkBack paths, the touch listener takes all real touches.
             // P0 diagnostics count only that a touch arrived, never where or what is on screen.
-            setOnTouchListener { _, e -> if (e.actionMasked == MotionEvent.ACTION_DOWN) diag.touches++; touch(e); true }
+            setOnTouchListener { _, e ->
+                if (e.actionMasked == MotionEvent.ACTION_DOWN) { diag.touches++; diag.lastDown = e.downTime }
+                touch(e); true
+            }
             setOnClickListener { gesture(Gesture.Tap) }
             setOnLongClickListener { if (bound(Gesture.Hold) == null) false else { gesture(Gesture.Hold, assisted = true); true } }
             // Read at query time, so TalkBack offers exactly the gestures bound now: double tap as a custom action,
@@ -673,6 +677,9 @@ class PulseAccessibilityService : AccessibilityService() {
             out.timer?.let { main.postDelayed(gestureTimer, it) }
         }
         val g = out.run ?: return
+        // P0 latency: touch-down (input event time) → recognised gesture; includes the double-tap wait by design.
+        diag.gestureMs.add(SystemClock.uptimeMillis() - diag.lastDown)
+        diag.menuFrom = diag.lastDown
         buzz(HapticSurface.Pulse, if (g == Gesture.Hold || g == Gesture.DoubleTapHold) Haptic.Kind.Confirm else Haptic.Kind.Tick)
         gesture(g)
     }
@@ -759,6 +766,18 @@ class PulseAccessibilityService : AccessibilityService() {
         })
         windows.addView(root, overlay(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, focusable = true))
         menu = root
+        // P0 latency: touch-down → the menu's first drawn frame (one-shot listener).
+        val from = diag.menuFrom
+        if (from > 0) root.viewTreeObserver.addOnDrawListener(object : android.view.ViewTreeObserver.OnDrawListener {
+            private var done = false
+            override fun onDraw() {
+                if (done) return
+                done = true
+                diag.menuMs.add(SystemClock.uptimeMillis() - from)
+                main.post { runCatching { root.viewTreeObserver.removeOnDrawListener(this) } }
+            }
+        })
+        diag.menuFrom = 0
         owner = o
         showMusic()
     }
@@ -898,6 +917,22 @@ private class Diag {
     var connectedAt = 0L
     var lastEvent: String? = null
     var lastError: String? = null
+    var lastDown = 0L
+    var menuFrom = 0L
+    val gestureMs = Samples()
+    val menuMs = Samples()
+}
+
+/** Last 64 latency samples in ms; summary = n, median, P95, max (nearest-rank). */
+private class Samples {
+    private val v = ArrayDeque<Long>()
+    fun add(ms: Long) { if (ms in 0..10_000) { v.addLast(ms); if (v.size > 64) v.removeFirst() } }
+    fun summary(): String {
+        if (v.isEmpty()) return "n=0"
+        val s = v.sorted()
+        fun rank(q: Double) = s[((q * s.size).toInt()).coerceAtMost(s.size - 1)]
+        return "n=${s.size} median=${rank(0.5)} p95=${rank(0.95)} max=${s.last()}"
+    }
 }
 
 private data class GlobalArcUi(val content: ArcContent, val set: Int, val camera: Pt, val bow: ArcBow, val pick: Int?, val assisted: Boolean)

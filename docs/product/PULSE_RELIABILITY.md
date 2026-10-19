@@ -75,8 +75,8 @@ Permission "enabled but not bound" is visible as Disconnected (Android has not c
 | 1 | Install fix over the old build (`install -r`), service rebinds, lens attached | **PASS** 2026-10-19 18:23 (`health=Active`, `attaches=1`) |
 | 2 | `KEYCODE_SLEEP` → health `Locked`, lens removed | **PASS** |
 | 3 | `KEYCODE_WAKEUP` at keyguard → stays `Locked`, unlock checks run (bounded) | **PASS** (`unlockChecks` 2 → 4, then stops) |
-| 4 | Owner unlocks (PIN / fingerprint) → lens back without toggling anything | see `STATUS.md` |
-| 5 | ≥ 20 lock/unlock cycles, short and long lock, rapid cycles | see `STATUS.md` |
+| 4 | Owner unlocks (PIN / fingerprint) → lens back without toggling anything | **PASS** 18:27:11 (`USER_PRESENT` delivered) |
+| 5 | ≥ 20 lock/unlock cycles + tap on the camera after each | **PASS** 18:42–18:43: owner did 20 cycles; one service instance (`connects=1`), `attaches` 1 → 17, `touches` 21, `retries=0`, no error; every unlock ended `Active` (incl. lock-delay cycles with `keyguardLocked=false` and keyguard cycles via `USER_PRESENT`); a mode Off → Everywhere switch in between also re-attached |
 | 6 | Screen off several minutes | open |
 | 7 | Home → app → Home, Recents | open |
 | 8 | Music playing / not, music capsule on/off | open |
@@ -84,10 +84,13 @@ Permission "enabled but not bound" is visible as Disconnected (Android has not c
 | 10 | APK update (`install -r`), process restart (`am kill` not possible for bound a11y; use force-stop only with consent) | 1 done |
 | 11 | Phone reboot | only with owner consent |
 | 12 | Global ARC over another app, hardware key remap, TalkBack, MT Capsule overlay conflict | open |
-| 13 | Touch latency touch→first frame (median, P95) on the Lab build | open — not measured, no claim |
+| 13 | Latency on the Lab build (`adb input tap` at the camera, Home in front, in-app clock from the input event time) | touch→gesture **median 304 ms, P95 306, max 306 (n=10)** — the 300 ms double-tap wait, because the owner bound a double tap; touch→menu first frame ≈ 363 ms median (n=20 draws, first build counted two draws per menu; fixed to one) → menu render ≈ 60 ms after the gesture. Excludes touch-panel/kernel latency. |
 Automated: `PulseLifecycleTest` (5 tests), existing `PulseGesturesTest`, `PulseSwipeTest`, `PulseMenuTest`.
 
 ## 6. Gesture recogniser follow-ups (P0.2, after the lifecycle is proven)
+**Measured issue:** with a double tap bound, every single tap waits the full system double-tap timeout (300 ms) before
+anything happens. Options for owner approval: (a) configurable PULSE double-tap window (e.g. 180–300 ms), (b) instant
+haptic/visual acknowledgement on touch-down while the recogniser waits, (c) both. No change made yet.
 Existing `PulseGestures` already: taps at once when no double is bound, waits only while a double can follow.
 Still to add as JVM tests: very fast tap, tap right after `Locked → Active`, multi-touch interruption, system
 `ACTION_CANCEL`, finger leaving the hitbox, rotation/calibration change mid-gesture.
