@@ -215,7 +215,11 @@ data class LauncherSettings(
         const val SCHEMA = 3
 
         /** Settings of a new install: current schema and the Crystal defaults (accent, clock). */
-        fun fresh() = LauncherSettings(accent = Accent.Frost, clockStyle = ClockStyle.Crystal, schema = SCHEMA).sanitized()
+        /** A new install: neutral Silver accent on the system wallpaper, Ink icons and names as on the owner's Home. */
+        fun fresh() = LauncherSettings(accent = Accent.Silver, clockStyle = ClockStyle.Crystal, iconStyle = IconStyle.Ink,
+            iconSize = 68, iconShape = IconShape.Rounded, iconTint = "Accent",
+            labels = LabelStyle(sizeSp = 10, face = TypeFace.SpaceGrotesk, weight = 700, tint = "Accent", gap = 0),
+            schema = SCHEMA).sanitized()
 
         const val ARC_SLOTS = 5
         const val ARC_FLOW_SLOTS = 7

@@ -92,8 +92,8 @@ class SettingsCodecTest {
         assertEquals(ThemeMode.System, SettingsCodec.decode("""{"theme":"Neon","future":1}""").theme)
     }
 
-    @Test fun newInstallGetsFrostExistingUsersKeepTerracotta() {
-        assertEquals(Accent.Frost, SettingsCodec.decode(null).accent)
+    @Test fun newInstallGetsSilverExistingUsersKeepTerracotta() {
+        assertEquals(Accent.Silver, SettingsCodec.decode(null).accent)
         assertEquals(LauncherSettings.SCHEMA, SettingsCodec.decode("").schema)
         // A pre-B1 document never stored the default accent.
         val legacy = SettingsCodec.decode("""{"onboarded":true,"theme":"Dark"}""")
