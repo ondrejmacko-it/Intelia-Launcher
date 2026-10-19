@@ -1,5 +1,6 @@
 package dev.intelia.launcher.onboarding
 
+import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.HomeLayout
 import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.HomeTemplates
@@ -152,8 +153,20 @@ data class OnboardingDraft(
     }
 }
 
-private fun LayoutSpec.withClockFace(face: TypeFace): LayoutSpec =
-    copy(items = items.map { if (it.kind == ItemKind.Clock) it.copy(look = it.look.copy(face = face)) else it })
+/**
+ * The clock in [face]. The signature date sits beside the slanted Unbounded hours; with any other face it would run into
+ * them, so it follows the clock (bound under it, as in the presets) and returns beside it with Unbounded.
+ */
+private fun LayoutSpec.withClockFace(face: TypeFace): LayoutSpec {
+    val signatureDate = HomeTemplates.signature(emptyList()).items.first { it.kind == ItemKind.Date }
+    return copy(items = items.map {
+        when (it.kind) {
+            ItemKind.Clock -> it.copy(look = it.look.copy(face = face))
+            ItemKind.Date -> if (face == TypeFace.Unbounded) it.copy(anchor = signatureDate.anchor) else it.copy(anchor = Anchor.Bound)
+            else -> it
+        }
+    })
+}
 
 /** The draft as a small JSON document; anything unreadable is dropped, never half-applied. */
 object DraftCodec {

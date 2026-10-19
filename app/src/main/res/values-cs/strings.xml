@@ -816,10 +816,12 @@
     <string name="guide_perm_on">Zapnuto</string>
     <string name="guide_perm_off">Zatím ne</string>
     <string name="guide_done_title">Tohle je tvoje Intelia.</string>
-    <string name="guide_done_body">Podrž prázdné místo na ploše a otevře se Studio, kde změníš cokoliv.</string>
+    <string name="guide_done_body">Podrž prázdné místo na ploše a upravíš ji. Vše ostatní čeká ve Studiu.</string>
     <string name="guide_go_home">Přejít na plochu</string>
     <string name="guide_explore">Prozkoumat Intelii</string>
     <string name="guide_rerun">Spustit průvodce znovu</string>
     <string name="guide_rerun_detail">Začne z tvého nastavení. Nic se nezmění, dokud průvodce nedokončíš.</string>
     <string name="guide_arc_demo">Tvůj ARC je zatím prázdný, proto ukazuje aplikace z plochy jako ukázku. Naplníš ho ve Studiu.</string>
+    <string name="studio_kw_guide">průvodce onboarding nastavení úvod znovu návod</string>
+    <string name="guide_pulse_pending">Všude, až zapneš službu</string>
 </resources>

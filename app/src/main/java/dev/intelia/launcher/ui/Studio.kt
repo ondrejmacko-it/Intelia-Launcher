@@ -312,6 +312,7 @@ private fun studioEntries(): List<StudioEntry> {
             StudioTarget.DefaultHome -> R.string.default_home_section to R.string.studio_kw_default_home
             StudioTarget.Permissions -> R.string.permissions_title to R.string.studio_kw_permissions
             StudioTarget.Hidden -> R.string.hidden_manage to R.string.studio_kw_hidden
+            StudioTarget.Guide -> R.string.guide_rerun to R.string.studio_kw_guide
             StudioTarget.Backup -> R.string.backup_title to R.string.studio_kw_backup
             StudioTarget.About -> R.string.about_title to R.string.studio_kw_about
         }
@@ -714,7 +715,7 @@ private fun SystemPage(model: HomeViewModel, onHidden: () -> Unit, onBackup: () 
         SettingRow(stringResource(R.string.hidden_manage), hidden.size.toString(), onHidden, glyph = Glyph.Close, anchor = StudioTarget.Hidden.anchor)
         SettingRow(stringResource(R.string.backup_title), stringResource(R.string.settings_backup_sub), onBackup, glyph = Glyph.Layers)
         SettingRow(stringResource(R.string.guide_rerun), stringResource(R.string.guide_rerun_detail), { model.beginGuide(rerun = true) },
-            glyph = Glyph.Touch)
+            glyph = Glyph.Touch, anchor = StudioTarget.Guide.anchor)
     }
     VeilGroup(stringResource(R.string.about_title), Modifier.settingAnchor(StudioTarget.About.anchor)) { About() }
 }

@@ -1,5 +1,6 @@
 package dev.intelia.launcher
 
+import dev.intelia.launcher.data.Anchor
 import dev.intelia.launcher.data.HomeLayout
 import dev.intelia.launcher.data.HomeLayouts
 import dev.intelia.launcher.data.HomeTemplates
@@ -83,6 +84,9 @@ class OnboardingDraftTest {
         val d = OnboardingDraft.firstRun(fresh, apps).withClockFace(TypeFace.BodoniModa)
         assertEquals(TypeFace.BodoniModa, d.clockFace())
         assertEquals(TypeFace.BodoniModa, d.withHome(HomeChoice.Empty, apps).clockFace())
+        fun date(x: OnboardingDraft) = x.settings.home.activeLayout().items.first { it.kind == ItemKind.Date }.anchor
+        assertEquals(Anchor.Bound, date(d))
+        assertEquals(date(OnboardingDraft.firstRun(fresh, apps)), date(d.withClockFace(TypeFace.Unbounded)))
     }
 
     @Test fun lensAppsRebuildBasic() {

@@ -187,6 +187,7 @@ internal fun OnboardingHost(model: HomeViewModel, draft: OnboardingDraft) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val screenH = maxHeight
         var panelH by remember { mutableStateOf(0.dp) }
+        var wallInk by remember { mutableStateOf(Color.White) }
         val stageTop = statusTop + 64.dp
         val room = screenH - stageTop - panelH - 20.dp
         val mini = (room / screenH).coerceIn(.2f, .8f)
@@ -198,7 +199,9 @@ internal fun OnboardingHost(model: HomeViewModel, draft: OnboardingDraft) {
         // The stage: the real Home of the shown settings, laid out at the screen's size and scaled as a layer.
         InteliaTheme(shown) {
             val homeInk = LocalHomeInk.current
-            if (full) SystemBarIcons(darkIcons = homeInk.luminance() < .5f)
+            wallInk = homeInk
+            // The status bar always sits on the wallpaper (or the scrim over it), never on the panel.
+            SystemBarIcons(darkIcons = full && homeInk.luminance() < .5f)
             val corner = (28f / scale.coerceAtLeast(.1f)).dp
             val stageLabel = stringResource(R.string.guide_stage)
             Box(Modifier.fillMaxSize()
@@ -244,10 +247,9 @@ internal fun OnboardingHost(model: HomeViewModel, draft: OnboardingDraft) {
         // The guide's own chrome follows the draft, so a theme or colour picked in Look shows here too.
         InteliaTheme(draft.settings) {
             val ink = LocalInk.current
-            if (!full) SystemBarIcons(darkIcons = !ink.dark)
             val chrome = leaving == null && !editing && overlay == null
             if (chrome && !hidden && draft.step != GuideStep.Welcome) TopBar(draft, onBack = { update { it.back() } },
-                onSkip = { update { it.skip() } }, Modifier.align(Alignment.TopCenter))
+                onSkip = { update { it.skip() } }, Modifier.align(Alignment.TopCenter), if (full) wallInk else Color.White)
             if (chrome && hidden) Capsule(stringResource(R.string.guide_show_panel), { hidden = false },
                 Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 52.dp), filled = false)
             if (interactive && hidden && overlay == null && !editing) SampleBadge(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 60.dp, end = 16.dp))
@@ -290,12 +292,12 @@ private fun demoFlow(name: String, apps: List<AppEntry>): FlowAlias? {
 
 /** Back, the progress (Kea-style track filled to the step) and Skip; Done has nothing left to skip. */
 @Composable
-private fun TopBar(draft: OnboardingDraft, onBack: () -> Unit, onSkip: () -> Unit, modifier: Modifier) {
-    val ink = LocalInk.current
+private fun TopBar(draft: OnboardingDraft, onBack: () -> Unit, onSkip: () -> Unit, modifier: Modifier, onWall: Color) {
+    val ink = LocalInk.current.copy(ink = onWall)
     val progress by animateFloatAsState((draft.index + 1f) / draft.steps.size, tween(motionMs(260)), label = "guide-progress")
     val label = stringResource(R.string.guide_progress, draft.index + 1, draft.steps.size)
     Row(modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        BackButton(stringResource(R.string.guide_back), onBack)
+        IconAction(Glyph.Back, stringResource(R.string.guide_back), onBack, tint = onWall)
         Box(Modifier.weight(1f).padding(horizontal = 8.dp).height(5.dp).clip(CircleShape).background(ink.ink.copy(alpha = .16f))
             .semantics { contentDescription = label; progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f) }) {
             Box(Modifier.fillMaxWidth(progress).height(5.dp).clip(CircleShape).background(ink.accent))
@@ -606,15 +608,17 @@ private fun AccessStep(model: HomeViewModel, draft: OnboardingDraft) {
 private fun PermissionRow(title: String, detail: String, done: Boolean, action: String, onAction: () -> Unit) {
     val ink = LocalInk.current
     val state = stringResource(if (done) R.string.guide_perm_on else R.string.guide_perm_off)
-    Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).semantics(mergeDescendants = true) { stateDescription = state }
-        .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        CheckRing(done)
-        Column(Modifier.weight(1f).padding(start = 14.dp, end = 8.dp)) {
-            Text(title, style = InkText.body.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold), color = ink.ink)
-            Text(detail, style = InkText.small.copy(fontSize = 13.sp), color = ink.muted)
+    Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+        CheckRing(done, Modifier.padding(top = 2.dp))
+        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Column(Modifier.semantics(mergeDescendants = true) { stateDescription = state }) {
+                Text(title, style = InkText.body.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold), color = ink.ink)
+                Text(detail, style = InkText.small.copy(fontSize = 13.sp), color = ink.muted)
+            }
+            if (!done) Text(action, Modifier.padding(top = 8.dp).clip(CircleShape).background(ink.accent.copy(alpha = .2f))
+                .clickable(role = Role.Button, onClick = onAction).padding(horizontal = 16.dp, vertical = 10.dp),
+                style = InkText.small.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = ink.accent)
         }
-        if (!done) Text(action, Modifier.clip(CircleShape).background(ink.accent.copy(alpha = .2f)).clickable(role = Role.Button, onClick = onAction)
-            .padding(horizontal = 14.dp, vertical = 10.dp), style = InkText.small.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = ink.accent)
     }
 }
 
@@ -628,8 +632,10 @@ private fun DoneStep(model: HomeViewModel, draft: OnboardingDraft) {
         HomeChoice.Basic -> R.string.guide_home_basic
         HomeChoice.Custom -> R.string.guide_home_custom
     })
+    val service by PulseAccessibilityService.running.collectAsStateWithLifecycle()
+    // What PULSE will really do after Done, as Studio reports it: Everywhere waits for its service.
     val pulse = stringResource(when (draft.pulse) {
-        PulsePick.Everywhere -> R.string.pulse_everywhere_short
+        PulsePick.Everywhere -> if (service) R.string.pulse_everywhere_short else R.string.guide_pulse_pending
         PulsePick.HomeOnly -> R.string.pulse_home_only
         PulsePick.Off -> R.string.pulse_everywhere_off
     })

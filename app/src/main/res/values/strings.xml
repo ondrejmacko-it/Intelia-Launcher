@@ -817,10 +817,12 @@
     <string name="guide_perm_on">On</string>
     <string name="guide_perm_off">Not yet</string>
     <string name="guide_done_title">This is your Intelia.</string>
-    <string name="guide_done_body">Hold an empty spot on Home to open Studio, where you can change anything.</string>
+    <string name="guide_done_body">Hold an empty spot on Home to edit it. Everything else waits in Studio.</string>
     <string name="guide_go_home">Go to Home</string>
     <string name="guide_explore">Explore Intelia</string>
     <string name="guide_rerun">Run the guide again</string>
     <string name="guide_rerun_detail">Starts from your current settings. Nothing changes until you finish.</string>
     <string name="guide_arc_demo">Your ARC is still empty, so it shows your Home apps as a sample. You fill it in Studio.</string>
+    <string name="studio_kw_guide">guide onboarding setup tutorial start again intro</string>
+    <string name="guide_pulse_pending">Everywhere, once the service is on</string>
 </resources>

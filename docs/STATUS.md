@@ -2,6 +2,24 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
+## 2026-10-19 — P1 Onboarding V2 implemented (`claude/pulse-reliability`, `a8b58c7` + follow-up)
+- PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 254 tests, 0 failures (new `OnboardingDraftTest`, 11).
+- D30: debug builds install as **Intelia Debug** (`dev.intelia.launcher.test`) next to the owner's Lab; `.debug` and
+  `.dev` are blocked on the phone by kept data of old builds (`INSTALL_FAILED_VERSION_DOWNGRADE`). The owner's Lab
+  was reinstalled as the optimised `:app:assembleLab` (`0.1.0-beta.1-lab`, not debuggable, `install -r`).
+- Phone (3), Intelia Debug, `pm clear` on the test package only: Welcome → Home (Empty/Basic live on the scaled real
+  Home, Výchozí / Moje úpravy switch) → Look (accent teal applied to PULSE ring, progress and button; Bodoni clock with
+  the date bound under it) → Controls: LENS tap opened the real Search, Enter on "chrome" launched nothing (top
+  activity stayed Intelia Debug) and showed "Ukázka · otevřelo by se: Chrome"; swipe opened the real drawer; hold +
+  slide opened the real ARC (marked demo set from the Home apps, since the ARC was empty) and release only named
+  "Zprávy" → Access rows with real state → Done. Rerun from Studio › Systém a data (also found by Studio search
+  "pruvodce") started from the stored settings; "Prozkoumat Intelii" committed, cleared the draft file and opened Studio.
+- Process death: `install -r` mid-guide resumed at the same step with the same choices (Home step and Access step).
+- **Not verifiable on this phone:** tapping PULSE inside the guide — the owner's Lab PULSE service owns the camera area
+  above every app, so the tap reached the Lab's real Quick View (it switched the torch on; switched off again by the
+  owner). Not tried: default-home and accessibility rows (they would change the owner's phone), Home Editor from
+  Custom, FLOW tab, TalkBack, large text, Reduced Motion, small display, light wallpapers.
+
 ## 2026-10-19 — P0 PULSE reliability (`claude/pulse-reliability`, `078754b`)
 - **Cause proven on the Phone (3)** (old Lab build): `dumpsys activity broadcasts history` — `USER_PRESENT/u0` from
   `com.android.systemui` (uid 10217) reached 26 receivers but not `dev.intelia.launcher.lab`, whose PULSE receiver
