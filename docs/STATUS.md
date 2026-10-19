@@ -9,8 +9,11 @@ Only verified facts. Format: `date | branch/commit | evidence | change | open`.
   re-checked on the device** (the owner was using the phone).
 - PASS: `:app:assembleRelease` signed with the release key (cert SHA-256 `5ddb08b2…d99d3`), `0.1.0`, versionCode 3,
   SHA-256 `045d516f…958c6348`. Published as release v0.1.0; v0.1.0-beta.1 withdrawn on the owner's request.
-- Open, **not fixed**: the Welcome panel covering the date on the signature Home (cause not found in code; needs a
-  device look); Global ARC vs. notification shade (`PULSE_RELIABILITY.md` §9); PULSE tap inside the guide.
+- Device (Phone (3), Intelia Debug after `pm clear` of the test package): Welcome shows the date above the clock, the
+  panel does not cover it. Plocha: no Porovnat at start; Prázdná → Porovnat shown; back to Základní → hidden; held →
+  "Výchozí" with the LENS apps. Found: on the scaled preview the pill covered the date → now placed beside the preview
+  (re-checked on the device). Draft survived `install -r`.
+- Open, **not fixed**: Global ARC vs. notification shade (`PULSE_RELIABILITY.md` §9); PULSE tap inside the guide.
 - Not verified: light theme / light wallpaper, font scale on this build, small display, Reduced Motion, TalkBack,
   permission grant/deny, PULSE inside the guide without the Lab service.
 

@@ -277,10 +277,14 @@ internal fun OnboardingHost(model: HomeViewModel, draft: OnboardingDraft) {
         InteliaTheme(draft.settings) {
             val ink = LocalInk.current
             val chrome = leaving == null && !editing && overlay == null
-            // Porovnat: small, on the preview's corner; held (or toggled by TalkBack) it shows the start.
-            if (chrome && !full && draft.looksChanged && draft.step in setOf(GuideStep.Home, GuideStep.Look, GuideStep.Done))
-                ComparePill(compare, { compare = it }, Modifier.align(Alignment.TopStart)
-                    .padding(top = stageTop + 8.dp, start = maxWidth * (1f - scale) / 2 + 8.dp))
+            // Porovnat: small, beside the preview's top corner (on it only when there is no room), so it never covers
+            // the clock or the date; held (or toggled by TalkBack) it shows the start.
+            if (chrome && !full && draft.looksChanged && draft.step in setOf(GuideStep.Home, GuideStep.Look, GuideStep.Done)) {
+                val side = maxWidth * (1f - scale) / 2
+                if (side >= 104.dp) Box(Modifier.align(Alignment.TopStart).padding(top = stageTop + 8.dp).width(side - 8.dp), contentAlignment = Alignment.TopEnd) {
+                    ComparePill(compare, { compare = it }, Modifier)
+                } else ComparePill(compare, { compare = it }, Modifier.align(Alignment.TopStart).padding(top = stageTop + 8.dp, start = side + 8.dp))
+            }
             if (chrome && hidden) Capsule(stringResource(R.string.guide_show_panel), { hidden = false },
                 Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 52.dp), filled = false)
             if (interactive && hidden && overlay == null && !editing) SampleBadge(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 60.dp, end = 16.dp))
