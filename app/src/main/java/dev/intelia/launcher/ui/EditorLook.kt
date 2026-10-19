@@ -195,7 +195,7 @@ fun LookSettings(settings: LauncherSettings, set: SettingsEdit) {
  * Systém split light / dark. Radio group; the chosen tile is ringed in the accent.
  */
 @Composable
-private fun ThemeTiles(chosen: ThemeMode, settings: LauncherSettings, onPick: (ThemeMode) -> Unit) {
+internal fun ThemeTiles(chosen: ThemeMode, settings: LauncherSettings, onPick: (ThemeMode) -> Unit) {
     val ink = LocalInk.current
     val light = inkPalette(false, mainAccent(settings, false))
     val dark = inkPalette(true, mainAccent(settings, true))

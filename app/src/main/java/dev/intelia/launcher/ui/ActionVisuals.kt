@@ -76,7 +76,10 @@ val SystemActions: List<Action> = listOf(
 
 /** Name of a system action; apps, FLOWs and shortcuts are named by what they resolve to. */
 @Composable
-fun systemActionLabel(action: Action): String = stringResource(when (action) {
+fun systemActionLabel(action: Action): String = stringResource(systemActionLabelRes(action))
+
+/** The string resource of [systemActionLabel], for callers outside composition (the guide's sandbox notes). */
+fun systemActionLabelRes(action: Action): Int = when (action) {
     Action.Search -> R.string.search
     Action.Torch -> R.string.torch
     is Action.Media -> when (action.key) {
@@ -101,7 +104,7 @@ fun systemActionLabel(action: Action): String = stringResource(when (action) {
     Action.EditHome -> R.string.act_edit_home
     is Action.Arc -> R.string.global_arc
     is Action.App, is Action.Flow, is Action.Shortcut, is Action.Card -> R.string.act_unknown
-})
+}
 
 /** What a slot is called, for TalkBack, the picked-slot label and Studio rows. */
 @Composable

@@ -147,9 +147,14 @@ private enum class Page(val depth: Int) { Home(0), Search(0), Drawer(0), Flows(2
 @Composable
 fun HomeRoot(model: HomeViewModel, homeSignal: Int) {
     val settings by model.settings.collectAsStateWithLifecycle()
+    val guide by model.guide.collectAsStateWithLifecycle()
     InteliaTheme(settings) {
-        if (settings.onboarded) HomeContent(model, settings, homeSignal)
-        else Onboarding(model, settings)
+        val draft = guide
+        when {
+            draft != null -> OnboardingHost(model, draft)
+            settings.onboarded -> HomeContent(model, settings, homeSignal)
+            else -> GuideStart(model)
+        }
     }
 }
 
@@ -247,6 +252,9 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
         onPauseOrDispose { PulseAccessibilityService.home = null }
     }
     LaunchedEffect(homeSignal) { if (homeSignal > 0) goHome() }
+    // The guide's "Prozkoumat Intelii" lands in Studio once Home is back.
+    val explore by model.explore.collectAsStateWithLifecycle()
+    LaunchedEffect(explore) { if (explore) { model.explore.value = false; studioStart = StudioStart.Main; page = Page.Studio } }
     // M3.3: Search or a card picked on Global ARC in another app; Home runs it once it is in front.
     val request by PulseAccessibilityService.homeRequest.collectAsStateWithLifecycle()
     LaunchedEffect(request) { request?.let { PulseAccessibilityService.consumed(); perform(it) } }
@@ -404,7 +412,7 @@ private fun HomeContent(model: HomeViewModel, settings: LauncherSettings, homeSi
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Home(
+internal fun Home(
     settings: LauncherSettings,
     apps: Map<String, AppEntry>,
     arc: ArcContent,
@@ -422,6 +430,8 @@ private fun Home(
     onAction: (Action) -> Unit,
     onMessage: (Int) -> Unit,
     onSaveLayout: (LayoutSpec) -> Unit,
+    /** The guide's stage hides its panel while the Home Editor is open. */
+    onEditorChange: (Boolean) -> Unit = {},
 ) {
     val homeInk = LocalHomeInk.current
     val places = LocalPlaces.current
@@ -496,6 +506,8 @@ private fun Home(
     }
     fun leave(then: () -> Unit) { if (editor?.dirty == true) leaveThen = then else { close(); then() } }
     BackHandler(enabled = editor != null) { leave {} }
+    val editorOpen = editor != null
+    LaunchedEffect(editorOpen) { onEditorChange(editorOpen) }
 
     // M4: free Home gestures run only when bound; an unbound double tap never delays anything.
     val homeDouble = settings.controls.bound(Trigger.Home(Gesture.DoubleTap))

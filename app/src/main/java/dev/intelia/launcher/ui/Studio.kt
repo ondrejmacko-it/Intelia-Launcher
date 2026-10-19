@@ -713,6 +713,8 @@ private fun SystemPage(model: HomeViewModel, onHidden: () -> Unit, onBackup: () 
     VeilGroup(stringResource(R.string.settings_group_data)) {
         SettingRow(stringResource(R.string.hidden_manage), hidden.size.toString(), onHidden, glyph = Glyph.Close, anchor = StudioTarget.Hidden.anchor)
         SettingRow(stringResource(R.string.backup_title), stringResource(R.string.settings_backup_sub), onBackup, glyph = Glyph.Layers)
+        SettingRow(stringResource(R.string.guide_rerun), stringResource(R.string.guide_rerun_detail), { model.beginGuide(rerun = true) },
+            glyph = Glyph.Touch)
     }
     VeilGroup(stringResource(R.string.about_title), Modifier.settingAnchor(StudioTarget.About.anchor)) { About() }
 }
