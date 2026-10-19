@@ -54,8 +54,8 @@ android {
 
     buildTypes {
         debug {
-            // Coexists with older Intelia builds on the test phone (D3, D4).
-            applicationIdSuffix = ".lab"
+            // Own package "Intelia Debug" (D30): installs next to the owner's Lab, never over it.
+            applicationIdSuffix = ".test"
             versionNameSuffix = "-dev"
         }
         release {

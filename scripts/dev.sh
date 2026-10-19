@@ -3,4 +3,4 @@
 set -e
 cd "$(dirname "$0")/.."
 ./gradlew :app:installDebug
-adb shell am start -n dev.intelia.launcher.lab/dev.intelia.launcher.MainActivity
+adb shell am start -n dev.intelia.launcher.test/dev.intelia.launcher.MainActivity

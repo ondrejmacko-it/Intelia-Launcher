@@ -12,7 +12,7 @@ inside `:app` and runs as JVM unit tests. Split into modules only when build tim
 justifies it.
 
 ## D3 — 2026-10-15 — Debug package `dev.intelia.launcher.dev`
-The test phone already runs the older fork build as `dev.intelia.launcher.debug` (current HOME).
+The test phone already runs the older fork build as `dev.intelia.launcher.test` (current HOME).
 The new debug build uses a different suffix so installing it never replaces that app or its data.
 
 ## D4 — 2026-10-16 — Shared debug signing key, debug package `dev.intelia.launcher.lab`
@@ -418,3 +418,12 @@ Step 1 is one owner-made accent for the whole launcher. Scope:
   Play developer account and policy route for the accessibility service (F5: `isAccessibilityTool=false` → needs the
   Play declaration + prominent disclosure), privacy policy URL, crash reporting (none today; any reporting needs
   explicit opt-in per AGENTS.md), package name for production (`dev.intelia.launcher`), support contact.
+
+## D30 — 2026-10-19 — Debug build gets its own package `dev.intelia.launcher.test` (owner request)
+The owner wants a separate "Intelia Debug" app next to the everyday Lab, to open and test work in progress
+themselves without touching the Lab's settings, HOME role or PULSE. The `debug` build type now uses the suffix
+`.test` and the label "Intelia Debug"; the optimised `lab` build type keeps `dev.intelia.launcher.lab` and gets
+the label "Intelia Lab" from `app/src/lab`. Both are signed with the Lab debug key (D27) and never distributed.
+`install -r` between debug and Lab no longer applies (D16): update the Lab with `:app:assembleLab`. `.debug` and `.dev`
+are not used: the test phone still keeps data of old uninstalled builds under those names with higher version
+codes, so installs fail with `INSTALL_FAILED_VERSION_DOWNGRADE`. Revert: set the debug suffix back to `.lab`.
