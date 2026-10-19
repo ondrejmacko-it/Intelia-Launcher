@@ -8,13 +8,14 @@ stručně, ~200k tokenů, žádní agenti). Zdroj pravdy: `docs/product/MASTER_P
   `locked` zůstal `true` po každém odemknutí. Oprava: exported receiver (chráněné broadcasty), stav vždy z
   `KeyguardManager`/`PowerManager` (`pulse/PulseLifecycle.kt`), omezený re-check po SCREEN_ON, `resync()` z Home,
   bezpečné `addView` s 3 retry, `PulseAccessibilityService.health` pro Studio, diagnostika `dump()`.
-- Na telefonu ověřen 1 skutečný unlock (18:27:11, USER_PRESENT doručen, lens zpět). 241 testů PASS.
+- Na telefonu: **20 cyklů zamknout/odemknout PASS** (jedna instance služby, `attaches` 1 → 17, `touches` 21, bez chyb).
+  241 testů PASS. Latence tap → gesto median 304 ms = čekání na dvojklep (majitel má dvojklep přiřazený) → návrh
+  v PULSE_RELIABILITY §6 (kratší okno / okamžitá odezva), čeká na schválení.
 
 ## Úkol 1 — dokončit P0 (PULSE_RELIABILITY §5, §7)
 1. Diagnostika kdykoli: `adb shell dumpsys activity service dev.intelia.launcher.lab/dev.intelia.launcher.ui.PulseAccessibilityService`
    (health, keyguard, okno, `connects/attaches/touches/unlockChecks/lastEvent`). Jen stavy, žádný obsah.
-2. Majitel udělá ≥ 20 zamknutí/odemknutí (krátké, dlouhé, rychlé) + po každém klepne na kameru; ověř
-   `attaches` roste, `touches` roste, `connects` stejné (= nebylo potřeba přepínat službu).
+2. ~~20 cyklů~~ hotovo. Zbývá dlouhé zamčení (minuty) a vícedenní běžné používání.
 3. Matice: Home → app → Home, Recents, hudba hraje/nehraje, rotace, kalibrace, Global ARC nad aplikací, remap kláves,
    TalkBack, MT Capsule konflikt. Výsledky do `PULSE_RELIABILITY.md` §5 a `STATUS.md`.
 4. Latence touch → první frame na Lab buildu (Perfetto nebo `gfxinfo`), median/P95, žádná čísla bez měření.
