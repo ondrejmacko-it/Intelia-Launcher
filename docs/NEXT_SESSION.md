@@ -3,19 +3,15 @@ Pokračujeme na Intelia Launcheru — **P1 Onboarding V2: ověření na telefonu
 (požadavky) a **§12–§13 (co je postavené)**, `docs/STATUS.md` (ověřeno / neověřeno).
 
 ## Stav (2026-10-19)
-- Onboarding V2 včetně finální UX revize (§13) a Discovery Hubu je v kódu; 258 testů PASS, `assembleDebug` PASS.
-- Intelia Debug (`dev.intelia.launcher.test`) je na telefonu nainstalovaná s tímto buildem. Na zařízení **nic
-  neověřeno** — telefon byl zamčený.
+- Onboarding V2 + finální revize + Discovery Hub v kódu, 258 testů PASS; celá cesta ověřena na telefonu, 6 nálezů
+  opraveno (`STATUS.md`). Lab majitele běží z této větve; regrese PULSE po zamknutí/odemknutí a Global ARC PASS.
 
-## Další kroky (Etapa E — jen na odemčeném telefonu, majitel u něj nepracuje)
-1. Celá cesta v Intelia Debug po `pm clear dev.intelia.launcher.test` (nikdy ne Lab): Vítej → Plocha (Prázdná /
-   Základní / Vlastní, Změnit aplikace, Upravit rozložení viditelné nad tlačítkem) → Vzhled (záložky v jednom řádku,
-   barva, hodiny) → Porovnat (podržet / pustit) → Vyzkoušej (LENS, ARC, FLOW; PULSE jen bez běžící služby Labu) →
-   Oprávnění (řádky jen číst, na Výchozí plocha / Služba PULSE neklepat) → Hotovo → Přejít na plochu a Prozkoumat.
-2. Process death uprostřed (`install -r`), opakovaný průvodce ze Studia, Discovery Hub stavy.
-3. Velké písmo 130 %, klávesnice v hledání aplikací, světlá tapeta, TalkBack na Porovnat a PULSE.
-4. Screenshoty (smazat po prohlédnutí), regrese PULSE v Labu po zamknutí/odemknutí a Global ARC
-   (`dumpsys activity service dev.intelia.launcher.lab/dev.intelia.launcher.ui.PulseAccessibilityService`).
-5. `STATUS.md` jen ověřenými fakty; při chybě opravit dřív než merge.
+## Další kroky
+1. Majitel projde PR #7 a screenshoty; merge jen s jeho souhlasem.
+2. Neověřeno: TalkBack (Porovnat, PULSE, čipy), Reduced Motion, světlá tapeta, malý displej, udělení / zamítnutí
+   oprávnění (jen na testovacím telefonu nebo profilu), PULSE v průvodci bez běžící služby Labu.
+3. Drobnosti: uvítací panel zakrývá datum na signature ploše; Porovnat se ukáže i u vizuálně shodného stavu
+   (rozvržení přepsané na stejné); pilulka „Porovnat“ u velmi malého náhledu.
 
-Pozor: před každým `adb input` ověřit, že je v popředí `dev.intelia.launcher.test` (majitel telefon používá).
+Pozor: před každým `adb input` ověřit, že je v popředí `dev.intelia.launcher.test`; swipe dolů z kamery stáhne
+oznamovací lištu (soukromá oznámení) — po testu Global ARC `adb shell cmd statusbar collapse`, snímky smazat.

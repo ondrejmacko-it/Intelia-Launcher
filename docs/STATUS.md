@@ -2,13 +2,32 @@
 
 Only verified facts. Format: `date | branch/commit | evidence | change | open`.
 
-## 2026-10-19 — P1 Onboarding V2 final UX revision + Discovery Hub (`claude/onboarding-v2-final`, `b25e069..60103ee`)
+## 2026-10-19 — P1 Onboarding V2 final UX revision + Discovery Hub (`claude/onboarding-v2-final`, `b25e069..93362dd`)
 - PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 258 tests, 0 failures (new `DiscoveryTest`, 4).
 - Code review fix: inside the guide, PULSE Quick View's torch, the music card's media keys and its player shortcut
   acted for real; they now go to `LocalSandbox` (guide only) and are only named. Production paths unchanged.
-- Installed on the Phone (3) as Intelia Debug (`install -r`, Lab untouched). **Not verified on the device:** the phone
-  was locked (secure keyguard), so no UI run, no screenshots, no PULSE lock/unlock or Global ARC regression check in
-  this session. `PulseAccessibilityService` and its lifecycle were not changed.
+- Device QA (Phone (3), Intelia Debug after `pm clear dev.intelia.launcher.test`, `93362dd`): Welcome → Plocha (Prázdná
+  removed the LENS apps at once, Základní brought them back; Změnit aplikace with the keyboard open: panel above the
+  keyboard, "map" → Mapy replaced the oldest slot live; Vlastní → Upravit rozložení opened the real Home Editor) →
+  Porovnat held = start with apps, released = edits → Vzhled (Světlý on the panel, teal accent on icons, date,
+  progress and buttons; Bodoni redrew the clock) → Vyzkoušej (LENS tap = real Search, Enter on "chrome" launched
+  nothing, top activity stayed Intelia Debug, note "Ukázka · otevřelo by se: Chrome"; swipe = real drawer; ARC hold +
+  release on a slot only named "Fotoaparát"; FLOW demo "Cesta domů" marked Ukázka, Enter in Search only named it;
+  PULSE mode chooser) → Oprávnění (real state "Zatím ne" for the debug package, no PULSE row with Jen na ploše,
+  Podrobnosti) → Hotovo → Prozkoumat Intelii: `onboarded: true`, draft file gone, Discovery Hub with states.
+  Home after Back = the last preview. Process death: `am force-stop` on Done and `install -r` on Plocha resumed the
+  same step and choices. Rerun from Studio search "pruvodce" started from the stored settings; Přeskočit → Přeskočit
+  průvodce landed on Hotovo; Přejít na plochu left the guide. Font scale 1.3 (reset to 1.0): coach and Plocha
+  scroll, every control reachable.
+- Found and fixed on the device (`93362dd`): Porovnat covered the camera mark; Vzhled panel height jumped between tabs;
+  the "more" cue covered Upravit / Nastavit buttons; coach too tall over the clock; Skip's menu drawn under the coach;
+  Hub "Hotovo" low contrast. Each fix re-checked on the device except the Hub tag colour.
+- PULSE regression (Lab built from this branch, `install -r`): after the update the service reconnected (Active,
+  lens attached and shown); screen off → `health=Locked`; after the owner unlocked → `USER_PRESENT`, Active,
+  `attaches=2`, shown. Global ARC over Intelia Debug: hold at the camera opened it (`arc=true`), sliding back to the
+  camera cancelled it (`arc=false`), nothing launched.
+- Not verified: tapping PULSE inside the guide (the Lab service owns the camera), granting or denying a permission
+  (would change the owner's phone), TalkBack, Reduced Motion, light wallpaper, small display.
 
 ## 2026-10-19 — P1 Onboarding V2 implemented (`claude/pulse-reliability`, `a8b58c7` + follow-up)
 - PASS: `./gradlew :app:testDebugUnitTest :app:assembleDebug` — 254 tests, 0 failures (new `OnboardingDraftTest`, 11).
