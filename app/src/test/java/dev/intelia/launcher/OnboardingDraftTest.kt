@@ -121,6 +121,28 @@ class OnboardingDraftTest {
         assertNotEquals(edited.start, edited.settings)
     }
 
+    @Test fun compareOnlyForAVisibleDifference() {
+        val d = OnboardingDraft.firstRun(fresh, apps)
+        assertFalse(d.looksChanged)
+        // Rebuilt to the same Home (Empty then Basic again) and changes the Home does not draw: nothing to compare.
+        val same = d.withHome(HomeChoice.Empty, apps).withHome(HomeChoice.Basic, apps).withPulse(PulsePick.HomeOnly)
+        assertNotEquals(d.start, same.settings)
+        assertFalse(same.looksChanged)
+        assertTrue(d.withHome(HomeChoice.Empty, apps).looksChanged)
+        assertTrue(d.edit { it.copy(theme = ThemeMode.Light) }.looksChanged)
+        assertTrue(d.withClockFace(TypeFace.BodoniModa).looksChanged)
+        assertTrue(d.withPulse(PulsePick.Off).looksChanged)
+    }
+
+    @Test fun rerunCustomOfTheOwnHomeIsNoDifference() {
+        val own = HomeTemplates.signature(listOf("x/X")).copy(name = "Moje")
+        val stored = fresh.copy(onboarded = true, home = HomeLayouts(HomeLayouts.USER_ID, listOf(own) + fresh.home.layouts)).sanitized()
+        val custom = OnboardingDraft.rerun(stored).withHome(HomeChoice.Custom, apps)
+        assertNotEquals(stored.home, custom.settings.home)
+        assertFalse(custom.looksChanged)
+        assertTrue(custom.withHome(HomeChoice.Basic, apps).looksChanged)
+    }
+
     @Test fun roundTripSurvivesProcessDeath() {
         val d = OnboardingDraft.firstRun(fresh, apps).next().withHome(HomeChoice.Empty, apps).tried(Tried.Tap)
             .copy(wantsMusic = true)

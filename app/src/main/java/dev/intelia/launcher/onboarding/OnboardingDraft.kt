@@ -69,6 +69,12 @@ data class OnboardingDraft(
 
     fun tried(what: Tried): OnboardingDraft = if (what in tried) this else copy(tried = tried + what)
 
+    /**
+     * "Porovnat" has something to show: the stage of [settings] looks different from the stage of [start]. A layout
+     * rebuilt to the same content, or a change the Home does not draw (PULSE scope, ARC, haptics), is not a difference.
+     */
+    val looksChanged: Boolean get() = start.stage() != settings.stage()
+
     val pulse: PulsePick get() = when {
         !settings.pulse -> PulsePick.Off
         settings.pulseEverywhere -> PulsePick.Everywhere
@@ -169,6 +175,25 @@ private fun LayoutSpec.withClockFace(face: TypeFace): LayoutSpec {
             else -> it
         }
     })
+}
+
+/**
+ * What the guide's stage draws from these settings: the active layout by its content (not its id, name, place in the
+ * list or link to a preset) and the look fields. Behaviour the Home does not draw is reset, so it never counts; so are
+ * the legacy Home fields, which [LauncherSettings.sanitized] already builds into the linked layout.
+ */
+private fun LauncherSettings.stage(): LauncherSettings {
+    val active = home.layouts.firstOrNull { it.id == home.active } ?: home.layouts.firstOrNull()
+    val plain = LauncherSettings()
+    return copy(
+        home = HomeLayouts("", listOfNotNull(active?.copy(id = "", name = "", linked = false))),
+        layout = plain.layout, favorites = plain.favorites, showClock = plain.showClock, showDate = plain.showDate, reach = plain.reach,
+        hidden = plain.hidden, aliases = plain.aliases, onboarded = plain.onboarded,
+        arc = plain.arc, arcFlows = plain.arcFlows, arcShortcuts = plain.arcShortcuts, arcRings = plain.arcRings, controlConfig = plain.controlConfig,
+        motion = plain.motion, reduceMotion = plain.reduceMotion, haptics = plain.haptics, haptic = plain.haptic, editorCard = plain.editorCard,
+        pulseEverywhere = plain.pulseEverywhere, pulseHit = plain.pulseHit, pulseTapPlayer = plain.pulseTapPlayer,
+        pulseDoubleTapMs = plain.pulseDoubleTapMs, pulseTouchHaptic = plain.pulseTouchHaptic, pulseAlarmHours = plain.pulseAlarmHours,
+    )
 }
 
 /** The draft as a small JSON document; anything unreadable is dropped, never half-applied. */

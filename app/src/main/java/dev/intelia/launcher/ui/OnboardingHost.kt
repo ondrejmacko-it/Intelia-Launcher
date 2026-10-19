@@ -278,7 +278,7 @@ internal fun OnboardingHost(model: HomeViewModel, draft: OnboardingDraft) {
             val ink = LocalInk.current
             val chrome = leaving == null && !editing && overlay == null
             // Porovnat: small, on the preview's corner; held (or toggled by TalkBack) it shows the start.
-            if (chrome && !full && draft.settings != draft.start && draft.step in setOf(GuideStep.Home, GuideStep.Look, GuideStep.Done))
+            if (chrome && !full && draft.looksChanged && draft.step in setOf(GuideStep.Home, GuideStep.Look, GuideStep.Done))
                 ComparePill(compare, { compare = it }, Modifier.align(Alignment.TopStart)
                     .padding(top = stageTop + 8.dp, start = maxWidth * (1f - scale) / 2 + 8.dp))
             if (chrome && hidden) Capsule(stringResource(R.string.guide_show_panel), { hidden = false },
