@@ -83,7 +83,7 @@ Permission "enabled but not bound" is visible as Disconnected (Android has not c
 | 9 | Rotation, calibration change, lens position change | open |
 | 10 | APK update (`install -r`), process restart (`am kill` not possible for bound a11y; use force-stop only with consent) | 1 done |
 | 11 | Phone reboot | only with owner consent |
-| 12 | Global ARC over another app, hardware key remap, TalkBack, MT Capsule overlay conflict | open |
+| 12 | Global ARC over another app, hardware key remap, TalkBack, MT Capsule overlay conflict | open — ARC opens and cancels over Intelia Debug, but a downward slide also opens the notification shade (§9) |
 | 13 | Latency on the Lab build (`adb input tap` at the camera, Home in front, in-app clock from the input event time) | touch→gesture **median 304 ms, P95 306, max 306 (n=10)** — the 300 ms double-tap wait, because the owner bound a double tap; touch→menu first frame ≈ 363 ms median (n=20 draws, first build counted two draws per menu; fixed to one) → menu render ≈ 60 ms after the gesture. Excludes touch-panel/kernel latency. |
 Automated: `PulseLifecycleTest` (5 tests), existing `PulseGesturesTest`, `PulseSwipeTest`, `PulseMenuTest`.
 
@@ -106,3 +106,42 @@ normal lock · no lost bindings · no key-remap regression · diagnostics for la
 2. `adb shell dumpsys window windows | grep "Intelia PULSE"` and `adb shell dumpsys accessibility | grep -A2 "Bound services"`.
 3. `adb shell dumpsys activity broadcasts history` → check `USER_PRESENT` / `SCREEN_ON` reached `dev.intelia.launcher.lab`.
 4. Record the output in `STATUS.md`, then recover.
+
+## 9. Open: Global ARC vs. the system notification-shade gesture (recorded 2026-10-19, **not solved**)
+**Observed** (Phone (3), Lab built from `claude/onboarding-v2-final`, Intelia Debug in front): hold at the camera
+(`input motionevent DOWN 540 70`), wait ~0.9 s until Global ARC opens, `MOVE` down to a slot (~120 px under the camera),
+`UP`. ARC opened and released correctly, but the same downward drag also pulled the **notification shade** open over
+the app. Seen in the PULSE regression of this session; not measured how often (every time vs. sometimes).
+
+**Reproduction** (only as in "Safe test procedure" below): PULSE Everywhere, service Active, Global ARC bound to a
+held PULSE gesture, any app in front → hold at the camera until ARC shows → slide straight down to the nearest slot →
+release. Expected: only ARC acts. Actual: ARC acts and the shade is expanded behind/over it.
+
+**Android limits (why the launcher cannot simply block it):**
+- The pull-down from the status-bar edge belongs to SystemUI. Our lens is a `TYPE_ACCESSIBILITY_OVERLAY` window, so it
+  receives the touch, but the system shade gesture can still recognise a downward swipe that starts in the status-bar
+  band and take the pointer stream; there is no public API for an app or accessibility service to veto it.
+- Immersive / hide-system-bars only applies to our own activity; over other apps the overlay cannot hide the status bar.
+- `setSystemGestureExclusionRects` covers only the side back-gesture edges, not the top edge.
+- OEM behaviour differs (Nothing OS here); a fix verified on one phone is not proof for others.
+
+**Directions to evaluate later (no change made):** slots arranged sideways / diagonally so the slide is not a vertical
+pull; open ARC only after the finger has stayed still and select by angle with a small radius; dismiss the shade
+after a successful ARC release with the accessibility global action `GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE` (API 31+;
+needs a decision, the shade would still flash open and it must never fire when the owner opened the shade on purpose);
+a horizontal-first gesture; measuring when exactly the shade wins (distance, speed, hold time).
+Any of these touch Global ARC ergonomics, priority 1 after the onboarding (MASTER_PLAN V2).
+
+**Safe test procedure (no private notifications captured):**
+1. Before the test: turn on Do Not Disturb or ask the owner to clear/hide sensitive notifications; no screenshots while
+   the shade can be open.
+2. Check the top activity is the intended test app (`dumpsys activity activities | grep topResumedActivity`).
+3. Run the gesture with `input motionevent`; read the result from the PULSE `dump()` (`arc=true/false`, action) and
+   `dumpsys window | grep -i notificationshade` / `dumpsys statusbar`, not from screenshots.
+4. Immediately after: `adb shell cmd statusbar collapse` (no taps — taps in an open shade can open a notification).
+5. If a screenshot was taken while the shade was open, delete it locally and on the phone without viewing details.
+
+**Also not verified:** a PULSE tap inside the onboarding's Controls step. The owner's Lab PULSE service owns the camera
+area above every app, so a camera tap in Intelia Debug reaches the Lab's real Quick View instead of the guide's
+sandboxed PULSE. Needs a phone (or profile) without the Lab service running. The `PulseAccessibilityService` lifecycle
+fix (§3) was not changed by the onboarding work.
